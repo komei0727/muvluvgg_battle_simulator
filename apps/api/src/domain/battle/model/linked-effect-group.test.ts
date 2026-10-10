@@ -159,6 +159,59 @@ describe("collectLinkedGroupCascade", () => {
     );
   });
 
+  it("UT-R-EFF-09-031 [R-EFF-09]: a HOLDER-scoped group cascades only within the unit holding the seed, leaving the same group on another unit intact", () => {
+    const holderScoped = <T extends AppliedEffect | MarkerState>(instance: T): T => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: { ...instance.duration.definition, linkedEffectGroupScope: "HOLDER" },
+      },
+    });
+    const targetA = unit("target-a");
+    const targetB = unit("target-b");
+    const parentA = holderScoped(marker("marker-a", targetA, "GROUP_SCAR_TEMP", "PARENT"));
+    const childA = holderScoped(effect("child-a", targetA, "GROUP_SCAR_TEMP", "CHILD"));
+    const parentB = holderScoped(marker("marker-b", targetB, "GROUP_SCAR_TEMP", "PARENT"));
+    const childB = holderScoped(effect("child-b", targetB, "GROUP_SCAR_TEMP", "CHILD"));
+    const units = [
+      { ...targetA, appliedEffects: [childA], markerStates: [parentA] },
+      { ...targetB, appliedEffects: [childB], markerStates: [parentB] },
+    ];
+
+    const result = collectLinkedGroupCascade(units, markerSeeds(parentA));
+
+    expect(result).toEqual({
+      effectInstanceIds: new Set([childA.effectInstanceId]),
+      markerInstanceIds: new Set([parentA.markerInstanceId]),
+    });
+  });
+
+  it("UT-R-EFF-09-032 [R-EFF-09]: a HOLDER-scoped group never collides with a BATTLE-scoped group whose id happens to spell the holder-qualified key", () => {
+    const target = unit("ally:1");
+    const holderParent: MarkerState = {
+      ...marker("marker-holder", target, "GROUP_A", "PARENT"),
+    };
+    const holderScopedParent: MarkerState = {
+      ...holderParent,
+      duration: {
+        ...holderParent.duration,
+        definition: { ...holderParent.duration.definition, linkedEffectGroupScope: "HOLDER" },
+      },
+    };
+    // 別グループ: BATTLE範囲で、IDがたまたま「GROUP_A@ally:1」。
+    const unrelatedChild = effect("battle-child", target, "GROUP_A@ally:1", "CHILD");
+    const units = [
+      { ...target, appliedEffects: [unrelatedChild], markerStates: [holderScopedParent] },
+    ];
+
+    const result = collectLinkedGroupCascade(units, markerSeeds(holderScopedParent));
+
+    expect(result).toEqual({
+      effectInstanceIds: new Set(),
+      markerInstanceIds: new Set([holderScopedParent.markerInstanceId]),
+    });
+  });
+
   it("UT-R-EFF-09-004 (R-EFF-09): does not expand through an instance with linkedEffectGroupId null", () => {
     const target = unit("target-1");
     const parent = effect("parent", target, null);

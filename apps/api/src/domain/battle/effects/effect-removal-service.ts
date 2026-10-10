@@ -7,7 +7,11 @@ import {
   type LinkedGroupCascadeStep,
   type LinkedGroupRemoval,
 } from "./linked-group-cascade.js";
-import { NO_MARKER_INSTANCE_IDS, collectLinkedGroupCascade } from "../model/linked-effect-group.js";
+import {
+  NO_MARKER_INSTANCE_IDS,
+  collectLinkedGroupCascade,
+  linkedGroupKeyOf,
+} from "../model/linked-effect-group.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyOf, type AppliedEffect } from "../model/applied-effect.js";
 import type { EventRecorder } from "../events/event-recorder.js";
@@ -219,14 +223,14 @@ function planRemovalBatch(
   // linkedEffectGroupに一致した非CHILDメンバー（cascade起点になり得る親/ロールなし）が
   // 存在するCHILDロールのとき、root seedから除外する（cascadeが必ず巻き込むため）。
   const hasMatchedParent = (effect: AppliedEffect): boolean => {
-    const groupId = effect.duration.definition.linkedEffectGroupId;
-    if (groupId === null || effect.duration.definition.linkedEffectGroupRole !== "CHILD") {
+    const groupKey = linkedGroupKeyOf(effect.duration.definition, effect.targetUnitId);
+    if (groupKey === null || effect.duration.definition.linkedEffectGroupRole !== "CHILD") {
       return false;
     }
     return capped.some(
       (candidate) =>
         candidate.effectInstanceId !== effect.effectInstanceId &&
-        candidate.duration.definition.linkedEffectGroupId === groupId &&
+        linkedGroupKeyOf(candidate.duration.definition, candidate.targetUnitId) === groupKey &&
         candidate.duration.definition.linkedEffectGroupRole !== "CHILD",
     );
   };

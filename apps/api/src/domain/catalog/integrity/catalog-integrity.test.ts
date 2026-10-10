@@ -1499,6 +1499,44 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-CAT-IDX-126 [R-EFF-09]: rejects definitions sharing a linkedEffectGroupId but declaring different linkedEffectGroupScope, and accepts consistent ones", () => {
+    const linked = (id: string, scope?: "BATTLE" | "HOLDER"): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: `MARKER_${id}`,
+            stack: { policy: "ADD", max: null },
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: "GROUP_SCOPE_TEST",
+              ...(scope !== undefined ? { linkedEffectGroupScope: scope } : {}),
+            },
+          },
+        },
+        "effectAction",
+      );
+    const defs = baseDefinitions();
+    const build = (actions: readonly EffectActionDefinition[]) =>
+      buildCatalogIndex({ ...defs, effectActions: [...defs.effectActions, ...actions] });
+
+    expect(() =>
+      build([linked("ACT_SCOPE_A", "HOLDER"), linked("ACT_SCOPE_B", "HOLDER")]),
+    ).not.toThrow();
+    // 省略は`BATTLE`と同じ意味のため、明示の`BATTLE`と混在しても食い違いではない。
+    expect(() => build([linked("ACT_SCOPE_A", "BATTLE"), linked("ACT_SCOPE_B")])).not.toThrow();
+    try {
+      build([linked("ACT_SCOPE_A", "HOLDER"), linked("ACT_SCOPE_B")]);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.filter((v) => v.rule === "INCONSISTENT_LINKED_EFFECT_GROUP_SCOPE"),
+      ).toHaveLength(1);
+    }
+  });
+
   it("UT-CAT-IDX-077 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): accepts an EFFECT_IMMUNITY with statusKinds that declares CAP_SPECIFIC_IMMUNITY", () => {
     const defs = baseDefinitions();
     const withCapability: CatalogDefinitions = {

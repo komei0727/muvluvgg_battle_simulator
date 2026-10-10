@@ -405,4 +405,44 @@ describe("DurationDefinition", () => {
     );
     expect(result.removeOnSourceDefeated).toBe(false);
   });
+
+  it("UT-CAT-DUR-031 [R-EFF-09]: maps linkedEffectGroupScope HOLDER, leaving it undefined (BATTLE-wide) when omitted", () => {
+    const holder = createDurationDefinition(
+      {
+        dispellable: true,
+        linkedEffectGroupId: "GROUP_SCAR_TEMP",
+        linkedEffectGroupRole: "PARENT",
+        linkedEffectGroupScope: "HOLDER",
+      },
+      "duration",
+      undefined,
+    );
+    const omitted = createDurationDefinition(
+      { dispellable: true, linkedEffectGroupId: "GROUP_SCAR_TEMP" },
+      "duration",
+      undefined,
+    );
+    expect(holder.linkedEffectGroupScope).toBe("HOLDER");
+    expect(omitted.linkedEffectGroupScope).toBeUndefined();
+  });
+
+  it("UT-CAT-DUR-032 [R-EFF-09]: rejects linkedEffectGroupScope without a linkedEffectGroupId", () => {
+    expect(() =>
+      createDurationDefinition(
+        { dispellable: true, linkedEffectGroupScope: "HOLDER" },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-033 [R-EFF-09]: rejects a linkedEffectGroupScope other than BATTLE or HOLDER", () => {
+    expect(() =>
+      createDurationDefinition(
+        { dispellable: true, linkedEffectGroupId: "GROUP_A", linkedEffectGroupScope: "UNIT" },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });
