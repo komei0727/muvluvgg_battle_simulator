@@ -368,6 +368,8 @@ export function resolveSkillUse(
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
       skillType: skill.skillType,
+      // `resolveSkillOrder`（`plan`）がkind==="IMMEDIATE"を検証済み。CHARGEのスキルは
+      // `resolveChargeStart`へ振り分けられ、`SkillUseStarting`自体を発行しない。
       isAttack: containsAttack(
         skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
         definitions.effectActions,
