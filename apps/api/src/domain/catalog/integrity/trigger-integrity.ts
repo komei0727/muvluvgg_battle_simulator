@@ -1,3 +1,4 @@
+import { conditionContainsKind } from "./condition-inspection.js";
 import {
   DIAGNOSTIC_ONLY_EVENT_TYPES,
   EVENT_TYPE_CATEGORIES,
@@ -17,6 +18,12 @@ const EFFECT_PROCESSING_TIMING_EVENT_TYPES: ReadonlySet<string> = new Set([
   "DamageWillBeApplied",
   "EffectStepStarting",
   "EffectActionStarting",
+]);
+
+/** R-PS-01: payloadに`hpBefore`/`hpAfter`を持ち、HPが減る向きにだけ発行されるイベント。 */
+const HP_RATIO_CROSSED_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "HitPointReduced",
+  "ContinuousDamageApplied",
 ]);
 
 /**
@@ -48,6 +55,19 @@ export function validateTrigger(
       message: `references eventType "${trigger.eventType}", which is emitted inside the effect processing phase and cannot be a Trigger target (R-ATM-04)`,
     });
     return;
+  }
+  // R-PS-01: `HP_RATIO_CROSSED`は契機イベントpayloadの`hpBefore`/`hpAfter`を読む。
+  // それを持たないイベントでは決して成立しないため、黙って発動しないPSを作らせない。
+  if (
+    trigger.condition !== undefined &&
+    conditionContainsKind(trigger.condition, "HP_RATIO_CROSSED") &&
+    !HP_RATIO_CROSSED_EVENT_TYPES.has(trigger.eventType)
+  ) {
+    violations.push({
+      targetId,
+      rule: "HP_RATIO_CROSSED_UNSUPPORTED_EVENT",
+      message: `an HP_RATIO_CROSSED condition reads hpBefore/hpAfter, which eventType "${trigger.eventType}" does not carry (supported: ${[...HP_RATIO_CROSSED_EVENT_TYPES].join(", ")})`,
+    });
   }
   if (documentedCategory !== trigger.category) {
     violations.push({

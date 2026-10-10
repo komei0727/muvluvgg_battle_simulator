@@ -6,7 +6,7 @@ import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
   collectConditionEffectActionReferences,
-  conditionContainsDamageMaxHpRatio,
+  triggerScopedConditionKindIn,
 } from "./condition-inspection.js";
 import { durationOf } from "./effect-action-inspection.js";
 import { validateConditionEffectActionReferences } from "./effect-sequence-integrity.js";
@@ -47,19 +47,18 @@ export function validateEffectAction(
       effectAction.effectActionDefinitionId,
       violations,
     );
-    // R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件（`TriggerDefinition.condition`）専用。
-    // `expiration.conditions`は保持者スコープの特殊失効条件であり、この専用契約の
-    // 対象外の配置としてロード時に拒否する（`counterUpdates[].trigger.condition`は
-    // TriggerDefinitionそのものなので許可）。
-    if (
-      (duration.expiration?.conditions ?? []).some((condition) =>
-        conditionContainsDamageMaxHpRatio(condition),
-      )
-    ) {
+    // R-PS-01: trigger専用kind（`TRIGGER_SCOPED_CONDITION_KINDS`）は
+    // `TriggerDefinition.condition`専用。`expiration.conditions`は保持者スコープの
+    // 特殊失効条件であり、この専用契約の対象外の配置としてロード時に拒否する
+    // （`counterUpdates[].trigger.condition`はTriggerDefinitionそのものなので許可）。
+    const scopedKind = (duration.expiration?.conditions ?? [])
+      .map((condition) => triggerScopedConditionKindIn(condition))
+      .find((kind) => kind !== undefined);
+    if (scopedKind !== undefined) {
       violations.push({
         targetId: effectAction.effectActionDefinitionId,
-        rule: "DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER",
-        message: `a DAMAGE_MAX_HP_RATIO condition is trigger-scoped (TriggerDefinition.condition only) — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+        rule: `${scopedKind}_REQUIRES_TRIGGER`,
+        message: `a ${scopedKind} condition is trigger-scoped (TriggerDefinition.condition only) — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
       });
     }
   }

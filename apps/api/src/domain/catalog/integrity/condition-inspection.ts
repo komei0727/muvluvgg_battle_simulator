@@ -90,25 +90,39 @@ export function conditionContainsEventPayload(condition: ConditionDefinition): b
   }
 }
 
-/**
- * R-PS-01: `condition`のどこかに`DAMAGE_MAX_HP_RATIO`が含まれるか。この kind は
- * trigger条件（`TriggerDefinition.condition`）専用 — `EVENT_PAYLOAD`と違い
- * `effect-step-condition-evaluator.ts`が処理しないため、PSのresolution stepに
- * 置かれてもCatalogロードは通るのに発動中の解決が例外で失敗する。ロード時点で
- * すべてのresolution step位置から拒否する。
- */
-export function conditionContainsDamageMaxHpRatio(condition: ConditionDefinition): boolean {
+/** `condition`のどこか（AND/OR/NOTの内側を含む）に指定kindが含まれるか。 */
+export function conditionContainsKind(
+  condition: ConditionDefinition,
+  kind: ConditionDefinition["kind"],
+): boolean {
+  if (condition.kind === kind) {
+    return true;
+  }
   switch (condition.kind) {
-    case "DAMAGE_MAX_HP_RATIO":
-      return true;
     case "AND":
     case "OR":
-      return condition.conditions.some((c) => conditionContainsDamageMaxHpRatio(c));
+      return condition.conditions.some((c) => conditionContainsKind(c, kind));
     case "NOT":
-      return conditionContainsDamageMaxHpRatio(condition.condition);
+      return conditionContainsKind(condition.condition, kind);
     default:
       return false;
   }
+}
+
+/**
+ * R-PS-01: trigger条件（`TriggerDefinition.condition`）専用のkind。どちらも発動契機の
+ * イベントpayloadを最大HPと突き合わせる評価で、`EVENT_PAYLOAD`と違い
+ * `effect-step-condition-evaluator.ts`が処理しない — PSのresolution stepに置かれても
+ * Catalogロードは通るのに発動中の解決が例外で失敗するため、ロード時点で拒否する。
+ */
+export const TRIGGER_SCOPED_CONDITION_KINDS = ["DAMAGE_MAX_HP_RATIO", "HP_RATIO_CROSSED"] as const;
+export type TriggerScopedConditionKind = (typeof TRIGGER_SCOPED_CONDITION_KINDS)[number];
+
+/** `condition`が含むtrigger専用kindのうち最初の1つ（含まなければ`undefined`）。 */
+export function triggerScopedConditionKindIn(
+  condition: ConditionDefinition,
+): TriggerScopedConditionKind | undefined {
+  return TRIGGER_SCOPED_CONDITION_KINDS.find((kind) => conditionContainsKind(condition, kind));
 }
 
 /**

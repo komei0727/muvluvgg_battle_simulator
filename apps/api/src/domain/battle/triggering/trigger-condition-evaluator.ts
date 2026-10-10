@@ -329,6 +329,37 @@ export function evaluateTriggerCondition(
         return compareWithOperator(damage / maximumHp, condition.op, condition.value);
       });
     }
+    case "HP_RATIO_CROSSED": {
+      // R-PS-01: 跨ぎはそのイベント自身の`hpBefore`/`hpAfter`だけで判定する。前回の
+      // 発動状態を持たないため、回復で閾値の上へ戻った後の被弾では再び成立する。
+      // 値や対象を解決できない場合は`DAMAGE_MAX_HP_RATIO`と同じく不成立とする。
+      if (context?.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "HP_RATIO_CROSSED" requires a context with a getUnit lookup (owner + getUnit)',
+        );
+      }
+      const hpBefore = event.payload["hpBefore"];
+      const hpAfter = event.payload["hpAfter"];
+      if (typeof hpBefore !== "number" || typeof hpAfter !== "number") {
+        return false;
+      }
+      const { getUnit } = context;
+      return (event.targetUnitIds ?? []).some((id) => {
+        const target = getUnit(id);
+        if (target === undefined) {
+          return false;
+        }
+        // R-NUM-02: 分母は切り捨て後の最大HPで揃える（`DAMAGE_MAX_HP_RATIO`と同じ）。
+        const maximumHp = truncateFraction(target.combatStats.maximumHp);
+        if (maximumHp <= 0) {
+          return false;
+        }
+        return (
+          hpBefore / maximumHp > condition.threshold && hpAfter / maximumHp <= condition.threshold
+        );
+      });
+    }
     case "RUNTIME_COUNTER": {
       const counterOwner = context?.runtimeCounterOwner ?? context?.owner;
       let value: number;

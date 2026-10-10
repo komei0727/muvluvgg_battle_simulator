@@ -3535,6 +3535,77 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/DAMAGE_MAX_HP_RATIO condition is trigger-scoped/);
   });
 
+  function hpCrossedPassive(options: {
+    readonly eventType: string;
+    readonly inTrigger: boolean;
+  }): ReturnType<typeof createSkillDefinition> {
+    const crossed = { kind: "HP_RATIO_CROSSED", threshold: 0.5, direction: "DOWN" } as const;
+    return createSkillDefinition({
+      skillDefinitionId: "SKL_PS1",
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      triggers: [
+        {
+          eventType: options.eventType,
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "SELF",
+          ...(options.inTrigger ? { condition: crossed } : {}),
+        },
+      ],
+      resolution: {
+        kind: "IMMEDIATE",
+        steps: [
+          {
+            kind: "ACTION",
+            ...(options.inTrigger ? {} : { stepCondition: crossed }),
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {},
+      metadata: { displayName: "HP crossing PS" },
+    });
+  }
+
+  function buildWithPassive(skill: ReturnType<typeof createSkillDefinition>): void {
+    const defs = baseDefinitions();
+    buildCatalogIndex({
+      ...defs,
+      units: [unit("UNIT_001", { passive: ["SKL_PS1"] })],
+      skills: [...defs.skills.filter((s) => s.skillDefinitionId !== "SKL_PS1"), skill],
+    });
+  }
+
+  it("UT-CAT-IDX-123 [R-PS-01]: rejects an HP_RATIO_CROSSED placed in an EffectStep condition — the kind is trigger-scoped like DAMAGE_MAX_HP_RATIO", () => {
+    expect(() =>
+      buildWithPassive(hpCrossedPassive({ eventType: "HitPointReduced", inTrigger: false })),
+    ).toThrowError(/HP_RATIO_CROSSED condition is trigger-scoped/);
+  });
+
+  it.each([{ eventType: "HitPointReduced" }, { eventType: "ContinuousDamageApplied" }])(
+    "UT-CAT-IDX-124 [R-PS-01]: accepts an HP_RATIO_CROSSED trigger condition on $eventType, whose payload carries hpBefore/hpAfter",
+    ({ eventType }) => {
+      expect(() =>
+        buildWithPassive(hpCrossedPassive({ eventType, inTrigger: true })),
+      ).not.toThrow();
+    },
+  );
+
+  it("UT-CAT-IDX-125 [R-PS-01]: rejects an HP_RATIO_CROSSED trigger condition on an event without hpBefore/hpAfter, where it could never match", () => {
+    try {
+      buildWithPassive(hpCrossedPassive({ eventType: "DamageApplied", inTrigger: true }));
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(err.violations.some((v) => v.rule === "HP_RATIO_CROSSED_UNSUPPORTED_EVENT")).toBe(
+        true,
+      );
+    }
+  });
+
   it("UT-CAT-IDX-036 [R-EFF-11]: rejects a Skill counterUpdates trigger referencing an unknown eventType", () => {
     const defs = baseDefinitions();
     const units = [unit("UNIT_001", { passive: ["SKL_PS1"] })];

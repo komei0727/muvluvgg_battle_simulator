@@ -1174,4 +1174,37 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-067 [R-PS-01]: maps HP_RATIO_CROSSED with a threshold and the DOWN direction", () => {
+    expect(
+      createConditionDefinition(
+        { kind: "HP_RATIO_CROSSED", threshold: 0.5, direction: "DOWN" },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({ kind: "HP_RATIO_CROSSED", threshold: 0.5, direction: "DOWN" });
+  });
+
+  it("UT-CAT-COND-068 [R-PS-01]: rejects HP_RATIO_CROSSED with a threshold outside 0..1 or a non-numeric threshold", () => {
+    for (const threshold of [-0.1, 1.1, "0.5"]) {
+      expect(() =>
+        createConditionDefinition(
+          { kind: "HP_RATIO_CROSSED", threshold, direction: "DOWN" } as never,
+          "condition",
+          undefined,
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-COND-069 [R-PS-01]: rejects HP_RATIO_CROSSED with an unsupported or missing direction", () => {
+    for (const input of [
+      { kind: "HP_RATIO_CROSSED", threshold: 0.5, direction: "UP" },
+      { kind: "HP_RATIO_CROSSED", threshold: 0.5 },
+    ]) {
+      expect(() => createConditionDefinition(input as never, "condition", undefined)).toThrow(
+        DomainValidationError,
+      );
+    }
+  });
 });

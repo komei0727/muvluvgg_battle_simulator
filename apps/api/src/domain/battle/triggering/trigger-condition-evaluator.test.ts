@@ -1484,6 +1484,54 @@ describe("evaluateTriggerCondition", () => {
     });
   });
 
+  describe("HP_RATIO_CROSSED (R-PS-01: HP割合が閾値を上から下へ跨いだときだけ成立する)", () => {
+    const condition: ConditionDefinition = {
+      kind: "HP_RATIO_CROSSED",
+      threshold: 0.5,
+      direction: "DOWN",
+    };
+    // maximumHp 100（unitAt fixture）。
+    const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+    const context = { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner };
+    const crossed = (hpBefore: unknown, hpAfter: unknown): boolean =>
+      evaluateTriggerCondition(
+        condition,
+        { payload: { hpBefore, hpAfter }, targetUnitIds: [owner.battleUnitId] },
+        context,
+      );
+
+    it("UT-R-PS-01-154: matches a reduction that goes from above the threshold to at or below it", () => {
+      expect(crossed(60, 40)).toBe(true);
+      // ちょうど50%は「以下」に含まれる。
+      expect(crossed(51, 50)).toBe(true);
+    });
+
+    it("UT-R-PS-01-155: does not match a reduction that stays below or starts exactly at the threshold, nor one that stays above it", () => {
+      expect(crossed(40, 30)).toBe(false);
+      expect(crossed(50, 30)).toBe(false);
+      expect(crossed(90, 60)).toBe(false);
+    });
+
+    it("UT-R-PS-01-156: matches again after the HP was healed back above the threshold, because each crossing is judged from that event's own before/after", () => {
+      expect(crossed(60, 45)).toBe(true);
+      expect(crossed(45, 40)).toBe(false);
+      // 回復で55へ戻った後の被弾。
+      expect(crossed(55, 48)).toBe(true);
+    });
+
+    it("UT-R-PS-01-157: missing or non-number hpBefore/hpAfter and an unresolvable target are not matches", () => {
+      expect(crossed(undefined, 40)).toBe(false);
+      expect(crossed(60, "40")).toBe(false);
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: { hpBefore: 60, hpAfter: 40 }, targetUnitIds: [owner.battleUnitId] },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe("DAMAGE_MAX_HP_RATIO (R-PS-01: 1ヒットの被弾量を最大HP比で照合する)", () => {
     const condition: ConditionDefinition = {
       kind: "DAMAGE_MAX_HP_RATIO",

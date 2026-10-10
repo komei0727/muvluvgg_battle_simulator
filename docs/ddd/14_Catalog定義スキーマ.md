@@ -2017,6 +2017,7 @@ condition:
 | `TARGET_HAS_MARKER`    | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                    |
 | `EVENT_PAYLOAD`        | `field`, `op`, `value`                                  | trigger payload比較                                                                                |
 | `DAMAGE_MAX_HP_RATIO`  | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
+| `HP_RATIO_CROSSED`     | `threshold`, `direction`                                | trigger payloadの`hpBefore`/`hpAfter`の最大HP比が閾値を上から下へ跨いだか（`R-PS-01`）             |
 | `LAST_RESULT`          | `field`, `op`, `value`                                  | 直前結果比較                                                                                       |
 | `RUNTIME_COUNTER`      | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                        |
 | `TURN_NUMBER`          | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                     |
@@ -2055,6 +2056,18 @@ triggers:
     sourceSelector: ENEMY
     targetSelector: SELF
     condition: { kind: DAMAGE_MAX_HP_RATIO, field: hitPointDamage, op: GTE, value: 0.15 }
+```
+
+`HP_RATIO_CROSSED`は「HPが50%以下になった際」を表す（`R-PS-01`）。発火イベントpayloadの`hpBefore`/`hpAfter`をそれぞれ`TRIGGER_TARGET`（HPが減ったユニット）の切り捨て後の最大HPで割り、`hpBefore`側が`threshold`を超え、かつ`hpAfter`側が`threshold`以下のときだけ成立する（ちょうど閾値は「以下」に含める）。現在HP比を見る`TARGET_STATE`の`HP_RATIO`は閾値以下にいる間の被弾すべてで成立するのに対し、こちらは跨いだ1回だけで成立する。前回の発動状態は持たないため、回復で閾値の上へ戻ってから再び跨げば再び成立する。`threshold`は0〜1、`direction`は`DOWN`だけを実装する。`DAMAGE_MAX_HP_RATIO`と同じくtrigger条件専用で、それ以外の配置はCatalogロード時に拒否する（`HP_RATIO_CROSSED_REQUIRES_TRIGGER`）。さらに、payloadに`hpBefore`/`hpAfter`を持つ`HitPointReduced`・`ContinuousDamageApplied`以外の`eventType`で使うと決して成立しないため、これもロード時に拒否する（`HP_RATIO_CROSSED_UNSUPPORTED_EVENT`）。HP直接消費（`MODIFY_RESOURCE`の`resource: HP`）は`ResourceChanged`を発行し`hpBefore`/`hpAfter`を持たないため、現状この条件の対象外である。
+
+```yaml
+# 例: 「自身のHPが50%以下になった際に発動」
+triggers:
+  - eventType: HitPointReduced
+    category: FACT
+    sourceSelector: ANY
+    targetSelector: SELF
+    condition: { kind: HP_RATIO_CROSSED, threshold: 0.5, direction: DOWN }
 ```
 
 `TARGET_SET_COUNT`の`countOf`は集合の生存側・戦闘不能側のどちらを数えるかを選ぶ（`ALIVE`／`DEFEATED`、省略時`ALIVE` = Issue #227時点の既定の意味）。`DEFEATED`は`POST_DAMAGE_SURVIVAL_BRANCH`（`DMG-003`／Issue #196）が追加した——対象集合の大きさは実行時にしか分からないため、「この攻撃で敵を倒した場合」を`ALIVE`側のしきい値（`生存数 < 集合の大きさ`）では表せないためである。判定対象はスキル自身の対象binding（production例: `SKL_HIIRO_LONEWOLF_AS2`の`TGT_COLUMN`）とする — bindingはR-SKL-01により再評価されず同じunit集合を指し続け、状態だけが最新化されるため、DAMAGE後に撃破された構成員も数え漏らさない。
