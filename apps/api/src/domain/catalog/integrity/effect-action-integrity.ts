@@ -1,3 +1,4 @@
+import { FOLLOW_UP_ON_HIT_EFFECT_KINDS } from "../definitions/effect-action-payload.js";
 import type { EffectActionDefinitionId, SkillDefinitionId } from "../definitions/catalog-ids.js";
 import { isPointAdditiveStat, type ActionKind } from "../definitions/catalog-enums.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
@@ -115,29 +116,24 @@ export function validateEffectAction(
       }
     }
   }
-  // R-FUP-01（Issue #474）: 追撃のonHitEffectも`APPLY_SUBUNIT`のdebuffと同じ
+  // R-FUP-01（Issue #474）: 追撃のonHitEffectsも`APPLY_SUBUNIT`のdebuffと同じ
   // 「参照として書き、ロード時点で存在とkindを検証する」規約に従う。実行経路
-  // （`grantFollowUpOnHitEffectSteps`）が扱えるのは`APPLY_STAT_MOD`（付与＋
-  // CombatStat再計算）と`APPLY_CONTINUOUS_DAMAGE`（production例:
-  // `SKL_CHIYURU_MAZE_PS2`の毒）だけであり、それ以外は黙ってno-opにしない。
+  // （`grantFollowUpOnHitEffectSteps`）が付与経路を持つkind
+  // （`FOLLOW_UP_ON_HIT_EFFECT_KINDS`）以外は黙ってno-opにしない。
   if (effectAction.kind === "APPLY_FOLLOW_UP_ATTACK") {
-    const onHitEffect = effectAction.payload.onHitEffect;
-    if (onHitEffect !== undefined) {
+    for (const onHitEffect of effectAction.payload.onHitEffects ?? []) {
       const referenced = effectActions.get(onHitEffect.effectActionDefinitionId);
       if (referenced === undefined) {
         violations.push({
           targetId: effectAction.effectActionDefinitionId,
           rule: "DANGLING_REFERENCE",
-          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffect references undefined EffectActionDefinition "${onHitEffect.effectActionDefinitionId}"`,
+          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffects references undefined EffectActionDefinition "${onHitEffect.effectActionDefinitionId}"`,
         });
-      } else if (
-        referenced.kind !== "APPLY_STAT_MOD" &&
-        referenced.kind !== "APPLY_CONTINUOUS_DAMAGE"
-      ) {
+      } else if (!(FOLLOW_UP_ON_HIT_EFFECT_KINDS as readonly string[]).includes(referenced.kind)) {
         violations.push({
           targetId: effectAction.effectActionDefinitionId,
           rule: "TYPE_MISMATCH",
-          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffect must reference an APPLY_STAT_MOD or APPLY_CONTINUOUS_DAMAGE EffectActionDefinition, but "${onHitEffect.effectActionDefinitionId}" is a ${referenced.kind}`,
+          message: `APPLY_FOLLOW_UP_ATTACK payload.onHitEffects must reference one of ${FOLLOW_UP_ON_HIT_EFFECT_KINDS.join("/")}, but "${onHitEffect.effectActionDefinitionId}" is a ${referenced.kind}`,
         });
       }
     }

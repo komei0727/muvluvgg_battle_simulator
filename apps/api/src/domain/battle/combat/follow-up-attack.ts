@@ -23,7 +23,7 @@ export interface FollowUpAttackRider {
   readonly sourceUnitId?: BattleUnitId;
   readonly damageType: DamageType;
   readonly formula: FormulaDefinition;
-  readonly onHitEffectActionDefinitionId?: EffectActionDefinitionId;
+  readonly onHitEffectActionDefinitionIds?: readonly EffectActionDefinitionId[];
 }
 
 /** `applySubUnitAdditionalDamageSteps`と同じ形の結果（中断は独立フラグで表す）。 */
@@ -107,12 +107,12 @@ function followUpAttackHitSpec(
     criticalMode: inheritedCritical ? "GUARANTEED" : "PREVENTED",
     // R-FUP-01 #7: `SKILL_SOURCE`は保持者（攻撃した味方）自身。
     skillSourceUnitId: attackerUnitId,
-    ...(rider.onHitEffectActionDefinitionId !== undefined
+    ...(rider.onHitEffectActionDefinitionIds !== undefined
       ? {
-          onHitEffect: {
-            effectActionDefinitionId: rider.onHitEffectActionDefinitionId,
+          onHitEffects: rider.onHitEffectActionDefinitionIds.map((effectActionDefinitionId) => ({
+            effectActionDefinitionId,
             sourceUnitId: rider.sourceUnitId,
-          },
+          })),
         }
       : {}),
   };

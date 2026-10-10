@@ -68,9 +68,9 @@ describe("applyEffectActionGroups", () => {
       metadata: { tags: [] },
       payload: {
         damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.3588 } },
-        onHitEffect: {
-          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FUP_SPEED_DOWN"),
-        },
+        onHitEffects: [
+          { effectActionDefinitionId: createEffectActionDefinitionId("ACT_FUP_SPEED_DOWN") },
+        ],
         duration: {
           consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
           dispellable: true,

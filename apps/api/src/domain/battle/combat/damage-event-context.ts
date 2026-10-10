@@ -326,8 +326,8 @@ export interface DamageEventContext {
     readonly BattleUnit[] | undefined
   >;
   /**
-   * R-FUP-01（Issue #474）: 追撃ヒットが適用された対象へ`onHitEffect`
-   * （`APPLY_STAT_MOD`または`APPLY_CONTINUOUS_DAMAGE`）を付与する。
+   * R-FUP-01（Issue #474）: 追撃ヒットが適用された対象へ`onHitEffects`の1件
+   * （`FOLLOW_UP_ON_HIT_EFFECT_KINDS`のいずれか）を付与する。
    * `grantSubUnitAdditionalDamageDebuff`とまったく同じ理由（`combat/`は`effects/`と
    * Catalogの`effectActions`マップへ到達できない）で呼び出し側が注入し、同じ
    * 「1件ごとに`yield`する」規約を持つ。`sourceUnitId`は付与の帰属先（ライダーを

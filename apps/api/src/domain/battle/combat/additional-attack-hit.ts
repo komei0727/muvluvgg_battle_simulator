@@ -46,7 +46,8 @@ export interface AdditionalAttackHitSpec {
   readonly criticalMode: "GUARANTEED" | "PREVENTED";
   /** Formula評価の`SKILL_SOURCE`として使うユニット。 */
   readonly skillSourceUnitId: BattleUnitId;
-  readonly onHitEffect?: AdditionalAttackOnHitEffect;
+  /** ヒットの適用後に定義順で付与する効果。 */
+  readonly onHitEffects?: readonly AdditionalAttackOnHitEffect[];
 }
 
 /**
@@ -278,10 +279,14 @@ export function* applyOneAdditionalAttackHitSteps(
     return { kind: "INTERRUPT", lastEventId };
   }
 
-  // R-FUP-01 #9: onHitEffectはヒットの適用が完了した後に付与する。付与の直前に使用者・
-  // 対象の生存を再検証する（R-SUB-02第3項の追加デバフと同じ規約 — この追加攻撃自身が
-  // 対象を倒した場合や、連鎖が使用者を倒した場合には付与しない）。
-  if (spec.onHitEffect !== undefined && context.grantFollowUpOnHitEffect !== undefined) {
+  // R-FUP-01 #9: onHitEffectsはヒットの適用が完了した後に定義順で付与する。各付与の
+  // 直前に使用者・対象の生存を再検証する（R-SUB-02第3項の追加デバフと同じ規約 — この
+  // 追加攻撃自身や、先に付与した効果が起こした連鎖が対象・使用者を倒した場合には
+  // 残りを付与しない）。
+  for (const onHitEffect of spec.onHitEffects ?? []) {
+    if (context.grantFollowUpOnHitEffect === undefined) {
+      break;
+    }
     const beforeOnHit = revalidateHit(context, working, attacker.battleUnitId, target.battleUnitId);
     if (beforeOnHit.kind !== "CONTINUE") {
       return { kind: beforeOnHit.kind, lastEventId };
@@ -291,9 +296,9 @@ export function* applyOneAdditionalAttackHitSteps(
       working,
       context.grantFollowUpOnHitEffect(
         target.battleUnitId,
-        spec.onHitEffect.effectActionDefinitionId,
+        onHitEffect.effectActionDefinitionId,
         attacker.battleUnitId,
-        spec.onHitEffect.sourceUnitId,
+        onHitEffect.sourceUnitId,
         Array.from(working.values()),
         lastEventId,
       ),
