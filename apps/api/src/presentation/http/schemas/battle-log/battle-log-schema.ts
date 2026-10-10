@@ -205,6 +205,12 @@ const skillUseStartingDetailsSchema = {
      * はAS/EXの使用開始時にのみ発行される（PSはこのeventTypeを発行しない）。
      */
     skillType: { type: "string", enum: ["AS", "EX"] },
+    /*
+     * R-ATM-02: スキルが攻撃を含むか。「アクティブスキルで攻撃する前」のPSが
+     * `EVENT_PAYLOAD`で参照する。`subUnitAbsorbed`と同じ理由で`required`へは入れない
+     * （v1デコーダ互換）。Response Mapperは常に値を設定する。
+     */
+    isAttack: { type: "boolean" },
     actorUnitId: { type: "string" },
     targetUnitIds: { type: "array", items: { type: "string" } },
     costResource: { type: "string", enum: RESOURCE_KIND_ENUM },

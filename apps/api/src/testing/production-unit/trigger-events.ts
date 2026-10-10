@@ -64,6 +64,9 @@ export function unitBeingAttacked(options: {
 /**
  * スキル使用の開始直前。`skillType` を条件に読むPSが多い。
  *
+ * `isAttack` は省略時 `true`（攻撃AS）。「アクティブスキルで攻撃する前」のPSが
+ * 攻撃を含まないASで発動しないこと（R-ATM-02）は `false` を渡して確かめる。
+ *
  * 「自身がアクティブスキルで**攻撃する**前」を表すPSは、混乱（R-CFS-01）で対象が
  * 味方側へ反転しても発動しなければならないため、陣営ではなく `skillDefinitionId`
  * を条件に取る。その成立を作れるよう、契機の使用スキルIDを指定できる。
@@ -73,6 +76,7 @@ export function skillUseStarting(options: {
   readonly targets: readonly string[];
   readonly skillType: SkillType;
   readonly skillDefinitionId?: string;
+  readonly isAttack?: boolean;
 }): PassiveTriggerEvent<"SkillUseStarting"> {
   const targetUnitIds = options.targets.map((id) => createBattleUnitId(id));
   return {
@@ -86,6 +90,7 @@ export function skillUseStarting(options: {
           ? SYNTHETIC_SKILL_ID
           : createSkillDefinitionId(options.skillDefinitionId),
       skillType: options.skillType,
+      isAttack: options.isAttack ?? true,
       actorUnitId: createBattleUnitId(options.actor),
       targetUnitIds,
       costResource: "AP",

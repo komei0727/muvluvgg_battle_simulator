@@ -290,6 +290,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_SAYA_LONGING_PS2",
+    intent:
+      "(不成立): 自身が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SAYA_LONGING_PS2",
+      trigger: skillUseStarting({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:subject",
+    },
+
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_SAYA_LONGING (【渇望秘めし淑女】紫雲沙耶)", () => {

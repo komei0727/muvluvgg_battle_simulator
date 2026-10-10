@@ -654,6 +654,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       },
     },
   },
+  {
+    skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+    intent:
+      "(不成立): 味方が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_SUIRAN_CHAOS_PS3",
+      trigger: skillUseStarting({
+        actor: "ally:front",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:front",
+    },
+    board: SUIRAN_BACK,
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠蘭)", () => {
@@ -855,6 +873,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
         payload: {
           skillDefinitionId: createSkillDefinitionId(STAND_IN_AS_ID),
           skillType: "EX",
+          isAttack: true,
           actorUnitId: board.frontAlly.battleUnitId,
           targetUnitIds: [board.enemy.battleUnitId],
           costResource: "EX_GAUGE",
@@ -887,6 +906,7 @@ describe("production Catalog UNIT_SUIRAN_CHAOS (【混沌の立役者】劉翠�
         payload: {
           skillDefinitionId: createSkillDefinitionId(STAND_IN_AS_ID),
           skillType: "AS",
+          isAttack: true,
           actorUnitId: sideAlly.battleUnitId,
           targetUnitIds: [board.enemy.battleUnitId],
           costResource: "AP",

@@ -3230,6 +3230,9 @@
                                     "type": "string",
                                     "enum": ["AS", "EX"]
                                   },
+                                  "isAttack": {
+                                    "type": "boolean"
+                                  },
                                   "actorUnitId": {
                                     "type": "string"
                                   },
@@ -16200,6 +16203,9 @@
                                   "skillType": {
                                     "type": "string",
                                     "enum": ["AS", "EX"]
+                                  },
+                                  "isAttack": {
+                                    "type": "boolean"
                                   },
                                   "actorUnitId": {
                                     "type": "string"

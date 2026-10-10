@@ -355,6 +355,51 @@ describe("resolveSkillUse", () => {
     expect(actorAfter.effectSequenceCounters).toBeUndefined();
   });
 
+  it("UT-R-ATM-02-008 (R-ATM-02 攻撃を含むスキル): SkillUseStarting carries isAttack=true for an AS that deals DAMAGE and isAttack=false for a self-buff AS", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const grantAction = statusEffectAction("ACT_GRANT_STEALTH", 1);
+    const buffSkill = selfStatusSkill("SKL_BUFF", "ACT_GRANT_STEALTH");
+    const hit = damageEffectAction("ACT_HIT");
+    const attackSkill = trivialAttackSkill("SKL_ATTACK", "ACT_HIT");
+    const actor = unit("ACTOR", "ALLY", { unitDefinitionId: actorUnitDefinitionId, currentAp: 3 });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([
+        [grantAction.effectActionDefinitionId, grantAction],
+        [hit.effectActionDefinitionId, hit],
+      ]),
+    );
+
+    const isAttackOf = (skill: SkillDefinition): unknown => {
+      const recorder = new EventRecorder(createBattleId("B_1"));
+      resolveSkillUse(
+        actor,
+        skill,
+        "AS",
+        "AS",
+        [actor, enemy],
+        definitions,
+        new SequenceRandomSource([]),
+        recorder,
+        1,
+        0,
+        createActionId("B_1:action:1"),
+        recorder.nextResolutionScopeId(),
+      );
+      const starting = recorder.getEvents().find((e) => e.eventType === "SkillUseStarting")!;
+      return (starting.payload as { isAttack?: unknown }).isAttack;
+    };
+
+    expect(isAttackOf(attackSkill)).toBe(true);
+    expect(isAttackOf(buffSkill)).toBe(false);
+  });
+
   it("UT-R-EFF-01-047 (TGT-004フェーズ3、Issue #167、SKILL_USE単位期間減算の実配線): the AppliedEffect that grants a SKILL_USE(count:1) status is not decremented by its own granting skill use, but is decremented (and expires) by the actor's next completed skill use", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");

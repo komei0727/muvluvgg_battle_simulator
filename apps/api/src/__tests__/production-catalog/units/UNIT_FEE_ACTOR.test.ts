@@ -362,6 +362,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_FEE_ACTOR_PS1",
+    intent:
+      "(不成立): 味方が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_FEE_ACTOR_PS1",
+      trigger: skillUseStarting({
+        actor: "ally:front",
+        targets: ["enemy:back"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:front",
+    },
+
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フィー・ドレーゼ)", () => {

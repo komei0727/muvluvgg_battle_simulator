@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   collectPreAttackObservations,
+  containsAttack,
   flattenEffectSequencePlan,
   resolveChargeReleaseOrder,
   resolveSkillOrder,
@@ -1843,5 +1844,108 @@ describe("collectPreAttackObservations (R-ATM-03)", () => {
       { targetUnitId: createBattleUnitId("ACTOR"), damageTypes: ["PHYSICAL"] },
       { targetUnitId: createBattleUnitId("ENEMY_1"), damageTypes: ["PHYSICAL"] },
     ]);
+  });
+});
+
+describe("containsAttack (R-ATM-02 攻撃を含むスキル)", () => {
+  const TGT_ENEMY = createTargetBindingId("TGT_ENEMY");
+  const attack = damageAction("ACT_ATTACK");
+  const buff: EffectActionDefinition = {
+    kind: "HEAL",
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_HEAL"),
+    metadata: { tags: [] },
+    payload: {
+      formula: { kind: "CONSTANT", value: 10 },
+      distribution: "NONE",
+      overheal: "DISCARD",
+    },
+  };
+  const effectActions = new Map([
+    [attack.effectActionDefinitionId, attack],
+    [buff.effectActionDefinitionId, buff],
+  ]);
+
+  function actionStep(
+    target: { kind: "SELF" } | { kind: "BINDING"; targetBindingId: typeof TGT_ENEMY },
+    effectActionDefinitionId: EffectActionDefinitionId,
+  ) {
+    return {
+      kind: "ACTION" as const,
+      stepCondition: { kind: "TRUE" as const },
+      targetCondition: { kind: "TRUE" as const },
+      target,
+      actions: [{ effectActionDefinitionId }],
+    };
+  }
+
+  it("UT-R-ATM-02-005: a DAMAGE applied to a bound target makes the skill an attack", () => {
+    expect(
+      containsAttack(
+        [
+          actionStep(
+            { kind: "BINDING", targetBindingId: TGT_ENEMY },
+            attack.effectActionDefinitionId,
+          ),
+        ],
+        effectActions,
+      ),
+    ).toBe(true);
+  });
+
+  it("UT-R-ATM-02-006: a skill without DAMAGE, or whose only DAMAGE hits the user itself (HP cost), is not an attack", () => {
+    expect(
+      containsAttack(
+        [
+          actionStep(
+            { kind: "BINDING", targetBindingId: TGT_ENEMY },
+            buff.effectActionDefinitionId,
+          ),
+        ],
+        effectActions,
+      ),
+    ).toBe(false);
+    expect(
+      containsAttack(
+        [actionStep({ kind: "SELF" }, attack.effectActionDefinitionId)],
+        effectActions,
+      ),
+    ).toBe(false);
+  });
+
+  it("UT-R-ATM-02-007: DAMAGE nested in any BRANCH arm, RANDOM_BRANCH branch, or REPEAT counts structurally without evaluating conditions", () => {
+    const damaging = [
+      actionStep({ kind: "BINDING", targetBindingId: TGT_ENEMY }, attack.effectActionDefinitionId),
+    ];
+    expect(
+      containsAttack(
+        [
+          {
+            kind: "BRANCH",
+            condition: { kind: "NOT", condition: { kind: "TRUE" } },
+            thenSteps: [],
+            elseSteps: damaging,
+          },
+        ],
+        effectActions,
+      ),
+    ).toBe(true);
+    expect(
+      containsAttack(
+        [
+          {
+            kind: "RANDOM_BRANCH",
+            mode: "WEIGHTED_ONE",
+            branches: [
+              { weight: 1, steps: [] },
+              { weight: 1, steps: damaging },
+            ],
+          },
+        ],
+        effectActions,
+      ),
+    ).toBe(true);
+    expect(containsAttack([{ kind: "REPEAT", count: 2, steps: damaging }], effectActions)).toBe(
+      true,
+    );
   });
 });

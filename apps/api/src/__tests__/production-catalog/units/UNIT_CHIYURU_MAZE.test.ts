@@ -363,6 +363,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       activated: false,
     },
   },
+  {
+    skillDefinitionId: "SKL_CHIYURU_MAZE_PS2",
+    intent:
+      "(不成立): 味方が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_CHIYURU_MAZE_PS2",
+      trigger: skillUseStarting({
+        actor: "ally:front",
+        targets: ["enemy:left"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:front",
+    },
+    board: { allies: alliesWith({ unitType: "AGILE" }) },
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_CHIYURU_MAZE (【博識なメイズの探求者】月ヶ瀬ちゆる)", () => {
