@@ -1,0 +1,693 @@
+import { describe, expect, it } from "vitest";
+import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import {
+  unexecutedEffectActionIds,
+  unitEffectActionClosure,
+} from "../../../testing/production-unit/definition-closure.js";
+import {
+  PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
+  collectedExecutedActionIds,
+  observeSkillUse,
+  productionBoard,
+  resetExecutedActionIds,
+  type BoardOverrides,
+  type SkillBehaviourCase,
+} from "../../../testing/production-unit/skill-behaviour.js";
+import {
+  hitPointReduced,
+  skillUseStarting,
+} from "../../../testing/production-unit/trigger-events.js";
+import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
+
+/**
+ * `UNIT_NINA_ZINA_FRONTRUNNER`（【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ）の
+ * ユニット単位production結合テスト（`12_テスト戦略.md`「ユニット効果軸」、Issue #736）。
+ *
+ * 単位は**スキル使用1回**。実 `catalog/` の未改変定義を実経路へ通し、下表が
+ * 「発動したか」「誰が対象になったか」「どの分岐の腕が選ばれたか」「何が起きたか」
+ * を1行ずつ宣言する。`intent` は原文の該当句で、`raw/` がCIに存在しない以上、
+ * 転記が正しいかをレビューできる唯一の接点になる。
+ *
+ * 「刻痕」は寿命の違う2つのマーカーで表す — AS2の刻痕（`_SCAR`、付与者撃破まで）と
+ * PS2の1行動の刻痕（`_SCAR_TEMP`）。所持数を問う3か所（AS1のヒット数・AS2の優先順と
+ * 4つ以上の判定）はどちらも`markerIds`で両者を合算する。
+ */
+
+const UNIT_DEFINITION_ID = "UNIT_NINA_ZINA_FRONTRUNNER";
+const SCAR = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR";
+const SCAR_TEMP = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+
+/** AS1: 前列中央の敵が刻痕を合算3つ（AS2の2つ＋PS2の1つ）持つ盤面。 */
+const SCARRED_FRONT_ENEMY: BoardOverrides = {
+  enemies: [
+    {
+      id: "enemy:front",
+      position: { column: "CENTER", row: "FRONT" },
+      markers: [
+        { markerId: SCAR, stackCount: 2 },
+        { markerId: SCAR_TEMP, stackCount: 1 },
+      ],
+    },
+    { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+    { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+  ],
+};
+
+/**
+ * AS2: 刻痕の合算は前列中央1・前列左4（AS2の3＋PS2の1）・後列2。最も少ない前列中央が
+ * 基点になり、同じ横一列（前列）の2体が攻撃対象になる。前列左は合算4つのため刻痕は
+ * 新たに付与しない。
+ */
+const SCAR_RANKED_ENEMIES: BoardOverrides = {
+  enemies: [
+    {
+      id: "enemy:front",
+      position: { column: "CENTER", row: "FRONT" },
+      markers: [{ markerId: SCAR, stackCount: 1 }],
+    },
+    {
+      id: "enemy:left",
+      position: { column: "LEFT", row: "FRONT" },
+      markers: [
+        { markerId: SCAR, stackCount: 3 },
+        { markerId: SCAR_TEMP, stackCount: 1 },
+      ],
+    },
+    {
+      id: "enemy:back",
+      position: { column: "CENTER", row: "BACK" },
+      markers: [{ markerId: SCAR, stackCount: 2 }],
+    },
+  ],
+};
+
+/** AS2: 刻痕を持たない後列の敵が最も少なく、既定順で先頭の前列ではなく後列を狙う盤面。 */
+const BACK_ENEMY_FEWEST_SCARS: BoardOverrides = {
+  enemies: [
+    {
+      id: "enemy:front",
+      position: { column: "CENTER", row: "FRONT" },
+      markers: [{ markerId: SCAR, stackCount: 1 }],
+    },
+    {
+      id: "enemy:left",
+      position: { column: "LEFT", row: "FRONT" },
+      markers: [{ markerId: SCAR_TEMP, stackCount: 1 }],
+    },
+    { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+  ],
+};
+
+/** 自身を後列へ置く盤面（PS1の味方への付与・PS2の発動が「前列のときだけ」になる）。 */
+const SUBJECT_IN_BACK_ROW: BoardOverrides = {
+  subject: { position: { column: "RIGHT", row: "BACK" } },
+};
+
+/** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
+const BEHAVIOURS: readonly SkillBehaviourCase[] = [
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX",
+    intent:
+      "敵全体に威力212で攻撃し、自身が1回行動を終えるまでの間、攻撃力を20％低下させる。さらに自身が2回行動を終えるまでの間、新たに向けられる攻撃力バフを無効にするデバフを付与する。加えて自身のHPが50％以上だった場合、自身のAPを1加算する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX" },
+    // HP 5000/10000 = ちょうど50%（以上を満たす）。AP加算が上限で消えないよう2から始める。
+    board: { subject: { state: { currentAp: 2 } } },
+    expected: {
+      // (攻撃力1000 − 防御力500) × 2.12 = 1060
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_AP_UP",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: { "enemy:front": -1060, "enemy:left": -1060, "enemy:back": -1060 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      resources: [{ unitId: "ally:subject", resource: "AP", delta: 1 }],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX",
+    intent: "(分岐): 自身のHPが50％未満ならAPを加算しない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX" },
+    board: { subject: { state: { currentAp: 2, currentHp: 4999 } } },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: { "enemy:front": -1060, "enemy:left": -1060, "enemy:back": -1060 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1",
+    intent:
+      "敵単体に威力70.2で1ヒット攻撃する。この攻撃は対象に付与されている「刻痕」1つにつき1ヒット追加される（9つまで）。さらに自身のHPが50％以下だった場合、自身に対し2行動の間、効果付与時の不足HPの25％を継続回復する効果を付与する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1" },
+    board: SCARRED_FRONT_ENEMY,
+    expected: {
+      // 刻痕は合算3つ → 1 + 3 = 4ヒット。1ヒット (1000 − 500) × 0.702 = 351 → 計1404。
+      // 継続回復の回復量は付与時の不足HP 5000 × 25% = 1250 で固定される。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS1_REGEN",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: { "enemy:front": -1404 },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS1_REGEN",
+          magnitude: 1250,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1",
+    intent: "(分岐): 追加ヒットは刻痕9つ分で頭打ちになり、HPが50％を超えていれば継続回復は付かない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1" },
+    board: {
+      subject: { state: { currentHp: 5001 } },
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          markers: [{ markerId: SCAR, stackCount: 12 }],
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      // 1 + min(12, 9) = 10ヒット × 351 = 3510。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS1_DAMAGE",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: { "enemy:front": -3510 },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2",
+    intent:
+      "「刻痕」が最も少ない敵を優先して敵横一列に威力169.6で攻撃し、「刻痕」を1つ付与する。「刻痕」は1つにつき攻撃力を8％、与ダメージを5％減少させる（重複可）。対象が「刻痕」を4つ以上所持している場合、新たに付与しない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2" },
+    board: SCAR_RANKED_ENEMIES,
+    expected: {
+      // (1000 − 500) × 1.696 = 848。前列左は合算4つ（PS2の刻痕も数える）のため付与されない。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+          targets: ["enemy:front"],
+        },
+      ],
+      hpDeltas: { "enemy:front": -848, "enemy:left": -848 },
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+          magnitude: -0.08,
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+          magnitude: -0.05,
+        },
+      ],
+      markers: [{ unitId: "enemy:front", markerId: SCAR, stackCount: 2 }],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2",
+    intent: "(優先): 刻痕の最も少ない敵が後列にいれば、既定順の前列ではなく後列の横一列を狙う",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2" },
+    board: BACK_ENEMY_FEWEST_SCARS,
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+          targets: ["enemy:back"],
+        },
+      ],
+      hpDeltas: { "enemy:back": -848 },
+      effectsApplied: [
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+          magnitude: -0.08,
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+          magnitude: -0.05,
+        },
+      ],
+      markers: [{ unitId: "enemy:back", markerId: SCAR, stackCount: 1 }],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+    intent:
+      "自身のHPが50％以下になった際に発動。自身に対し、自身が1回行動を終えるまでの間、向けられるデバフを無効にする効果と、1ヒットまで受けるダメージを無効にする効果を付与する。さらに自身が前列に編成されている場合、自身と同じ横一列の他の味方に対しても同様の効果を付与する。デバフ無効効果は自身が倒れると解除される",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+      // HP 6000 → 4000（最大HP 10000の60% → 40%）。
+      trigger: hitPointReduced({
+        source: "enemy:front",
+        target: "ally:subject",
+        damage: 2000,
+        hpBefore: 6000,
+      }),
+    },
+    expected: {
+      // 前列（自身と同じ横一列）の他の味方は ally:front だけ。後列の ally:back は対象外。
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_GUARD_MARKER",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          targets: ["ally:front"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          statusKind: "DAMAGE_IMMUNITY",
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          statusKind: "DAMAGE_IMMUNITY",
+        },
+      ],
+      markers: [
+        { unitId: "ally:front", markerId: "MARKER_NINA_ZINA_FRONTRUNNER_PS1_GUARD", stackCount: 1 },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+    intent:
+      "(条件): 既に50％以下のまま受けたダメージでは発動しない（50％を上から下へ跨いだ時だけ）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+      trigger: hitPointReduced({
+        source: "enemy:front",
+        target: "ally:subject",
+        damage: 1000,
+        hpBefore: 5000,
+      }),
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+    intent: "(分岐): 自身が前列に編成されていなければ、他の味方には付与しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+      trigger: hitPointReduced({
+        source: "enemy:front",
+        target: "ally:subject",
+        damage: 2000,
+        hpBefore: 6000,
+      }),
+    },
+    board: SUBJECT_IN_BACK_ROW,
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          targets: ["ally:subject"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          statusKind: "DAMAGE_IMMUNITY",
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+    intent:
+      "（同時発動制限）自身と同じ横一列の他の味方がアクティブスキルで攻撃する前に発動。当該攻撃に威力53のダメージと、1行動の「刻痕」を追加する",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+      trigger: skillUseStarting({ actor: "ally:front", targets: ["enemy:front"], skillType: "AS" }),
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP",
+          targets: ["ally:front"],
+        },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP",
+          magnitude: 0,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+          remaining: 1,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+    intent: "(条件): 攻撃する味方が自身と同じ横一列（前列）にいなければ発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+      trigger: skillUseStarting({ actor: "ally:back", targets: ["enemy:front"], skillType: "AS" }),
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+    intent: "自身が前列に編成されていない場合、このスキルは発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+      trigger: skillUseStarting({ actor: "ally:front", targets: ["enemy:front"], skillType: "AS" }),
+    },
+    board: SUBJECT_IN_BACK_ROW,
+    expected: { activated: false },
+  },
+];
+
+describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ)", () => {
+  it.each(BEHAVIOURS)(
+    "IT-UNIT-NINA-ZINA-FRONTRUNNER-001: $skillDefinitionId — $intent",
+    ({ use, board, precedingActions, random, expected }) => {
+      expect(
+        observeSkillUse({
+          snapshot,
+          unitDefinitionId: UNIT_DEFINITION_ID,
+          use,
+          ...(board === undefined ? {} : { board }),
+          ...(precedingActions === undefined ? {} : { precedingActions }),
+          ...(random === undefined ? {} : { random: random() }),
+        }),
+      ).toEqual(expected);
+    },
+  );
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-002: the table covers exactly the Skills the production UnitDefinition declares", () => {
+    const unit = unitFrom(snapshot, UNIT_DEFINITION_ID);
+    const declared = [
+      ...unit.activeSkillDefinitionIds,
+      ...unit.passiveSkillDefinitionIds,
+      unit.extraSkillDefinitionId,
+    ];
+    expect([...new Set(BEHAVIOURS.map((entry) => entry.skillDefinitionId))].sort()).toEqual(
+      [...declared].sort(),
+    );
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-003: every EffectAction reachable from this unit was actually executed by the table above", () => {
+    resetExecutedActionIds();
+    for (const { use, board, precedingActions, random } of BEHAVIOURS) {
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use,
+        ...(board === undefined ? {} : { board }),
+        ...(precedingActions === undefined ? {} : { precedingActions }),
+        ...(random === undefined ? {} : { random: random() }),
+      });
+    }
+    expect(
+      unexecutedEffectActionIds(
+        unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
+        collectedExecutedActionIds(),
+        // R-FUP-01: PS2の1行動の刻痕は追撃バフ（`ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP`の
+        // `onHitEffects`）が味方の攻撃に相乗りしたときだけ実行される。表は「スキル使用1回」
+        // 単位のためPS発動（バフ付与）までしか表せず、実行は`-004`が保持者の実AS経路で検証する。
+        [
+          "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_MARKER",
+          "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_ATK_DOWN",
+          "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_DMG_DOWN",
+        ],
+      ),
+    ).toEqual([]);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-004 [R-FUP-01]: PS2の追撃バフを保持した味方が実ASで攻撃すると、威力53の追撃が味方のステータスで入り、ヒットした敵へ1行動の刻痕（攻撃力-8%・与ダメージ-5%）が付与され、刻痕の付与者はニーナになる", () => {
+    // 自身は後列へ置く。前列のままだと、保持者（前列の味方）の実ASがそれ自体でPS2の
+    // 契機になり2本目のバフが付与される — 前提アクションはPS発動を経由しないため
+    // PS2のクールタイムが立っておらず、実戦闘では起きない二重の相乗りになる。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SUBJECT_IN_BACK_ROW);
+    const withRider = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP", target: "ALLY" },
+    ]);
+    const holder = withRider.find((unit) =>
+      unit.appliedEffects.some((effect) => effect.isFollowUpAttack === true),
+    );
+    expect(holder).toBeDefined();
+
+    const { units } = rideStandInAttack({
+      attackerUnitId: holder!.battleUnitId,
+      units: withRider,
+      definitions: board.definitions,
+      battleId: "B_NINA_ZINA_PS2_RIDE",
+    });
+
+    // AS本体: (1000 − 500) × 1.0 = 500。追撃: (1000 − 500) × 0.53 = 265（非会心継承）。
+    const attacked = units.filter(
+      (unit) => unit.side === "ENEMY" && unit.currentHp < unit.combatStats.maximumHp / 2,
+    );
+    expect(attacked).toHaveLength(1);
+    const enemyAfter = attacked[0]!;
+    expect(enemyAfter.currentHp).toBe(5000 - 500 - 265);
+
+    const scarTemp = enemyAfter.markerStates.find((marker) => marker.markerId === SCAR_TEMP);
+    expect(scarTemp).toMatchObject({
+      stackCount: 1,
+      sourceUnitId: board.subject.battleUnitId,
+    });
+    expect(scarTemp?.duration.definition).toMatchObject({
+      timeLimit: { unit: "ACTION", count: 1 },
+      removeOnSourceDefeated: true,
+    });
+    const magnitudes = Object.fromEntries(
+      enemyAfter.appliedEffects.map((effect) => [
+        effect.effectActionDefinitionId,
+        effect.magnitude,
+      ]),
+    );
+    expect(magnitudes).toMatchObject({
+      ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_ATK_DOWN: -0.08,
+      ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_DMG_DOWN: -0.05,
+    });
+    // 攻撃力は原基準値1000から8%低下する。
+    expect(enemyAfter.combatStats.attack).toBe(920);
+    // バフは「次の攻撃1回」で消費・失効している。
+    const holderAfter = units.find((unit) => unit.battleUnitId === holder!.battleUnitId)!;
+    expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+  });
+});

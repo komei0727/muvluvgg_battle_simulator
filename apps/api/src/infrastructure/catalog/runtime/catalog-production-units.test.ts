@@ -626,7 +626,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-10.4` は `UNIT_OLGA_NADYA_BOND_TEX`・`UNIT_HIIRO_FREEWOLF_TEX` を開催中
     // （`exerciseActive: true`）へ戻す（Issue #727）。開催中は七彩と合わせて3件になる。
     // 差分は `units.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-10-10.4");
+    // `2026-10-10.5` は新ユニット `UNIT_NINA_ZINA_FRONTRUNNER`（【双翼のフロントランナー】
+    // ニーナ／ジーナ・ミーシナ、Issue #736）の新規投入。#730〜#735で追加した
+    // `EFFECT_IMMUNITY.statKinds`/`polarity`・`markerIds`・追撃の`onHitEffects`・
+    // 継続回復の`evaluation: ON_APPLY`・`HP_RATIO_CROSSED`・`DAMAGE.bonusHits`を
+    // 初めて production Catalog で使用する。
+    expect(catalog.catalogRevision).toBe("2026-10-10.5");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

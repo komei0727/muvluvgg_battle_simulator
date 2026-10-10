@@ -1,0 +1,260 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 2.12 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "NON_STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["BUFF"],
+      "statKinds": ["ATTACK"],
+      "polarity": "DEBUFF",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      },
+      "maxBlocks": null
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_AP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.702 },
+      "bonusHits": {
+        "markerIds": [
+          "MARKER_NINA_ZINA_FRONTRUNNER_SCAR",
+          "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP"
+        ],
+        "perStack": 1,
+        "max": 9
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS1_REGEN",
+    "kind": "APPLY_CONTINUOUS_HEAL",
+    "payload": {
+      "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.25 },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "evaluation": "ON_APPLY",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.696 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_SCAR",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": true,
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.08 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
+      },
+      "maxBlocks": null
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_IMMUNITY",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_GUARD_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_PS1_GUARD",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      },
+      "maxBlocks": null
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP",
+    "kind": "APPLY_FOLLOW_UP_ATTACK",
+    "payload": {
+      "damage": {
+        "damageType": "PHYSICAL",
+        "formula": { "kind": "SKILL_POWER", "power": 0.53 }
+      },
+      "onHitEffects": [
+        { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_MARKER" },
+        { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_ATK_DOWN" },
+        { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_DMG_DOWN" }
+      ],
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_ATK_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": -0.08 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.05 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  }
+]
