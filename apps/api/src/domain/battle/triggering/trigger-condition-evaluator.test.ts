@@ -1086,6 +1086,47 @@ describe("evaluateTriggerCondition", () => {
       ).toBe(true);
     });
 
+    it("UT-R-PS-01-152: markerIds compares countCondition against the total of every listed marker", () => {
+      const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const owner = {
+        ...self,
+        markerStates: [marker(self, "MARKER_SCAR", 3), marker(self, "MARKER_SCAR_TEMP", 1)],
+      };
+      const condition = (value: number): ConditionDefinition => ({
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerIds: [createMarkerId("MARKER_SCAR"), createMarkerId("MARKER_SCAR_TEMP")],
+        countCondition: { op: "GTE", value },
+      });
+      const evaluate = (c: ConditionDefinition): boolean =>
+        evaluateTriggerCondition(
+          c,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        );
+
+      expect(evaluate(condition(4))).toBe(true);
+      expect(evaluate(condition(5))).toBe(false);
+    });
+
+    it("UT-R-PS-01-153: markerIds does not match when the target holds none of the listed markers, even for an LT countCondition", () => {
+      const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const owner = { ...self, markerStates: [marker(self, "MARKER_OTHER", 1)] };
+      const condition: ConditionDefinition = {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerIds: [createMarkerId("MARKER_SCAR"), createMarkerId("MARKER_SCAR_TEMP")],
+        countCondition: { op: "LT", value: 4 },
+      };
+      expect(
+        evaluateTriggerCondition(
+          condition,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        ),
+      ).toBe(false);
+    });
+
     it("UT-R-PS-01-040: does not match when the resolved target lacks the marker entirely", () => {
       const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", { markerStates: [] });
       const condition: ConditionDefinition = {

@@ -329,4 +329,42 @@ describe("FormulaDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-FORM-024 [R-NUM-04]: maps MARKER_COUNT_SCALE with markerIds, summing several markers", () => {
+    const result = createFormulaDefinition(
+      {
+        kind: "MARKER_COUNT_SCALE",
+        target: { kind: "TARGET" },
+        markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+        perStack: 1,
+        max: 9,
+      },
+      "formula",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "MARKER_COUNT_SCALE",
+      target: { kind: "TARGET" },
+      markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+      perStack: 1,
+      max: 9,
+    });
+  });
+
+  it("UT-CAT-FORM-025 [R-NUM-04]: rejects MARKER_COUNT_SCALE declaring both markerId and markerIds", () => {
+    expect(() =>
+      createFormulaDefinition(
+        {
+          kind: "MARKER_COUNT_SCALE",
+          target: { kind: "TARGET" },
+          markerId: "MARKER_SCAR",
+          markerIds: ["MARKER_SCAR_TEMP"],
+          perStack: 1,
+          max: 9,
+        },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

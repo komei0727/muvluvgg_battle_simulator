@@ -1,5 +1,5 @@
 import type { Side } from "./catalog-enums.js";
-import { createMarkerId, type MarkerId } from "./catalog-ids.js";
+import { createMarkerReference, type MarkerReference } from "./marker-reference.js";
 import {
   createFormulaSourceReference,
   LAST_RESULT_REFERENCE_KINDS,
@@ -94,7 +94,7 @@ const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
   LOST_HP_RATIO: ["kind", "source", "ratio"],
   DAMAGE_DEALT_RATIO: ["kind", "sourceResult", "ratio"],
   DAMAGE_RECEIVED_RATIO: ["kind", "sourceResult", "ratio"],
-  MARKER_COUNT_SCALE: ["kind", "target", "markerId", "perStack", "max"],
+  MARKER_COUNT_SCALE: ["kind", "target", "markerId", "markerIds", "perStack", "max"],
   ALIVE_UNIT_COUNT_SCALE: ["kind", "side", "perUnit", "max"],
   HP_RATIO_SCALE: [
     "kind",
@@ -138,13 +138,12 @@ export type FormulaDefinition =
       readonly sourceResult: LastResultReference;
       readonly ratio: number;
     }
-  | {
+  | ({
       readonly kind: "MARKER_COUNT_SCALE";
       readonly target: FormulaSourceReference;
-      readonly markerId: MarkerId;
       readonly perStack: number;
       readonly max: number;
-    }
+    } & MarkerReference)
   | {
       readonly kind: "ALIVE_UNIT_COUNT_SCALE";
       readonly side: Side;
@@ -216,6 +215,7 @@ export interface FormulaDefinitionInput {
   readonly sourceResult?: string;
   readonly target?: FormulaSourceReferenceInput;
   readonly markerId?: string;
+  readonly markerIds?: readonly string[];
   readonly perStack?: number;
   readonly max?: number;
   readonly side?: string;
@@ -307,14 +307,10 @@ export function createFormulaDefinition(
       if (input.target === undefined) {
         throw new DomainValidationError(`${path}.target`, "is required");
       }
-      const markerId = createMarkerId(
-        requireString(input.markerId, `${path}.markerId`),
-        `${path}.markerId`,
-      );
       return {
         kind: "MARKER_COUNT_SCALE",
         target: createFormulaSourceReference(input.target, `${path}.target`, scope),
-        markerId,
+        ...createMarkerReference(input, path),
         perStack: requireNumber(input.perStack, `${path}.perStack`),
         max: requireNumber(input.max, `${path}.max`),
       };

@@ -1,3 +1,4 @@
+import { createMarkerReference, type MarkerReference } from "./marker-reference.js";
 import {
   CONTINUOUS_DAMAGE_KINDS,
   STAT_KINDS,
@@ -12,11 +13,9 @@ import type {
 } from "./catalog-enums.js";
 import {
   createEffectActionDefinitionId,
-  createMarkerId,
   createMemoryDefinitionId,
   createRuntimeCounterId,
   type EffectActionDefinitionId,
-  type MarkerId,
   type MemoryDefinitionId,
   type RuntimeCounterId,
 } from "./catalog-ids.js";
@@ -291,7 +290,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   OR: ["kind", "conditions"],
   NOT: ["kind", "condition"],
   TARGET_STATE: ["kind", "target", "field", "op", "value"],
-  TARGET_HAS_MARKER: ["kind", "target", "markerId", "countCondition"],
+  TARGET_HAS_MARKER: ["kind", "target", "markerId", "markerIds", "countCondition"],
   EVENT_PAYLOAD: ["kind", "field", "op", "value"],
   DAMAGE_MAX_HP_RATIO: ["kind", "field", "op", "value"],
   LAST_RESULT: ["kind", "field", "op", "value"],
@@ -364,12 +363,11 @@ export type ConditionDefinition =
       readonly op: ComparisonOperator;
       readonly value: JsonPrimitive;
     }
-  | {
+  | ({
       readonly kind: "TARGET_HAS_MARKER";
       readonly target: TargetReference;
-      readonly markerId: MarkerId;
       readonly countCondition?: MarkerCountCondition;
-    }
+    } & MarkerReference)
   | {
       readonly kind: "EVENT_PAYLOAD";
       readonly field: string;
@@ -516,6 +514,7 @@ export interface ConditionDefinitionInput {
   readonly op?: string;
   readonly value?: JsonPrimitive;
   readonly markerId?: string;
+  readonly markerIds?: readonly string[];
   readonly memoryDefinitionId?: string;
   readonly effectActionDefinitionIds?: readonly string[];
   readonly grantedBy?: string;
@@ -705,11 +704,10 @@ export function createConditionDefinition(
     }
     case "TARGET_HAS_MARKER": {
       const target = requireField(input, "target", path);
-      const markerId = createMarkerId(requireField(input, "markerId", path), `${path}.markerId`);
       const result: ConditionDefinition = {
         kind: "TARGET_HAS_MARKER",
         target: createTargetReference(target, `${path}.target`, scope),
-        markerId,
+        ...createMarkerReference(input, path),
       };
       if (input.countCondition === undefined) {
         return result;

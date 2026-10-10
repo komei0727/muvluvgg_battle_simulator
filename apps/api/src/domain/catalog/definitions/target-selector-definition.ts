@@ -1,3 +1,4 @@
+import { createMarkerReference, type MarkerReference } from "./marker-reference.js";
 import type {
   Attribute,
   PositionColumn,
@@ -62,11 +63,10 @@ const TARGET_ORDER_KEYS = [
 export type TargetOrderKey = (typeof TARGET_ORDER_KEYS)[number];
 
 /** R-TGT-09 #5（TGT-002、CAP_TARGET_FILTER_ORDER）: Marker所持数を比較キーにする、パラメータ付きの`order`要素。 */
-export interface MarkerCountOrderDefinition {
+export type MarkerCountOrderDefinition = {
   readonly kind: "MARKER_COUNT";
-  readonly markerId: MarkerId;
   readonly direction: "ASC" | "DESC";
-}
+} & MarkerReference;
 
 /** unitType優先を比較キーにする、パラメータ付きの`order`要素（TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ）。 */
 export interface UnitTypePriorityOrderDefinition {
@@ -86,13 +86,14 @@ export type TargetOrderEntry =
   | UnitTypePriorityOrderDefinition;
 
 const TARGET_ORDER_ENTRY_OBJECT_KINDS = ["MARKER_COUNT", "UNIT_TYPE_PRIORITY"] as const;
-const MARKER_COUNT_ORDER_ALLOWED_KEYS = ["kind", "markerId", "direction"] as const;
+const MARKER_COUNT_ORDER_ALLOWED_KEYS = ["kind", "markerId", "markerIds", "direction"] as const;
 const UNIT_TYPE_PRIORITY_ORDER_ALLOWED_KEYS = ["kind", "unitType"] as const;
 const ORDER_DIRECTIONS = ["ASC", "DESC"] as const;
 
 export interface TargetOrderEntryInput {
   readonly kind: string;
   readonly markerId?: string;
+  readonly markerIds?: readonly string[];
   readonly direction?: string;
   readonly unitType?: string;
 }
@@ -487,13 +488,10 @@ function createTargetOrderEntry(
   assertEnumValue(input.kind, TARGET_ORDER_ENTRY_OBJECT_KINDS, `${path}.kind`);
   if (input.kind === "MARKER_COUNT") {
     assertKnownKeys(input, MARKER_COUNT_ORDER_ALLOWED_KEYS, path);
-    const markerId = createMarkerId(
-      requireStringField(input.markerId, `${path}.markerId`),
-      `${path}.markerId`,
-    );
+    const markerReference = createMarkerReference(input, path);
     const direction = requireStringField(input.direction, `${path}.direction`);
     assertEnumValue(direction, ORDER_DIRECTIONS, `${path}.direction`);
-    return { kind: "MARKER_COUNT", markerId, direction };
+    return { kind: "MARKER_COUNT", direction, ...markerReference };
   }
   assertKnownKeys(input, UNIT_TYPE_PRIORITY_ORDER_ALLOWED_KEYS, path);
   const unitType = requireStringField(input.unitType, `${path}.unitType`);

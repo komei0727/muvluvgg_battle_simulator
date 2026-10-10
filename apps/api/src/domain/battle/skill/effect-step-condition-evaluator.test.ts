@@ -459,6 +459,40 @@ describe("evaluateEffectStepCondition", () => {
       );
     });
 
+    it("UT-R-SKL-06-078: TARGET_HAS_MARKER with markerIds compares countCondition against the total of every listed marker", () => {
+      const scar = createMarkerId("MARKER_SCAR");
+      const scarTemp = createMarkerId("MARKER_SCAR_TEMP");
+      const actor = unit("actor", "UNIT_PHYSICAL");
+      const markerOf = (instanceId: string, markerId: typeof scar, stackCount: number) => ({
+        ...buildInitialMarkerState(
+          createMarkerInstanceId(instanceId),
+          markerId,
+          { sourceUnitId: createBattleUnitId("actor") },
+          createBattleUnitId("t1"),
+          null,
+          { dispellable: true, linkedEffectGroupId: null, timeLimit: { unit: "BATTLE", count: 1 } },
+          { turnNumber: 1 },
+        ),
+        stackCount,
+      });
+      const target = unit("t1", "UNIT_PHYSICAL", {
+        markerStates: [markerOf("mi-1", scar, 3), markerOf("mi-2", scarTemp, 1)],
+      });
+      const condition = (value: number): ConditionDefinition => ({
+        kind: "TARGET_HAS_MARKER",
+        target: STEP_TARGET,
+        markerIds: [scar, scarTemp],
+        countCondition: { op: "GTE", value },
+      });
+
+      expect(evaluateEffectStepCondition(condition(4), undefined, contextFor(target, actor))).toBe(
+        true,
+      );
+      expect(evaluateEffectStepCondition(condition(5), undefined, contextFor(target, actor))).toBe(
+        false,
+      );
+    });
+
     it("UT-R-SKL-06-021: TARGET_HAS_MARKER without an EffectStepTargetContext throws", () => {
       const condition: ConditionDefinition = {
         kind: "TARGET_HAS_MARKER",
