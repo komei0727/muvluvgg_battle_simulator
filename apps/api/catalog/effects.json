@@ -8329,6 +8329,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -8345,7 +8346,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -8361,7 +8363,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -8449,6 +8452,9 @@
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -8462,7 +8468,13 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.08 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8474,7 +8486,13 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.05 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
+      }
     },
     "metadata": { "tags": [] }
   },

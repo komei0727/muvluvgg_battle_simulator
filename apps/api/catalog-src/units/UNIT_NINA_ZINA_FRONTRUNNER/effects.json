@@ -99,6 +99,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -115,7 +116,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -131,7 +133,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -222,6 +225,9 @@
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -237,7 +243,10 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "ACTION", "count": 1 }
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -252,7 +261,10 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": false,
-        "timeLimit": { "unit": "ACTION", "count": 1 }
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }

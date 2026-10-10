@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { findMarkersRemovedOnSourceDefeat } from "../../../domain/battle/resolution/marker-source-defeat-service.js";
+import { removeMarkers } from "../../../domain/battle/effects/marker-removal-service.js";
+import { collectLinkedGroupCascade } from "../../../domain/battle/model/linked-effect-group.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import {
+  createEffectInstanceId,
+  createMarkerInstanceId,
+} from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -637,7 +646,8 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-004 [R-FUP-01]: PS2の追撃バフを保持した味方が実ASで攻撃すると、威力53の追撃が味方のステータスで入り、ヒットした敵へ1行動の刻痕（攻撃力-8%・与ダメージ-5%）が付与され、刻痕の付与者はニーナになる", () => {
+  /** PS2の追撃バフを保持した前列の味方に実ASを使わせ、1行動の刻痕が付いた盤面を返す。 */
+  function rideScarTemp(battleId: string) {
     // 自身は後列へ置く。前列のままだと、保持者（前列の味方）の実ASがそれ自体でPS2の
     // 契機になり2本目のバフが付与される — 前提アクションはPS発動を経由しないため
     // PS2のクールタイムが立っておらず、実戦闘では起きない二重の相乗りになる。
@@ -648,14 +658,31 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     const holder = withRider.find((unit) =>
       unit.appliedEffects.some((effect) => effect.isFollowUpAttack === true),
     );
-    expect(holder).toBeDefined();
-
     const { units } = rideStandInAttack({
       attackerUnitId: holder!.battleUnitId,
       units: withRider,
       definitions: board.definitions,
-      battleId: "B_NINA_ZINA_PS2_RIDE",
+      battleId,
     });
+    const scarred = units.find((unit) =>
+      unit.markerStates.some((marker) => marker.markerId === SCAR_TEMP),
+    )!;
+    return { board, holder: holder!, units, scarred };
+  }
+
+  const SCAR_TEMP_DEBUFFS = [
+    "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_ATK_DOWN",
+    "ACT_NINA_ZINA_FRONTRUNNER_SCAR_TEMP_DMG_DOWN",
+  ];
+
+  const scarTempDebuffsOf = (unit: BattleUnit) =>
+    unit.appliedEffects.filter((effect) =>
+      SCAR_TEMP_DEBUFFS.includes(effect.effectActionDefinitionId),
+    );
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-004 [R-FUP-01]: PS2の追撃バフを保持した味方が実ASで攻撃すると、威力53の追撃が味方のステータスで入り、ヒットした敵へ1行動の刻痕（攻撃力-8%・与ダメージ-5%）が付与され、刻痕の付与者はニーナになる", () => {
+    const { board, holder, units } = rideScarTemp("B_NINA_ZINA_PS2_RIDE");
+    expect(holder).toBeDefined();
 
     // AS本体: (1000 − 500) × 1.0 = 500。追撃: (1000 − 500) × 0.53 = 265（非会心継承）。
     const attacked = units.filter(
@@ -687,7 +714,72 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     // 攻撃力は原基準値1000から8%低下する。
     expect(enemyAfter.combatStats.attack).toBe(920);
     // バフは「次の攻撃1回」で消費・失効している。
-    const holderAfter = units.find((unit) => unit.battleUnitId === holder!.battleUnitId)!;
+    const holderAfter = units.find((unit) => unit.battleUnitId === holder.battleUnitId)!;
     expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-005 [R-EFF-09, R-EFF-10]: ニーナが倒れて1行動の刻痕が消えると、紐づく攻撃力・与ダメージの低下も同時に消える", () => {
+    const { board, units, scarred } = rideScarTemp("B_NINA_ZINA_SCAR_TEMP_DEFEAT");
+    expect(scarTempDebuffsOf(scarred)).toHaveLength(2);
+
+    const { recorder, rootEventId } = seedRecorder("B_NINA_ZINA_SCAR_TEMP_DEFEAT_REMOVE");
+    const removed = removeMarkers(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      units,
+      findMarkersRemovedOnSourceDefeat(units, {
+        eventType: "UnitDefeated",
+        payload: { unitId: board.subject.battleUnitId },
+      }),
+      board.definitions.effectActions,
+      rootEventId,
+    );
+
+    const after = removed.units.find((unit) => unit.battleUnitId === scarred.battleUnitId)!;
+    expect(after.markerStates.some((marker) => marker.markerId === SCAR_TEMP)).toBe(false);
+    expect(scarTempDebuffsOf(after)).toEqual([]);
+    expect(after.combatStats.attack).toBe(1000);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-006 [R-EFF-09]: ある敵の1行動の刻痕が消えても、他の敵が持つ刻痕の低下は連動して消えない（連動は保持ユニット内に閉じる）", () => {
+    const { units, scarred } = rideScarTemp("B_NINA_ZINA_SCAR_TEMP_SCOPE");
+    // 同じ定義の刻痕一式（マーカー＋低下2件）を別の敵にも持たせる。
+    const otherId = units.find(
+      (unit) => unit.side === "ENEMY" && unit.battleUnitId !== scarred.battleUnitId,
+    )!.battleUnitId;
+    const other: BattleUnit = {
+      ...units.find((unit) => unit.battleUnitId === otherId)!,
+      markerStates: scarred.markerStates
+        .filter((marker) => marker.markerId === SCAR_TEMP)
+        .map((marker) => ({
+          ...marker,
+          markerInstanceId: createMarkerInstanceId(`${marker.markerInstanceId}:other`),
+          targetUnitId: createBattleUnitId(otherId),
+        })),
+      appliedEffects: scarTempDebuffsOf(scarred).map((effect) => ({
+        ...effect,
+        effectInstanceId: createEffectInstanceId(`${effect.effectInstanceId}:other`),
+        targetUnitId: createBattleUnitId(otherId),
+      })),
+    };
+    const board = units.map((unit) => (unit.battleUnitId === otherId ? other : unit));
+    const seedMarker = scarred.markerStates.find((marker) => marker.markerId === SCAR_TEMP)!;
+
+    const cascade = collectLinkedGroupCascade(board, {
+      effectInstanceIds: new Set(),
+      markerInstanceIds: new Set([seedMarker.markerInstanceId]),
+    });
+
+    expect([...cascade.effectInstanceIds].sort()).toEqual(
+      scarTempDebuffsOf(scarred)
+        .map((effect) => effect.effectInstanceId)
+        .sort(),
+    );
+    expect([...cascade.markerInstanceIds]).toEqual([seedMarker.markerInstanceId]);
   });
 });
