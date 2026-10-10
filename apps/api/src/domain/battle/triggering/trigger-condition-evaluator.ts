@@ -1,3 +1,4 @@
+import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
@@ -438,15 +439,15 @@ export function evaluateTriggerCondition(
         if (target === undefined) {
           return false;
         }
-        const marker = target.markerStates.find((state) => state.markerId === condition.markerId);
-        if (marker === undefined) {
+        const stackTotal = heldMarkerStackTotal(target.markerStates, condition);
+        if (stackTotal === undefined) {
           return false;
         }
         if (condition.countCondition === undefined) {
           return true;
         }
         return compareWithOperator(
-          marker.stackCount,
+          stackTotal,
           condition.countCondition.op,
           condition.countCondition.value,
         );

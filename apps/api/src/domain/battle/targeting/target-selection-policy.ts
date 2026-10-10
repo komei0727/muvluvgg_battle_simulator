@@ -1,3 +1,5 @@
+import { heldMarkerStackTotal } from "../model/marker-state.js";
+import type { MarkerReference } from "../../catalog/definitions/marker-reference.js";
 import {
   cumulativeDamageDealtOf,
   heldAttributes,
@@ -18,11 +20,7 @@ import type {
   TargetSelectorDefinition,
 } from "../../catalog/definitions/target-selector-definition.js";
 import type { TargetReference } from "../../catalog/definitions/references.js";
-import type {
-  MarkerId,
-  TargetBindingId,
-  UnitDefinitionId,
-} from "../../catalog/definitions/catalog-ids.js";
+import type { TargetBindingId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
@@ -149,10 +147,6 @@ function lookupUnitDefinition(
     );
   }
   return definition;
-}
-
-function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
-  return unit.markerStates.find((state) => state.markerId === markerId)?.stackCount ?? 0;
 }
 
 /** HP_RATIO filter/MARKER countConditionが使う数値比較（`domain/battle/targeting`は`domain/battle/skill`のcomparison-operator.tsへ依存できないため独立実装する）。 */
@@ -445,11 +439,13 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
 };
 
-/** TARGET_ORDER_MARKER_COUNTテーマ: Marker所持数（`markerId`指定）を比較キーにする。 */
-function compareMarkerCount(markerId: MarkerId, direction: "ASC" | "DESC") {
+/** TARGET_ORDER_MARKER_COUNTテーマ: Marker所持数（`markerIds`指定時は合計）を比較キーにする。 */
+function compareMarkerCount(reference: MarkerReference, direction: "ASC" | "DESC") {
   const sign = direction === "ASC" ? 1 : -1;
   return (a: BattleUnit, b: BattleUnit): number =>
-    sign * (markerStackCount(a, markerId) - markerStackCount(b, markerId));
+    sign *
+    ((heldMarkerStackTotal(a.markerStates, reference) ?? 0) -
+      (heldMarkerStackTotal(b.markerStates, reference) ?? 0));
 }
 
 /** TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ: 指定unitTypeを優先する。 */
@@ -479,7 +475,7 @@ function compareByOrder(
   const comparators = orderEntries.map((entry) => {
     if (typeof entry !== "string") {
       return entry.kind === "MARKER_COUNT"
-        ? compareMarkerCount(entry.markerId, entry.direction)
+        ? compareMarkerCount(entry, entry.direction)
         : compareUnitTypePriority(entry.unitType, unitDefinitions);
     }
     const factory = SINGLE_KEY_ORDER_COMPARATORS[entry];

@@ -306,6 +306,29 @@ describe("evaluateFormula", () => {
     expect(evaluateFormula(formula, context())).toBe(0);
   });
 
+  it("UT-R-NUM-04-048: MARKER_COUNT_SCALE with markerIds sums the stacks of every listed marker, counting absent ones as 0", () => {
+    const skillSource = unitAt("U_SOURCE", "ALLY");
+    const withMarkers = {
+      ...skillSource,
+      markerStates: [
+        marker(skillSource, "MARKER_SCAR", 3),
+        marker(skillSource, "MARKER_SCAR_TEMP", 2),
+        marker(skillSource, "MARKER_OTHER", 5),
+      ],
+    };
+    const ctx = context({ skillSource: withMarkers, allUnits: [withMarkers] });
+    const formula = (markerIds: readonly string[]): FormulaDefinition => ({
+      kind: "MARKER_COUNT_SCALE",
+      target: { kind: "SKILL_SOURCE" },
+      markerIds: markerIds.map((id) => createMarkerId(id)),
+      perStack: 1,
+      max: 9,
+    });
+
+    expect(evaluateFormula(formula(["MARKER_SCAR", "MARKER_SCAR_TEMP"]), ctx)).toBe(5);
+    expect(evaluateFormula(formula(["MARKER_SCAR", "MARKER_ABSENT"]), ctx)).toBe(3);
+  });
+
   it("UT-R-NUM-04-011: MARKER_COUNT_SCALE caps the result at max even when stackCount*perStack exceeds it", () => {
     const skillSource = unitAt("U_SOURCE", "ALLY");
     const withMarker = {

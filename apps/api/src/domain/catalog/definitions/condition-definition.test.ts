@@ -1140,4 +1140,38 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-COND-065: maps TARGET_HAS_MARKER with markerIds and a countCondition over their total", () => {
+    const result = createConditionDefinition(
+      {
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+        countCondition: { op: "GTE", value: 4 },
+      },
+      "condition",
+      undefined,
+    );
+    expect(result).toEqual({
+      kind: "TARGET_HAS_MARKER",
+      target: { kind: "SELF" },
+      markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+      countCondition: { op: "GTE", value: 4 },
+    });
+  });
+
+  it("UT-CAT-COND-066: rejects TARGET_HAS_MARKER declaring both markerId and markerIds", () => {
+    expect(() =>
+      createConditionDefinition(
+        {
+          kind: "TARGET_HAS_MARKER",
+          target: { kind: "SELF" },
+          markerId: "MARKER_SCAR",
+          markerIds: ["MARKER_SCAR_TEMP"],
+        },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

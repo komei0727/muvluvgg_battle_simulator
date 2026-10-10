@@ -536,10 +536,10 @@ selector:
 | `LEFT_TO_RIGHT`                   | 絶対左から右                                         |
 | `SELF_LOWEST_PRIORITY`            | 自身を末尾へ回す（hard excludeではなく自身以外優先） |
 
-| kind（オブジェクト形式） | 追加フィールド                          | 意味                        |
-| ------------------------ | --------------------------------------- | --------------------------- |
-| `MARKER_COUNT`           | `markerId`, `direction`（`ASC`/`DESC`） | 指定Marker所持数の昇順/降順 |
-| `UNIT_TYPE_PRIORITY`     | `unitType`                              | 指定unitTypeの対象を優先    |
+| kind（オブジェクト形式） | 追加フィールド                                           | 意味                                             |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------------------ |
+| `MARKER_COUNT`           | `markerId`または`markerIds`, `direction`（`ASC`/`DESC`） | 指定Marker所持数の昇順/降順（`markerIds`は合計） |
+| `UNIT_TYPE_PRIORITY`     | `unitType`                                               | 指定unitTypeの対象を優先                         |
 
 `LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
 
@@ -1854,7 +1854,7 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `LOST_HP_RATIO`             | `source`, `ratio`                                                           | 失ったHP×ratio                                           |
 | `DAMAGE_DEALT_RATIO`        | `sourceResult`, `ratio`                                                     | 与えたダメージ×ratio（`sourceResult` で直前/合計を選択） |
 | `DAMAGE_RECEIVED_RATIO`     | `sourceResult`, `ratio`                                                     | 受けたダメージ×ratio（`sourceResult` で直前/合計を選択） |
-| `MARKER_COUNT_SCALE`        | `target`, `markerId`, `perStack`, `max`                                     | marker数×perStack                                        |
+| `MARKER_COUNT_SCALE`        | `target`, `markerId`または`markerIds`, `perStack`, `max`                    | marker数×perStack（`markerIds`は合計）                   |
 | `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                                    | 生存数×perUnit                                           |
 | `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`, `lowerBoundRatio?`, `upperBoundRatio?` | HP割合でmin〜maxを線形補間                               |
 | `SUM`                       | `formulas[]`                                                                | 合計                                                     |
@@ -2004,25 +2004,27 @@ condition:
 
 ### kind 一覧
 
-| kind                   | 追加フィールド                         | 意味                                                                                               |
-| ---------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `TRUE`                 | なし                                   | 常に成立                                                                                           |
-| `AND`                  | `conditions[]`                         | 全条件                                                                                             |
-| `OR`                   | `conditions[]`                         | いずれか                                                                                           |
-| `NOT`                  | `condition`                            | 否定                                                                                               |
-| `TARGET_STATE`         | `target`, `field`, `op`, `value`       | 対象状態比較                                                                                       |
-| `TARGET_HAS_MARKER`    | `target`, `markerId`, `countCondition` | Marker所持                                                                                         |
-| `EVENT_PAYLOAD`        | `field`, `op`, `value`                 | trigger payload比較                                                                                |
-| `DAMAGE_MAX_HP_RATIO`  | `field`, `op`, `value`                 | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
-| `LAST_RESULT`          | `field`, `op`, `value`                 | 直前結果比較                                                                                       |
-| `RUNTIME_COUNTER`      | `counter`, `op`, `value`, `modulo`     | SkillRuntime等のcounter比較                                                                        |
-| `TURN_NUMBER`          | `op`, `value`, `modulo`                | ターン番号条件                                                                                     |
-| `ALIVE_UNIT_COUNT`     | `side`, `excludeSelf`, `op`, `value`   | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
-| `POSITION_RELATION`    | `target`, `relation`                   | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
-| `RESOLUTION_PHASE`     | `phase`, `negate`                      | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
-| `TARGET_SET_COUNT`     | `target`, `countOf`, `op`, `value`     | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
-| `TARGET_EFFECT_COUNT`  | `target`, `categories`, `op`, `value`  | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
-| `SELF_MEMORY_EQUIPPED` | `memoryDefinitionId`                   | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                      |
+| kind                   | 追加フィールド                                          | 意味                                                                                               |
+| ---------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `TRUE`                 | なし                                                    | 常に成立                                                                                           |
+| `AND`                  | `conditions[]`                                          | 全条件                                                                                             |
+| `OR`                   | `conditions[]`                                          | いずれか                                                                                           |
+| `NOT`                  | `condition`                                             | 否定                                                                                               |
+| `TARGET_STATE`         | `target`, `field`, `op`, `value`                        | 対象状態比較                                                                                       |
+| `TARGET_HAS_MARKER`    | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                    |
+| `EVENT_PAYLOAD`        | `field`, `op`, `value`                                  | trigger payload比較                                                                                |
+| `DAMAGE_MAX_HP_RATIO`  | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
+| `LAST_RESULT`          | `field`, `op`, `value`                                  | 直前結果比較                                                                                       |
+| `RUNTIME_COUNTER`      | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                        |
+| `TURN_NUMBER`          | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                     |
+| `ALIVE_UNIT_COUNT`     | `side`, `excludeSelf`, `op`, `value`                    | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
+| `POSITION_RELATION`    | `target`, `relation`                                    | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
+| `RESOLUTION_PHASE`     | `phase`, `negate`                                       | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
+| `TARGET_SET_COUNT`     | `target`, `countOf`, `op`, `value`                      | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
+| `TARGET_EFFECT_COUNT`  | `target`, `categories`, `op`, `value`                   | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
+| `SELF_MEMORY_EQUIPPED` | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                      |
+
+`MARKER_COUNT_SCALE`・`MARKER_COUNT`（order）・`TARGET_HAS_MARKER`はいずれも、単一の`markerId`に代えて`markerIds`（1件以上、重複不可）を指定できる。両方の指定や、どちらも無い指定はCatalogロード時点で拒否する。`markerIds`を指定した場合、所持数は列挙したマーカーのスタック数の合計になる。`TARGET_HAS_MARKER`は、列挙したマーカーを1つも所持していなければ`countCondition`に関わらず不成立とする（単一`markerId`の不所持と同じ規約）。用途は寿命の違う同名マーカーを合算して数えることである — `MarkerState`はmarkerIdごとに1インスタンス・1 Durationしか持てないため（R-EFF-10）、寿命の違うスタックはmarkerIdを分けて付与し、所持数を問う側で合計する。
 
 `SELF_MEMORY_EQUIPPED`は`ALIVE_UNIT_COUNT`と同じ`owner.side`/`ownerSide`解決規則を使う（`owner`が無いMemory評価文脈では`ownerSide`が基準）。`BattleDefinitions.memoriesBySide`（陣営ごとの装備メモリー射影）を参照するため、この文脈を配線していない評価経路（PS本体のactivation trigger等）では明確な`DomainValidationError`で隔離される — 現状は`RuntimeCounterUpdateDefinition`（`counterUpdates`）のtrigger.conditionからの利用のみ配線済み。
 

@@ -1954,6 +1954,40 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-TGT-002-034: MARKER_COUNT order with markerIds ranks candidates by the total of every listed marker", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const scar = createMarkerId("MARKER_SCAR");
+      const scarTemp = createMarkerId("MARKER_SCAR_TEMP");
+      // 単独では「刻痕」の多いSPLITが、合算すると少ない側になる。
+      const split = unit(
+        "SPLIT",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { markerStates: [marker(scar, 3), marker(scarTemp, 2)] },
+      );
+      const single = unit(
+        "SINGLE",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { markerStates: [marker(scar, 4)] },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          order: [{ kind: "MARKER_COUNT", markerIds: [scar, scarTemp], direction: "ASC" }],
+        }),
+        actor,
+        [actor, split, single],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("SINGLE"),
+        createBattleUnitId("SPLIT"),
+      ]);
+    });
+
     it("UT-TGT-002-021: UNIT_TYPE_PRIORITY order entry ranks the given unitType first (ENタイプを優先)", () => {
       const enDefId = createUnitDefinitionId("UNIT_EN");
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });

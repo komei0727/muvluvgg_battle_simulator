@@ -1,9 +1,10 @@
+import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type {
   FormulaDefinition,
   StatRatioStat,
 } from "../../catalog/definitions/formula-definition.js";
 import type { Side as SelectorSide } from "../../catalog/definitions/catalog-enums.js";
-import type { MarkerId, TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
+import type { TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
 import type {
   FormulaSourceReference,
   LastResultReference,
@@ -163,11 +164,6 @@ function statValue(
  */
 function scaleUpToCap(scaled: number, max: number): number {
   return max >= 0 ? Math.min(scaled, max) : Math.max(scaled, max);
-}
-
-/** R-EFF-10: 同じmarkerIdのインスタンスは対象ごとに常に1つだけ存在する。未所持は0スタック扱い。 */
-function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
-  return unit.markerStates.find((state) => state.markerId === markerId)?.stackCount ?? 0;
 }
 
 /**
@@ -409,7 +405,7 @@ export function evaluateFormula(
       return lastResultValue(context, formula.sourceResult, `${path}.sourceResult`) * formula.ratio;
     case "MARKER_COUNT_SCALE": {
       const target = resolveSourceUnit(formula.target, context, `${path}.target`);
-      const stackCount = markerStackCount(target, formula.markerId);
+      const stackCount = heldMarkerStackTotal(target.markerStates, formula) ?? 0;
       return scaleUpToCap(stackCount * formula.perStack, formula.max);
     }
     case "HP_RATIO_SCALE": {

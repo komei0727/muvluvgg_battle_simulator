@@ -1,3 +1,4 @@
+import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type {
   ConditionDefinition,
   JsonPrimitive,
@@ -319,15 +320,15 @@ export function evaluateEffectStepCondition(
       if (targetContext !== undefined) {
         const candidates = resolveConditionTargets(condition.target, targetContext);
         return candidates.some((unit) => {
-          const marker = unit.markerStates.find((state) => state.markerId === condition.markerId);
-          if (marker === undefined) {
+          const stackTotal = heldMarkerStackTotal(unit.markerStates, condition);
+          if (stackTotal === undefined) {
             return false;
           }
           if (condition.countCondition === undefined) {
             return true;
           }
           return compareWithOperator(
-            marker.stackCount,
+            stackTotal,
             condition.countCondition.op,
             condition.countCondition.value,
           );
@@ -348,15 +349,15 @@ export function evaluateEffectStepCondition(
         if (unit === undefined) {
           return false;
         }
-        const marker = unit.markerStates.find((state) => state.markerId === condition.markerId);
-        if (marker === undefined) {
+        const stackTotal = heldMarkerStackTotal(unit.markerStates, condition);
+        if (stackTotal === undefined) {
           return false;
         }
         if (condition.countCondition === undefined) {
           return true;
         }
         return compareWithOperator(
-          marker.stackCount,
+          stackTotal,
           condition.countCondition.op,
           condition.countCondition.value,
         );

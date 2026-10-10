@@ -562,4 +562,48 @@ describe("TargetSelectorDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-TSEL-042: maps a MARKER_COUNT order entry with markerIds", () => {
+    const result = createTargetSelectorDefinition(
+      {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: [
+          {
+            kind: "MARKER_COUNT",
+            markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+            direction: "ASC",
+          },
+        ],
+      },
+      "selector",
+      undefined,
+    );
+    expect(result.order).toEqual([
+      { kind: "MARKER_COUNT", markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"], direction: "ASC" },
+    ]);
+  });
+
+  it("UT-CAT-TSEL-043: rejects a MARKER_COUNT order entry declaring both markerId and markerIds", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        {
+          kind: "SELECT",
+          side: "ENEMY",
+          count: 1,
+          order: [
+            {
+              kind: "MARKER_COUNT",
+              markerId: "MARKER_SCAR",
+              markerIds: ["MARKER_SCAR_TEMP"],
+              direction: "ASC",
+            },
+          ],
+        },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -6,6 +6,10 @@ import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
 import type { MarkerStackDecayDefinition } from "../../catalog/definitions/effect-action-payload.js";
+import {
+  referencedMarkerIds,
+  type MarkerReference,
+} from "../../catalog/definitions/marker-reference.js";
 
 /**
  * `05_ドメインモデル.md`「MarkerState」/R-EFF-10: ユニットへ付与された固有状態
@@ -101,4 +105,24 @@ export function buildInitialMarkerState(
 export function clampMarkerStack(stackCount: number, stackMax: number | null): number {
   const floored = Math.max(0, stackCount);
   return stackMax === null ? floored : Math.min(floored, stackMax);
+}
+
+/**
+ * 参照マーカー（単一または`markerIds`による複数）のスタック数合計。いずれも
+ * 所持していなければ`undefined`を返す — `TARGET_HAS_MARKER`は不所持を
+ * `countCondition`に関わらず不成立とするため、0スタックと区別する必要がある。
+ * R-EFF-10により同じmarkerIdのインスタンスは対象ごとに高々1つである。
+ */
+export function heldMarkerStackTotal(
+  markerStates: readonly MarkerState[],
+  reference: MarkerReference,
+): number | undefined {
+  let total: number | undefined;
+  for (const markerId of referencedMarkerIds(reference)) {
+    const held = markerStates.find((state) => state.markerId === markerId);
+    if (held !== undefined) {
+      total = (total ?? 0) + held.stackCount;
+    }
+  }
+  return total;
 }
