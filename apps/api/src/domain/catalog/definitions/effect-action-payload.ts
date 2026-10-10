@@ -360,12 +360,27 @@ export interface ApplyAttackDamageBonusPayload {
  *   攻撃」と「このバフを消費する攻撃」を同一に保つための構造的制約で、factoryが
  *   他の期間表現を拒否する
  */
+/**
+ * R-FUP-01: 追撃ヒット時効果（`onHitEffects`）が参照できるkind。解決側
+ * （`grantFollowUpOnHitEffectSteps`）が付与経路を持つkindだけを並べ、Catalog整合性検証が
+ * これ以外をロード時点で拒否する（黙ってno-opにしないため）。
+ */
+export const FOLLOW_UP_ON_HIT_EFFECT_KINDS = [
+  "APPLY_STAT_MOD",
+  "APPLY_CONTINUOUS_DAMAGE",
+  "APPLY_DAMAGE_MOD",
+  "APPLY_MARKER",
+] as const;
+
 export interface ApplyFollowUpAttackPayload {
   readonly damage: {
     readonly damageType: DamageType;
     readonly formula: FormulaDefinition;
   };
-  readonly onHitEffect?: { readonly effectActionDefinitionId: EffectActionDefinitionId };
+  /** 定義順に付与する。factoryが単一の`onHitEffect`もこの配列へ正規化する。 */
+  readonly onHitEffects?: readonly {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+  }[];
   readonly duration: DurationDefinition;
 }
 

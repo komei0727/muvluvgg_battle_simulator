@@ -5,6 +5,8 @@ import type {
   FollowUpAttackCapture,
 } from "../combat/damage-application-service.js";
 import { grantEffect } from "../effects/effect-grant-service.js";
+import { applyMarker } from "../effects/marker-apply-service.js";
+import { FOLLOW_UP_ON_HIT_EFFECT_KINDS } from "../../catalog/definitions/effect-action-payload.js";
 import {
   findBlockingImmunity,
   rejectEffectApplication,
@@ -33,17 +35,19 @@ import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
 /**
- * R-FUP-01第3項（Issue #474）: 追撃ヒットが適用された対象へonHitEffectを付与する。
+ * R-FUP-01第3項（Issue #474）: 追撃ヒットが適用された対象へonHitEffectsの1件を付与する。
  *
- * 参照先が`APPLY_STAT_MOD`または`APPLY_CONTINUOUS_DAMAGE`であることは
+ * 参照先が`FOLLOW_UP_ON_HIT_EFFECT_KINDS`のいずれかであることは
  * `catalog-integrity.ts`がCatalogロード時点で保証する（production例:
  * `SKL_SUIRAN_CHAOS_PS3`の行動速度-200、`SKL_CHIYURU_MAZE_PS2`の毒3行動）。
- * 付与そのものは各kindの通常解決と同じ経路（`EffectApplied`・CombatStat再計算・
- * R-DOT-04の毒統合・R-EFF-03の免疫判定）を通る — onHitEffectだけが別のライフサイクルを
- * 持たないようにするためである（`grantSubUnitAdditionalDamageDebuffSteps`と同じ方針）。
+ * 付与そのものは各kindの通常解決と同じ経路（`EffectApplied`／`MarkerApplied`・
+ * CombatStat再計算・R-DOT-04の毒統合・R-EFF-03の免疫判定）を通る — onHitEffectだけが
+ * 別のライフサイクルを持たないようにするためである
+ * （`grantSubUnitAdditionalDamageDebuffSteps`と同じ方針）。
  *
  * 付与の帰属先（`sourceUnitId`）はライダーを付与したユニット（`riderSourceUnitId`）
- * とし、不明な場合だけ攻撃者へフォールバックする。Formula評価の`SKILL_SOURCE`は
+ * とし、不明な場合だけ攻撃者へフォールバックする。`removeOnSourceDefeated`のMarkerが
+ * 「付与者が倒れると解除」で見るのもこの帰属先である。Formula評価の`SKILL_SOURCE`は
  * 攻撃者（追撃ヒットを届けた本人）で評価する — 追撃のダメージ計算と同じ
  * 「ステータスは攻撃した味方を参照する」規約に揃える。
  */
@@ -59,11 +63,14 @@ function* grantFollowUpOnHitEffectSteps(
   const definition = context.definitions.effectActions.get(onHitEffectActionDefinitionId);
   if (
     definition === undefined ||
-    (definition.kind !== "APPLY_STAT_MOD" && definition.kind !== "APPLY_CONTINUOUS_DAMAGE")
+    (definition.kind !== "APPLY_STAT_MOD" &&
+      definition.kind !== "APPLY_CONTINUOUS_DAMAGE" &&
+      definition.kind !== "APPLY_DAMAGE_MOD" &&
+      definition.kind !== "APPLY_MARKER")
   ) {
     throw new DomainValidationError(
-      "onHitEffect.effectActionDefinitionId",
-      `references "${onHitEffectActionDefinitionId}", which must be an APPLY_STAT_MOD or APPLY_CONTINUOUS_DAMAGE EffectActionDefinition present in the Catalog (catalog-integrity.ts rejects anything else at load time)`,
+      "onHitEffects.effectActionDefinitionId",
+      `references "${onHitEffectActionDefinitionId}", which must be one of ${FOLLOW_UP_ON_HIT_EFFECT_KINDS.join("/")} present in the Catalog (catalog-integrity.ts rejects anything else at load time)`,
     );
   }
   const eventContext = eventContextOf(context);
@@ -71,13 +78,17 @@ function* grantFollowUpOnHitEffectSteps(
   const attacker = requireUnit(units, attackerUnitId);
   const target = requireUnit(units, targetUnitId);
   const sourceUnitId = riderSourceUnitId ?? attackerUnitId;
-  const magnitude = evaluateFormula(definition.payload.formula, {
-    skillSource: attacker,
-    target,
-    allUnits: units,
-    ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
-    lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
-  });
+  // `APPLY_MARKER`はFormulaを持たない（通常解決の`resolveApplyMarker`と同じく0）。
+  const magnitude =
+    definition.kind === "APPLY_MARKER"
+      ? 0
+      : evaluateFormula(definition.payload.formula, {
+          skillSource: attacker,
+          target,
+          allUnits: units,
+          ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
+          lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
+        });
   const blockingImmunity = findBlockingImmunity(
     target,
     { effectActionDefinitionId: onHitEffectActionDefinitionId, magnitude },
@@ -102,47 +113,88 @@ function* grantFollowUpOnHitEffectSteps(
     return { units: injected ?? rejection.units, lastEventId: rejection.lastEventId };
   }
   const grantResult =
-    definition.kind === "APPLY_STAT_MOD"
-      ? grantEffect(
+    definition.kind === "APPLY_MARKER"
+      ? applyMarker(
           eventContext,
           units,
           {
-            definition,
+            markerId: definition.payload.markerId,
             sourceUnitId,
             targetUnitId,
-            duplicate: definition.payload.stacking.mode === "STACKABLE",
-            magnitude,
+            stackPolicy: definition.payload.stack.policy,
+            stackMax: definition.payload.stack.max,
             durationDefinition: definition.payload.duration,
+            ...(definition.payload.decay !== undefined ? { decay: definition.payload.decay } : {}),
           },
           parentEventId,
         )
-      : (() => {
-          // R-DOT-01「付与時に付与者の攻撃力をスナップショットとして記録する」:
-          // 追撃の付随効果もダメージ計算と同じく攻撃者のステータスを参照する。
-          const grantRequest = {
-            definition,
-            sourceUnitId,
-            targetUnitId,
-            duplicate: true,
-            magnitude,
-            continuousDamage: {
-              continuousDamageKind: definition.payload.continuousDamageKind,
-              damageType: definition.payload.damageType,
+      : definition.kind === "APPLY_DAMAGE_MOD"
+        ? grantEffect(
+            eventContext,
+            units,
+            {
+              definition,
+              sourceUnitId,
+              targetUnitId,
+              duplicate: true,
+              magnitude,
+              // 通常解決（`resolveContinuousModifier`）と同じく、ヒット時に評価する条件・
+              // 閾値は付与時点の値として`AppliedEffect`へ焼き込む。
+              damageModifier: {
+                direction: definition.payload.direction,
+                damageType: definition.payload.damageType,
+                ...(definition.payload.condition !== undefined
+                  ? { condition: definition.payload.condition }
+                  : {}),
+                ...(definition.payload.damageThreshold !== undefined
+                  ? { damageThreshold: definition.payload.damageThreshold }
+                  : {}),
+              },
+              durationDefinition: definition.payload.duration,
             },
-            durationDefinition: definition.payload.duration,
-            snapshot: { [CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]: attacker.combatStats.attack },
-          };
-          // R-DOT-04: 毒だけは新規インスタンスを追加せず既存へ統合する（通常付与と同じ）。
-          return definition.payload.continuousDamageKind === "POISON"
-            ? grantPoisonContinuousDamage(
-                eventContext,
-                units,
-                grantRequest,
-                context.definitions.effectActions,
-                parentEventId,
-              )
-            : grantEffect(eventContext, units, grantRequest, parentEventId);
-        })();
+            parentEventId,
+          )
+        : definition.kind === "APPLY_STAT_MOD"
+          ? grantEffect(
+              eventContext,
+              units,
+              {
+                definition,
+                sourceUnitId,
+                targetUnitId,
+                duplicate: definition.payload.stacking.mode === "STACKABLE",
+                magnitude,
+                durationDefinition: definition.payload.duration,
+              },
+              parentEventId,
+            )
+          : (() => {
+              // R-DOT-01「付与時に付与者の攻撃力をスナップショットとして記録する」:
+              // 追撃の付随効果もダメージ計算と同じく攻撃者のステータスを参照する。
+              const grantRequest = {
+                definition,
+                sourceUnitId,
+                targetUnitId,
+                duplicate: true,
+                magnitude,
+                continuousDamage: {
+                  continuousDamageKind: definition.payload.continuousDamageKind,
+                  damageType: definition.payload.damageType,
+                },
+                durationDefinition: definition.payload.duration,
+                snapshot: { [CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY]: attacker.combatStats.attack },
+              };
+              // R-DOT-04: 毒だけは新規インスタンスを追加せず既存へ統合する（通常付与と同じ）。
+              return definition.payload.continuousDamageKind === "POISON"
+                ? grantPoisonContinuousDamage(
+                    eventContext,
+                    units,
+                    grantRequest,
+                    context.definitions.effectActions,
+                    parentEventId,
+                  )
+                : grantEffect(eventContext, units, grantRequest, parentEventId);
+            })();
   // R-TEX-03 #2: 再計算の中間stepを連鎖driverへ返す（`grantSubUnitAdditionalDamageDebuffSteps`
   // と同じ理由 — 同期wrapperでまとめると演習ブレイクの解決順が逆転する）。
   let cursor = eventsStart;
@@ -219,8 +271,12 @@ export function resolveFollowUpAttacksAfterSkillUse(
       ...(captured.sourceUnitId !== undefined ? { sourceUnitId: captured.sourceUnitId } : {}),
       damageType: definition.payload.damage.damageType,
       formula: definition.payload.damage.formula,
-      ...(definition.payload.onHitEffect !== undefined
-        ? { onHitEffectActionDefinitionId: definition.payload.onHitEffect.effectActionDefinitionId }
+      ...(definition.payload.onHitEffects !== undefined
+        ? {
+            onHitEffectActionDefinitionIds: definition.payload.onHitEffects.map(
+              (onHitEffect) => onHitEffect.effectActionDefinitionId,
+            ),
+          }
         : {}),
     });
   }

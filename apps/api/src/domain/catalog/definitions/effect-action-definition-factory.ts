@@ -173,7 +173,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_SUBUNIT: ["durability", "additionalDamage", "duration"],
   COOLDOWN_MANIPULATION: ["targetSkillDefinitionId", "operation", "amount"],
   APPLY_ATTACK_DAMAGE_BONUS: ["formula", "duration"],
-  APPLY_FOLLOW_UP_ATTACK: ["damage", "onHitEffect", "duration"],
+  APPLY_FOLLOW_UP_ATTACK: ["damage", "onHitEffect", "onHitEffects", "duration"],
   APPLY_RESOURCE_GAIN_MOD: ["resource", "rateDelta", "stacking", "duration"],
 };
 
@@ -540,6 +540,49 @@ export function createEffectActionDefinition(
     ...(kindKey !== undefined ? { kindKey } : {}),
     metadata: { tags },
   });
+}
+
+/**
+ * R-FUP-01: 追撃ヒット時に付与する効果。単一の`onHitEffect`（既存定義の書式）と
+ * 複数の`onHitEffects`のどちらか一方を受け付け、定義順の配列へ正規化する。
+ * 同じ定義の重複は二重付与になり宣言者の意図と黙ってずれるため拒否する。
+ */
+function createFollowUpOnHitEffects(
+  payload: Readonly<Record<string, unknown>>,
+  path: string,
+): readonly { readonly effectActionDefinitionId: EffectActionDefinitionId }[] | undefined {
+  const single = payload["onHitEffect"];
+  const multiple = payload["onHitEffects"];
+  if (single !== undefined && multiple !== undefined) {
+    throw new DomainValidationError(
+      path,
+      'must declare only one of "onHitEffect" or "onHitEffects"',
+    );
+  }
+  if (single === undefined && multiple === undefined) {
+    return undefined;
+  }
+  const entries: readonly unknown[] =
+    single !== undefined ? [single] : (multiple as readonly unknown[]);
+  const entriesPath = single !== undefined ? `${path}.onHitEffect` : `${path}.onHitEffects`;
+  if (single === undefined) {
+    assertNonEmptyArray(entries, entriesPath);
+  }
+  const result = entries.map((entry, i) => {
+    const entryPath = single !== undefined ? entriesPath : `${entriesPath}[${i}]`;
+    const typed = entry as { effectActionDefinitionId?: string };
+    assertKnownKeys(typed, FOLLOW_UP_ATTACK_ON_HIT_EFFECT_ALLOWED_KEYS, entryPath);
+    return {
+      effectActionDefinitionId: createEffectActionDefinitionId(
+        requireField(typed.effectActionDefinitionId, `${entryPath}.effectActionDefinitionId`),
+        `${entryPath}.effectActionDefinitionId`,
+      ),
+    };
+  });
+  if (new Set(result.map((entry) => entry.effectActionDefinitionId)).size !== result.length) {
+    throw new DomainValidationError(entriesPath, "must not contain duplicates");
+  }
+  return result;
 }
 
 function createPayload(
@@ -1454,16 +1497,7 @@ function createPayload(
       const damageType = requireField(damage.damageType, `${path}.damage.damageType`);
       assertEnumValue(damageType, DAMAGE_TYPES, `${path}.damage.damageType`);
       const damageFormula = requireField(damage.formula, `${path}.damage.formula`);
-      const onHitEffect = payload["onHitEffect"] as
-        | { effectActionDefinitionId?: string }
-        | undefined;
-      if (onHitEffect !== undefined) {
-        assertKnownKeys(
-          onHitEffect,
-          FOLLOW_UP_ATTACK_ON_HIT_EFFECT_ALLOWED_KEYS,
-          `${path}.onHitEffect`,
-        );
-      }
+      const onHitEffects = createFollowUpOnHitEffects(payload, path);
       const duration = createDurationField(payload, path);
       // R-FUP-01: 「相乗りする攻撃」と「このバフを消費する攻撃」を同一に保つため、
       // 消費条件のない期間表現（時間制限のみ・他kindの消費）は構造ごと拒否する。
@@ -1480,19 +1514,7 @@ function createPayload(
             damageType,
             formula: createFormulaDefinition(damageFormula, `${path}.damage.formula`, undefined),
           },
-          ...(onHitEffect !== undefined
-            ? {
-                onHitEffect: {
-                  effectActionDefinitionId: createEffectActionDefinitionId(
-                    requireField(
-                      onHitEffect.effectActionDefinitionId,
-                      `${path}.onHitEffect.effectActionDefinitionId`,
-                    ),
-                    `${path}.onHitEffect.effectActionDefinitionId`,
-                  ),
-                },
-              }
-            : {}),
+          ...(onHitEffects !== undefined ? { onHitEffects } : {}),
           duration,
         },
       };

@@ -459,7 +459,7 @@ function subunitAction(
 /** R-FUP-01（Issue #474）: `APPLY_FOLLOW_UP_ATTACK`のfixture。 */
 function followUpAttackAction(
   id: string,
-  options: { readonly onHitEffectId?: string } = {},
+  options: { readonly onHitEffectId?: string; readonly onHitEffectIds?: readonly string[] } = {},
 ): EffectActionDefinition {
   return createEffectActionDefinition(
     {
@@ -469,6 +469,13 @@ function followUpAttackAction(
         damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.3588 } },
         ...(options.onHitEffectId !== undefined
           ? { onHitEffect: { effectActionDefinitionId: options.onHitEffectId } }
+          : {}),
+        ...(options.onHitEffectIds !== undefined
+          ? {
+              onHitEffects: options.onHitEffectIds.map((effectActionDefinitionId) => ({
+                effectActionDefinitionId,
+              })),
+            }
           : {}),
         duration: {
           consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
@@ -1445,6 +1452,51 @@ describe("buildCatalogIndex", () => {
     expect(index.effectActions.get("ACT_FOLLOW_UP_STAT" as never)).toBeDefined();
     expect(index.effectActions.get("ACT_FOLLOW_UP_POISON" as never)).toBeDefined();
     expect(index.effectActions.get("ACT_FOLLOW_UP_PLAIN" as never)).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-121 [R-FUP-01]: accepts APPLY_FOLLOW_UP_ATTACK onHitEffects referencing APPLY_MARKER, APPLY_STAT_MOD and APPLY_DAMAGE_MOD", () => {
+    const defs = baseDefinitions();
+    const withMarkerRider: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        markerAction("ACT_FUP_SCAR_MARKER"),
+        statModAction("ACT_FUP_SCAR_ATK_DOWN"),
+        memoryModifierAction("ACT_FUP_SCAR_DMG_DOWN"),
+        followUpAttackAction("ACT_FOLLOW_UP_SCAR", {
+          onHitEffectIds: ["ACT_FUP_SCAR_MARKER", "ACT_FUP_SCAR_ATK_DOWN", "ACT_FUP_SCAR_DMG_DOWN"],
+        }),
+      ],
+    };
+
+    expect(
+      buildCatalogIndex(withMarkerRider).effectActions.get("ACT_FOLLOW_UP_SCAR" as never),
+    ).toBeDefined();
+  });
+
+  it("UT-CAT-IDX-122 [R-FUP-01]: rejects APPLY_FOLLOW_UP_ATTACK onHitEffects when any entry references a kind the follow-up cannot grant", () => {
+    const defs = baseDefinitions();
+    const withBadEntry: CatalogDefinitions = {
+      ...defs,
+      effectActions: [
+        ...defs.effectActions,
+        markerAction("ACT_FUP_SCAR_MARKER"),
+        followUpAttackAction("ACT_FOLLOW_UP_BAD_ENTRY", {
+          onHitEffectIds: ["ACT_FUP_SCAR_MARKER", "ACT_DAMAGE_1"],
+        }),
+      ],
+    };
+    try {
+      buildCatalogIndex(withBadEntry);
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.filter(
+          (v) => v.rule === "TYPE_MISMATCH" && v.targetId === "ACT_FOLLOW_UP_BAD_ENTRY",
+        ),
+      ).toHaveLength(1);
+    }
   });
 
   it("UT-CAT-IDX-077 (M7-001B, Issue #243, EFFECT_IMMUNITY_STATUS_GRANULARITY): accepts an EFFECT_IMMUNITY with statusKinds that declares CAP_SPECIFIC_IMMUNITY", () => {

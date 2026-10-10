@@ -2748,7 +2748,10 @@ describe("EffectActionDefinition", () => {
           damageType: "EN",
           formula: { kind: "SKILL_POWER", power: 0.3588 },
         });
-        expect(result.payload.onHitEffect?.effectActionDefinitionId).toBe("ACT_SPEED_DOWN_1");
+        // 単一の`onHitEffect`は1件の`onHitEffects`へ正規化する。
+        expect(result.payload.onHitEffects).toEqual([
+          { effectActionDefinitionId: "ACT_SPEED_DOWN_1" },
+        ]);
         expect(result.payload.duration.consumption).toEqual({
           kind: "NEXT_OUTGOING_ATTACK",
           maxCount: 1,
@@ -2770,8 +2773,32 @@ describe("EffectActionDefinition", () => {
       );
       expect(result.kind).toBe("APPLY_FOLLOW_UP_ATTACK");
       if (result.kind === "APPLY_FOLLOW_UP_ATTACK") {
-        expect(result.payload.onHitEffect).toBeUndefined();
+        expect(result.payload.onHitEffects).toBeUndefined();
       }
+    });
+
+    it("UT-CAT-ACT-140 [R-FUP-01]: maps APPLY_FOLLOW_UP_ATTACK onHitEffects in declaration order", () => {
+      const result = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_FOLLOW_UP_5",
+          kind: "APPLY_FOLLOW_UP_ATTACK",
+          payload: {
+            damage: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 0.53 } },
+            onHitEffects: [
+              { effectActionDefinitionId: "ACT_SCAR_TEMP_MARKER" },
+              { effectActionDefinitionId: "ACT_SCAR_TEMP_ATK_DOWN" },
+              { effectActionDefinitionId: "ACT_SCAR_TEMP_DMG_DOWN" },
+            ],
+            duration: followUpDuration,
+          },
+        },
+        "effectAction",
+      );
+      expect(result.kind === "APPLY_FOLLOW_UP_ATTACK" && result.payload.onHitEffects).toEqual([
+        { effectActionDefinitionId: "ACT_SCAR_TEMP_MARKER" },
+        { effectActionDefinitionId: "ACT_SCAR_TEMP_ATK_DOWN" },
+        { effectActionDefinitionId: "ACT_SCAR_TEMP_DMG_DOWN" },
+      ]);
     });
 
     it("UT-CAT-ACT-113 [R-FUP-01]: rejects a duration whose consumption is missing or not NEXT_OUTGOING_ATTACK", () => {
@@ -2808,6 +2835,25 @@ describe("EffectActionDefinition", () => {
         {
           damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 } },
           onHitEffect: {},
+          duration: followUpDuration,
+        },
+        {
+          damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 } },
+          onHitEffect: { effectActionDefinitionId: "ACT_A" },
+          onHitEffects: [{ effectActionDefinitionId: "ACT_B" }],
+          duration: followUpDuration,
+        },
+        {
+          damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 } },
+          onHitEffects: [],
+          duration: followUpDuration,
+        },
+        {
+          damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.1 } },
+          onHitEffects: [
+            { effectActionDefinitionId: "ACT_A" },
+            { effectActionDefinitionId: "ACT_A" },
+          ],
           duration: followUpDuration,
         },
       ]) {

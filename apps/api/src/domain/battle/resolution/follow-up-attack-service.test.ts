@@ -9,6 +9,7 @@ import { createEffectInstanceId } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createRuntimeCounterId,
   createSkillDefinitionId,
   createTargetBindingId,
@@ -77,7 +78,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
       metadata: { tags: [] },
       payload: {
         damage: { damageType: "EN", formula: { kind: "SKILL_POWER", power: 0.5 } },
-        onHitEffect: { effectActionDefinitionId: createEffectActionDefinitionId(SPEED_DOWN_ID) },
+        onHitEffects: [{ effectActionDefinitionId: createEffectActionDefinitionId(SPEED_DOWN_ID) }],
         duration: {
           consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
           dispellable: true,
@@ -162,19 +163,23 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     };
   }
 
-  function definitions(extraSkills: readonly SkillDefinition[] = []): BattleDefinitions {
+  function definitions(
+    extraSkills: readonly SkillDefinition[] = [],
+    actionOverrides: readonly EffectActionDefinition[] = [],
+  ): BattleDefinitions {
     const skill = attackSkill();
+    const overrides = new Map(actionOverrides.map((a) => [a.effectActionDefinitionId, a]));
     const attackerDefinition = testUnitDefinition("UNIT_TEST_ATTACKER");
     const enemyDefinition = testUnitDefinition("UNIT_TEST_ENEMY");
     return {
       activeSkillsByUnit: new Map(),
       exSkillByUnit: new Map(),
-      effectActions: new Map(
-        [asDamageAction(), speedDownAction(), riderDefinition()].map((action) => [
-          action.effectActionDefinitionId,
-          action,
-        ]),
-      ),
+      effectActions: new Map([
+        ...[asDamageAction(), speedDownAction(), riderDefinition()].map(
+          (action) => [action.effectActionDefinitionId, action] as const,
+        ),
+        ...overrides,
+      ]),
       unitDefinitions: new Map([
         [attackerDefinition.unitDefinitionId, attackerDefinition],
         [enemyDefinition.unitDefinitionId, enemyDefinition],
@@ -309,6 +314,92 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     const skillUseCompleted = events.findIndex((event) => event.eventType === "SkillUseCompleted");
     expect(followUpDamageIndices[0]!).toBeGreaterThan(lastEffectActionCompleted);
     expect(skillUseCompleted).toBeGreaterThan(followUpDamageIndices[0]!);
+  });
+
+  it("UT-R-FUP-01-015 [R-FUP-01]: grants every onHitEffect in declaration order, attributing a marker to the rider's grantor", () => {
+    const markerActionId = createEffectActionDefinitionId("ACT_TEST_FUP_SCAR_MARKER");
+    const damageDownId = createEffectActionDefinitionId("ACT_TEST_FUP_SCAR_DMG_DOWN");
+    const scarMarker: EffectActionDefinition = {
+      kind: "APPLY_MARKER",
+      effectActionDefinitionId: markerActionId,
+      metadata: { tags: [] },
+      payload: {
+        markerId: createMarkerId("MARKER_TEST_SCAR_TEMP"),
+        stack: { policy: "ADD", max: null },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+          removeOnSourceDefeated: true,
+        },
+      },
+    };
+    const damageDown: EffectActionDefinition = {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: damageDownId,
+      metadata: { tags: [] },
+      payload: {
+        direction: "OUTGOING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: -0.05 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const base = riderDefinition();
+    const rider: EffectActionDefinition =
+      base.kind === "APPLY_FOLLOW_UP_ATTACK"
+        ? {
+            ...base,
+            payload: {
+              ...base.payload,
+              onHitEffects: [
+                { effectActionDefinitionId: markerActionId },
+                { effectActionDefinitionId: createEffectActionDefinitionId(SPEED_DOWN_ID) },
+                { effectActionDefinitionId: damageDownId },
+              ],
+            },
+          }
+        : base;
+    const { attacker, enemy } = board();
+
+    const { result, recorder } = useSkill(
+      attacker,
+      enemy,
+      definitions([], [scarMarker, damageDown, rider]),
+      AS_ID,
+      "B_FUP_MULTI",
+    );
+
+    const enemyAfter = result.units.find((unit) => unit.battleUnitId === enemy.battleUnitId)!;
+    const marker = enemyAfter.markerStates.find(
+      (state) => state.markerId === createMarkerId("MARKER_TEST_SCAR_TEMP"),
+    );
+    expect(marker?.stackCount).toBe(1);
+    // 「付与者が倒れると解除」の付与者はライダーの付与者であり、攻撃した味方ではない。
+    expect(marker?.sourceUnitId).toBe(createBattleUnitId("ally:grantor"));
+    const damageMod = enemyAfter.appliedEffects.find(
+      (effect) => effect.effectActionDefinitionId === damageDownId,
+    );
+    expect(damageMod?.magnitude).toBe(-0.05);
+    expect(damageMod?.damageModifier?.direction).toBe("OUTGOING");
+    expect(damageMod?.sourceUnitId).toBe(createBattleUnitId("ally:grantor"));
+
+    const grantOrder = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "MarkerApplied" || event.eventType === "EffectApplied")
+      .map((event) =>
+        event.eventType === "MarkerApplied"
+          ? "MARKER"
+          : String(
+              (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId,
+            ),
+      );
+    expect(grantOrder).toEqual(["MARKER", SPEED_DOWN_ID, damageDownId]);
   });
 
   it("UT-R-FUP-01-014: when every hit of the original attack misses, no follow-up occurs and the rider is still consumed", () => {

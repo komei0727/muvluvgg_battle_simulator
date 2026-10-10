@@ -244,7 +244,7 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
     expect(criticalChecks[0]?.payload).toMatchObject({ mode: "GUARANTEED", result: true });
   });
 
-  it("UT-R-FUP-01-006: grants the onHitEffect to targets the follow-up hit applied to, and skips already defeated targets entirely", () => {
+  it("UT-R-FUP-01-006: grants every onHitEffect, in declaration order, to targets the follow-up hit applied to, and skips already defeated targets entirely", () => {
     const context = damageEventContext();
     const attacker = unit("ATTACKER", "ALLY", { attack: 60 });
     const alive = unit("TARGET_A", "ENEMY", { defense: 10, maximumHp: 500 });
@@ -286,7 +286,14 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
       contextWithHook,
       working,
       "ATTACKER",
-      [rider({ onHitEffectActionDefinitionId: createEffectActionDefinitionId("ACT_SPEED_DOWN") })],
+      [
+        rider({
+          onHitEffectActionDefinitionIds: [
+            createEffectActionDefinitionId("ACT_SPEED_DOWN"),
+            createEffectActionDefinitionId("ACT_SCAR_MARKER"),
+          ],
+        }),
+      ],
       ["TARGET_A", "TARGET_B"],
       false,
     );
@@ -295,6 +302,12 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
       {
         targetUnitId: createBattleUnitId("TARGET_A"),
         onHitEffectActionDefinitionId: createEffectActionDefinitionId("ACT_SPEED_DOWN"),
+        attackerUnitId: createBattleUnitId("ATTACKER"),
+        sourceUnitId: createBattleUnitId("GRANTOR"),
+      },
+      {
+        targetUnitId: createBattleUnitId("TARGET_A"),
+        onHitEffectActionDefinitionId: createEffectActionDefinitionId("ACT_SCAR_MARKER"),
         attackerUnitId: createBattleUnitId("ATTACKER"),
         sourceUnitId: createBattleUnitId("GRANTOR"),
       },
