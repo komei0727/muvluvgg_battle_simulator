@@ -67,6 +67,10 @@ export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemb
  * R-EFF-09: 連動グループを識別するキー。`linkedEffectGroupScope: HOLDER`のメンバーは
  * 保持ユニットごとに別のグループとして扱う（同じ`linkedEffectGroupId`でも他ユニットの
  * メンバーとは連動しない）。連動しない（`linkedEffectGroupId: null`）なら`null`。
+ *
+ * キーは要素数の違うJSON配列で表す。区切り文字で連結すると、`HOLDER`の
+ * 「GROUP_A」＋保持者「ally:1」と、`BATTLE`でIDがたまたま「GROUP_A@ally:1」のグループが
+ * 同じ文字列になり、無関係な効果まで連動してしまう（どちらの文字列もスキーマ上許される）。
  */
 export function linkedGroupKeyOf(
   definition: DurationDefinition,
@@ -76,7 +80,9 @@ export function linkedGroupKeyOf(
   if (groupId === null) {
     return null;
   }
-  return definition.linkedEffectGroupScope === "HOLDER" ? `${groupId}@${holderUnitId}` : groupId;
+  return JSON.stringify(
+    definition.linkedEffectGroupScope === "HOLDER" ? [groupId, holderUnitId] : [groupId],
+  );
 }
 
 export function collectLinkedGroupCascade(

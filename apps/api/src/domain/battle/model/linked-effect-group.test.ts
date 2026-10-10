@@ -186,6 +186,32 @@ describe("collectLinkedGroupCascade", () => {
     });
   });
 
+  it("UT-R-EFF-09-032 [R-EFF-09]: a HOLDER-scoped group never collides with a BATTLE-scoped group whose id happens to spell the holder-qualified key", () => {
+    const target = unit("ally:1");
+    const holderParent: MarkerState = {
+      ...marker("marker-holder", target, "GROUP_A", "PARENT"),
+    };
+    const holderScopedParent: MarkerState = {
+      ...holderParent,
+      duration: {
+        ...holderParent.duration,
+        definition: { ...holderParent.duration.definition, linkedEffectGroupScope: "HOLDER" },
+      },
+    };
+    // 別グループ: BATTLE範囲で、IDがたまたま「GROUP_A@ally:1」。
+    const unrelatedChild = effect("battle-child", target, "GROUP_A@ally:1", "CHILD");
+    const units = [
+      { ...target, appliedEffects: [unrelatedChild], markerStates: [holderScopedParent] },
+    ];
+
+    const result = collectLinkedGroupCascade(units, markerSeeds(holderScopedParent));
+
+    expect(result).toEqual({
+      effectInstanceIds: new Set(),
+      markerInstanceIds: new Set([holderScopedParent.markerInstanceId]),
+    });
+  });
+
   it("UT-R-EFF-09-004 (R-EFF-09): does not expand through an instance with linkedEffectGroupId null", () => {
     const target = unit("target-1");
     const parent = effect("parent", target, null);
