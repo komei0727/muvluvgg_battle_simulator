@@ -1,3 +1,4 @@
+import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { Side } from "../../shared/side.js";
 import {
@@ -269,10 +270,15 @@ export function resolveReference(
   throw new DomainValidationError("target.kind", `unreachable kind "${String(exhaustive)}"`);
 }
 
-/** R-SKL-03: DAMAGEのhitCountだけが複数ヒットを持つ。それ以外の種別は常に1ヒット。 */
+/**
+ * R-SKL-03: DAMAGEのhitCountだけが複数ヒットを持つ。それ以外の種別は常に1ヒット。
+ * `bonusHits`は対象ごとに、ヒット列を組み立てるこの時点（攻撃開始時点）の所持マーカー数で
+ * 加算する — 同じ攻撃の途中でマーカー数が変わってもヒット数は変えない。
+ */
 function hitCountOf(
   effectActionDefinitionId: EffectActionDefinitionId,
   effectAction: EffectActionDefinition | undefined,
+  target: BattleUnit,
 ): number {
   if (effectAction === undefined) {
     throw new DomainValidationError(
@@ -280,7 +286,15 @@ function hitCountOf(
       `effectActionDefinitionId "${effectActionDefinitionId}" was not found in the given effectActions (Catalog preflight should already guarantee this reference exists)`,
     );
   }
-  return effectAction.kind === "DAMAGE" ? effectAction.payload.hitCount : 1;
+  if (effectAction.kind !== "DAMAGE") {
+    return 1;
+  }
+  const bonusHits = effectAction.payload.bonusHits;
+  if (bonusHits === undefined) {
+    return effectAction.payload.hitCount;
+  }
+  const stacks = heldMarkerStackTotal(target.markerStates, bonusHits) ?? 0;
+  return effectAction.payload.hitCount + Math.min(stacks * bonusHits.perStack, bonusHits.max);
 }
 
 /**
@@ -323,7 +337,7 @@ export function resolveActionStepApplications(
     // EffectStep ACTION: EffectActionDefinitionを定義順に適用する（05_ドメインモデル.md）。
     for (const actionRef of step.actions) {
       const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
-      const hitCount = hitCountOf(actionRef.effectActionDefinitionId, effectAction);
+      const hitCount = hitCountOf(actionRef.effectActionDefinitionId, effectAction, target);
       // R-SKL-03: 各ヒットを独立して定義順に処理する。
       const hits: ResolvedEffectApplication[] = [];
       for (let hitIndex = 1; hitIndex <= hitCount; hitIndex++) {

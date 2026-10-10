@@ -1411,6 +1411,73 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-143 [R-SKL-03]: maps DAMAGE bonusHits counting the summed stacks of several markers", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_DAMAGE_SCAR_HITS",
+        kind: "DAMAGE",
+        payload: {
+          damageType: "PHYSICAL",
+          formula: { kind: "SKILL_POWER", power: 0.702 },
+          bonusHits: { markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"], perStack: 1, max: 9 },
+        },
+      },
+      "effectAction",
+    );
+    expect(result.kind === "DAMAGE" && result.payload.bonusHits).toEqual({
+      markerIds: ["MARKER_SCAR", "MARKER_SCAR_TEMP"],
+      perStack: 1,
+      max: 9,
+    });
+    expect(result.kind === "DAMAGE" && result.payload.hitCount).toBe(1);
+  });
+
+  it("UT-CAT-ACT-144 [R-SKL-03]: rejects DAMAGE bonusHits whose perStack or max is not a positive integer", () => {
+    for (const bonusHits of [
+      { markerId: "MARKER_SCAR", perStack: 0, max: 9 },
+      { markerId: "MARKER_SCAR", perStack: 1.5, max: 9 },
+      { markerId: "MARKER_SCAR", perStack: 1, max: 0 },
+      { markerId: "MARKER_SCAR", perStack: 1 },
+    ]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_DAMAGE_1",
+            kind: "DAMAGE",
+            payload: {
+              damageType: "PHYSICAL",
+              formula: { kind: "CONSTANT", value: 1 },
+              bonusHits,
+            },
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-ACT-145 [R-SKL-03]: rejects DAMAGE bonusHits without a marker reference or with an unknown key", () => {
+    for (const bonusHits of [
+      { perStack: 1, max: 9 },
+      { markerId: "MARKER_SCAR", perStack: 1, max: 9, extra: true },
+    ]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_DAMAGE_1",
+            kind: "DAMAGE",
+            payload: {
+              damageType: "PHYSICAL",
+              formula: { kind: "CONSTANT", value: 1 },
+              bonusHits,
+            },
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
   it("UT-CAT-ACT-036: maps DAMAGE with critical/accuracy modes and a link", () => {
     const result = createEffectActionDefinition(
       {

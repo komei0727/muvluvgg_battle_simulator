@@ -838,16 +838,17 @@ payload:
     enabled: false
 ```
 
-| フィールド        | 型                  | 必須 | 制約                                                   |
-| ----------------- | ------------------- | ---- | ------------------------------------------------------ |
-| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                                      |
-| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                                   |
-| `hitCount`        | integer             | —    | 省略時1                                                |
-| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL` |
-| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                                |
-| `piercing`        | object              | —    | 省略時0                                                |
-| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列         |
-| `link.enabled`    | boolean             | —    | 即時リンクダメージ                                     |
+| フィールド        | 型                  | 必須 | 制約                                                                                                                                                                                                                                                                                               |
+| ----------------- | ------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `damageType`      | enum                | ✓    | `PHYSICAL` / `EN`                                                                                                                                                                                                                                                                                  |
+| `formula`         | FormulaDefinition   | ✓    | 多くは `SKILL_POWER`                                                                                                                                                                                                                                                                               |
+| `hitCount`        | integer             | —    | 省略時1                                                                                                                                                                                                                                                                                            |
+| `bonusHits`       | object              | —    | 対象の所持マーカー数に応じたヒット数の加算。`markerId`または`markerIds`（`MARKER_COUNT_SCALE`と同じ数え方）、`perStack`（正の整数）、`max`（正の整数）を持つ。対象ごとのヒット数は`hitCount + min(合算スタック数 × perStack, max)`で、ヒット列を組み立てる攻撃開始時点の所持数で決める（R-SKL-03） |
+| `critical.mode`   | enum                | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL`                                                                                                                                                                                                                                             |
+| `accuracy.mode`   | enum                | —    | `NORMAL` / `GUARANTEED`                                                                                                                                                                                                                                                                            |
+| `piercing`        | object              | —    | 省略時0                                                                                                                                                                                                                                                                                            |
+| `damageModifiers` | FormulaDefinition[] | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列                                                                                                                                                                                                                                                     |
+| `link.enabled`    | boolean             | —    | 即時リンクダメージ                                                                                                                                                                                                                                                                                 |
 
 `formula` がHPから導かれる量を含む場合（`MAX_HP_RATIO`／`CURRENT_HP_RATIO`／`MISSING_HP_RATIO`／`LOST_HP_RATIO`。`source` を問わず、`MIN` 等の合成越しも含む）、`critical.mode` の**明示が必須**になる（R-CRT-04）。省略した定義はCatalogロード時点で拒否する。
 
