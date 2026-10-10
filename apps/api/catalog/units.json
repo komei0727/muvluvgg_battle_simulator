@@ -1773,6 +1773,41 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SMART",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 536089,
+      "attack": 11967,
+      "defense": 7257,
+      "criticalRate": 0.18,
+      "actionSpeed": 628,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": [
+      "SKL_NINA_ZINA_FRONTRUNNER_TEX_AS1",
+      "SKL_NINA_ZINA_FRONTRUNNER_TEX_AS2"
+    ],
+    "passiveSkillDefinitionIds": [
+      "SKL_NINA_ZINA_FRONTRUNNER_TEX_PS1",
+      "SKL_NINA_ZINA_FRONTRUNNER_TEX_PS2"
+    ],
+    "extraSkillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_TEX_EX",
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ",
+      "characterName": "ニーナ／ジーナ・ミーシナ",
+      "characterId": "CHAR_NINA_ZINA_MISHINA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_NOEL_RUMBLE",
     "attribute": "AGGRESSIVE",
     "unitType": "PHYSICAL",

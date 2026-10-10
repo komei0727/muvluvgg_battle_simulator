@@ -634,7 +634,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-10.6` は「アクティブスキルで攻撃する前に発動」のPS8件（ニーナPS2ほか）の
     // `SkillUseStarting` trigger へ `isAttack EQ true` を足し、攻撃を含まないASで
     // 発動しないようにする（Issue #746）。差分は `skills.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-10-10.6");
+    // `2026-10-10.7` は新しい戦術演習敵 `UNIT_NINA_ZINA_FRONTRUNNER_TEX`（破壊：ニーナ／
+    // ジーナ・ミーシナ、Issue #749）の新規投入。開催中（`exerciseActive: true`）は既存の
+    // 3件を倒さず4件へ増やす。
+    expect(catalog.catalogRevision).toBe("2026-10-10.7");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

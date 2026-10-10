@@ -169,6 +169,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_OLGA_NADYA_BOND_TEX",
         // Issue #725: 戦術演習敵ユニット追加: 破壊：鳴滝七彩
         "UNIT_NANAE_SOVEREIGN_TEX",
+        // Issue #749: 戦術演習敵ユニット追加: 破壊：ニーナ／ジーナ・ミーシナ
+        "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
       ].sort(),
     );
   });
