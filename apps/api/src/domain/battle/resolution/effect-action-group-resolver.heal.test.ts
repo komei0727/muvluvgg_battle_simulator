@@ -401,6 +401,35 @@ describe("applyEffectActionGroups", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "HealApplied")).toBe(false);
     });
 
+    it("UT-R-HEAL-03-008 [R-HEAL-03]: granting an ON_APPLY continuous heal stores the formula evaluated against the holder at that moment as its magnitude", () => {
+      // 最大HP（fixture既定）から現在HP 50を引いた不足HPの25%が付与時の回復量。
+      const actor = unit("ACTOR", "ALLY", { currentHp: 50 });
+      const hot = continuousHealAction("ACT_HOT_SNAPSHOT", {
+        formula: { kind: "MISSING_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.25 },
+        timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+        evaluation: "ON_APPLY",
+        duration: {
+          timeLimit: { unit: "ACTION", count: 2 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      });
+      const effectActions = new Map([[hot.effectActionDefinitionId, hot]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, hot.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updated = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updated.appliedEffects[0]!.magnitude).toBe((actor.combatStats.maximumHp - 50) * 0.25);
+    });
+
     it("UT-R-HEAL-01-008 (HEAL_DISTRIBUTE): distribution EVEN splits one total heal amount across every target of the same EffectAction in the step", () => {
       const actor = unit("ACTOR", "ALLY", { currentHp: 10 });
       const ally = unit("ALLY_2", "ALLY", { currentHp: 10 });

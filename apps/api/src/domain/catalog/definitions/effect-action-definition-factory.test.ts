@@ -351,6 +351,45 @@ describe("EffectActionDefinition", () => {
     }
   });
 
+  it("UT-CAT-ACT-141 [R-HEAL-03]: maps APPLY_CONTINUOUS_HEAL evaluation, leaving it undefined (re-evaluated on every fire) when omitted", () => {
+    const create = (evaluation?: string) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CONT_HEAL_SNAPSHOT",
+          kind: "APPLY_CONTINUOUS_HEAL",
+          payload: {
+            formula: { kind: "MISSING_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.25 },
+            timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+            ...(evaluation !== undefined ? { evaluation } : {}),
+            duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
+          },
+        },
+        "effectAction",
+      );
+    const onApply = create("ON_APPLY");
+    const omitted = create();
+    expect(onApply.kind === "APPLY_CONTINUOUS_HEAL" && onApply.payload.evaluation).toBe("ON_APPLY");
+    expect(omitted.kind === "APPLY_CONTINUOUS_HEAL" && omitted.payload.evaluation).toBeUndefined();
+  });
+
+  it("UT-CAT-ACT-142 [R-HEAL-03]: rejects an APPLY_CONTINUOUS_HEAL evaluation other than ON_FIRE or ON_APPLY", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_CONT_HEAL_BAD",
+          kind: "APPLY_CONTINUOUS_HEAL",
+          payload: {
+            formula: { kind: "MISSING_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.25 },
+            timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+            evaluation: "ON_EXPIRE",
+            duration: { timeLimit: { unit: "ACTION", count: 2 }, dispellable: true },
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-017: maps APPLY_STAT_MOD with RATIO valueType and STACKABLE stacking", () => {
     const result = createEffectActionDefinition(
       {

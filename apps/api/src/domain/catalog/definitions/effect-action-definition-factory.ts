@@ -33,6 +33,7 @@ import {
 } from "./effect-action-definition.js";
 import {
   CONTINUOUS_DAMAGE_KINDS,
+  CONTINUOUS_HEAL_EVALUATIONS,
   COOLDOWN_MANIPULATION_OPERATIONS,
   DAMAGE_MOD_STATE_FIELDS,
   DAMAGE_MOD_UNIT_REFERENCES,
@@ -119,7 +120,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "link",
   ],
   HEAL: ["formula", "overheal", "distribution"],
-  APPLY_CONTINUOUS_HEAL: ["formula", "timing", "duration"],
+  APPLY_CONTINUOUS_HEAL: ["formula", "timing", "evaluation", "duration"],
   APPLY_CONTINUOUS_DAMAGE: ["continuousDamageKind", "damageType", "formula", "timing", "duration"],
   APPLY_STAT_MOD: ["stat", "valueType", "formula", "stacking", "duration"],
   APPLY_DAMAGE_MOD: [
@@ -706,11 +707,16 @@ function createPayload(
       assertKnownKeys(timing, TIMING_ALLOWED_KEYS, `${path}.timing`);
       const eventType = requireField(timing.eventType, `${path}.timing.eventType`);
       const targetSelector = requireField(timing.targetSelector, `${path}.timing.targetSelector`);
+      const evaluation = payload["evaluation"] as string | undefined;
+      if (evaluation !== undefined) {
+        assertEnumValue(evaluation, CONTINUOUS_HEAL_EVALUATIONS, `${path}.evaluation`);
+      }
       return {
         kind: "APPLY_CONTINUOUS_HEAL",
         payload: {
           formula: createFormulaField(payload, "formula", path),
           timing: { eventType, targetSelector },
+          ...(evaluation !== undefined ? { evaluation } : {}),
           duration: createDurationField(payload, path),
         },
       };

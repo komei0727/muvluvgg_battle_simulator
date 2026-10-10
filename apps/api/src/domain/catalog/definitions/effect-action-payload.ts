@@ -103,9 +103,18 @@ export interface HealPayload {
   readonly distribution: HealDistributionPolicy;
 }
 
+/**
+ * R-HEAL-03: 継続回復の回復量Formulaを評価する時点。`ON_FIRE`（省略時）は発動のたびに
+ * 評価し直し、`ON_APPLY`は付与時に評価した値（`AppliedEffect.magnitude`）で毎回回復する
+ * （raw原文「効果付与時の不足HPの25%を継続回復する」）。
+ */
+export const CONTINUOUS_HEAL_EVALUATIONS = ["ON_FIRE", "ON_APPLY"] as const;
+export type ContinuousHealEvaluation = (typeof CONTINUOUS_HEAL_EVALUATIONS)[number];
+
 export interface ApplyContinuousHealPayload {
   readonly formula: FormulaDefinition;
   readonly timing: { readonly eventType: string; readonly targetSelector: string };
+  readonly evaluation?: ContinuousHealEvaluation;
   readonly duration: DurationDefinition;
 }
 

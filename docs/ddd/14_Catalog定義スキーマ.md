@@ -894,6 +894,8 @@ payload:
     dispellable: true
 ```
 
+`evaluation`（任意、`ON_FIRE` / `ON_APPLY`、省略時 `ON_FIRE`）は回復量Formulaを評価する時点を表す。`ON_FIRE` は発火のたびに評価し直し、`ON_APPLY` は付与時に保持者に対して評価した値を毎回の回復量にする（R-HEAL-03。原文「効果付与時の不足HPの25%を継続回復する」）。
+
 M7-005（Issue #184、R-HEAL-03）で実装したのは `timing: {eventType: ActionStarted, targetSelector: EFFECT_OWNER}`（保持者自身の行動開始時に保持者を回復する）だけであり、production Catalogの継続回復定義はすべてこの組み合わせを使う。それ以外の組み合わせは `CAP_CONTINUOUS_HEAL` が `IMPLEMENTED` でも一度も発火しないため、Catalogロード時点で `UNSUPPORTED_CONTINUOUS_HEAL_TIMING` として拒否する（`APPLY_MARKER` の未対応 `duration` と同じ扱い）。
 
 ### APPLY_CONTINUOUS_DAMAGE

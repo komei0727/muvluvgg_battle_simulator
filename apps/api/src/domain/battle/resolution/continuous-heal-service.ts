@@ -47,10 +47,12 @@ const ACTION_START_CONTINUOUS_KINDS: ReadonlySet<string> = new Set([
  * その保持者が持つ`APPLY_CONTINUOUS_HEAL`由来の`AppliedEffect`を定義順（付与順）に
  * 発火させ、R-HEAL-01と同じ手順（`applyOneHeal`）で回復する。
  *
- * 回復量Formulaは付与時点の`magnitude`スナップショットではなく発火のたびに
- * 評価し直す — production定義の`MAX_HP_RATIO`/`MISSING_HP_RATIO`は発火時点の
- * 対象HPを参照する必要があり、`SKILL_POWER`も回復元の現在の攻撃力を基礎にする
- * （R-HEAL-03「`R-HEAL-01`と同じ手順で回復する」）。
+ * 回復量Formulaは既定（`evaluation`省略または`ON_FIRE`）では付与時点の`magnitude`
+ * スナップショットではなく発火のたびに評価し直す — production定義の`MAX_HP_RATIO`/
+ * `MISSING_HP_RATIO`は発火時点の対象HPを参照する必要があり、`SKILL_POWER`も回復元の
+ * 現在の攻撃力を基礎にする（R-HEAL-03「`R-HEAL-01`と同じ手順で回復する」）。
+ * `evaluation: ON_APPLY`だけは原文が「効果付与時の」値を指定するため、付与時の
+ * `magnitude`を回復量として使う。
  *
  * `sourceUnitId`（回復元）はその`AppliedEffect`の付与者とし、`SKILL_POWER`が
  * 参照する攻撃力もこの付与者から引く。付与者が盤面から引けない場合（防御的
@@ -179,7 +181,12 @@ export function fireContinuousHealsOnActionStart(
     const applied = applyOneHeal(
       {
         effectActionDefinitionId: effect.effectActionDefinitionId,
-        formula: definition.payload.formula,
+        // R-HEAL-03: `ON_APPLY`は付与時に評価して`magnitude`へ保持した回復量で毎回回復する。
+        // 回復量補正などR-HEAL-01の後段は発動時点の状態で通常どおり掛かる。
+        formula:
+          definition.payload.evaluation === "ON_APPLY"
+            ? { kind: "CONSTANT", value: effect.magnitude }
+            : definition.payload.formula,
       },
       healer,
       currentOwner,
