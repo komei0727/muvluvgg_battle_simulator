@@ -58,6 +58,7 @@ export interface StatusEffectDetails {
 export interface EffectImmunityState {
   readonly categories: readonly EffectImmunityCategory[];
   readonly statusKinds?: readonly StatusKind[];
+  readonly statKinds?: readonly StatKind[];
   readonly effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
   readonly maxBlocks: number | null;
   readonly blockedCount: number;

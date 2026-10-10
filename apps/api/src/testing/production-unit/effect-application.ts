@@ -221,6 +221,7 @@ export interface EffectImmunityObservation {
   readonly immunity: {
     readonly categories: readonly string[];
     readonly statusKinds?: readonly string[];
+    readonly statKinds?: readonly string[];
     readonly blockedCount: number;
     readonly maxBlocks: number | null;
   };
@@ -332,6 +333,9 @@ export function observeEffectImmunity(options: {
       ...(immunityAfter?.immunity?.statusKinds === undefined
         ? {}
         : { statusKinds: [...immunityAfter.immunity.statusKinds] }),
+      ...(immunityAfter?.immunity?.statKinds === undefined
+        ? {}
+        : { statKinds: [...immunityAfter.immunity.statKinds] }),
       blockedCount: immunityAfter?.immunity?.blockedCount ?? 0,
       maxBlocks: immunityAfter?.immunity?.maxBlocks ?? null,
     },

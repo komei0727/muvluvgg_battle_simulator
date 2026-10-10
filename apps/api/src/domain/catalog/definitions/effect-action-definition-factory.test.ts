@@ -1195,6 +1195,112 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-135 [R-EFF-03]: maps EFFECT_IMMUNITY statKinds scoping a BUFF immunity to attack buffs", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY_ATK_BUFF",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["BUFF"],
+          statKinds: ["ATTACK"],
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+          maxBlocks: null,
+        },
+      },
+      "effectAction",
+    );
+    expect(result.kind).toBe("EFFECT_IMMUNITY");
+    if (result.kind === "EFFECT_IMMUNITY") {
+      expect(result.payload.statKinds).toEqual(["ATTACK"]);
+    }
+  });
+
+  it("UT-CAT-ACT-136 [R-EFF-03]: rejects EFFECT_IMMUNITY statKinds when categories includes neither BUFF nor DEBUFF (would be silently ignored)", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["STATUS"],
+            statKinds: ["ATTACK"],
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-137 [R-EFF-03]: rejects EFFECT_IMMUNITY with an empty or unknown statKinds entry", () => {
+    for (const statKinds of [[], ["ATTACK_POWER"]]) {
+      expect(() =>
+        createEffectActionDefinition(
+          {
+            effectActionDefinitionId: "ACT_IMMUNITY_1",
+            kind: "EFFECT_IMMUNITY",
+            payload: {
+              categories: ["BUFF"],
+              statKinds,
+              duration: { timeLimit: { unit: "ACTION", count: 1 } },
+              maxBlocks: null,
+            },
+          },
+          "effectAction",
+        ),
+      ).toThrow(DomainValidationError);
+    }
+  });
+
+  it("UT-CAT-ACT-138 [R-EFF-03]: maps EFFECT_IMMUNITY polarity, leaving it undefined when omitted", () => {
+    const declared = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY_AS_DEBUFF",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["BUFF"],
+          polarity: "DEBUFF",
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+          maxBlocks: null,
+        },
+      },
+      "effectAction",
+    );
+    const omitted = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY_DEFAULT",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["DEBUFF"],
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+          maxBlocks: null,
+        },
+      },
+      "effectAction",
+    );
+    expect(declared.kind === "EFFECT_IMMUNITY" && declared.payload.polarity).toBe("DEBUFF");
+    expect(omitted.kind === "EFFECT_IMMUNITY" && omitted.payload.polarity).toBeUndefined();
+  });
+
+  it("UT-CAT-ACT-139 [R-EFF-03]: rejects an EFFECT_IMMUNITY polarity other than BUFF or DEBUFF", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_IMMUNITY_1",
+          kind: "EFFECT_IMMUNITY",
+          payload: {
+            categories: ["DEBUFF"],
+            polarity: "STATUS",
+            duration: { timeLimit: { unit: "ACTION", count: 1 } },
+            maxBlocks: null,
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-073: rejects EFFECT_IMMUNITY with an empty statusKinds array", () => {
     expect(() =>
       createEffectActionDefinition(

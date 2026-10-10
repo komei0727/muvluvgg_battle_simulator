@@ -89,6 +89,7 @@ function sameImmunityState(a: EffectSnapshot["immunity"], b: EffectSnapshot["imm
     a.maxBlocks === b.maxBlocks &&
     a.blockedCount === b.blockedCount &&
     JSON.stringify(a.statusKinds) === JSON.stringify(b.statusKinds) &&
+    JSON.stringify(a.statKinds) === JSON.stringify(b.statKinds) &&
     JSON.stringify(a.effectActionDefinitionIds) === JSON.stringify(b.effectActionDefinitionIds)
   );
 }

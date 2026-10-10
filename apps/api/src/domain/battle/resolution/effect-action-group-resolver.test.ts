@@ -3713,6 +3713,42 @@ describe("resolveEffectSequencePlan: R-TGT-08 Stealth consumption (TGT-004, Issu
     expect(completed.payload.resultKind).toBe("APPLIED");
   });
 
+  it("UT-R-EFF-03-025 [R-EFF-03]: granting an attack-buff immunity declared as DEBUFF keeps its statKinds and records it as a DEBUFF on the holder", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const immunity = immunityAction("ACT_ATK_BUFF_SEAL", {
+      categories: ["BUFF"],
+      statKinds: ["ATTACK"],
+      polarity: "DEBUFF",
+      duration: {
+        timeLimit: { unit: "ACTION", count: 2 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      maxBlocks: null,
+    });
+    const effectActions = new Map([[immunity.effectActionDefinitionId, immunity]]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [singleActionStep(0, true, actor.battleUnitId, immunity.effectActionDefinitionId)],
+      targetUnitIds: [actor.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor], context);
+
+    const granted = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!
+      .appliedEffects[0]!;
+    expect(granted.immunity).toEqual({
+      categories: ["BUFF"],
+      statKinds: ["ATTACK"],
+      maxBlocks: null,
+      blockedCount: 0,
+    });
+    expect(granted.categories).toEqual(["DEBUFF"]);
+  });
+
   it("UT-R-EFF-03-018: a pre-existing SPECIFIC_EFFECT immunity targeting an EFFECT_IMMUNITY definition rejects granting that immunity instead of always succeeding", () => {
     const immunity = immunityAction("ACT_STUN_IMMUNITY", {
       categories: ["STATUS"],

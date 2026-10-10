@@ -179,6 +179,11 @@ export function effectCategoriesOf(
       // R-INT-01/03（DMG-006、Issue #188）: 反射・致死耐えは保持者自身を利する
       // 継続効果であり、`APPLY_PIERCING_MOD`と同じ理由で常に`BUFF`とする。
       return new Set<EffectImmunityCategory>(["BUFF"]);
+    case "EFFECT_IMMUNITY":
+      // R-EFF-03: 免疫効果は`magnitude`を使わず0のままのため、符号から導く既定の
+      // 分岐では常に`BUFF`になる。「〜を無効にするデバフ」（自身へのバフ付与を
+      // 封じる弱化）はCatalogが`polarity`で宣言し、宣言が無ければ`BUFF`とする。
+      return new Set<EffectImmunityCategory>([definition.payload.polarity ?? "BUFF"]);
     case "APPLY_MARKER":
       return new Set<EffectImmunityCategory>(["MARKER"]);
     default:
