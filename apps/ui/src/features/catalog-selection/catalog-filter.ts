@@ -49,7 +49,16 @@ export function filterUnits(
       (unit) =>
         filter.aptitude === undefined || aptitudeMatches(filter.aptitude, unit.positionAptitudes),
     )
-    .toSorted(byDisplayNameThenId((unit) => unit.unitDefinitionId));
+    .toSorted(activeExerciseFirst(byDisplayNameThenId((unit) => unit.unitDefinitionId)));
+}
+
+// 開催中の演習ユニットを探しやすくするための並びであり、候補は絞らない（R-TEX-11 #4）。
+// プレイアブルユニットは`exerciseActive`を持たないため並びが変わらない。
+function activeExerciseFirst(
+  tieBreak: (a: CatalogUnitSummary, b: CatalogUnitSummary) => number,
+): (a: CatalogUnitSummary, b: CatalogUnitSummary) => number {
+  const rank = (unit: CatalogUnitSummary): number => (unit.exerciseActive === true ? 0 : 1);
+  return (a, b) => rank(a) - rank(b) || tieBreak(a, b);
 }
 
 export function filterMemories(

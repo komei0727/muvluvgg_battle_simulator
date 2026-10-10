@@ -647,7 +647,7 @@
   {
     "unitDefinitionId": "UNIT_HIIRO_FREEWOLF_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": false,
+    "exerciseActive": true,
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
     "role": "PHYSICAL_ATTACKER",
@@ -1804,7 +1804,7 @@
   {
     "unitDefinitionId": "UNIT_OLGA_NADYA_BOND_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": false,
+    "exerciseActive": true,
     "attribute": "CUTE",
     "subAttribute": "AGGRESSIVE",
     "unitType": "ENERGY",

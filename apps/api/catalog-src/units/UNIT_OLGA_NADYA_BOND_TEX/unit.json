@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_OLGA_NADYA_BOND_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": false,
+  "exerciseActive": true,
   "attribute": "CUTE",
   "subAttribute": "AGGRESSIVE",
   "unitType": "ENERGY",

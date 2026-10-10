@@ -111,6 +111,49 @@ describe("filterUnits", () => {
     expect(result.map((unit) => unit.unitDefinitionId)).toEqual(["UNIT_A", "UNIT_B", "UNIT_C"]);
   });
 
+  // UI-UT-CAT-012
+  it("lists active exercise units first, keeping displayName order within each group", () => {
+    const exerciseSample: readonly CatalogUnitSummary[] = [
+      {
+        ...units[0]!,
+        unitDefinitionId: "UNIT_A_ENDED",
+        displayName: "Alpha",
+        category: "EXERCISE_ENEMY",
+        exerciseActive: false,
+      },
+      {
+        ...units[0]!,
+        unitDefinitionId: "UNIT_D_ACTIVE",
+        displayName: "Delta",
+        category: "EXERCISE_ENEMY",
+        exerciseActive: true,
+      },
+      {
+        ...units[0]!,
+        unitDefinitionId: "UNIT_C_ENDED",
+        displayName: "Charlie",
+        category: "EXERCISE_ENEMY",
+        exerciseActive: false,
+      },
+      {
+        ...units[0]!,
+        unitDefinitionId: "UNIT_B_ACTIVE",
+        displayName: "Bravo",
+        category: "EXERCISE_ENEMY",
+        exerciseActive: true,
+      },
+    ];
+
+    const result = filterUnits(exerciseSample, { query: "" });
+
+    expect(result.map((unit) => unit.unitDefinitionId)).toEqual([
+      "UNIT_B_ACTIVE",
+      "UNIT_D_ACTIVE",
+      "UNIT_A_ENDED",
+      "UNIT_C_ENDED",
+    ]);
+  });
+
   it("falls back to definitionId when displayName is tied", () => {
     const tiedSample: readonly CatalogUnitSummary[] = [
       { ...units[0]!, unitDefinitionId: "UNIT_Z", displayName: "Same Name" },
