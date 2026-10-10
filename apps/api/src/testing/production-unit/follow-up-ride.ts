@@ -15,6 +15,8 @@ import { SequenceRandomSource } from "../random/sequence-random-source.js";
 
 const RIDE_AS_ID = "SKL_TEST_FOLLOW_UP_RIDE_AS";
 const RIDE_DAMAGE_ID = "ACT_TEST_FOLLOW_UP_RIDE_DAMAGE";
+const NON_ATTACK_AS_ID = "SKL_TEST_NON_ATTACK_AS";
+const NON_ATTACK_DEBUFF_ID = "ACT_TEST_NON_ATTACK_DEFENSE_DOWN";
 
 /** 攻撃力1000 - 防御力500 = 500ダメージの、相乗り検証専用の最小DAMAGE定義（会心なし・必中なし）。 */
 function rideDamageAction(): Extract<EffectActionDefinition, { kind: "DAMAGE" }> {
@@ -35,11 +37,31 @@ function rideDamageAction(): Extract<EffectActionDefinition, { kind: "DAMAGE" }>
   };
 }
 
-/** 敵単体（既定順）へ`rideDamageAction`を1発撃つ最小AS。 */
-function rideAttackSkill(): SkillDefinition {
+/** 敵単体の防御力を下げるだけの、ダメージを含まないEffectAction。 */
+function nonAttackDebuffAction(): EffectActionDefinition {
+  return {
+    kind: "APPLY_STAT_MOD",
+    effectActionDefinitionId: createEffectActionDefinitionId(NON_ATTACK_DEBUFF_ID),
+    metadata: { tags: [] },
+    payload: {
+      stat: "DEFENSE",
+      valueType: "RATIO",
+      formula: { kind: "CONSTANT", value: -0.1 },
+      stacking: { mode: "STACKABLE", max: null },
+      duration: {
+        timeLimit: { unit: "ACTION", count: 1 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+    },
+  };
+}
+
+/** 敵単体（既定順）へ`effectActionId`を1回適用する最小AS。 */
+function standInEnemySingleSkill(skillId: string, effectActionId: string): SkillDefinition {
   const binding = createTargetBindingId("TGT_TEST_FOLLOW_UP_RIDE");
   return {
-    skillDefinitionId: createSkillDefinitionId(RIDE_AS_ID),
+    skillDefinitionId: createSkillDefinitionId(skillId),
     skillType: "AS",
     cost: { resource: "AP", amount: 1 },
     activationCondition: { kind: "TRUE" },
@@ -66,7 +88,7 @@ function rideAttackSkill(): SkillDefinition {
           stepCondition: { kind: "TRUE" },
           targetCondition: { kind: "TRUE" },
           target: { kind: "BINDING", targetBindingId: binding },
-          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(RIDE_DAMAGE_ID) }],
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(effectActionId) }],
         },
       ],
     },
@@ -78,7 +100,7 @@ function rideAttackSkill(): SkillDefinition {
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
-    metadata: { displayName: RIDE_AS_ID, tags: [] },
+    metadata: { displayName: skillId, tags: [] },
   };
 }
 
@@ -104,6 +126,37 @@ export function rideStandInAttack(options: RideStandInAttackOptions): {
   readonly units: readonly BattleUnit[];
   readonly recorder: EventRecorder;
 } {
+  return useStandInSkill(
+    options,
+    standInEnemySingleSkill(RIDE_AS_ID, RIDE_DAMAGE_ID),
+    rideDamageAction(),
+  );
+}
+
+/**
+ * R-ATM-02（`SkillUseStarting.isAttack`）: 敵単体を対象に取るが`DAMAGE`を含まない
+ * 合成AS（防御力低下だけ）を実`resolveSkillUse`経路で使わせる。「アクティブスキルで
+ * 攻撃する前」のPSが、敵を対象に取る非攻撃ASで発動しないことを観測するために使う。
+ */
+export function useStandInNonAttackSkill(options: RideStandInAttackOptions): {
+  readonly units: readonly BattleUnit[];
+  readonly recorder: EventRecorder;
+} {
+  return useStandInSkill(
+    options,
+    standInEnemySingleSkill(NON_ATTACK_AS_ID, NON_ATTACK_DEBUFF_ID),
+    nonAttackDebuffAction(),
+  );
+}
+
+function useStandInSkill(
+  options: RideStandInAttackOptions,
+  skill: SkillDefinition,
+  effectAction: EffectActionDefinition,
+): {
+  readonly units: readonly BattleUnit[];
+  readonly recorder: EventRecorder;
+} {
   const attackerUnitId = createBattleUnitId(options.attackerUnitId);
   const attackerBase = options.units.find((unit) => unit.battleUnitId === attackerUnitId);
   if (attackerBase === undefined) {
@@ -113,7 +166,6 @@ export function rideStandInAttack(options: RideStandInAttackOptions): {
   const roster = options.units.map((unit) =>
     unit.battleUnitId === attackerUnitId ? attacker : unit,
   );
-  const skill = rideAttackSkill();
   const definitions: BattleDefinitions = {
     ...options.definitions,
     skillDefinitions: new Map(options.definitions.skillDefinitions).set(
@@ -121,8 +173,8 @@ export function rideStandInAttack(options: RideStandInAttackOptions): {
       skill,
     ),
     effectActions: new Map(options.definitions.effectActions).set(
-      createEffectActionDefinitionId(RIDE_DAMAGE_ID),
-      rideDamageAction(),
+      effectAction.effectActionDefinitionId,
+      effectAction,
     ),
   };
   const recorder = new EventRecorder(createBattleId(options.battleId));

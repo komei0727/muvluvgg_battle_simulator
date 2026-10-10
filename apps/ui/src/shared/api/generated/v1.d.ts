@@ -817,6 +817,7 @@ export interface paths {
                       skillDefinitionId: string;
                       /** @enum {string} */
                       skillType: "AS" | "EX";
+                      isAttack?: boolean;
                       actorUnitId: string;
                       targetUnitIds: string[];
                       /** @enum {string} */
@@ -4665,6 +4666,7 @@ export interface paths {
                       skillDefinitionId: string;
                       /** @enum {string} */
                       skillType: "AS" | "EX";
+                      isAttack?: boolean;
                       actorUnitId: string;
                       targetUnitIds: string[];
                       /** @enum {string} */

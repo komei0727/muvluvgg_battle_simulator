@@ -2047,6 +2047,16 @@ condition:
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
 ```
 
+`SkillUseStarting`の`isAttack`（boolean）は、そのスキルが攻撃を含むか（`07_戦闘ルール詳細.md` `R-ATM-02`）を表す。原文が「アクティブスキルで**攻撃する前**に発動」のPSは`skillType`と併せてこれを`AND`で要求し、攻撃を含まないASで発動させない。自身のASだけが契機になる場合でも、攻撃ASを`skillDefinitionId IN [...]`で列挙する代わりに使える。
+
+```yaml
+# 例: 「自身と同じ横一列の他の味方がアクティブスキルで攻撃する前に発動」（SKL_NINA_ZINA_FRONTRUNNER_PS2）
+- kind: AND
+  conditions:
+    - { kind: EVENT_PAYLOAD, field: skillType, op: EQ, value: AS }
+    - { kind: EVENT_PAYLOAD, field: isAttack, op: EQ, value: true }
+```
+
 `DAMAGE_MAX_HP_RATIO`は`EVENT_PAYLOAD`の変種で、`field`が指すpayloadの被弾量（数値）を`TRIGGER_TARGET`（被弾ユニット）の最大HPで割った**比率**を`op`/`value`（数値）と比較する。リテラル比較では表せない「1ヒットで最大HP×N%以上のダメージを負った際」を表す（`R-PS-01`）。`field`は被弾量を持つpayloadプロパティ名（`HitPointReduced`の`hitPointDamage`＝シールド吸収後に実際へHPを減らした量、が代表）を直接指す。trigger条件（`TriggerDefinition.condition`。Skillの`triggers[]`・`counterUpdates[].trigger`・Memoryのtriggerを含む）専用であり、`EVENT_PAYLOAD`と違いEffectStep評価器がこの条件を処理しないため、それ以外の配置 — skillType・Memoryを問わずすべてのresolution step位置、`activationCondition`、`expiration.conditions` — はCatalogロード時に拒否する（`DAMAGE_MAX_HP_RATIO_REQUIRES_TRIGGER`）。
 
 ```yaml

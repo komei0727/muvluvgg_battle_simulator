@@ -24,6 +24,7 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { resolveTargets } from "../targeting/target-selection-policy.js";
 import {
   collectPreAttackObservations,
+  containsAttack,
   resolveSkillOrder,
 } from "../skill/skill-resolution-service.js";
 import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
@@ -367,6 +368,10 @@ export function resolveSkillUse(
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
       skillType: skill.skillType,
+      isAttack: containsAttack(
+        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+        definitions.effectActions,
+      ),
       actorUnitId,
       targetUnitIds,
       costResource: skill.cost.resource,

@@ -157,7 +157,13 @@
         "category": "TIMING",
         "sourceSelector": "SELF",
         "targetSelector": "ENEMY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            { "kind": "EVENT_PAYLOAD", "field": "isAttack", "op": "EQ", "value": true }
+          ]
+        }
       }
     ]
   }

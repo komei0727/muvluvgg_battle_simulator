@@ -407,6 +407,7 @@
       "details": {
         "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
         "skillType": "AS",
+        "isAttack": true,
         "actorUnitId": "ally:1",
         "targetUnitIds": ["enemy:1"],
         "costResource": "AP",

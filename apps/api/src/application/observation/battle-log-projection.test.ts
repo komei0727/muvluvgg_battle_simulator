@@ -99,6 +99,7 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
     payload: {
       skillDefinitionId: "SKL_1" as never,
       skillType: "AS",
+      isAttack: true,
       actorUnitId: "ally:1" as never,
       targetUnitIds: [],
       costResource: "AP",

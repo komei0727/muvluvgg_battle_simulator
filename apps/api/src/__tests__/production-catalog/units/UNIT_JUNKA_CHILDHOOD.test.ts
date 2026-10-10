@@ -559,6 +559,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_JUNKA_CHILDHOOD_PS1",
+    intent:
+      "(不成立): 自身が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_JUNKA_CHILDHOOD_PS1",
+      trigger: skillUseStarting({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:subject",
+    },
+    board: { subject: { state: { currentHp: 8000 } } },
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_JUNKA_CHILDHOOD (【唯一無二の幼なじみ】鑑純夏)", () => {

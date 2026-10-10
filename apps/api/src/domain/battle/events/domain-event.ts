@@ -169,6 +169,12 @@ export interface BattleDomainEventPayloadMap {
      * 同じ理由でこのフィールドを必要とする。
      */
     readonly skillType: SkillType;
+    /**
+     * R-ATM-02: このスキルが攻撃を含むか（`containsAttack`）。「アクティブスキルで
+     * 攻撃する前」のPSを、攻撃を含まないAS（自己バフ・回復だけ等）で発動させない
+     * ための`EVENT_PAYLOAD`条件が参照する。
+     */
+    readonly isAttack: boolean;
     readonly actorUnitId: BattleUnitId;
     readonly targetUnitIds: readonly BattleUnitId[];
     readonly costResource: ResourceKind;

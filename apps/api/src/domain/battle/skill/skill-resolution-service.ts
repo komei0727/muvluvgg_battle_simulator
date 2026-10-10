@@ -26,6 +26,7 @@ import type { ConditionDefinition } from "../../catalog/definitions/condition-de
 import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
+import { someEffectStep } from "../../catalog/definitions/effect-step-walk.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type {
   EffectActionDefinitionId,
@@ -705,6 +706,27 @@ export function flattenEffectSequencePlan(
     }
   }
   return result;
+}
+
+/**
+ * R-ATM-02（`SkillUseStarting.isAttack`）: スキルが攻撃を含むかを、条件評価も乱数消費も
+ * 行わずに定義構造だけから決める。`SkillUseStarting`は対象束縛より前に発行されるため、
+ * 分岐の成否を待たず`BRANCH`／`RANDOM_BRANCH`／`REPEAT`の内側も「攻撃し得る」とみなす。
+ * 対象が`SELF`の`DAMAGE`はHPコスト（自傷）であり攻撃ではないため数えない。
+ */
+export function containsAttack(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): boolean {
+  return someEffectStep(
+    steps,
+    (step) =>
+      step.kind === "ACTION" &&
+      step.target.kind !== "SELF" &&
+      step.actions.some(
+        (action) => effectActions.get(action.effectActionDefinitionId)?.kind === "DAMAGE",
+      ),
+  );
 }
 
 /** R-ATM-03: 攻撃前観測（`UnitBeingAttacked`）を1件発行する対象と、その対象へ向き得るダメージ型の集合。 */

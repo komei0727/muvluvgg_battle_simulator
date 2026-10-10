@@ -631,7 +631,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `EFFECT_IMMUNITY.statKinds`/`polarity`・`markerIds`・追撃の`onHitEffects`・
     // 継続回復の`evaluation: ON_APPLY`・`HP_RATIO_CROSSED`・`DAMAGE.bonusHits`を
     // 初めて production Catalog で使用する。
-    expect(catalog.catalogRevision).toBe("2026-10-10.5");
+    // `2026-10-10.6` は「アクティブスキルで攻撃する前に発動」のPS8件（ニーナPS2ほか）の
+    // `SkillUseStarting` trigger へ `isAttack EQ true` を足し、攻撃を含まないASで
+    // 発動しないようにする（Issue #746）。差分は `skills.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-10-10.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

@@ -462,6 +462,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
   },
+  {
+    skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
+    intent:
+      "(不成立): 自身が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_RAMI_NEWYEAR_PS1",
+      trigger: skillUseStarting({
+        actor: "ally:subject",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:subject",
+    },
+    board: PS1_READY,
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニューイヤー】朽葉ラミ)", () => {

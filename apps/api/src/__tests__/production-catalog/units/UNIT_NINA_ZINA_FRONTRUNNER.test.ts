@@ -27,7 +27,10 @@ import {
   hitPointReduced,
   skillUseStarting,
 } from "../../../testing/production-unit/trigger-events.js";
-import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
+import {
+  rideStandInAttack,
+  useStandInNonAttackSkill,
+} from "../../../testing/production-unit/follow-up-ride.js";
 
 /**
  * `UNIT_NINA_ZINA_FRONTRUNNER`（【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ）の
@@ -609,6 +612,24 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     board: SUBJECT_IN_BACK_ROW,
     expected: { activated: false },
   },
+  {
+    skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+    intent:
+      "(不成立): 味方が攻撃を含まないアクティブスキル（自己バフ・回復だけ等）を使う前には発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+      trigger: skillUseStarting({
+        actor: "ally:front",
+        targets: ["enemy:front"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:front",
+    },
+
+    expected: { activated: false },
+  },
 ];
 
 describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ)", () => {
@@ -917,5 +938,35 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       guardEffects.map((effect) => effect.effectInstanceId),
     );
     expect([...cascade.markerInstanceIds]).toEqual([seedMarker.markerInstanceId]);
+  });
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-009 [R-ATM-02]: 同じ横一列の味方が敵を対象に取っても、攻撃を含まないASではPS2は発動せず（PP・クールタイムも変化しない）、攻撃を含むASでは発動する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const ps2Activations = (events: ReturnType<typeof rideStandInAttack>["recorder"]) =>
+      events
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "PassiveActivated" &&
+            event.payload.skillDefinitionId === "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+        );
+    const subjectOf = (units: readonly BattleUnit[]) =>
+      units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    const options = {
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+    };
+
+    const nonAttack = useStandInNonAttackSkill({
+      ...options,
+      battleId: "B_NINA_ZINA_PS2_NON_ATTACK",
+    });
+    expect(ps2Activations(nonAttack.recorder)).toEqual([]);
+    expect(subjectOf(nonAttack.units).currentPp).toBe(board.subject.currentPp);
+    expect(subjectOf(nonAttack.units).cooldowns).toEqual(board.subject.cooldowns);
+
+    const attack = rideStandInAttack({ ...options, battleId: "B_NINA_ZINA_PS2_ATTACK" });
+    expect(ps2Activations(attack.recorder)).toHaveLength(1);
+    expect(subjectOf(attack.units).currentPp).toBe(board.subject.currentPp - 1);
   });
 });
