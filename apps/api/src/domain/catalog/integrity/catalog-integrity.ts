@@ -14,7 +14,11 @@ import {
   CatalogIntegrityError,
   type CatalogIntegrityViolation,
 } from "./catalog-integrity-violation.js";
-import { validateEffectAction, validateEffectKindKeyGroups } from "./effect-action-integrity.js";
+import {
+  validateEffectAction,
+  validateEffectKindKeyGroups,
+  validateLinkedEffectGroupScopes,
+} from "./effect-action-integrity.js";
 import { validateMemory } from "./memory-integrity.js";
 import { validateSkill } from "./skill-integrity.js";
 import { validateUnit } from "./unit-integrity.js";
@@ -108,6 +112,7 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   // Issue #519: 同種グループの一貫性だけは定義1件では判定できないため、全定義を
   // 見終えてから一度だけ検証する。
   validateEffectKindKeyGroups(effectActions, violations);
+  validateLinkedEffectGroupScopes(effectActions, violations);
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, violations);
   }

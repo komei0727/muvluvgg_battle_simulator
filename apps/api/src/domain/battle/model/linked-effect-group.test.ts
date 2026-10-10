@@ -159,6 +159,33 @@ describe("collectLinkedGroupCascade", () => {
     );
   });
 
+  it("UT-R-EFF-09-031 [R-EFF-09]: a HOLDER-scoped group cascades only within the unit holding the seed, leaving the same group on another unit intact", () => {
+    const holderScoped = <T extends AppliedEffect | MarkerState>(instance: T): T => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: { ...instance.duration.definition, linkedEffectGroupScope: "HOLDER" },
+      },
+    });
+    const targetA = unit("target-a");
+    const targetB = unit("target-b");
+    const parentA = holderScoped(marker("marker-a", targetA, "GROUP_SCAR_TEMP", "PARENT"));
+    const childA = holderScoped(effect("child-a", targetA, "GROUP_SCAR_TEMP", "CHILD"));
+    const parentB = holderScoped(marker("marker-b", targetB, "GROUP_SCAR_TEMP", "PARENT"));
+    const childB = holderScoped(effect("child-b", targetB, "GROUP_SCAR_TEMP", "CHILD"));
+    const units = [
+      { ...targetA, appliedEffects: [childA], markerStates: [parentA] },
+      { ...targetB, appliedEffects: [childB], markerStates: [parentB] },
+    ];
+
+    const result = collectLinkedGroupCascade(units, markerSeeds(parentA));
+
+    expect(result).toEqual({
+      effectInstanceIds: new Set([childA.effectInstanceId]),
+      markerInstanceIds: new Set([parentA.markerInstanceId]),
+    });
+  });
+
   it("UT-R-EFF-09-004 (R-EFF-09): does not expand through an instance with linkedEffectGroupId null", () => {
     const target = unit("target-1");
     const parent = effect("parent", target, null);

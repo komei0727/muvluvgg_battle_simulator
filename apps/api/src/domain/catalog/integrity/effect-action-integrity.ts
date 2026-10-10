@@ -393,6 +393,45 @@ export function validateEffectKindKeyGroups(
   }
 }
 
+/**
+ * R-EFF-09: 同じ`linkedEffectGroupId`を共有する定義群は、カスケード範囲
+ * （`linkedEffectGroupScope`、省略時`BATTLE`）を揃えなければならない。食い違うと、
+ * 保持ユニット内に閉じるメンバーと横断するメンバーが混在し、どの範囲で連動するかが
+ * どのメンバーから辿ったかで変わってしまう。代表の選び方と報告先は
+ * `validateEffectKindKeyGroups`と同じ（辞書順の先頭を代表にし、残りへ報告する）。
+ */
+export function validateLinkedEffectGroupScopes(
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const groups = new Map<string, EffectActionDefinition[]>();
+  for (const effectAction of effectActions.values()) {
+    const groupId = durationOf(effectAction)?.linkedEffectGroupId;
+    if (groupId === undefined || groupId === null) {
+      continue;
+    }
+    const group = groups.get(groupId) ?? [];
+    group.push(effectAction);
+    groups.set(groupId, group);
+  }
+  const scopeOf = (effectAction: EffectActionDefinition): string =>
+    durationOf(effectAction)?.linkedEffectGroupScope ?? "BATTLE";
+  for (const [groupId, group] of groups) {
+    const [representative, ...rest] = [...group].sort((a, b) =>
+      a.effectActionDefinitionId.localeCompare(b.effectActionDefinitionId),
+    );
+    for (const effectAction of rest) {
+      if (scopeOf(effectAction) !== scopeOf(representative!)) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "INCONSISTENT_LINKED_EFFECT_GROUP_SCOPE",
+          message: `linkedEffectGroupId "${groupId}" is shared with "${representative!.effectActionDefinitionId}", but their linkedEffectGroupScope differ ("${scopeOf(representative!)}" vs "${scopeOf(effectAction)}")`,
+        });
+      }
+    }
+  }
+}
+
 /** `stacking`を持つkindだけが宣言できる合成規則。持たないkindは`undefined`。 */
 function stackingOf(
   effectAction: EffectActionDefinition,

@@ -1,5 +1,6 @@
 import type { BattleUnit } from "./battle-unit.js";
 import type { EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import type {
   DurationDefinition,
   LinkedEffectGroupRole,
@@ -62,6 +63,22 @@ export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemb
  * 種別ごとに分かれて持っていた同一アルゴリズムを、R-EFF-09第1項が規定する
  * cross-typeカスケードのためにこの1関数へ統合した。
  */
+/**
+ * R-EFF-09: 連動グループを識別するキー。`linkedEffectGroupScope: HOLDER`のメンバーは
+ * 保持ユニットごとに別のグループとして扱う（同じ`linkedEffectGroupId`でも他ユニットの
+ * メンバーとは連動しない）。連動しない（`linkedEffectGroupId: null`）なら`null`。
+ */
+export function linkedGroupKeyOf(
+  definition: DurationDefinition,
+  holderUnitId: BattleUnitId,
+): string | null {
+  const groupId = definition.linkedEffectGroupId;
+  if (groupId === null) {
+    return null;
+  }
+  return definition.linkedEffectGroupScope === "HOLDER" ? `${groupId}@${holderUnitId}` : groupId;
+}
+
 export function collectLinkedGroupCascade(
   units: readonly BattleUnit[],
   seeds: LinkedGroupInstances,
@@ -70,8 +87,12 @@ export function collectLinkedGroupCascade(
   const roleByKey = new Map<LinkedGroupMemberKey, LinkedEffectGroupRole | undefined>();
   const membersByGroupId = new Map<string, LinkedGroupMember[]>();
 
-  const register = (member: LinkedGroupMember, definition: DurationDefinition): void => {
-    const groupId = definition.linkedEffectGroupId;
+  const register = (
+    member: LinkedGroupMember,
+    definition: DurationDefinition,
+    holderUnitId: BattleUnitId,
+  ): void => {
+    const groupId = linkedGroupKeyOf(definition, holderUnitId);
     if (groupId === null) {
       return;
     }
@@ -90,12 +111,14 @@ export function collectLinkedGroupCascade(
       register(
         { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
         effect.duration.definition,
+        unit.battleUnitId,
       );
     }
     for (const marker of unit.markerStates) {
       register(
         { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
         marker.duration.definition,
+        unit.battleUnitId,
       );
     }
   }
