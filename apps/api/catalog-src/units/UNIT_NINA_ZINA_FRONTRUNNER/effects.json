@@ -9,6 +9,23 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF",
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
     "kind": "APPLY_STAT_MOD",
     "payload": {
@@ -18,7 +35,10 @@
       "stacking": { "mode": "NON_STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1 }
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
@@ -32,7 +52,10 @@
       "polarity": "DEBUFF",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2 }
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       },
       "maxBlocks": null
     },
@@ -176,6 +199,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -190,7 +214,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       },
       "maxBlocks": null
     },

@@ -140,6 +140,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
         {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
+          targets: ["ally:subject"],
+        },
+        {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
           targets: ["ally:subject"],
         },
@@ -167,6 +171,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "ACTION", count: 2 },
         },
       ],
+      markers: [
+        {
+          unitId: "ally:subject",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF",
+          stackCount: 1,
+        },
+      ],
       resources: [{ unitId: "ally:subject", resource: "AP", delta: 1 }],
     },
   },
@@ -190,6 +201,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
         {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
+          targets: ["ally:subject"],
+        },
+        {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
           targets: ["ally:subject"],
         },
@@ -211,6 +226,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
           magnitude: 0,
           timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      markers: [
+        {
+          unitId: "ally:subject",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF",
+          stackCount: 1,
         },
       ],
     },
@@ -779,6 +801,120 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       scarTempDebuffsOf(scarred)
         .map((effect) => effect.effectInstanceId)
         .sort(),
+    );
+    expect([...cascade.markerInstanceIds]).toEqual([seedMarker.markerInstanceId]);
+  });
+
+  /** 付与者（ニーナ）が戦闘不能になったときの`removeOnSourceDefeated`解除を実経路で解決する。 */
+  function defeatSubject(
+    units: readonly BattleUnit[],
+    board: ReturnType<typeof productionBoard>,
+    battleId: string,
+  ): readonly BattleUnit[] {
+    const { recorder, rootEventId } = seedRecorder(battleId);
+    return removeMarkers(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      units,
+      findMarkersRemovedOnSourceDefeat(units, {
+        eventType: "UnitDefeated",
+        payload: { unitId: board.subject.battleUnitId },
+      }),
+      board.definitions.effectActions,
+      rootEventId,
+    ).units;
+  }
+
+  const EX_SELF_DEBUFFS = [
+    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+  ];
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXの自身へのデバフ（攻撃力低下・攻撃力バフ無効）は、自身が倒れると解除される", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
+        target: "SELF",
+      },
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN", target: "SELF" },
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL", target: "SELF" },
+    ]);
+    const subjectOf = (all: readonly BattleUnit[]) =>
+      all.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    expect(
+      subjectOf(units).appliedEffects.filter((effect) =>
+        EX_SELF_DEBUFFS.includes(effect.effectActionDefinitionId),
+      ),
+    ).toHaveLength(2);
+
+    const after = subjectOf(defeatSubject(units, board, "B_NINA_ZINA_EX_DEFEAT"));
+
+    expect(
+      after.appliedEffects.filter((effect) =>
+        EX_SELF_DEBUFFS.includes(effect.effectActionDefinitionId),
+      ),
+    ).toEqual([]);
+    expect(after.markerStates).toEqual([]);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-008 [R-EFF-09]: PS1で味方に付けたデバフ無効の連動は保持ユニット内に閉じ、別の味方が持つ同じガードを巻き込まない", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_GUARD_MARKER", target: "ALLY" },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
+        target: "ALLY",
+      },
+    ]);
+    const guarded = units.find((unit) =>
+      unit.markerStates.some(
+        (marker) => marker.markerId === "MARKER_NINA_ZINA_FRONTRUNNER_PS1_GUARD",
+      ),
+    )!;
+    const guardEffects = guarded.appliedEffects.filter(
+      (effect) =>
+        effect.effectActionDefinitionId === "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
+    );
+    expect(guardEffects).toHaveLength(1);
+    // 同じ定義のガード一式を別の味方にも持たせる（ニーナが2体いる盤面の再現）。
+    const otherId = units.find(
+      (unit) =>
+        unit.side === "ALLY" &&
+        unit.battleUnitId !== guarded.battleUnitId &&
+        unit.battleUnitId !== board.subject.battleUnitId,
+    )!.battleUnitId;
+    const withOther = units.map((unit) =>
+      unit.battleUnitId !== otherId
+        ? unit
+        : {
+            ...unit,
+            markerStates: guarded.markerStates.map((marker) => ({
+              ...marker,
+              markerInstanceId: createMarkerInstanceId(`${marker.markerInstanceId}:other`),
+              targetUnitId: createBattleUnitId(otherId),
+            })),
+            appliedEffects: guardEffects.map((effect) => ({
+              ...effect,
+              effectInstanceId: createEffectInstanceId(`${effect.effectInstanceId}:other`),
+              targetUnitId: createBattleUnitId(otherId),
+            })),
+          },
+    );
+    const seedMarker = guarded.markerStates[0]!;
+
+    const cascade = collectLinkedGroupCascade(withOther, {
+      effectInstanceIds: new Set(),
+      markerInstanceIds: new Set([seedMarker.markerInstanceId]),
+    });
+
+    expect([...cascade.effectInstanceIds]).toEqual(
+      guardEffects.map((effect) => effect.effectInstanceId),
     );
     expect([...cascade.markerInstanceIds]).toEqual([seedMarker.markerInstanceId]);
   });
