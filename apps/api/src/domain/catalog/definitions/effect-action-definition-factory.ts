@@ -1,3 +1,4 @@
+import { createMarkerReference } from "./marker-reference.js";
 import { STAT_KINDS } from "./catalog-enums.js";
 import type {
   ActionKind,
@@ -43,6 +44,7 @@ import {
   STATUS_AILMENT_KINDS,
   STATUS_KINDS,
   type ConfusionDefinition,
+  type DamageBonusHits,
   type DamageModConditionDefinition,
   type DamageThreshold,
   type DamageToHealDefinition,
@@ -102,6 +104,7 @@ const EFFECT_IMMUNITY_CATEGORIES = [
   "SPECIFIC_EFFECT",
 ] as const;
 /** DMG-007（Issue #187）: `APPLY_DAMAGE_LINK.polarity`。`EFFECT_IMMUNITY.polarity`も同じ値集合を使う。 */
+const DAMAGE_BONUS_HITS_ALLOWED_KEYS = ["markerId", "markerIds", "perStack", "max"] as const;
 const DAMAGE_LINK_POLARITIES = ["BUFF", "DEBUFF"] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
@@ -113,6 +116,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "damageType",
     "formula",
     "hitCount",
+    "bonusHits",
     "critical",
     "accuracy",
     "piercing",
@@ -543,6 +547,20 @@ export function createEffectActionDefinition(
   });
 }
 
+/** R-SKL-03: `DAMAGE.bonusHits`。`perStack`・`max`は正の整数（ヒット数そのものを数えるため）。 */
+function createDamageBonusHits(input: unknown, path: string): DamageBonusHits | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  const raw = input as Readonly<Record<string, unknown>>;
+  assertKnownKeys(raw, DAMAGE_BONUS_HITS_ALLOWED_KEYS, path);
+  const perStack = requireField(raw["perStack"] as number | undefined, `${path}.perStack`);
+  assertInteger(perStack, `${path}.perStack`, { min: 1 });
+  const max = requireField(raw["max"] as number | undefined, `${path}.max`);
+  assertInteger(max, `${path}.max`, { min: 1 });
+  return { ...createMarkerReference(raw, path), perStack, max };
+}
+
 /**
  * R-FUP-01: 追撃ヒット時に付与する効果。単一の`onHitEffect`（既存定義の書式）と
  * 複数の`onHitEffects`のどちらか一方を受け付け、定義順の配列へ正規化する。
@@ -601,6 +619,7 @@ function createPayload(
       assertEnumValue(damageType, DAMAGE_TYPES, `${path}.damageType`);
       const hitCount = (payload["hitCount"] as number | undefined) ?? 1;
       assertInteger(hitCount, `${path}.hitCount`, { min: 1 });
+      const bonusHits = createDamageBonusHits(payload["bonusHits"], `${path}.bonusHits`);
       const criticalRaw = payload["critical"] as { mode?: string } | undefined;
       if (criticalRaw !== undefined) {
         assertKnownKeys(criticalRaw, DAMAGE_CRITICAL_ALLOWED_KEYS, `${path}.critical`);
@@ -673,6 +692,7 @@ function createPayload(
           damageType,
           formula,
           hitCount,
+          ...(bonusHits !== undefined ? { bonusHits } : {}),
           critical: { mode: criticalMode },
           accuracy: { mode: accuracyMode },
           piercing: { defenseIgnoreRate, shieldIgnoreRate, damageReductionIgnoreRate },

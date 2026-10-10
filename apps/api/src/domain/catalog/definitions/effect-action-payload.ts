@@ -1,3 +1,4 @@
+import type { MarkerReference } from "./marker-reference.js";
 import type {
   ActionKind,
   ComparisonOperator,
@@ -74,10 +75,22 @@ export const COOLDOWN_MANIPULATION_OPERATIONS = ["RESET", "REDUCE"] as const;
 
 // ---- payload types ----
 
+/**
+ * R-SKL-03: 対象の所持マーカー数に応じたヒット数の加算（raw原文「対象に付与されている
+ * 『刻痕』1つにつき1ヒット追加される（9つまで）」）。加算数は
+ * `min(合算スタック数 × perStack, max)`。マーカーの数え方は`MarkerReference`の規約に従う。
+ */
+export type DamageBonusHits = {
+  readonly perStack: number;
+  readonly max: number;
+} & MarkerReference;
+
 export interface DamagePayload {
   readonly damageType: DamageType;
   readonly formula: FormulaDefinition;
   readonly hitCount: number;
+  /** 省略時はヒット数を加算しない。 */
+  readonly bonusHits?: DamageBonusHits;
   readonly critical: { readonly mode: CriticalMode };
   readonly accuracy: { readonly mode: AccuracyMode };
   readonly piercing: {

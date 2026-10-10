@@ -14,14 +14,16 @@ import {
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
+  createMarkerId,
   createSkillDefinitionId,
   createTargetBindingId,
   createUnitDefinitionId,
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
@@ -229,6 +231,82 @@ describe("resolveSkillOrder", () => {
 
     expect(plan.map((entry) => entry.hitIndex)).toEqual([1, 2, 3]);
     expect(plan.every((entry) => entry.targetUnitId === createBattleUnitId("ENEMY_1"))).toBe(true);
+  });
+
+  it("UT-R-SKL-03-004 [R-SKL-03]: bonusHits adds hits per target from that target's summed marker stacks, capped at max", () => {
+    const scar = createMarkerId("MARKER_SCAR");
+    const scarTemp = createMarkerId("MARKER_SCAR_TEMP");
+    const marker = (
+      markerId: typeof scar,
+      targetUnitId: string,
+      stackCount: number,
+    ): MarkerState => ({
+      markerInstanceId: createMarkerInstanceId(`mi-${markerId}-${targetUnitId}`),
+      markerId,
+      sourceUnitId: createBattleUnitId("ACTOR"),
+      targetUnitId: createBattleUnitId(targetUnitId),
+      stackCount,
+      stackMax: null,
+      decayingStackCount: 0,
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    });
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" });
+    // 3 + 2 = 5スタック → 1 + 5 = 6ヒット。
+    const scarred = unit(
+      "ENEMY_1",
+      "ENEMY",
+      { column: "LEFT", row: "FRONT" },
+      { markerStates: [marker(scar, "ENEMY_1", 3), marker(scarTemp, "ENEMY_1", 2)] },
+    );
+    // 12スタックは上限9で止まる → 10ヒット。
+    const saturated = unit(
+      "ENEMY_2",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { markerStates: [marker(scar, "ENEMY_2", 12)] },
+    );
+    const bare = unit("ENEMY_3", "ENEMY", { column: "RIGHT", row: "FRONT" });
+    const base = damageAction("ACT_SCAR_HITS", 1);
+    const scarHits: EffectActionDefinition =
+      base.kind === "DAMAGE"
+        ? {
+            ...base,
+            payload: {
+              ...base.payload,
+              bonusHits: { markerIds: [scar, scarTemp], perStack: 1, max: 9 },
+            },
+          }
+        : base;
+    const skill = skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_1"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_1") },
+          actions: [{ effectActionDefinitionId: scarHits.effectActionDefinitionId }],
+        },
+      ],
+    });
+
+    const plan = flattenEffectSequencePlan(
+      resolveSkillOrder(
+        skill,
+        actor,
+        [actor, scarred, saturated, bare],
+        new Map([[scarHits.effectActionDefinitionId, scarHits]]),
+      ),
+    );
+    const hitsOf = (id: string): number =>
+      plan.filter((entry) => entry.targetUnitId === createBattleUnitId(id)).length;
+
+    expect(hitsOf("ENEMY_1")).toBe(6);
+    expect(hitsOf("ENEMY_2")).toBe(10);
+    expect(hitsOf("ENEMY_3")).toBe(1);
   });
 
   it("UT-R-SKL-01-002: multiple actions on one target resolve in definition order, hits nested within each action", () => {
