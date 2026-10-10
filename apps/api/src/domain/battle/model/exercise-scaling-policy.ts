@@ -1,12 +1,6 @@
 import type { CombatStats } from "./starting-combat-stats.js";
 import { DomainValidationError } from "../../shared/errors.js";
 
-/**
- * R-TEX-04 #2: 攻撃力・防御力の増分が0になるブレイク回数。21回目以降は増分を持たず、
- * 累計倍率6.53（653%）で頭打ちになる。HP・行動速度・会心率は上限を持たない。
- */
-export const EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT = 20;
-
 /** R-TEX-04 #2: 行動速度の1回あたり増分（パーセントポイント）。 */
 const ACTION_SPEED_INCREMENT_POINTS = 5;
 
@@ -24,7 +18,7 @@ const CRITICAL_RATE_INCREMENT_POINTS = 1;
 export interface ExerciseScalingFactors {
   /** 原基準値の最大HPに掛ける累計倍率。上限なし。 */
   readonly hpMultiplier: number;
-  /** 原基準値の攻撃力・防御力に掛ける累計倍率。21回目以降は頭打ち。 */
+  /** 原基準値の攻撃力・防御力に掛ける累計倍率。HPと同じ式で上限なし。 */
   readonly attackDefenseMultiplier: number;
   /** 原基準値の行動速度に掛ける累計倍率。上限なし。 */
   readonly actionSpeedMultiplier: number;
@@ -94,13 +88,11 @@ interface ExerciseScalingPoints {
 
 function scalingPoints(breakCount: number): ExerciseScalingPoints {
   assertBreakCount(breakCount);
+  // R-TEX-04 #2: HP・攻撃力・防御力は同じ累計倍率で、いずれも上限を持たない。
+  const hpAttackDefense = 100 + cumulativeIncrementPoints(breakCount);
   return {
-    hp: 100 + cumulativeIncrementPoints(breakCount),
-    attackDefense:
-      100 +
-      cumulativeIncrementPoints(
-        Math.min(breakCount, EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT),
-      ),
+    hp: hpAttackDefense,
+    attackDefense: hpAttackDefense,
     actionSpeed: 100 + ACTION_SPEED_INCREMENT_POINTS * breakCount,
     criticalRate: CRITICAL_RATE_INCREMENT_POINTS * breakCount,
   };
