@@ -266,6 +266,99 @@ describe("findBlockingImmunity", () => {
     );
     expect(found?.effectInstanceId).toBe(immunity.effectInstanceId);
   });
+
+  function statModAction(id: string, stat: "ATTACK" | "DEFENSE"): EffectActionDefinition {
+    const base = debuffAction(id);
+    return base.kind === "APPLY_STAT_MOD" ? { ...base, payload: { ...base.payload, stat } } : base;
+  }
+
+  function outgoingDamageModAction(id: string): EffectActionDefinition {
+    return {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      metadata: { tags: [] },
+      payload: {
+        direction: "OUTGOING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 0.1 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+  }
+
+  function attempt(
+    target: Pick<BattleUnit, "appliedEffects">,
+    definition: EffectActionDefinition,
+    magnitude: number,
+  ): AppliedEffect | undefined {
+    return findBlockingImmunity(
+      target,
+      { effectActionDefinitionId: definition.effectActionDefinitionId, magnitude },
+      definition,
+    );
+  }
+
+  it("UT-R-EFF-03-019 [R-EFF-03]: a BUFF immunity scoped to statKinds ATTACK blocks an attack buff but not a defense buff", () => {
+    const immunity = immunityEffect("imm-1", { categories: ["BUFF"], statKinds: ["ATTACK"] });
+    const target = holderWith([immunity]);
+
+    expect(attempt(target, statModAction("ACT_ATK_UP", "ATTACK"), 0.2)?.effectInstanceId).toBe(
+      immunity.effectInstanceId,
+    );
+    expect(attempt(target, statModAction("ACT_DEF_UP", "DEFENSE"), 0.2)).toBeUndefined();
+  });
+
+  it("UT-R-EFF-03-020 [R-EFF-03]: a statKinds-scoped BUFF immunity lets an attack debuff and a non-stat buff through", () => {
+    const target = holderWith([
+      immunityEffect("imm-1", { categories: ["BUFF"], statKinds: ["ATTACK"] }),
+    ]);
+
+    expect(attempt(target, statModAction("ACT_ATK_DOWN", "ATTACK"), -0.2)).toBeUndefined();
+    expect(attempt(target, outgoingDamageModAction("ACT_DMG_UP"), 0.1)).toBeUndefined();
+  });
+
+  it("UT-R-EFF-03-021 [R-EFF-03]: statKinds narrows only the BUFF/DEBUFF match, so a STATUS category in the same immunity still blocks every ailment", () => {
+    const target = holderWith([
+      immunityEffect("imm-1", { categories: ["DEBUFF", "STATUS"], statKinds: ["ATTACK"] }),
+    ]);
+
+    expect(
+      findBlockingImmunity(
+        target,
+        {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+          magnitude: 0,
+          statusKind: "STUN",
+        },
+        stunAction("ACT_STUN"),
+      ),
+    ).toBeDefined();
+    expect(attempt(target, statModAction("ACT_DEF_DOWN", "DEFENSE"), -0.2)).toBeUndefined();
+  });
+
+  it("UT-R-EFF-03-022 [R-EFF-03, R-STS-01]: a statKinds-scoped DEBUFF immunity does not block a status ailment through the DEBUFF category the ailment also carries", () => {
+    const target = holderWith([
+      immunityEffect("imm-1", { categories: ["DEBUFF"], statKinds: ["ATTACK"] }),
+    ]);
+
+    expect(
+      findBlockingImmunity(
+        target,
+        {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_STUN"),
+          magnitude: 0,
+          statusKind: "STUN",
+        },
+        stunAction("ACT_STUN"),
+      ),
+    ).toBeUndefined();
+    expect(attempt(target, statModAction("ACT_ATK_DOWN", "ATTACK"), -0.2)).toBeDefined();
+  });
 });
 
 describe("incrementImmunityBlockedCount", () => {

@@ -464,6 +464,19 @@ export interface EffectImmunityPayload {
    * `STATUS`カテゴリ全体（状態異常すべて）を対象にする。
    */
   readonly statusKinds?: readonly StatusKind[];
+  /**
+   * R-EFF-03: `categories`が`BUFF`または`DEBUFF`を含む場合だけ指定できる、
+   * その2カテゴリでの一致を`APPLY_STAT_MOD`のうち対象ステータスを変える付与へ
+   * 絞り込む値（raw原文「新たに向けられる攻撃力バフを無効にする」）。他のカテゴリ
+   * での一致には影響しない。
+   */
+  readonly statKinds?: readonly StatKind[];
+  /**
+   * R-EFF-03: この免疫効果自身が保持者にとってバフかデバフか。省略時は`BUFF`
+   * （向けられる効果を拒否する免疫は通常保持者を利する）。原文が「〜を無効にする
+   * デバフ」と呼ぶ免疫は`DEBUFF`を宣言し、デバフ解除・デバフ無効の対象にする。
+   */
+  readonly polarity?: "BUFF" | "DEBUFF";
   readonly duration: DurationDefinition;
   readonly maxBlocks: number | null;
 }

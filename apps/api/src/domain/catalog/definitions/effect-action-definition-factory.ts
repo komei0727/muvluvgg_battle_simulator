@@ -5,6 +5,7 @@ import type {
   EffectImmunityCategory,
   ResourceKind,
   ResourceModifyOperation,
+  StatKind,
 } from "./catalog-enums.js";
 import {
   createEffectActionDefinitionId,
@@ -99,7 +100,7 @@ const EFFECT_IMMUNITY_CATEGORIES = [
   "SUBUNIT",
   "SPECIFIC_EFFECT",
 ] as const;
-/** DMG-007（Issue #187）: `APPLY_DAMAGE_LINK.polarity`。 */
+/** DMG-007（Issue #187）: `APPLY_DAMAGE_LINK.polarity`。`EFFECT_IMMUNITY.polarity`も同じ値集合を使う。 */
 const DAMAGE_LINK_POLARITIES = ["BUFF", "DEBUFF"] as const;
 const MARKER_STACK_POLICIES = ["ADD", "KEEP_EXISTING", "REFRESH", "REPLACE"] as const;
 const OVERHEAL_POLICIES = ["DISCARD"] as const;
@@ -157,6 +158,8 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "categories",
     "effectActionDefinitionIds",
     "statusKinds",
+    "statKinds",
+    "polarity",
     "duration",
     "maxBlocks",
   ],
@@ -1103,6 +1106,8 @@ function createPayload(
         categories: readonly EffectImmunityCategory[];
         effectActionDefinitionIds?: readonly EffectActionDefinitionId[];
         statusKinds?: readonly (typeof STATUS_KINDS)[number][];
+        statKinds?: readonly StatKind[];
+        polarity?: (typeof DAMAGE_LINK_POLARITIES)[number];
         duration: DurationDefinition;
         maxBlocks: number | null;
       } = {
@@ -1131,6 +1136,27 @@ function createPayload(
           assertEnumValue(statusKind, STATUS_AILMENT_KINDS, `${path}.statusKinds[${i}]`);
         }
         result.statusKinds = statusKindsRaw as readonly (typeof STATUS_KINDS)[number][];
+      }
+      // R-EFF-03: `statKinds`は`BUFF`/`DEBUFF`での一致だけを絞り込む。どちらも
+      // 含まない場合は`statusKinds`と同じ理由（黙って無視される）で拒否する。
+      const statKindsRaw = payload["statKinds"] as readonly string[] | undefined;
+      if (statKindsRaw !== undefined) {
+        if (!typedCategories.includes("BUFF") && !typedCategories.includes("DEBUFF")) {
+          throw new DomainValidationError(
+            `${path}.statKinds`,
+            'must not be set when "categories" includes neither "BUFF" nor "DEBUFF" (it would otherwise be silently ignored)',
+          );
+        }
+        assertNonEmptyArray(statKindsRaw, `${path}.statKinds`);
+        for (const [i, stat] of statKindsRaw.entries()) {
+          assertEnumValue(stat, STAT_KINDS, `${path}.statKinds[${i}]`);
+        }
+        result.statKinds = statKindsRaw as readonly StatKind[];
+      }
+      const polarityRaw = payload["polarity"] as string | undefined;
+      if (polarityRaw !== undefined) {
+        assertEnumValue(polarityRaw, DAMAGE_LINK_POLARITIES, `${path}.polarity`);
+        result.polarity = polarityRaw;
       }
       if (typedCategories.includes("SPECIFIC_EFFECT")) {
         const ids = payload["effectActionDefinitionIds"] as readonly string[] | undefined;

@@ -313,4 +313,35 @@ describe("effectCategoriesOf", () => {
     const categories = effectCategoriesOf(effect({ magnitude: 0 }), markerDefinition);
     expect([...categories]).toEqual(["MARKER"]);
   });
+
+  function immunityDefinition(polarity?: "BUFF" | "DEBUFF"): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_IMMUNITY",
+        kind: "EFFECT_IMMUNITY",
+        payload: {
+          categories: ["BUFF"],
+          statKinds: ["ATTACK"],
+          ...(polarity !== undefined ? { polarity } : {}),
+          duration: { timeLimit: { unit: "ACTION", count: 2 } },
+          maxBlocks: null,
+        },
+      },
+      "effectAction",
+    );
+  }
+
+  it("UT-R-EFF-03-023 [R-EFF-03]: classifies an EFFECT_IMMUNITY declared as DEBUFF as DEBUFF only, regardless of what it blocks", () => {
+    const categories = effectCategoriesOf(effect({ magnitude: 0 }), immunityDefinition("DEBUFF"));
+    expect([...categories]).toEqual(["DEBUFF"]);
+  });
+
+  it("UT-R-EFF-03-024 [R-EFF-03]: classifies an EFFECT_IMMUNITY without a declared polarity as BUFF", () => {
+    expect([...effectCategoriesOf(effect({ magnitude: 0 }), immunityDefinition())]).toEqual([
+      "BUFF",
+    ]);
+    expect([...effectCategoriesOf(effect({ magnitude: 0 }), immunityDefinition("BUFF"))]).toEqual([
+      "BUFF",
+    ]);
+  });
 });

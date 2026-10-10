@@ -43,7 +43,16 @@ function categoryBlocks(
   immunity: EffectImmunityState,
   candidate: ImmunityBlockCandidate,
   candidateIsStatusAilment: boolean,
+  definition: EffectActionDefinition,
 ): boolean {
+  // R-EFF-03: `statKinds`は`BUFF`/`DEBUFF`での一致だけを、対象ステータスを変える
+  // `APPLY_STAT_MOD`へ絞り込む。状態異常が兼ねる`DEBUFF`経由でも素通りさせない —
+  // 状態異常を拒否したい場合は`STATUS`カテゴリで宣言する（そちらは絞り込まない）。
+  if ((category === "BUFF" || category === "DEBUFF") && immunity.statKinds !== undefined) {
+    return (
+      definition.kind === "APPLY_STAT_MOD" && immunity.statKinds.includes(definition.payload.stat)
+    );
+  }
   const isAilmentClassifiedCategory =
     category === "STATUS" || (category === "DEBUFF" && candidateIsStatusAilment);
   if (isAilmentClassifiedCategory && immunity.statusKinds !== undefined) {
@@ -86,7 +95,7 @@ export function findBlockingImmunity(
       (category) =>
         category !== "SPECIFIC_EFFECT" &&
         categories.has(category) &&
-        categoryBlocks(category, immunity, candidate, candidateIsStatusAilment),
+        categoryBlocks(category, immunity, candidate, candidateIsStatusAilment, definition),
     );
   });
 }

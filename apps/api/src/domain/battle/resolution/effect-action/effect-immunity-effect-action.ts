@@ -44,6 +44,9 @@ export const resolveEffectImmunity: EffectActionHandler<"EFFECT_IMMUNITY"> = (
           ...(effectAction.payload.statusKinds !== undefined
             ? { statusKinds: effectAction.payload.statusKinds }
             : {}),
+          ...(effectAction.payload.statKinds !== undefined
+            ? { statKinds: effectAction.payload.statKinds }
+            : {}),
           ...(effectAction.payload.effectActionDefinitionIds !== undefined
             ? { effectActionDefinitionIds: effectAction.payload.effectActionDefinitionIds }
             : {}),
