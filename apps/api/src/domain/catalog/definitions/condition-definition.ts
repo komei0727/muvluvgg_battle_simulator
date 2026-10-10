@@ -98,6 +98,7 @@ export const CONDITION_KINDS = [
   "TARGET_HAS_MARKER",
   "EVENT_PAYLOAD",
   "DAMAGE_MAX_HP_RATIO",
+  "HP_RATIO_CROSSED",
   "LAST_RESULT",
   "RUNTIME_COUNTER",
   "TURN_NUMBER",
@@ -293,6 +294,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   TARGET_HAS_MARKER: ["kind", "target", "markerId", "markerIds", "countCondition"],
   EVENT_PAYLOAD: ["kind", "field", "op", "value"],
   DAMAGE_MAX_HP_RATIO: ["kind", "field", "op", "value"],
+  HP_RATIO_CROSSED: ["kind", "threshold", "direction"],
   LAST_RESULT: ["kind", "field", "op", "value"],
   RUNTIME_COUNTER: ["kind", "counter", "op", "value", "modulo"],
   TURN_NUMBER: ["kind", "op", "value", "modulo"],
@@ -334,6 +336,10 @@ const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
 /** `14_Catalog定義スキーマ.md`「POSITION_RELATION」（M6、Issue #144）。「目の前」を候補とする。 */
 export const POSITION_RELATIONS = ["IN_FRONT_OF"] as const;
 export type PositionRelation = (typeof POSITION_RELATIONS)[number];
+
+/** R-PS-01: `HP_RATIO_CROSSED`の向き。HPが減って閾値を跨ぐ`DOWN`だけを実装する。 */
+export const HP_RATIO_CROSSING_DIRECTIONS = ["DOWN"] as const;
+export type HpRatioCrossingDirection = (typeof HP_RATIO_CROSSING_DIRECTIONS)[number];
 
 /** `14_Catalog定義スキーマ.md`「RESOLUTION_PHASE」（M6、Issue #144）。 */
 export const RESOLUTION_PHASES = ["BATTLE_START", "TURN_START", "TURN_END"] as const;
@@ -385,6 +391,18 @@ export type ConditionDefinition =
       readonly field: string;
       readonly op: ComparisonOperator;
       readonly value: number;
+    }
+  | {
+      /**
+       * R-PS-01: trigger payloadの`hpBefore`/`hpAfter`を被弾ユニットの最大HPで割った
+       * 比率が、`threshold`を上から下へ跨いだ（減少前 > threshold かつ 減少後 ≦ threshold）
+       * ときだけ成立する（raw原文「HPが50%以下になった際」）。現在HPの比率だけを見る
+       * `TARGET_STATE HP_RATIO`は、閾値以下にいる間の被弾すべてで成立してしまう。
+       * `direction`は現状`DOWN`だけを実装する。
+       */
+      readonly kind: "HP_RATIO_CROSSED";
+      readonly threshold: number;
+      readonly direction: HpRatioCrossingDirection;
     }
   | {
       readonly kind: "LAST_RESULT";
@@ -507,6 +525,8 @@ export type ConditionDefinition =
 
 export interface ConditionDefinitionInput {
   readonly kind: string;
+  readonly threshold?: number;
+  readonly direction?: string;
   readonly conditions?: readonly ConditionDefinitionInput[];
   readonly condition?: ConditionDefinitionInput;
   readonly target?: TargetReferenceInput;
@@ -734,6 +754,26 @@ export function createConditionDefinition(
       const field = requireField(input, "field", path);
       const value = requireNumberField(input, path);
       return { kind: "DAMAGE_MAX_HP_RATIO", field, op: createOperator(input, path), value };
+    }
+    case "HP_RATIO_CROSSED": {
+      const threshold = requireField(input, "threshold", path);
+      if (typeof threshold !== "number") {
+        throw new DomainValidationError(
+          `${path}.threshold`,
+          `must be a number, got ${typeof threshold}`,
+        );
+      }
+      assertFinite(threshold, `${path}.threshold`);
+      // 比率は0〜1にしか存在しないため、範囲外の閾値は跨ぎが決して起きない。
+      if (threshold < 0 || threshold > 1) {
+        throw new DomainValidationError(
+          `${path}.threshold`,
+          `must be within 0..1, got ${threshold}`,
+        );
+      }
+      const direction = requireField(input, "direction", path);
+      assertEnumValue(direction, HP_RATIO_CROSSING_DIRECTIONS, `${path}.direction`);
+      return { kind: "HP_RATIO_CROSSED", threshold, direction };
     }
     case "RUNTIME_COUNTER": {
       const counter = createRuntimeCounterId(

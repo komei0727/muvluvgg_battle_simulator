@@ -10,7 +10,9 @@ import type { TargetSelectorDefinition } from "../definitions/target-selector-de
 import {
   collectConditionEffectActionReferences,
   collectTargetStateOrMarkerReferences,
-  conditionContainsDamageMaxHpRatio,
+  conditionContainsKind,
+  TRIGGER_SCOPED_CONDITION_KINDS,
+  type TriggerScopedConditionKind,
   conditionContainsEventPayload,
   conditionContainsTargetReferenceKind,
   conditionContainsTargetSetCount,
@@ -94,13 +96,15 @@ export function stepsContainEventPayloadCondition(steps: readonly EffectStepDefi
 }
 
 /**
- * R-PS-01: `DAMAGE_MAX_HP_RATIO`はtrigger条件専用のため、skillTypeを問わず
- * すべてのresolution step位置から拒否する（`conditionContainsDamageMaxHpRatio`参照）。
+ * R-PS-01: trigger専用kindはskillTypeを問わずすべてのresolution step位置から拒否する
+ * （`TRIGGER_SCOPED_CONDITION_KINDS`参照）。含まれていれば最初に見つかったkindを返す。
  */
-export function stepsContainDamageMaxHpRatioCondition(
+export function triggerScopedConditionKindInSteps(
   steps: readonly EffectStepDefinition[],
-): boolean {
-  return stepsSomeCondition(steps, conditionContainsDamageMaxHpRatio);
+): TriggerScopedConditionKind | undefined {
+  return TRIGGER_SCOPED_CONDITION_KINDS.find((kind) =>
+    stepsSomeCondition(steps, (condition) => conditionContainsKind(condition, kind)),
+  );
 }
 
 export function stepsUseGrantedBy(steps: readonly EffectStepDefinition[]): boolean {
