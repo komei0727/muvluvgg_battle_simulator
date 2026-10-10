@@ -2624,6 +2624,59 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NANAE_SOVEREIGN compl
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NINA_ZINA_FRONTRUNNER completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 1,
+  "completionReason": "ENEMY_DEFEATED",
+  "eventCount": 279,
+  "eventSequenceHash": "sha256:5a9dd2f336bd33c7",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 7,
+    "ACTION_COMPLETING": 7,
+    "ACTION_QUEUE_CREATED": 4,
+    "ACTION_RESERVATION_REMOVED": 1,
+    "ACTION_STARTED": 7,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COMBAT_STAT_CHANGED": 6,
+    "COOLDOWN_COMPLETED": 2,
+    "COOLDOWN_REDUCED": 4,
+    "COOLDOWN_STARTED": 3,
+    "CRITICAL_CHECK_RESOLVED": 8,
+    "DAMAGE_APPLIED": 8,
+    "DAMAGE_CALCULATED": 8,
+    "DAMAGE_WILL_BE_APPLIED": 8,
+    "EFFECT_ACTION_COMPLETED": 24,
+    "EFFECT_ACTION_STARTING": 24,
+    "EFFECT_APPLIED": 13,
+    "EFFECT_DURATION_REDUCED": 4,
+    "EFFECT_EXPIRED": 8,
+    "EFFECT_STEP_COMPLETED": 21,
+    "EFFECT_STEP_STARTING": 21,
+    "EXTRA_GAUGE_INCREASED": 2,
+    "HIT_CONFIRMED": 8,
+    "HIT_POINT_REDUCED": 8,
+    "MARKER_APPLIED": 2,
+    "MARKER_REMOVED": 1,
+    "MARKER_UPDATED": 2,
+    "PASSIVE_ACTIVATED": 2,
+    "PASSIVE_POINT_CONSUMED": 2,
+    "PASSIVE_RESOLVED": 2,
+    "RESOURCES_RECOVERED": 1,
+    "RESOURCE_CHANGED": 22,
+    "SKILL_USE_COMPLETED": 7,
+    "SKILL_USE_STARTED": 7,
+    "SKILL_USE_STARTING": 7,
+    "TARGETS_SELECTED": 7,
+    "TURN_STARTED": 1,
+    "UNIT_BEING_ATTACKED": 7,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_WIN",
+  "unitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NOEL_RUMBLE completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,

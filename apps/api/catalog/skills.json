@@ -14035,6 +14035,285 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL", "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "HP_RATIO",
+            "op": "GTE",
+            "value": 0.5
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_AP_UP" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "双鏡の連理", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS1_DAMAGE" }]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.5
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "SELF" },
+              "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS1_REGEN" }]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "断罪の時だ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerIds": [
+                  "MARKER_NINA_ZINA_FRONTRUNNER_SCAR",
+                  "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP"
+                ],
+                "direction": "ASC"
+              },
+              "DEFAULT"
+            ]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "targetCondition": {
+            "kind": "NOT",
+            "condition": {
+              "kind": "TARGET_HAS_MARKER",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+              "markerIds": [
+                "MARKER_NINA_ZINA_FRONTRUNNER_SCAR",
+                "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP"
+              ],
+              "countCondition": { "op": "GTE", "value": 4 }
+            }
+          },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "軍靴の調べにすくめ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ROW_ALLIES",
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [
+              { "kind": "POSITION_ROW", "row": "FRONT" },
+              { "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }
+            ],
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_SELF" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY" }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "SELF" },
+            "field": "POSITION_ROW",
+            "op": "EQ",
+            "value": "FRONT"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_GUARD_MARKER" },
+                {
+                  "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY"
+                },
+                { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS1_DAMAGE_IMMUNITY" }
+              ]
+            }
+          ],
+          "elseSteps": []
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "終幕にはまだ早い！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "HitPointReduced",
+        "category": "FACT",
+        "sourceSelector": "ANY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "HP_RATIO_CROSSED", "threshold": 0.5, "direction": "DOWN" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "SELF" },
+      "field": "POSITION_ROW",
+      "op": "EQ",
+      "value": "FRONT"
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [{ "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_PS2_FOLLOW_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "我が雄姿を見よ！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "SkillUseStarting",
+        "category": "TIMING",
+        "sourceSelector": "OTHER_ALLY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_SOURCE" },
+              "field": "POSITION_ROW",
+              "op": "EQ",
+              "value": "FRONT"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_NOEL_RUMBLE_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 8 },

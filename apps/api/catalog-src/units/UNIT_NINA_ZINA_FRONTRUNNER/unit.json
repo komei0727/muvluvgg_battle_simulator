@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "PHYSICAL_ATTACKER",
+  "positionAptitudes": ["FRONT"],
+  "baseStats": {
+    "maximumHp": 33352,
+    "attack": 19224,
+    "defense": 11516,
+    "criticalRate": 0.2,
+    "actionSpeed": 775,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 312,
+    "attack": 171,
+    "defense": 106,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": ["SKL_NINA_ZINA_FRONTRUNNER_AS1", "SKL_NINA_ZINA_FRONTRUNNER_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_NINA_ZINA_FRONTRUNNER_PS1", "SKL_NINA_ZINA_FRONTRUNNER_PS2"],
+  "extraSkillDefinitionId": "SKL_NINA_ZINA_FRONTRUNNER_EX",
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【双翼のフロントランナー】ニーナ／ジーナ・ミーシナ",
+    "characterName": "ニーナ／ジーナ・ミーシナ",
+    "characterId": "CHAR_NINA_ZINA_MISHINA"
+  }
+}
