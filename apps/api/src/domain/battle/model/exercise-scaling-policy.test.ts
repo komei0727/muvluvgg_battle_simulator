@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyExerciseScaling,
-  exerciseScalingFactors,
-  EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT,
-} from "./exercise-scaling-policy.js";
+import { applyExerciseScaling, exerciseScalingFactors } from "./exercise-scaling-policy.js";
 import { calculateStartingCombatStats, type CombatStats } from "./starting-combat-stats.js";
 import { calculateEnhancedBaseStats } from "./enhanced-base-stats-calculator.js";
 import { createPercentage } from "../../shared/percentage.js";
@@ -78,15 +74,17 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     expect(exerciseScalingFactors(4).attackDefenseMultiplier).toBe(1.81);
   });
 
-  it("UT-R-TEX-04-003: attack and defense stop growing after the twentieth break and stay at the 653% cap, while HP keeps growing", () => {
-    expect(EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT).toBe(20);
-    // Σ(k=1..20) inc(k) = 553pp。
+  it("UT-R-TEX-04-003: attack and defense keep growing beyond the twentieth break with the same multiplier as HP", () => {
+    // Σ(k=1..20) inc(k) = 553pp、21回目は +38pp で 591pp。
     expect(exerciseScalingFactors(20).attackDefenseMultiplier).toBe(6.53);
-    expect(exerciseScalingFactors(21).attackDefenseMultiplier).toBe(6.53);
-    expect(exerciseScalingFactors(100).attackDefenseMultiplier).toBe(6.53);
-    // HPは同じ21回目で 553 + 38 = 591pp まで伸びる。
-    expect(exerciseScalingFactors(20).hpMultiplier).toBe(6.53);
+    expect(exerciseScalingFactors(21).attackDefenseMultiplier).toBe(6.91);
+    expect(exerciseScalingFactors(50).attackDefenseMultiplier).toBe(22.28);
     expect(exerciseScalingFactors(21).hpMultiplier).toBe(6.91);
+    expect(applyExerciseScaling(ORIGINAL, 21)).toMatchObject({
+      maximumHp: 69_100,
+      attack: 13_820,
+      defense: 6_910,
+    });
   });
 
   it("UT-R-TEX-04-004: HP and action speed extrapolate with the same formula beyond the fiftieth break", () => {
@@ -169,8 +167,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           const exact = (points: number): number => exactScaledStat(base, 100 + points);
 
           expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
-          expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
-          expect(enhanced.defense).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
+          expect(enhanced.attack).toBe(exact(cumulativeIncrement(breakCount)));
+          expect(enhanced.defense).toBe(exact(cumulativeIncrement(breakCount)));
           expect(enhanced.actionSpeed).toBe(exact(5 * breakCount));
         },
       ),
@@ -345,7 +343,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           { ...ORIGINAL, attack: penalised, defense: penalised },
           breakCount,
         );
-        const points = 100 + cumulativeIncrement(Math.min(breakCount, 20));
+        const points = 100 + cumulativeIncrement(breakCount);
         const exact = exactScaledStat(penalised, points);
         if (enhanced.attack !== exact) {
           mismatches.push(
@@ -379,7 +377,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
           const exact = (points: number): number => exactScaledStat(penalised, 100 + points);
 
           expect(enhanced.maximumHp).toBe(exact(cumulativeIncrement(breakCount)));
-          expect(enhanced.attack).toBe(exact(cumulativeIncrement(Math.min(breakCount, 20))));
+          expect(enhanced.attack).toBe(exact(cumulativeIncrement(breakCount)));
           expect(enhanced.actionSpeed).toBe(exact(5 * breakCount));
         },
       ),
@@ -409,7 +407,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
 
         expect(factors.hpMultiplier).toBeCloseTo(1 + cumulativeIncrement(breakCount) / 100, 10);
         expect(factors.attackDefenseMultiplier).toBeCloseTo(
-          1 + cumulativeIncrement(Math.min(breakCount, 20)) / 100,
+          1 + cumulativeIncrement(breakCount) / 100,
           10,
         );
         expect(factors.actionSpeedMultiplier).toBeCloseTo(1 + 0.05 * breakCount, 10);
@@ -419,7 +417,7 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
     );
   });
 
-  it("PROP-TEX-003 [R-TEX-04]: multipliers never decrease as breaks accumulate, and attack/defense is constant once capped", () => {
+  it("PROP-TEX-003 [R-TEX-04]: every multiplier strictly increases as breaks accumulate, and attack/defense always matches HP", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 200 }), (breakCount) => {
         const current = exerciseScalingFactors(breakCount);
@@ -428,12 +426,8 @@ describe("ExerciseScalingPolicy (R-TEX-04 ブレイク時ステータス強化)"
         expect(next.hpMultiplier).toBeGreaterThan(current.hpMultiplier);
         expect(next.actionSpeedMultiplier).toBeGreaterThan(current.actionSpeedMultiplier);
         expect(next.criticalRateAddition).toBeGreaterThan(current.criticalRateAddition);
-        expect(next.attackDefenseMultiplier).toBeGreaterThanOrEqual(
-          current.attackDefenseMultiplier,
-        );
-        if (breakCount >= EXERCISE_SCALING_ATTACK_DEFENSE_CAP_BREAK_COUNT) {
-          expect(next.attackDefenseMultiplier).toBe(current.attackDefenseMultiplier);
-        }
+        expect(next.attackDefenseMultiplier).toBeGreaterThan(current.attackDefenseMultiplier);
+        expect(current.attackDefenseMultiplier).toBe(current.hpMultiplier);
       }),
       PROPERTY_ASSERT_CONFIG,
     );
