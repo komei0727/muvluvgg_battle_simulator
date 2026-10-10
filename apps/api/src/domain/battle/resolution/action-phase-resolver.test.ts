@@ -952,6 +952,67 @@ describe("resolveActionPhase", () => {
     expect(restored.units[ally.battleUnitId]!.hp).toBe(50);
   });
 
+  it("UT-R-HEAL-03-007 [R-HEAL-03]: an ON_APPLY continuous heal heals by the amount evaluated when it was granted, not by re-evaluating its formula at the fire", () => {
+    const fire = (evaluation: "ON_APPLY" | "ON_FIRE"): number => {
+      const hotDefId = createEffectActionDefinitionId("ACT_HOT_SNAPSHOT");
+      const hotDef: EffectActionDefinition = {
+        effectActionDefinitionId: hotDefId,
+        kind: "APPLY_CONTINUOUS_HEAL",
+        payload: {
+          formula: { kind: "MISSING_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.25 },
+          timing: { eventType: "ActionStarted", targetSelector: "EFFECT_OWNER" },
+          evaluation,
+          duration: {
+            timeLimit: { unit: "ACTION", count: 2 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+        },
+        metadata: { tags: [] },
+      };
+      // 付与時は不足HP 80（25%で20）だった。発動時点の不足HPは60（25%で15）。
+      const hotEffect: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("hot-snapshot"),
+        effectActionDefinitionId: hotDefId,
+        kindKey: effectKindKeyFromDefinitionId(hotDefId),
+        duplicate: true,
+        sourceUnitId: createBattleUnitId("ALLY_1"),
+        targetUnitId: createBattleUnitId("ALLY_1"),
+        magnitude: 20,
+        categories: ["BUFF"],
+        duration: {
+          definition: {
+            timeLimit: { unit: "ACTION", count: 2 },
+            dispellable: true,
+            linkedEffectGroupId: null,
+          },
+          timeLimitRemaining: 2,
+        },
+        appliedTurnNumber: 1,
+      };
+      const ally = {
+        ...unit("ALLY_1", "ALLY", { limits: { maximumAp: 1 }, maximumHp: 100, currentHp: 40 }),
+        appliedEffects: [hotEffect],
+      };
+      const enemy = unit("ENEMY_1", "ENEMY", { limits: { maximumAp: 0 } });
+      const ctx = actionPhaseContext();
+      const result = resolveActionPhase(
+        [ally],
+        [enemy],
+        definitionsOf(new Map(), new Map([[hotDefId, hotDef]])),
+        new SequenceRandomSource([]),
+        ctx.recorder,
+        ctx.turnNumber,
+        ctx.turnRootEventId,
+        ctx.turnScopeParentEventId,
+      );
+      return result.allyUnits[0]!.currentHp;
+    };
+
+    expect(fire("ON_APPLY")).toBe(60);
+    expect(fire("ON_FIRE")).toBe(55);
+  });
+
   it("UT-R-HEAL-03-005: the HealApplied a continuous heal emits during a WAIT reaches the PS chain, so a PS triggered by HealApplied activates on the wait path too — not only on the AS/EX path", () => {
     const hotDefId = createEffectActionDefinitionId("ACT_HOT");
     const hotDef: EffectActionDefinition = {

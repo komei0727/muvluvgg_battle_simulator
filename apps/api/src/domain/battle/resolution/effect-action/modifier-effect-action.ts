@@ -23,9 +23,9 @@ import { eventContextOf, grantSourceOf } from "./effect-action-group-context.js"
  *   ヒット時点の状態で評価する必要があるため、`magnitude`と違ってsnapshotにできない）。
  * - `APPLY_CONTINUOUS_HEAL`（R-HEAL-03）: 付与時点では回復せず、`timing.eventType`が
  *   発生した時点で`continuous-heal-service.ts`がR-HEAL-01と同じ手順で回復する。
- *   回復量Formulaは発火のたびに評価し直す必要がある（`MAX_HP_RATIO`/`MISSING_HP_RATIO`が
- *   発火時点の対象HPを参照するため）ので、ここで評価した`magnitude`は監査用の
- *   付与時snapshotに留める。
+ *   回復量Formulaは既定では発火のたびに評価し直す（`MAX_HP_RATIO`/`MISSING_HP_RATIO`が
+ *   発火時点の対象HPを参照するため）ので、ここで評価した`magnitude`は監査用の付与時
+ *   snapshotに留まる。`evaluation: ON_APPLY`の場合だけ、この`magnitude`が毎回の回復量になる。
  */
 export const resolveContinuousModifier: EffectActionHandler<
   "APPLY_HEALING_MOD" | "APPLY_DAMAGE_MOD" | "APPLY_CONTINUOUS_HEAL"
