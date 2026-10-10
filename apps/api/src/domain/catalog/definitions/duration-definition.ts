@@ -27,6 +27,7 @@ const DURATION_ALLOWED_KEYS = [
   "dispellable",
   "linkedEffectGroupId",
   "linkedEffectGroupRole",
+  "linkedEffectGroupScope",
   "counterUpdates",
   "reapply",
   "removeOnSourceDefeated",
@@ -113,6 +114,15 @@ export interface DurationReapply {
  */
 export type LinkedEffectGroupRole = (typeof LINKED_EFFECT_GROUP_ROLES)[number];
 
+/**
+ * R-EFF-09: 連動グループのカスケード範囲。`BATTLE`（省略時）は同じ`linkedEffectGroupId`の
+ * メンバー全体（保持ユニットを問わない）、`HOLDER`は同じ保持ユニットのメンバーだけで
+ * 連動する。敵ごとに失効時期が違う付与（例: 対象の1行動で消える刻痕）を連動させると、
+ * `BATTLE`ではある対象の親の失効が他の対象の子まで解除してしまう。
+ */
+export const LINKED_EFFECT_GROUP_SCOPES = ["BATTLE", "HOLDER"] as const;
+export type LinkedEffectGroupScope = (typeof LINKED_EFFECT_GROUP_SCOPES)[number];
+
 export interface DurationDefinition {
   readonly timeLimit?: DurationTimeLimit;
   readonly consumption?: DurationConsumption;
@@ -120,6 +130,8 @@ export interface DurationDefinition {
   readonly dispellable: boolean;
   readonly linkedEffectGroupId: string | null;
   readonly linkedEffectGroupRole?: LinkedEffectGroupRole;
+  /** 省略時は`BATTLE`（従来どおり保持ユニットを問わず連動する）。 */
+  readonly linkedEffectGroupScope?: LinkedEffectGroupScope;
   /**
    * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（EFF-005、
    * Issue #162）。この効果インスタンス自身が所有するRuntimeCounterの更新契機を
@@ -180,6 +192,7 @@ export interface DurationDefinitionInput {
   readonly dispellable?: boolean;
   readonly linkedEffectGroupId?: string | null;
   readonly linkedEffectGroupRole?: string;
+  readonly linkedEffectGroupScope?: string;
   readonly counterUpdates?: readonly RuntimeCounterUpdateDefinitionInput[];
   readonly reapply?: DurationReapplyInput;
   readonly removeOnSourceDefeated?: boolean;
@@ -322,6 +335,7 @@ export function createDurationDefinition(
     dispellable: boolean;
     linkedEffectGroupId: string | null;
     linkedEffectGroupRole?: LinkedEffectGroupRole;
+    linkedEffectGroupScope?: LinkedEffectGroupScope;
     counterUpdates?: readonly RuntimeCounterUpdateDefinition[];
     reapply?: DurationReapply;
     removeOnSourceDefeated?: boolean;
@@ -348,6 +362,21 @@ export function createDurationDefinition(
       `${path}.linkedEffectGroupRole`,
     );
     result.linkedEffectGroupRole = input.linkedEffectGroupRole;
+  }
+
+  if (input.linkedEffectGroupScope !== undefined) {
+    if (linkedEffectGroupId === null) {
+      throw new DomainValidationError(
+        `${path}.linkedEffectGroupScope`,
+        "requires linkedEffectGroupId to be set",
+      );
+    }
+    assertEnumValue(
+      input.linkedEffectGroupScope,
+      LINKED_EFFECT_GROUP_SCOPES,
+      `${path}.linkedEffectGroupScope`,
+    );
+    result.linkedEffectGroupScope = input.linkedEffectGroupScope;
   }
 
   if (input.timeLimit !== undefined) {
