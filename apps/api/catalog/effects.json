@@ -8681,7 +8681,7 @@
     "payload": {
       "categories": ["DEBUFF"],
       "duration": {
-        "dispellable": false,
+        "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       },
       "maxBlocks": null
@@ -8694,7 +8694,7 @@
     "payload": {
       "status": "DAMAGE_IMMUNITY",
       "duration": {
-        "dispellable": false,
+        "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
       }

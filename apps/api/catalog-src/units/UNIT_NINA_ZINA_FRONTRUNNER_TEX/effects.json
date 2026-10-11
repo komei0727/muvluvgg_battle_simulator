@@ -247,7 +247,7 @@
     "payload": {
       "categories": ["DEBUFF"],
       "duration": {
-        "dispellable": false,
+        "dispellable": true,
         "timeLimit": {
           "unit": "ACTION",
           "count": 1,
@@ -266,7 +266,7 @@
     "payload": {
       "status": "DAMAGE_IMMUNITY",
       "duration": {
-        "dispellable": false,
+        "dispellable": true,
         "timeLimit": {
           "unit": "ACTION",
           "count": 1,

@@ -1003,7 +1003,7 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
     ]);
   });
 
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-008 [R-TEX-05]: PS1で自身に付与したデバフ無効と1ヒットのダメージ無効は、ブレイクからの復活で解除されない（解除可能な継続回復は解除される）", () => {
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-008 [R-TEX-05]: PS1で自身に付与したデバフ無効と1ヒットのダメージ無効は、ブレイクからの復活で継続回復と同じく解除される", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const units = applyPrecedingActions(board, [
       {
@@ -1035,10 +1035,9 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
     ).units.find((unit) => unit.battleUnitId === subjectId)!;
 
     expect(recorder.getEvents().some((event) => event.eventType === "UnitRevived")).toBe(true);
-    // 実機ではPS1の2効果がブレイク後も残る。解除不可（`dispellable: false`）で表す。
-    expect(revived.appliedEffects.map((effect) => effect.effectActionDefinitionId).sort()).toEqual([
-      "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DAMAGE_IMMUNITY",
-      "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DEBUFF_IMMUNITY_SELF",
-    ]);
+    // HP50%以上から一気にブレイクすると、PS1（HP50%以下で発動）はブレイクの復活より後に
+    // 発動するため、ブレイク後もバフが残っているように見える。それより前に付いていた
+    // PS1のバフ自体は解除可能で、復活で解除される（R-TEX-05 #2）。
+    expect(revived.appliedEffects).toEqual([]);
   });
 });
