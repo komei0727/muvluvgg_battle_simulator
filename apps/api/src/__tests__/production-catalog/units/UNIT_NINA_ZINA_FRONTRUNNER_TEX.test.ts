@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { findMarkersRemovedOnSourceDefeat } from "../../../domain/battle/resolution/marker-source-defeat-service.js";
 import { removeMarkers } from "../../../domain/battle/effects/marker-removal-service.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { resolveBreak } from "../../../domain/battle/effects/break-resolution-service.js";
+import { ExerciseRuntime } from "../../../domain/battle/model/exercise-runtime.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
@@ -905,7 +907,7 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
   const exDebuffsOf = (unit: BattleUnit) =>
     unit.appliedEffects.filter((effect) => EX_DEBUFFS.includes(effect.effectActionDefinitionId));
 
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-006 [R-EFF-09, R-EFF-10]: EXで敵に付与したデバフ（攻撃力低下・攻撃力バフ無効）は、付与者のニーナが倒れると解除される", () => {
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-006 [R-EFF-09, R-EFF-10]: EXで敵に付与した攻撃力低下は付与者のニーナが倒れると解除されるが、攻撃力バフ無効は残る", () => {
     const { board, units, debuffed } = exDebuffedEnemy();
     expect(debuffed.side).toBe("ENEMY");
     expect(exDebuffsOf(debuffed)).toHaveLength(2);
@@ -930,7 +932,11 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
       rootEventId,
     ).units.find((unit) => unit.battleUnitId === debuffed.battleUnitId)!;
 
-    expect(exDebuffsOf(after)).toEqual([]);
+    // 実機では攻撃力バフ無効だけが付与者の撃破後も残る（原文「各デバフは自身が倒れると
+    // 解除される」と食い違う）。期間は付与者の行動で数えるため、以後は戦闘終了まで残る。
+    expect(exDebuffsOf(after).map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_BUFF_SEAL",
+    ]);
     expect(after.markerStates).toEqual([]);
     expect(after.combatStats.attack).toBe(1000);
   });
@@ -994,6 +1000,45 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
         ],
         markers: {},
       },
+    ]);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-008 [R-TEX-05]: PS1で自身に付与したデバフ無効と1ヒットのダメージ無効は、ブレイクからの復活で解除されない（解除可能な継続回復は解除される）", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DEBUFF_IMMUNITY_SELF",
+        target: "SELF",
+      },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DAMAGE_IMMUNITY",
+        target: "SELF",
+      },
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_AS1_REGEN", target: "SELF" },
+    ]);
+    const subjectId = board.subject.battleUnitId;
+    const { recorder, rootEventId } = seedRecorder("B_NINA_ZINA_TEX_PS1_BREAK");
+
+    const revived = resolveBreak(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        exercise: new ExerciseRuntime(board.subject.combatStats),
+      },
+      units,
+      subjectId,
+      board.definitions.effectActions,
+      rootEventId,
+    ).units.find((unit) => unit.battleUnitId === subjectId)!;
+
+    expect(recorder.getEvents().some((event) => event.eventType === "UnitRevived")).toBe(true);
+    // 実機ではPS1の2効果がブレイク後も残る。解除不可（`dispellable: false`）で表す。
+    expect(revived.appliedEffects.map((effect) => effect.effectActionDefinitionId).sort()).toEqual([
+      "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DAMAGE_IMMUNITY",
+      "ACT_NINA_ZINA_FRONTRUNNER_TEX_PS1_DEBUFF_IMMUNITY_SELF",
     ]);
   });
 });

@@ -4,7 +4,7 @@
   "files": {
     "units.json": "sha256:74015d658b50307ddbc4d2798dfbd40726cec94531e5381e524f2420789e7b42",
     "skills.json": "sha256:8987cbba287c58d6d50e992819d2259e14763daca29a76ac739c390708eef33c",
-    "effects.json": "sha256:d11dfcc87f7819decdde1d2883bf7e76be50554789fa91bab4e3f5e82ab1ef32",
+    "effects.json": "sha256:4c0c4077ef1cb02fe34fc36b190c153c10b737a38240178b3d517e3be9326660",
     "memories.json": "sha256:03c1c3d66a47f6f25fca4191129312b78c5dda0ebe198c6d0b2f4f3cb9ac6001"
   }
 }

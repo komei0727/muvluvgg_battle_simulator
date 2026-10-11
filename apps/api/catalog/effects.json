@@ -8294,10 +8294,7 @@
       "polarity": "DEBUFF",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
-        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
-        "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
       },
       "maxBlocks": null
     },
@@ -8577,10 +8574,7 @@
       "polarity": "DEBUFF",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
-        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
-        "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
       },
       "maxBlocks": null
     },
@@ -8687,7 +8681,7 @@
     "payload": {
       "categories": ["DEBUFF"],
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
       },
       "maxBlocks": null
@@ -8700,7 +8694,7 @@
     "payload": {
       "status": "DAMAGE_IMMUNITY",
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
       }

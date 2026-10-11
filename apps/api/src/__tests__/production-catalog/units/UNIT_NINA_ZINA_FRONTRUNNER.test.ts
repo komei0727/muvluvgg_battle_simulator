@@ -967,7 +967,7 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
   const exDebuffsOf = (unit: BattleUnit) =>
     unit.appliedEffects.filter((effect) => EX_DEBUFFS.includes(effect.effectActionDefinitionId));
 
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXで敵に付与したデバフ（攻撃力低下・攻撃力バフ無効）は、付与者のニーナが倒れると解除される", () => {
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXで敵に付与した攻撃力低下は付与者のニーナが倒れると解除されるが、攻撃力バフ無効は残る", () => {
     const { board, units, debuffed } = exDebuffedEnemy();
     expect(debuffed.side).toBe("ENEMY");
     expect(exDebuffsOf(debuffed)).toHaveLength(2);
@@ -992,7 +992,11 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       rootEventId,
     ).units.find((unit) => unit.battleUnitId === debuffed.battleUnitId)!;
 
-    expect(exDebuffsOf(after)).toEqual([]);
+    // 実機では攻撃力バフ無効だけが付与者の撃破後も残る（原文「各デバフは自身が倒れると
+    // 解除される」と食い違う）。期間は付与者の行動で数えるため、以後は戦闘終了まで残る。
+    expect(exDebuffsOf(after).map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+    ]);
     expect(after.markerStates).toEqual([]);
     expect(after.combatStats.attack).toBe(1000);
   });
