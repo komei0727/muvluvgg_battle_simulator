@@ -9,6 +9,7 @@ import {
 } from "../../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
+import { observeEffectImmunity } from "../../../testing/production-unit/effect-application.js";
 import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -51,7 +52,18 @@ const UNIT_DEFINITION_ID = "UNIT_NINA_ZINA_FRONTRUNNER";
 const SCAR = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR";
 const SCAR_TEMP = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * EXの攻撃力バフ無効（`statKinds: [ATTACK]`）が攻撃力バフだけを拒否することは、弾かれる
+ * 攻撃力バフと弾かれない防御力バフを同じ免疫へ通して初めて分かる。ニーナ自身はどちらも
+ * 配らないため、供給元のユニットだけを併せて読み込む。`-002`／`-003` はこのユニットの
+ * Skill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const BUFF_SOURCE_UNIT_ID = "UNIT_DOROTHEA_GRACE";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  BUFF_SOURCE_UNIT_ID,
+]);
 
 /** AS1: 前列中央の敵が刻痕を合算3つ（AS2の2つ＋PS2の1つ）持つ盤面。 */
 const SCARRED_FRONT_ENEMY: BoardOverrides = {
@@ -966,6 +978,40 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
 
   const exDebuffsOf = (unit: BattleUnit) =>
     unit.appliedEffects.filter((effect) => EX_DEBUFFS.includes(effect.effectActionDefinitionId));
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-011 [R-EFF-03]: EXで敵に付与した攻撃力バフ無効は、その敵へ新たに向けられる攻撃力バフだけを拒否し、防御力バフは通す", () => {
+    const { board, units, debuffed } = exDebuffedEnemy();
+    const holder = debuffed.battleUnitId;
+    const ally = units.find((unit) => unit.side === "ENEMY" && unit.battleUnitId !== holder)!;
+
+    const { applied, rejected, immunity } = observeEffectImmunity({
+      definitions: board.definitions,
+      units,
+      holder,
+      from: ally.battleUnitId,
+      effectActionDefinitionIds: ["ACT_DOROTHEA_GRACE_PS2_ATK_UP", "ACT_DOROTHEA_GRACE_PS2_DEF_UP"],
+      immunityEffectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+      battleId: "B_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+    });
+
+    expect({ applied, rejected, immunity }).toEqual({
+      applied: ["ACT_DOROTHEA_GRACE_PS2_DEF_UP"],
+      rejected: [
+        {
+          unitId: holder,
+          effectActionDefinitionId: "ACT_DOROTHEA_GRACE_PS2_ATK_UP",
+          reason: "IMMUNITY",
+          blockedBy: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+        },
+      ],
+      immunity: {
+        categories: ["BUFF"],
+        statKinds: ["ATTACK"],
+        blockedCount: 1,
+        maxBlocks: null,
+      },
+    });
+  });
 
   it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXで敵に付与した攻撃力低下は付与者のニーナが倒れると解除されるが、攻撃力バフ無効は残る", () => {
     const { board, units, debuffed } = exDebuffedEnemy();
