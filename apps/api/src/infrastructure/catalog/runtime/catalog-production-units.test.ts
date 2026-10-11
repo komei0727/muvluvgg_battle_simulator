@@ -637,7 +637,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-10.7` は新しい戦術演習敵 `UNIT_NINA_ZINA_FRONTRUNNER_TEX`（破壊：ニーナ／
     // ジーナ・ミーシナ、Issue #749）の新規投入。開催中（`exerciseActive: true`）は既存の
     // 3件を倒さず4件へ増やす。
-    expect(catalog.catalogRevision).toBe("2026-10-10.7");
+    // `2026-10-11.1` は `UNIT_NINA_ZINA_FRONTRUNNER`（TEX含む）のEXの攻撃力低下・攻撃力バフ
+    // 無効デバフを自身から攻撃した敵全体へ付け替え、期間を付与者の行動で数える
+    // （`owner: EFFECT_SOURCE`、Issue #751）。実機に合わせ、攻撃力バフ無効は付与者の撃破・
+    // ブレイクで解除しない。
+    expect(catalog.catalogRevision).toBe("2026-10-11.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

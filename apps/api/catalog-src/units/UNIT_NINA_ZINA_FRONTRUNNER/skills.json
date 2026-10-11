@@ -19,9 +19,9 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "SELF" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER" },
+            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER" },
             { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN" },
             { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL" }
           ]

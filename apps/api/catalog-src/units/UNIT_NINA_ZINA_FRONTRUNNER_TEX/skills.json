@@ -35,11 +35,12 @@
         {
           "kind": "ACTION",
           "target": {
-            "kind": "SELF"
+            "kind": "BINDING",
+            "targetBindingId": "TGT_ENEMIES"
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF_MARKER"
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_MARKER"
             },
             {
               "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_DOWN"

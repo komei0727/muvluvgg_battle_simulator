@@ -1,10 +1,10 @@
 {
   "schemaVersion": 3,
-  "catalogRevision": "2026-10-10.7",
+  "catalogRevision": "2026-10-11.1",
   "files": {
     "units.json": "sha256:74015d658b50307ddbc4d2798dfbd40726cec94531e5381e524f2420789e7b42",
-    "skills.json": "sha256:53b7155dc5071fa96d64ca5ebba1ccb1970ee3db0e5952b777e3f3d42ee1b8e6",
-    "effects.json": "sha256:ec80e2c66e4a023c28ec5be122001350ed4ba1359835b940646d83740b8671c3",
+    "skills.json": "sha256:8987cbba287c58d6d50e992819d2259e14763daca29a76ac739c390708eef33c",
+    "effects.json": "sha256:7af533e333fbbc1888b927b629b7d043c6c6cc4286fa4e62f50f513c39b492a4",
     "memories.json": "sha256:03c1c3d66a47f6f25fca4191129312b78c5dda0ebe198c6d0b2f4f3cb9ac6001"
   }
 }

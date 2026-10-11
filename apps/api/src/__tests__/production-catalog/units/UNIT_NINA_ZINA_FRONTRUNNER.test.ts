@@ -8,6 +8,8 @@ import {
   createMarkerInstanceId,
 } from "../../../domain/shared/event-ids.js";
 import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
+import { observeEffectImmunity } from "../../../testing/production-unit/effect-application.js";
 import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -50,7 +52,18 @@ const UNIT_DEFINITION_ID = "UNIT_NINA_ZINA_FRONTRUNNER";
 const SCAR = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR";
 const SCAR_TEMP = "MARKER_NINA_ZINA_FRONTRUNNER_SCAR_TEMP";
 
-const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
+/**
+ * EXの攻撃力バフ無効（`statKinds: [ATTACK]`）が攻撃力バフだけを拒否することは、弾かれる
+ * 攻撃力バフと弾かれない防御力バフを同じ免疫へ通して初めて分かる。ニーナ自身はどちらも
+ * 配らないため、供給元のユニットだけを併せて読み込む。`-002`／`-003` はこのユニットの
+ * Skill・EffectAction閉包だけを見るため、閉包の判定には影響しない。
+ */
+const BUFF_SOURCE_UNIT_ID = "UNIT_DOROTHEA_GRACE";
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  BUFF_SOURCE_UNIT_ID,
+]);
 
 /** AS1: 前列中央の敵が刻痕を合算3つ（AS2の2つ＋PS2の1つ）持つ盤面。 */
 const SCARRED_FRONT_ENEMY: BoardOverrides = {
@@ -123,7 +136,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX",
     intent:
-      "敵全体に威力212で攻撃し、自身が1回行動を終えるまでの間、攻撃力を20％低下させる。さらに自身が2回行動を終えるまでの間、新たに向けられる攻撃力バフを無効にするデバフを付与する。加えて自身のHPが50％以上だった場合、自身のAPを1加算する",
+      "敵全体に威力212で攻撃し、自身が1回行動を終えるまでの間、攻撃力を20％低下させる。さらに自身が2回行動を終えるまでの間、新たに向けられる攻撃力バフを無効にするデバフを付与する。各デバフは自身が倒れると解除される。加えて自身のHPが50％以上だった場合、自身のAPを1加算する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_EX" },
     // HP 5000/10000 = ちょうど50%（以上を満たす）。AP加算が上限で消えないよう2から始める。
     board: { subject: { state: { currentAp: 2 } } },
@@ -143,16 +156,40 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
         {
-          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
-          targets: ["ally:subject"],
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:front"],
         },
         {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
-          targets: ["ally:subject"],
+          targets: ["enemy:front"],
         },
         {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
-          targets: ["ally:subject"],
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["enemy:back"],
         },
         {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_AP_UP",
@@ -162,22 +199,56 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: { "enemy:front": -1060, "enemy:left": -1060, "enemy:back": -1060 },
       effectsApplied: [
         {
-          unitId: "ally:subject",
+          unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
           magnitude: -0.2,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
         },
         {
-          unitId: "ally:subject",
+          unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 2 },
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
         },
       ],
       markers: [
         {
-          unitId: "ally:subject",
-          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF",
+          unitId: "enemy:front",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
+          stackCount: 1,
+        },
+        {
+          unitId: "enemy:left",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
+          stackCount: 1,
+        },
+        {
+          unitId: "enemy:back",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
           stackCount: 1,
         },
       ],
@@ -204,37 +275,95 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:back"],
         },
         {
-          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
-          targets: ["ally:subject"],
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:front"],
         },
         {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
-          targets: ["ally:subject"],
+          targets: ["enemy:front"],
         },
         {
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
-          targets: ["ally:subject"],
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["enemy:left"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          targets: ["enemy:back"],
+        },
+        {
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          targets: ["enemy:back"],
         },
       ],
       hpDeltas: { "enemy:front": -1060, "enemy:left": -1060, "enemy:back": -1060 },
       effectsApplied: [
         {
-          unitId: "ally:subject",
+          unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
           magnitude: -0.2,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
         },
         {
-          unitId: "ally:subject",
+          unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 2 },
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+          magnitude: -0.2,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:back",
+          effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
         },
       ],
       markers: [
         {
-          unitId: "ally:subject",
-          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF",
+          unitId: "enemy:front",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
+          stackCount: 1,
+        },
+        {
+          unitId: "enemy:left",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
+          stackCount: 1,
+        },
+        {
+          unitId: "enemy:back",
+          markerId: "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
           stackCount: 1,
         },
       ],
@@ -826,14 +955,73 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     expect([...cascade.markerInstanceIds]).toEqual([seedMarker.markerInstanceId]);
   });
 
-  /** 付与者（ニーナ）が戦闘不能になったときの`removeOnSourceDefeated`解除を実経路で解決する。 */
-  function defeatSubject(
-    units: readonly BattleUnit[],
-    board: ReturnType<typeof productionBoard>,
-    battleId: string,
-  ): readonly BattleUnit[] {
-    const { recorder, rootEventId } = seedRecorder(battleId);
-    return removeMarkers(
+  const EX_DEBUFFS = [
+    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+  ];
+
+  /** EXのデバフ一式（目印＋攻撃力低下＋攻撃力バフ無効）を、ニーナが敵1体へ付与した盤面。 */
+  function exDebuffedEnemy() {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const units = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL", target: "ENEMY" },
+    ]);
+    const debuffed = units.find((unit) =>
+      unit.markerStates.some(
+        (marker) => marker.markerId === "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
+      ),
+    )!;
+    return { board, units, debuffed };
+  }
+
+  const exDebuffsOf = (unit: BattleUnit) =>
+    unit.appliedEffects.filter((effect) => EX_DEBUFFS.includes(effect.effectActionDefinitionId));
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-011 [R-EFF-03]: EXで敵に付与した攻撃力バフ無効は、その敵へ新たに向けられる攻撃力バフだけを拒否し、防御力バフは通す", () => {
+    const { board, units, debuffed } = exDebuffedEnemy();
+    const holder = debuffed.battleUnitId;
+    const ally = units.find((unit) => unit.side === "ENEMY" && unit.battleUnitId !== holder)!;
+
+    const { applied, rejected, immunity } = observeEffectImmunity({
+      definitions: board.definitions,
+      units,
+      holder,
+      from: ally.battleUnitId,
+      effectActionDefinitionIds: ["ACT_DOROTHEA_GRACE_PS2_ATK_UP", "ACT_DOROTHEA_GRACE_PS2_DEF_UP"],
+      immunityEffectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+      battleId: "B_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+    });
+
+    expect({ applied, rejected, immunity }).toEqual({
+      applied: ["ACT_DOROTHEA_GRACE_PS2_DEF_UP"],
+      rejected: [
+        {
+          unitId: holder,
+          effectActionDefinitionId: "ACT_DOROTHEA_GRACE_PS2_ATK_UP",
+          reason: "IMMUNITY",
+          blockedBy: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+        },
+      ],
+      immunity: {
+        categories: ["BUFF"],
+        statKinds: ["ATTACK"],
+        blockedCount: 1,
+        maxBlocks: null,
+      },
+    });
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXで敵に付与した攻撃力低下は付与者のニーナが倒れると解除されるが、攻撃力バフ無効は残る", () => {
+    const { board, units, debuffed } = exDebuffedEnemy();
+    expect(debuffed.side).toBe("ENEMY");
+    expect(exDebuffsOf(debuffed)).toHaveLength(2);
+    // 攻撃力は原基準値1000から20%低下する。
+    expect(debuffed.combatStats.attack).toBe(800);
+
+    const { recorder, rootEventId } = seedRecorder("B_NINA_ZINA_EX_DEFEAT");
+    const after = removeMarkers(
       {
         recorder,
         turnNumber: 1,
@@ -848,40 +1036,77 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       }),
       board.definitions.effectActions,
       rootEventId,
-    ).units;
-  }
+    ).units.find((unit) => unit.battleUnitId === debuffed.battleUnitId)!;
 
-  const EX_SELF_DEBUFFS = [
-    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
-    "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
-  ];
-
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-007 [R-EFF-09, R-EFF-10]: EXの自身へのデバフ（攻撃力低下・攻撃力バフ無効）は、自身が倒れると解除される", () => {
-    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
-    const units = applyPrecedingActions(board, [
-      {
-        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_SELF_DEBUFF_MARKER",
-        target: "SELF",
-      },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN", target: "SELF" },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL", target: "SELF" },
+    // 実機では攻撃力バフ無効だけが付与者の撃破後も残る（原文「各デバフは自身が倒れると
+    // 解除される」と食い違う）。期間は付与者の行動で数えるため、以後は戦闘終了まで残る。
+    expect(exDebuffsOf(after).map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
     ]);
-    const subjectOf = (all: readonly BattleUnit[]) =>
-      all.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
-    expect(
-      subjectOf(units).appliedEffects.filter((effect) =>
-        EX_SELF_DEBUFFS.includes(effect.effectActionDefinitionId),
-      ),
-    ).toHaveLength(2);
-
-    const after = subjectOf(defeatSubject(units, board, "B_NINA_ZINA_EX_DEFEAT"));
-
-    expect(
-      after.appliedEffects.filter((effect) =>
-        EX_SELF_DEBUFFS.includes(effect.effectActionDefinitionId),
-      ),
-    ).toEqual([]);
     expect(after.markerStates).toEqual([]);
+    expect(after.combatStats.attack).toBe(1000);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-010 [R-EFF-04]: EXで敵に付与したデバフの期間は、保持者の敵ではなく付与者のニーナの行動で減る（攻撃力低下は1回、攻撃力バフ無効は2回）", () => {
+    const { board, units, debuffed } = exDebuffedEnemy();
+    const holder = debuffed.battleUnitId;
+
+    expect(
+      observeEffectExpiry({
+        units,
+        definitions: board.definitions,
+        steps: [
+          { kind: "ACTION_END", actor: holder },
+          { kind: "ACTION_END", actor: "ally:subject" },
+          { kind: "ACTION_END", actor: holder },
+          { kind: "ACTION_END", actor: "ally:subject" },
+        ],
+        watch: [{ unitId: holder, stat: "attack" }],
+        watchMarkers: [holder],
+      }).steps,
+    ).toEqual([
+      // 保持者自身の行動終了では減らない（既定の `EFFECT_TARGET` ならここで攻撃力低下が失効する）。
+      {
+        step: `ACTION_END(${holder})`,
+        remaining: {
+          [`${holder}/ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN`]: 1,
+          [`${holder}/ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL`]: 2,
+        },
+        markers: { [`${holder}/MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF`]: 1 },
+      },
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: { [`${holder}/ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL`]: 1 },
+        expired: [
+          {
+            unitId: holder,
+            effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        stats: { [`${holder}/attack`]: 1000 },
+        markers: { [`${holder}/MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF`]: 1 },
+      },
+      {
+        step: `ACTION_END(${holder})`,
+        remaining: { [`${holder}/ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL`]: 1 },
+        markers: { [`${holder}/MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF`]: 1 },
+      },
+      {
+        step: "ACTION_END(ally:subject)",
+        remaining: {},
+        expired: [
+          {
+            unitId: holder,
+            effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+            reason: "TIME_LIMIT",
+            cascaded: false,
+          },
+        ],
+        markers: {},
+      },
+    ]);
   });
 
   it("IT-UNIT-NINA-ZINA-FRONTRUNNER-008 [R-EFF-09]: PS1で味方に付けたデバフ無効の連動は保持ユニット内に閉じ、別の味方が持つ同じガードを巻き込まない", () => {
