@@ -1,0 +1,51 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_MEM_RECLAIMED_SCHOOL_LIFE_SIRIUS_SUGAR_MAX_AP_UP",
+    "kind": "MODIFY_RESOURCE_CAPACITY",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1
+      },
+      "raiseCurrent": true,
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "TURN",
+          "count": 1,
+          "countGrantTurn": true
+        }
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  },
+  {
+    "effectActionDefinitionId": "ACT_MEM_RECLAIMED_SCHOOL_LIFE_FRONT_CENTER_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "FIXED",
+      "formula": {
+        "kind": "CONSTANT",
+        "value": 1500
+      },
+      "stacking": {
+        "mode": "STACKABLE"
+      },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": {
+          "unit": "BATTLE",
+          "count": 1
+        }
+      }
+    },
+    "metadata": {
+      "tags": []
+    }
+  }
+]
