@@ -1,5 +1,6 @@
 import { grantEffect } from "../../effects/effect-grant-service.js";
 import { recalculateCombatStatsSteps } from "../../effects/combat-stat-recalculation-service.js";
+import { raiseCurrentResourceByCapacityIncrease } from "../../effects/resource-capacity-recalculation-service.js";
 import { applyModifyResourceActionSteps } from "../resource-modification-service.js";
 import {
   completeGrant,
@@ -101,19 +102,31 @@ export const resolveModifyResourceCapacity: SteppedEffectActionHandler<"MODIFY_R
       startingEventId,
     );
     box.units = grantResult.units;
+    const recalculated = yield* driveRemovalSteps(
+      input,
+      recalculateCombatStatsSteps(
+        eventContextOf(context),
+        beforeGrantUnits,
+        box.units,
+        application.targetUnitId,
+        context.definitions.effectActions,
+        grantResult.lastEventId,
+        "EFFECT_APPLIED",
+      ),
+    );
+    const { resource, raiseCurrent } = effectAction.payload;
+    if (raiseCurrent !== true || resource === "HP") {
+      return completeGrant(input, recalculated);
+    }
     return completeGrant(
       input,
-      yield* driveRemovalSteps(
-        input,
-        recalculateCombatStatsSteps(
-          eventContextOf(context),
-          beforeGrantUnits,
-          box.units,
-          application.targetUnitId,
-          context.definitions.effectActions,
-          grantResult.lastEventId,
-          "EFFECT_APPLIED",
-        ),
+      raiseCurrentResourceByCapacityIncrease(
+        eventContextOf(context),
+        beforeGrantUnits,
+        recalculated.units,
+        application.targetUnitId,
+        resource,
+        recalculated.lastEventId,
       ),
     );
   };

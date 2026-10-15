@@ -1,4 +1,4 @@
-import type { AppliedEffect } from "./applied-effect.js";
+import type { AppliedEffect, EffectDurationState } from "./applied-effect.js";
 import type { BattleUnit } from "./battle-unit.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -218,7 +218,8 @@ export function reapplySkillUseDurationDecrement(
  * （production Catalogの`TURN`単位行はいずれも`owner`を指定しない、
  * `06_戦闘状態遷移.md` TURN_ENDING #5も owner を区別しない）。今回終了した
  * ターン中に付与されたもの（`grantedTurnNumber === currentTurnNumber`）は
- * 除く。0になったインスタンスの除去・失効処理は呼び出し側の責務。
+ * 除く（`timeLimit.countGrantTurn`を宣言したものは除かない）。0になった
+ * インスタンスの除去・失効処理は呼び出し側の責務。
  */
 export function decrementTurnEffectDurations(
   units: readonly BattleUnit[],
@@ -228,7 +229,18 @@ export function decrementTurnEffectDurations(
     units,
     "TURN",
     () => true,
-    (effect) => effect.duration.grantedTurnNumber === currentTurnNumber,
+    (effect) => isSkippedAtGrantTurnEnd(effect.duration, currentTurnNumber),
+  );
+}
+
+/** R-EFF-06 #2: 付与ターンの終了時は減算しない。`countGrantTurn`はその例外。 */
+export function isSkippedAtGrantTurnEnd(
+  duration: EffectDurationState,
+  currentTurnNumber: number,
+): boolean {
+  return (
+    duration.grantedTurnNumber === currentTurnNumber &&
+    duration.definition.timeLimit?.countGrantTurn !== true
   );
 }
 

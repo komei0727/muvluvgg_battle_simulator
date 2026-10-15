@@ -647,6 +647,32 @@ describe("decrementTurnEffectDurations", () => {
     ]);
   });
 
+  it("UT-R-EFF-06-008 (R-EFF-06 #2 exception): an effect declaring timeLimit.countGrantTurn decrements at the end of the turn it was granted in", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const definition = {
+      timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
+      dispellable: false,
+      linkedEffectGroupId: null,
+    } as const;
+    const effect = effectOn(target, source, definition, {
+      duration: { definition, timeLimitRemaining: 1, grantedTurnNumber: 2 },
+    });
+    target = withEffects(target, [effect]);
+
+    const result = decrementTurnEffectDurations([source, target], 2);
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        unit: "TURN",
+        before: 1,
+        after: 0,
+      },
+    ]);
+  });
+
   it("UT-R-EFF-06-003 (R-EFF-06 #2 boundary): reaches 0 and stays in place for the caller to expire", () => {
     const source = unit("source-1");
     let target = unit("target-1");

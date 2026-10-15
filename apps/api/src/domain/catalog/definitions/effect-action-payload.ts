@@ -419,6 +419,13 @@ export interface ModifyResourceCapacityPayload {
   readonly operation: (typeof RESOURCE_CAPACITY_OPERATIONS)[number];
   readonly formula: FormulaDefinition;
   readonly duration: DurationDefinition;
+  /**
+   * 付与で上限が実際に増えた分だけ、現在値も同時に増やす。R-ACT-04は上限が
+   * 上がっても現在値を追随させないため、ターン開始時のAP回復の後に付与される
+   * 「最大AP+1」をそのターンから使える形で表すために宣言する。失効・解除で
+   * 上限が下がるときは通常どおり可動域へ切り下げるだけである。
+   */
+  readonly raiseCurrent?: true;
 }
 
 /**

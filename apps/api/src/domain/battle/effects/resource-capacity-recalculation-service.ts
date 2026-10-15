@@ -390,6 +390,60 @@ export function* recalculateResourceCapacitiesSteps(
 }
 
 /**
+ * `MODIFY_RESOURCE_CAPACITY.raiseCurrent`: 付与前後で上限が実際に増えた分だけ
+ * 現在値を増やし、`ResourceChanged`（`reason: EFFECT_ACTION`）を発行する。発生源は
+ * 上限切り下げと同じく保持者自身とする — Memory由来の付与には付与者ユニットが
+ * 存在しない（R-MEM-04）ため、付与者へ帰属させることができない。
+ */
+export function raiseCurrentResourceByCapacityIncrease(
+  context: ResourceCapacityRecalculateContext,
+  beforeUnits: readonly BattleUnit[],
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  resource: GaugeCapacityResource,
+  parentEventId: DomainEventId,
+): RecalculateResourceCapacitiesResult {
+  const field = GAUGE_CAPACITY_FIELD[resource].current;
+  const target = requireUnit(units, targetUnitId);
+  const increase = target[field] - requireUnit(beforeUnits, targetUnitId)[field];
+  const before = target[CURRENT_VALUE_FIELD[resource]];
+  const after = Math.min(target[field], before + Math.max(0, increase));
+  if (after === before) {
+    return { units, lastEventId: parentEventId };
+  }
+  const updated = withClampedCurrentValue(target, resource, target[field], after);
+  const event = context.recorder.record({
+    eventType: "ResourceChanged",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: targetUnitId,
+    payload: {
+      battleUnitId: targetUnitId,
+      resource,
+      before,
+      after,
+      delta: after - before,
+      baseDelta: after - before,
+      reason: "EFFECT_ACTION",
+      causeEventId: parentEventId,
+    },
+    stateDelta: {
+      units: { [targetUnitId]: { [RESOURCE_DELTA_FIELD[resource]]: { before, after } } },
+    },
+  });
+  return {
+    units: units.map((u) => (u.battleUnitId === targetUnitId ? updated : u)),
+    lastEventId: event.eventId,
+  };
+}
+
+/**
  * `recalculateResourceCapacitiesSteps`を`context.onFactEventForPassiveChain`（あれば）で
  * 同期的に駆動する薄いwrapper。通常戦闘では一度も`yield`しないため、演習以外の
  * 呼び出し側は従来どおりこちらを使えばよい。

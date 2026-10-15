@@ -2296,6 +2296,53 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  function capacityInput(payload: Record<string, unknown>) {
+    return {
+      effectActionDefinitionId: "ACT_MAX_AP_UP",
+      kind: "MODIFY_RESOURCE_CAPACITY",
+      payload: {
+        resource: "AP",
+        operation: "ADD",
+        formula: { kind: "CONSTANT", value: 1 },
+        duration: { timeLimit: { unit: "TURN", count: 1 }, dispellable: false },
+        ...payload,
+      },
+    };
+  }
+
+  it("UT-CAT-ACT-146: maps MODIFY_RESOURCE_CAPACITY.raiseCurrent and omits it when absent", () => {
+    const raised = createEffectActionDefinition(
+      capacityInput({ raiseCurrent: true }),
+      "effectAction",
+    );
+    const plain = createEffectActionDefinition(capacityInput({}), "effectAction");
+    expect(raised.kind === "MODIFY_RESOURCE_CAPACITY" && raised.payload.raiseCurrent).toBe(true);
+    expect(plain.kind === "MODIFY_RESOURCE_CAPACITY" && "raiseCurrent" in plain.payload).toBe(
+      false,
+    );
+  });
+
+  it("UT-CAT-ACT-147: rejects MODIFY_RESOURCE_CAPACITY.raiseCurrent on HP (raising current HP is a heal) or with operation SET", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        capacityInput({ resource: "HP", raiseCurrent: true }),
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createEffectActionDefinition(
+        capacityInput({ operation: "SET", raiseCurrent: true }),
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-ACT-148: rejects MODIFY_RESOURCE_CAPACITY.raiseCurrent other than true", () => {
+    expect(() =>
+      createEffectActionDefinition(capacityInput({ raiseCurrent: false }), "effectAction"),
+    ).toThrow(DomainValidationError);
+  });
+
   // --- Issue #129: COOLDOWN_MANIPULATION ---
 
   it("UT-CAT-ACT-056 [R-SKL-09]: maps COOLDOWN_MANIPULATION with operation RESET and no amount", () => {
