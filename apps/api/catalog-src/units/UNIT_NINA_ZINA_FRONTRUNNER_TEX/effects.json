@@ -14,10 +14,10 @@
     }
   },
   {
-    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF_MARKER",
+    "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_MARKER",
     "kind": "APPLY_MARKER",
     "payload": {
-      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF",
+      "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF",
       "stack": {
         "policy": "REFRESH",
         "max": 1
@@ -26,9 +26,10 @@
         "dispellable": false,
         "timeLimit": {
           "unit": "ACTION",
-          "count": 2
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
         },
-        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "PARENT",
         "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
@@ -55,9 +56,10 @@
         "dispellable": true,
         "timeLimit": {
           "unit": "ACTION",
-          "count": 1
+          "count": 1,
+          "owner": "EFFECT_SOURCE"
         },
-        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
         "linkedEffectGroupScope": "HOLDER"
       }
@@ -77,9 +79,10 @@
         "dispellable": true,
         "timeLimit": {
           "unit": "ACTION",
-          "count": 2
+          "count": 2,
+          "owner": "EFFECT_SOURCE"
         },
-        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_SELF_DEBUFF_LINK",
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
         "linkedEffectGroupScope": "HOLDER"
       },
