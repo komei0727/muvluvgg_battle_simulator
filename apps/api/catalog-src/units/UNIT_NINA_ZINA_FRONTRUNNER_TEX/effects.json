@@ -81,7 +81,10 @@
           "unit": "ACTION",
           "count": 2,
           "owner": "EFFECT_SOURCE"
-        }
+        },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       },
       "maxBlocks": null
     },

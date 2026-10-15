@@ -52,7 +52,10 @@
       "polarity": "DEBUFF",
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" }
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       },
       "maxBlocks": null
     },

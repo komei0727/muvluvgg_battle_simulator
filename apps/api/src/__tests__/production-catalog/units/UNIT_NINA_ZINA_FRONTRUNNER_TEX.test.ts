@@ -953,39 +953,39 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
     });
   });
 
-  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-006 [R-EFF-09, R-EFF-10]: EXで敵に付与した攻撃力低下は付与者のニーナが倒れると解除されるが、攻撃力バフ無効は残る", () => {
-    const { board, units, debuffed } = exDebuffedEnemy();
-    expect(debuffed.side).toBe("ENEMY");
-    expect(exDebuffsOf(debuffed)).toHaveLength(2);
-    // 攻撃力は原基準値1000から20%低下する。
-    expect(debuffed.combatStats.attack).toBe(800);
+  // R-TEX-07 #3: 戦術演習では付与者のブレイク（`UnitBroken`）も撃破と同じ契機になる。
+  it.each(["UnitDefeated", "UnitBroken"] as const)(
+    "IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-006 [R-EFF-09, R-EFF-10, R-TEX-07]: EXで敵に付与したデバフ（攻撃力低下・攻撃力バフ無効）は、付与者のニーナが倒れる（%s）と解除される",
+    (eventType) => {
+      const { board, units, debuffed } = exDebuffedEnemy();
+      expect(debuffed.side).toBe("ENEMY");
+      expect(exDebuffsOf(debuffed)).toHaveLength(2);
+      // 攻撃力は原基準値1000から20%低下する。
+      expect(debuffed.combatStats.attack).toBe(800);
 
-    const { recorder, rootEventId } = seedRecorder("B_NINA_ZINA_TEX_EX_DEFEAT");
-    const after = removeMarkers(
-      {
-        recorder,
-        turnNumber: 1,
-        cycleNumber: 0,
-        resolutionScopeId: recorder.nextResolutionScopeId(),
+      const { recorder, rootEventId } = seedRecorder("B_NINA_ZINA_TEX_EX_DEFEAT");
+      const after = removeMarkers(
+        {
+          recorder,
+          turnNumber: 1,
+          cycleNumber: 0,
+          resolutionScopeId: recorder.nextResolutionScopeId(),
+          rootEventId,
+        },
+        units,
+        findMarkersRemovedOnSourceDefeat(units, {
+          eventType,
+          payload: { unitId: board.subject.battleUnitId },
+        }),
+        board.definitions.effectActions,
         rootEventId,
-      },
-      units,
-      findMarkersRemovedOnSourceDefeat(units, {
-        eventType: "UnitDefeated",
-        payload: { unitId: board.subject.battleUnitId },
-      }),
-      board.definitions.effectActions,
-      rootEventId,
-    ).units.find((unit) => unit.battleUnitId === debuffed.battleUnitId)!;
+      ).units.find((unit) => unit.battleUnitId === debuffed.battleUnitId)!;
 
-    // 実機では攻撃力バフ無効だけが付与者の撃破後も残る（原文「各デバフは自身が倒れると
-    // 解除される」と食い違う）。期間は付与者の行動で数えるため、以後は戦闘終了まで残る。
-    expect(exDebuffsOf(after).map((effect) => effect.effectActionDefinitionId)).toEqual([
-      "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_BUFF_SEAL",
-    ]);
-    expect(after.markerStates).toEqual([]);
-    expect(after.combatStats.attack).toBe(1000);
-  });
+      expect(exDebuffsOf(after)).toEqual([]);
+      expect(after.markerStates).toEqual([]);
+      expect(after.combatStats.attack).toBe(1000);
+    },
+  );
 
   it("IT-UNIT-NINA-ZINA-FRONTRUNNER-TEX-007 [R-EFF-04]: EXで敵に付与したデバフの期間は、保持者の敵ではなく付与者のニーナの行動で減る（攻撃力低下は1回、攻撃力バフ無効は2回）", () => {
     const { board, units, debuffed } = exDebuffedEnemy();

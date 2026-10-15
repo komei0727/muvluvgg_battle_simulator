@@ -639,8 +639,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 3件を倒さず4件へ増やす。
     // `2026-10-11.1` は `UNIT_NINA_ZINA_FRONTRUNNER`（TEX含む）のEXの攻撃力低下・攻撃力バフ
     // 無効デバフを自身から攻撃した敵全体へ付け替え、期間を付与者の行動で数える
-    // （`owner: EFFECT_SOURCE`、Issue #751）。実機に合わせ、攻撃力バフ無効は付与者の撃破・
-    // ブレイクで解除しない。
+    // （`owner: EFFECT_SOURCE`、Issue #751）。
     expect(catalog.catalogRevision).toBe("2026-10-11.1");
   });
 
