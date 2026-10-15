@@ -1,0 +1,69 @@
+{
+  "memoryDefinitionId": "MEM_WHAT_I_REALLY_WANT",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CHAR_SIENA_CLARK_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_SIENA_CLARK" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_SIENA_CLARK_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_WHAT_I_REALLY_WANT_SIENA_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_LEFT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "BACK" },
+                { "kind": "POSITION_COLUMN", "column": "LEFT" }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_LEFT_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_WHAT_I_REALLY_WANT_BACK_LEFT_EN_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "本当にやりたいこと", "tags": [] }
+}

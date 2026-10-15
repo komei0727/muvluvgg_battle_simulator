@@ -134,6 +134,78 @@
     "metadata": { "displayName": "お傍にいるのはいつでもピコですよ♪", "tags": [] }
   },
   {
+    "memoryDefinitionId": "MEM_BRIEF_RESPITE",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_DOROTHEA_KIRKLAND_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_DOROTHEA_KIRKLAND" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_CHAR_DOROTHEA_KIRKLAND_ALLIES"
+              },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_BRIEF_RESPITE_DOROTHEA_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_RIGHT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "RIGHT" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_RIGHT_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_BRIEF_RESPITE_BACK_RIGHT_EN_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "束の間の息抜き", "tags": [] }
+  },
+  {
     "memoryDefinitionId": "MEM_BUSY_DAY_SLUMBER",
     "triggeredEffects": [
       {
@@ -2693,6 +2765,144 @@
       }
     ],
     "metadata": { "displayName": "これからも共に歩むあなたへ", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_WANT_TO_BE_PRAISED",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_URUU_HASE_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_URUU_HASE" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_URUU_HASE_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_WANT_TO_BE_PRAISED_URUU_CRIT_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_CENTER_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "CENTER" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_WANT_TO_BE_PRAISED_BACK_CENTER_CRIT_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "褒められたい系女子", "tags": [] }
+  },
+  {
+    "memoryDefinitionId": "MEM_WHAT_I_REALLY_WANT",
+    "triggeredEffects": [
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_CHAR_SIENA_CLARK_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_SIENA_CLARK" }]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_SIENA_CLARK_ALLIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MEM_WHAT_I_REALLY_WANT_SIENA_ATK_UP" }]
+            }
+          ]
+        }
+      },
+      {
+        "trigger": {
+          "eventType": "BattleStarted",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": { "kind": "TRUE" }
+        },
+        "effectSequence": {
+          "targetBindings": [
+            {
+              "targetBindingId": "TGT_BACK_LEFT_ALLIES",
+              "selector": {
+                "kind": "SELECT",
+                "side": "ALLY",
+                "count": "ALL",
+                "filters": [
+                  { "kind": "POSITION_ROW", "row": "BACK" },
+                  { "kind": "POSITION_COLUMN", "column": "LEFT" }
+                ]
+              }
+            }
+          ],
+          "steps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_LEFT_ALLIES" },
+              "actions": [
+                { "effectActionDefinitionId": "ACT_MEM_WHAT_I_REALLY_WANT_BACK_LEFT_EN_DMG_UP" }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "metadata": { "displayName": "本当にやりたいこと", "tags": [] }
   },
   {
     "memoryDefinitionId": "MEM_YOUR_SECRET_I_WANT_TO_KNOW",

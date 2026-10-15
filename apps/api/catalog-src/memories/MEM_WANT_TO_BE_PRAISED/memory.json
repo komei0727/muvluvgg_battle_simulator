@@ -1,0 +1,69 @@
+{
+  "memoryDefinitionId": "MEM_WANT_TO_BE_PRAISED",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CHAR_URUU_HASE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_URUU_HASE" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_URUU_HASE_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_WANT_TO_BE_PRAISED_URUU_CRIT_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_CENTER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "BACK" },
+                { "kind": "POSITION_COLUMN", "column": "CENTER" }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_CENTER_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_WANT_TO_BE_PRAISED_BACK_CENTER_CRIT_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "褒められたい系女子", "tags": [] }
+}
