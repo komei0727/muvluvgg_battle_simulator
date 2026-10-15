@@ -2,6 +2,7 @@ import type { MarkerState } from "./marker-state.js";
 import type { BattleUnit } from "./battle-unit.js";
 import type { ActionId, MarkerInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import { isSkippedAtGrantTurnEnd } from "./applied-effect-duration.js";
 
 /**
  * `applied-effect-duration.ts`の`resolveTimeLimitOwnerUnitId`と同じ規則を
@@ -99,7 +100,7 @@ export function decrementTurnMarkerDurations(
     units,
     "TURN",
     () => true,
-    (marker) => marker.duration.grantedTurnNumber === currentTurnNumber,
+    (marker) => isSkippedAtGrantTurnEnd(marker.duration, currentTurnNumber),
   );
 }
 

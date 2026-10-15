@@ -146,7 +146,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_HEALING_MOD: ["direction", "formula", "stacking", "duration"],
   APPLY_HEALING_LINK: ["transferTo", "transferRate", "duration"],
   MODIFY_RESOURCE: ["resource", "operation", "formula", "bounds"],
-  MODIFY_RESOURCE_CAPACITY: ["resource", "operation", "formula", "duration"],
+  MODIFY_RESOURCE_CAPACITY: ["resource", "operation", "formula", "duration", "raiseCurrent"],
   APPLY_STATUS: [
     "status",
     "duration",
@@ -514,6 +514,34 @@ function createAppliesTo(
   return {
     actionKinds: createActionKinds(appliesToObj.actionKinds, `${path}.appliesTo.actionKinds`),
   };
+}
+
+/**
+ * `MODIFY_RESOURCE_CAPACITY.raiseCurrent`: 上限の増加分だけ現在値も増やす。
+ * `HP`で現在値を増やすのは回復であり、回復量補正・回復契機（R-HEAL系）を
+ * 迂回してしまうため受理しない。`SET`は増減の向きが付与時点の上限次第で決まり
+ * 「増加分」を宣言として読めないため、`ADD`だけに限る。`false`は省略と同じ
+ * 意味になり宣言の揺れを生むだけなので、`true`だけを受理する。
+ */
+function createRaiseCurrentField(
+  value: unknown,
+  resource: string,
+  operation: string,
+  path: string,
+): { readonly raiseCurrent?: true } {
+  if (value === undefined) {
+    return {};
+  }
+  if (value !== true) {
+    throw new DomainValidationError(`${path}.raiseCurrent`, "must be true when present");
+  }
+  if (resource === "HP") {
+    throw new DomainValidationError(`${path}.raiseCurrent`, "cannot be used with resource HP");
+  }
+  if (operation !== "ADD") {
+    throw new DomainValidationError(`${path}.raiseCurrent`, "requires operation ADD");
+  }
+  return { raiseCurrent: true };
 }
 
 export function createEffectActionDefinition(
@@ -967,6 +995,7 @@ function createPayload(
           operation,
           formula: createFormulaField(payload, "formula", path),
           duration: createDurationField(payload, path),
+          ...createRaiseCurrentField(payload["raiseCurrent"], resource, operation, path),
         },
       };
     }

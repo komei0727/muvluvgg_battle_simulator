@@ -32,7 +32,7 @@ const DURATION_ALLOWED_KEYS = [
   "reapply",
   "removeOnSourceDefeated",
 ] as const;
-const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner"] as const;
+const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner", "countGrantTurn"] as const;
 const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
 const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
 const REAPPLY_ALLOWED_KEYS = ["existingRemaining", "count"] as const;
@@ -61,6 +61,12 @@ export interface DurationTimeLimit {
   readonly unit: DurationTimeUnit;
   readonly count: number;
   readonly owner?: DurationOwner;
+  /**
+   * R-EFF-06 #2の例外。`true`なら付与されたターンの終了時にも減算する。
+   * ターン開始時に付与して「そのターンの間」だけ効かせる効果（`count: 1`で
+   * 付与ターンの終了時に失効）を表す。`unit: TURN`でしか意味を持たない。
+   */
+  readonly countGrantTurn?: true;
 }
 
 export interface DurationConsumption {
@@ -169,6 +175,7 @@ export interface DurationTimeLimitInput {
   readonly unit: string;
   readonly count: number;
   readonly owner?: string;
+  readonly countGrantTurn?: boolean;
 }
 
 export interface DurationConsumptionInput {
@@ -202,11 +209,33 @@ function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationT
   assertKnownKeys(input, TIME_LIMIT_ALLOWED_KEYS, path);
   assertEnumValue(input.unit, DURATION_TIME_UNITS, `${path}.unit`);
   assertInteger(input.count, `${path}.count`, { min: 1 });
+  const countGrantTurn = createCountGrantTurn(input, path);
   if (input.owner === undefined) {
-    return { unit: input.unit, count: input.count };
+    return { unit: input.unit, count: input.count, ...countGrantTurn };
   }
   assertEnumValue(input.owner, DURATION_OWNERS, `${path}.owner`);
-  return { unit: input.unit, count: input.count, owner: input.owner };
+  return { unit: input.unit, count: input.count, owner: input.owner, ...countGrantTurn };
+}
+
+/**
+ * 付与ターンを数えるのはターン終了時の減算（R-EFF-06）だけなので、`TURN`以外の
+ * 単位へ宣言しても評価する経路が無い。`false`は省略と同じ意味になり宣言の
+ * 揺れを生むだけなので、`true`だけを受理する。
+ */
+function createCountGrantTurn(
+  input: DurationTimeLimitInput,
+  path: string,
+): { readonly countGrantTurn?: true } {
+  if (input.countGrantTurn === undefined) {
+    return {};
+  }
+  if (input.countGrantTurn !== true) {
+    throw new DomainValidationError(`${path}.countGrantTurn`, "must be true when present");
+  }
+  if (input.unit !== "TURN") {
+    throw new DomainValidationError(`${path}.countGrantTurn`, "requires unit TURN");
+  }
+  return { countGrantTurn: true };
 }
 
 function createReapply(

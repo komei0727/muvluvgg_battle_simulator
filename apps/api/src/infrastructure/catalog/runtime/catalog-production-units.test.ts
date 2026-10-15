@@ -640,7 +640,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-10-11.1` は `UNIT_NINA_ZINA_FRONTRUNNER`（TEX含む）のEXの攻撃力低下・攻撃力バフ
     // 無効デバフを自身から攻撃した敵全体へ付け替え、期間を付与者の行動で数える
     // （`owner: EFFECT_SOURCE`、Issue #751）。
-    expect(catalog.catalogRevision).toBe("2026-10-11.1");
+    // `2026-10-16.1` は新規Memory 1件（`MEM_RECLAIMED_SCHOOL_LIFE`、取り返した学園生活）の
+    // 追加。Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-10-16.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

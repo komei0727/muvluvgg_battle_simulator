@@ -342,6 +342,42 @@ describe("applyEffectActionGroups", () => {
       expect(recorder.getEvents().some((e) => e.eventType === "EffectApplied")).toBe(true);
     });
 
+    it("UT-R-ACTN-03-018 (raiseCurrent): raises currentAp by the capacity increase and records it as an EFFECT_ACTION ResourceChanged owning the ap stateDelta", () => {
+      const base = unit("ACTOR", "ALLY");
+      const actor = { ...base, currentAp: base.maximumAp };
+      const buff = capacityAction("ACT_MAX_AP_UP", { ...MAX_AP_UP, raiseCurrent: true });
+      const effectActions = new Map([[buff.effectActionDefinitionId, buff]]);
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(actor, effectActions, recorder, rootEventId);
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [singleActionStep(0, true, actor.battleUnitId, buff.effectActionDefinitionId)],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(plan, [actor], context);
+
+      const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.maximumAp).toBe(actor.maximumAp + 1);
+      expect(updatedActor.currentAp).toBe(actor.currentAp + 1);
+      const resourceEvents = recorder.getEvents().filter((e) => e.eventType === "ResourceChanged");
+      expect(resourceEvents).toHaveLength(1);
+      expect(resourceEvents[0]!.payload).toMatchObject({
+        battleUnitId: actor.battleUnitId,
+        resource: "AP",
+        before: actor.currentAp,
+        after: actor.currentAp + 1,
+        delta: 1,
+        reason: "EFFECT_ACTION",
+      });
+      expect(resourceEvents[0]!.stateDelta).toEqual({
+        units: {
+          [actor.battleUnitId]: { ap: { before: actor.currentAp, after: actor.currentAp + 1 } },
+        },
+      });
+    });
+
     it("UT-R-ACTN-03-016 (negative): a blocking EFFECT_IMMUNITY rejects the capacity change, leaving maximumAp at the base", () => {
       const buff = capacityAction("ACT_MAX_AP_UP", MAX_AP_UP);
       const immunityDefinitionId = createEffectActionDefinitionId("ACT_BUFF_IMMUNITY");

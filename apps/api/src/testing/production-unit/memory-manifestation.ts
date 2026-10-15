@@ -163,6 +163,12 @@ export interface MemoryBoardOverrides {
    * （`UNIT_TEST_MEMORY_<slot>`）を丸ごと差し替える。
    */
   readonly unitDefinitionIdsBySlot?: Readonly<Record<string, string>>;
+  /**
+   * スロットキー → そのスロットの最大AP。既定は全スロット共通の`MEMORY_LIMITS`。
+   * 対象の所持APで効果を打ち消す条件（`TARGET_STATE RESOURCE_AP`）は、ターン開始時に
+   * APが最大値まで回復した後に評価されるため、最大APを動かして所持APを作る。
+   */
+  readonly maximumApBySlot?: Readonly<Record<string, number>>;
 }
 
 function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
@@ -183,13 +189,14 @@ function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): 
 function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOverrides): BattleUnit {
   const attribute = overrides.attributesBySlot?.[slot.key];
   const subAttribute = overrides.subAttributesBySlot?.[slot.key];
+  const maximumAp = overrides.maximumApBySlot?.[slot.key];
   return testBattleUnit({
     battleUnitId: memoryUnitId(side, slot.key),
     unitDefinitionId: slotUnitDefinitionId(slot, overrides),
     side,
     position: slot.position,
     combatStats: MEMORY_COMBAT_STATS,
-    limits: MEMORY_LIMITS,
+    limits: maximumAp === undefined ? MEMORY_LIMITS : { ...MEMORY_LIMITS, maximumAp },
     ...(attribute === undefined ? {} : { attribute }),
     ...(subAttribute === undefined ? {} : { overrides: { subAttribute } }),
   });
@@ -207,6 +214,7 @@ export interface MemoryTimeLimit {
   readonly unit: string;
   readonly count: number;
   readonly owner?: string;
+  readonly countGrantTurn?: true;
 }
 
 /** Memory 1件が配った効果を、EffectAction単位でまとめた観測結果。 */
@@ -448,6 +456,9 @@ function declarationOf(
                   unit: timeLimit.unit,
                   count: timeLimit.count,
                   ...(timeLimit.owner === undefined ? {} : { owner: timeLimit.owner }),
+                  ...(timeLimit.countGrantTurn === undefined
+                    ? {}
+                    : { countGrantTurn: timeLimit.countGrantTurn }),
                 },
         }),
     ...(duration?.consumption === undefined
@@ -731,6 +742,15 @@ export interface MemoryTurnStartObservation {
   readonly grants: readonly MemoryGrant[];
   readonly triggeredOrder: readonly string[];
   readonly executedActionIds: readonly string[];
+  /**
+   * ターン開始の解決スコープを終えた時点の、味方各ユニットのAP（所持・最大）。
+   * 戦闘作成時の状態へその時点までの`stateDelta`を積んで復元する — `battle`は
+   * 行動フェーズとターン終了の失効まで進んだ後の状態であり、ターン中だけ効く
+   * 上限変更を表せないため。
+   */
+  readonly allyApAtTurnStart: Readonly<
+    Record<string, { readonly current: number; readonly maximum: number }>
+  >;
 }
 
 export interface MemoryTurnObservation {
@@ -767,13 +787,21 @@ export function observeMemoryTurnStarts(
   for (let turn = 0; turn < turns; turn += 1) {
     battle = advanceBattle(battle, new SequenceRandomSource([]), recorder);
   }
-  const turnStarts = recorder
-    .getEvents()
+  const events = recorder.getEvents();
+  const initialState = captureBattleState(created);
+  const turnStarts = events
     .filter((event) => event.eventType === "TurnStarted")
     .map((turnStarted) => {
-      const scoped = recorder
-        .getEvents()
-        .filter((event) => event.resolutionScopeId === turnStarted.resolutionScopeId);
+      const scoped = events.filter(
+        (event) => event.resolutionScopeId === turnStarted.resolutionScopeId,
+      );
+      const lastScopedIndex = events.lastIndexOf(scoped[scoped.length - 1]!);
+      const stateAtTurnStart = reduceStateDeltas(
+        initialState,
+        events
+          .slice(0, lastScopedIndex + 1)
+          .flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+      );
       const grants = new Map<string, { unitIds: string[]; magnitude: number; sourceSide: Side }>();
       for (const event of scoped) {
         if (event.eventType !== "EffectApplied") {
@@ -814,6 +842,13 @@ export function observeMemoryTurnStarts(
         ),
         triggeredOrder: triggeredOrderOf(scoped),
         executedActionIds: executedActionIdsOf(scoped),
+        allyApAtTurnStart: Object.fromEntries(
+          MEMORY_SLOTS.map((slot) => {
+            const unitId = memoryUnitId("ALLY", slot.key);
+            const unit = stateAtTurnStart.units[unitId as never]!;
+            return [unitId, { current: unit.ap, maximum: unit.maximumAp }];
+          }),
+        ),
       };
     });
   return { turnStarts, battle };

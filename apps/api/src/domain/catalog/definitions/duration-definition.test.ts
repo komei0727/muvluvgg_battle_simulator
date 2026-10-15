@@ -445,4 +445,37 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+  it("UT-CAT-DUR-034 [R-EFF-06]: maps timeLimit.countGrantTurn on a TURN-unit timeLimit and omits it when absent", () => {
+    expect(
+      createDurationDefinition(
+        { timeLimit: { unit: "TURN", count: 1, countGrantTurn: true } },
+        "duration",
+        undefined,
+      ).timeLimit,
+    ).toEqual({ unit: "TURN", count: 1, countGrantTurn: true });
+    expect(
+      createDurationDefinition({ timeLimit: { unit: "TURN", count: 1 } }, "duration", undefined)
+        .timeLimit,
+    ).toEqual({ unit: "TURN", count: 1 });
+  });
+
+  it("UT-CAT-DUR-035 [R-EFF-06]: rejects timeLimit.countGrantTurn on a unit other than TURN", () => {
+    expect(() =>
+      createDurationDefinition(
+        { timeLimit: { unit: "ACTION", count: 1, countGrantTurn: true } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-036 [R-EFF-06]: rejects timeLimit.countGrantTurn other than true", () => {
+    expect(() =>
+      createDurationDefinition(
+        { timeLimit: { unit: "TURN", count: 1, countGrantTurn: false } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

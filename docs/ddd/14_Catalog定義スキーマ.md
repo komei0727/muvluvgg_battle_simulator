@@ -1229,12 +1229,13 @@ payload:
     dispellable: false
 ```
 
-| フィールド  | 型                 | 制約                                                                                                                                                                                                                                                                                                |
-| ----------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resource`  | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。Mapperは`MODIFY_RESOURCE`と同じ共通`ResourceKind`（`HP`含む）を受理する。M7-002A（Issue #255）のEngine実装もこの4種すべてを対象にした — `AP`/`PP`/`EX_GAUGE`は`BattleUnit`のゲージ最大値を、`HP`は`MAXIMUM_HP`戦闘中ステータス（HPゲージの上限そのもの）を変更する |
-| `operation` | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない。有効な`SET`が複数ある場合は付与順で後のものが基準を置き換え、`ADD`はその結果へ合算する（R-ACTN-03）                                                                                                           |
-| `formula`   | FormulaDefinition  | 変更量。`APPLY_STAT_MOD`と同じ評価規約で付与時点に一度だけ評価する                                                                                                                                                                                                                                  |
-| `duration`  | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                                                                                                                                                    |
+| フィールド     | 型                 | 制約                                                                                                                                                                                                                                                                                                |
+| -------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`     | enum               | `AP` / `PP` / `EX_GAUGE` / `HP`。Mapperは`MODIFY_RESOURCE`と同じ共通`ResourceKind`（`HP`含む）を受理する。M7-002A（Issue #255）のEngine実装もこの4種すべてを対象にした — `AP`/`PP`/`EX_GAUGE`は`BattleUnit`のゲージ最大値を、`HP`は`MAXIMUM_HP`戦闘中ステータス（HPゲージの上限そのもの）を変更する |
+| `operation`    | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない。有効な`SET`が複数ある場合は付与順で後のものが基準を置き換え、`ADD`はその結果へ合算する（R-ACTN-03）                                                                                                           |
+| `formula`      | FormulaDefinition  | 変更量。`APPLY_STAT_MOD`と同じ評価規約で付与時点に一度だけ評価する                                                                                                                                                                                                                                  |
+| `duration`     | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                                                                                                                                                    |
+| `raiseCurrent` | `true`（省略可）   | 付与で上限が実際に増えた分だけ現在値も増やす（`07_戦闘ルール詳細.md` R-ACTN-03）。`resource: HP`（現在HPの増加は回復であり回復規則を迂回する）と `operation: SET` には宣言できない。`false` は受理しない                                                                                            |
 
 ### APPLY_RESOURCE_GAIN_MOD
 
@@ -2483,6 +2484,10 @@ duration:
 | `BATTLE`    | 戦闘終了まで     |
 | `HIT`       | ヒット数         |
 | `SKILL_USE` | スキル使用回数   |
+
+### timeLimit.countGrantTurn
+
+`unit: TURN` だけに宣言できる `true`（省略可、`false` は受理しない）。R-EFF-06 #2 の例外で、付与されたターンの終了時にも残り回数を減らす。ターン開始時に付与して「そのターンの間」だけ効かせる効果を `{ unit: TURN, count: 1, countGrantTurn: true }` で表す（省略した `{ unit: TURN, count: 1 }` は次のターンの終了時まで残る）。
 
 ### timeLimit.owner
 
