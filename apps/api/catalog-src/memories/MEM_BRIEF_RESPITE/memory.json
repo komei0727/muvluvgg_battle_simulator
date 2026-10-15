@@ -1,0 +1,69 @@
+{
+  "memoryDefinitionId": "MEM_BRIEF_RESPITE",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CHAR_DOROTHEA_KIRKLAND_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [{ "kind": "CHARACTER", "characterId": "CHAR_DOROTHEA_KIRKLAND" }]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_CHAR_DOROTHEA_KIRKLAND_ALLIES" },
+            "actions": [{ "effectActionDefinitionId": "ACT_MEM_BRIEF_RESPITE_DOROTHEA_ATK_UP" }]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_BACK_RIGHT_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                { "kind": "POSITION_ROW", "row": "BACK" },
+                { "kind": "POSITION_COLUMN", "column": "RIGHT" }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BACK_RIGHT_ALLIES" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_BRIEF_RESPITE_BACK_RIGHT_EN_DMG_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "束の間の息抜き", "tags": [] }
+}

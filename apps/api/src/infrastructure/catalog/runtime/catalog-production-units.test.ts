@@ -642,7 +642,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （`owner: EFFECT_SOURCE`、Issue #751）。
     // `2026-10-16.1` は新規Memory 1件（`MEM_RECLAIMED_SCHOOL_LIFE`、取り返した学園生活）の
     // 追加。Unit・Skillは1件も変えておらず、差分は `memories.json`・`effects.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-10-16.1");
+    // `2026-10-16.2` は新規Memory 3件（`MEM_WANT_TO_BE_PRAISED`・`MEM_BRIEF_RESPITE`・
+    // `MEM_WHAT_I_REALLY_WANT`）の追加。差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-10-16.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
