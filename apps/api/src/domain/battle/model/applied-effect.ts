@@ -346,7 +346,8 @@ export interface EffectDurationState {
    * R-EFF-09: `definition.linkedEffectGroupScope === "SKILL_USE"`の場合、付与時の
    * `SkillUseId`。同じスキル使用で付与されたメンバーだけを連動させるキーに使う。
    * スキル使用の外の付与（Memory由来など）では持たず、その場合は保持ユニット単位で
-   * 連動する（`HOLDER`と同じ）。
+   * 連動する（`HOLDER`と同じ）。`MarkerState`は`SKILL_USE`をCatalogロード時に拒否するため
+   * 持たない。
    */
   readonly linkedGroupSkillUseId?: SkillUseId;
   /**

@@ -110,7 +110,6 @@ export function applyMarker(
       {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
       },
       request.decay,
     );
@@ -223,7 +222,6 @@ export function applyMarker(
       duration: buildInitialDurationState(request.durationDefinition, {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
       }),
     };
   } else {
@@ -236,7 +234,6 @@ export function applyMarker(
       duration: buildInitialDurationState(request.durationDefinition, {
         ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
         turnNumber: context.turnNumber,
-        ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
       }),
       decayingStackCount: request.decay !== undefined ? 1 : 0,
       ...(request.decay !== undefined ? { decay: request.decay } : {}),
