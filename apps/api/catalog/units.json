@@ -879,6 +879,38 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_KOTOHA_DAILY",
+    "attribute": "AGGRESSIVE",
+    "unitType": "ENERGY",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 29160,
+      "attack": 21196,
+      "defense": 11673,
+      "criticalRate": 0.2,
+      "actionSpeed": 730,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 271, "attack": 194, "defense": 106, "actionSpeed": 2 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": [
+      "SKL_KOTOHA_DAILY_AS1",
+      "SKL_KOTOHA_DAILY_AS2",
+      "SKL_KOTOHA_DAILY_AS3"
+    ],
+    "passiveSkillDefinitionIds": ["SKL_KOTOHA_DAILY_PS1"],
+    "extraSkillDefinitionId": "SKL_KOTOHA_DAILY_EX",
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【歩む先に新たな日常を】コトハ",
+      "characterName": "コトハ",
+      "characterId": "CHAR_KOTOHA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_KOTOHA_REBEL",
     "attribute": "CLEVER",
     "unitType": "AGILE",

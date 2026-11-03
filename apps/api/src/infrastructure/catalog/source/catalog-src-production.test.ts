@@ -164,6 +164,7 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_MERU_BESIDE",
         "UNIT_NINA_ZINA_FRONTRUNNER",
         "UNIT_YIFEI_STORM",
+        "UNIT_KOTOHA_DAILY",
         // Issue #719: 戦術演習敵ユニット追加: 破壊：榊野ヒイロ
         "UNIT_HIIRO_FREEWOLF_TEX",
         // Issue #721: 戦術演習敵ユニット追加: 破壊：オルガ＆ナージャ

@@ -1,0 +1,234 @@
+[
+  {
+    "skillDefinitionId": "SKL_KOTOHA_DAILY_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_DOWN" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "無粋への制裁", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KOTOHA_DAILY_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+            "field": "ATTRIBUTE",
+            "op": "EQ",
+            "value": "SHY"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DAMAGE_PIERCE" }]
+            }
+          ],
+          "elseSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+              "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DAMAGE" }]
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DMG_DOWN" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "お姉ちゃん、見てて", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KOTOHA_DAILY_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_CUMULATIVE_DAMAGE_DEALT", "DEFAULT"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_COLUMN_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_DOT" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+          "targetCondition": {
+            "kind": "OR",
+            "conditions": [
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "field": "ROLE",
+                "op": "EQ",
+                "value": "PHYSICAL_ATTACKER"
+              },
+              {
+                "kind": "TARGET_STATE",
+                "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
+                "field": "ROLE",
+                "op": "EQ",
+                "value": "EN_ATTACKER"
+              }
+            ]
+          },
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_CONFUSION" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "静かな日々の邪魔をしないで", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KOTOHA_DAILY_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_AGGRESSIVE_ALLIES",
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": "ALL",
+            "filters": [
+              { "kind": "ATTRIBUTE", "attribute": "AGGRESSIVE" },
+              { "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS3_BONUS_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_AGGRESSIVE_ALLIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS3_BONUS_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "制服の下の負けん気", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_KOTOHA_DAILY_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "仲間想いは変わらず", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "OTHER_ALLY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            {
+              "kind": "TARGET_STATE",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "field": "ATTRIBUTE",
+              "op": "EQ",
+              "value": "AGGRESSIVE"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

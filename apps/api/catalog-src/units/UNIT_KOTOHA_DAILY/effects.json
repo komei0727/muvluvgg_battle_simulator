@@ -1,0 +1,158 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 0.371 },
+      "hitCount": 5
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -1 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+    "kind": "APPLY_RESOURCE_GAIN_MOD",
+    "payload": {
+      "resource": "EX_GAUGE",
+      "rateDelta": { "kind": "CONSTANT", "value": -1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DAMAGE_PIERCE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 },
+      "piercing": { "defenseIgnoreRate": 0.5 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_DOT",
+    "kind": "APPLY_CONTINUOUS_DAMAGE",
+    "payload": {
+      "continuousDamageKind": "FIXED",
+      "damageType": "EN",
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.1
+      },
+      "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS2_CONFUSION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "CONFUSION",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "confusion": { "damageReductionRate": 0.5, "lowAttackBaseDamageRate": 0.1 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_AS3_BONUS_DAMAGE",
+    "kind": "APPLY_ATTACK_DAMAGE_BONUS",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.117
+      },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.248 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "FREEZE",
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } },
+      "damageAmplificationOnBreak": 1.75
+    },
+    "metadata": { "tags": [] }
+  }
+]

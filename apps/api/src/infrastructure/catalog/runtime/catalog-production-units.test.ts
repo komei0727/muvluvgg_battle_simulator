@@ -646,7 +646,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `MEM_WHAT_I_REALLY_WANT`）の追加。差分は `memories.json`・`effects.json` だけ。
     // `2026-11-03.1` は新規Unit 1件（`UNIT_YIFEI_STORM`、【暴風小隊長】崔亦菲）の追加
     // （Issue #756）。既存のUnit・Skill・EffectActionは変えていない。
-    expect(catalog.catalogRevision).toBe("2026-11-03.1");
+    // `2026-11-03.2` は新規Unit 1件（`UNIT_KOTOHA_DAILY`、【歩む先に新たな日常を】コトハ）の
+    // 追加（Issue #760）。既存のUnit・Skill・EffectActionは変えていない。
+    expect(catalog.catalogRevision).toBe("2026-11-03.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
