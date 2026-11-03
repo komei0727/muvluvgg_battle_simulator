@@ -47,11 +47,18 @@ import {
 const UNIT_DEFINITION_ID = "UNIT_INIA_CRYSKA";
 const STUN_SOURCE_UNIT_ID = "UNIT_OLGA_NADYA_BOND";
 const STUN_ACTION = "ACT_OLGA_NADYA_BOND_EX_STUN";
+const FREEZE_SOURCE_UNIT_ID = "UNIT_MIRIAM_MAGE";
+const FREEZE_ACTION = "ACT_MIRIAM_MAGE_EX_FREEZE";
+/** 状態異常（STATUS）だが気絶・凍結ではない付与。PS1の条件が「状態異常全般」に緩んでいないかを見る。 */
+const POISON_SOURCE_UNIT_ID = "UNIT_CHIYURU_MAZE";
+const POISON_ACTION = "ACT_CHIYURU_MAZE_AS1_POISON";
 const PRAVKA = "MARKER_INIA_CRYSKA_PRAVKA";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   STUN_SOURCE_UNIT_ID,
+  FREEZE_SOURCE_UNIT_ID,
+  POISON_SOURCE_UNIT_ID,
 ]);
 
 /** 先行するDAMAGEの会心判定を 0.99 で外し、`RANDOM_BRANCH` の抽選値を置く列。 */
@@ -346,6 +353,52 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       resources: PS1_RESOURCES,
       cooldowns: PS1_COOLDOWN,
     },
+  },
+  {
+    skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+    intent: "(凍結): 他の味方が凍結を付与された際にも発動し、解除の腕は凍結自体を外す",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+      trigger: realEffectApplication({
+        effectActionDefinitionId: FREEZE_ACTION,
+        from: "enemy:front",
+        to: "ally:front",
+      }),
+    },
+    random: PS1_CLEANSE,
+    expected: {
+      actions: [
+        ...PS1_DAMAGE_ACTIONS,
+        { effectActionDefinitionId: "ACT_INIA_CRYSKA_PS1_CLEANSE", targets: ["ally:front"] },
+      ],
+      hpDeltas: PS1_HP_DELTAS,
+      effectsRemoved: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: FREEZE_ACTION,
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1 },
+          statusKind: "FREEZE",
+        },
+      ],
+      resources: PS1_RESOURCES,
+      cooldowns: PS1_COOLDOWN,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+    intent: "(不成立: 他の状態異常): 気絶・凍結以外の状態異常（毒）の付与では発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+      trigger: realEffectApplication({
+        effectActionDefinitionId: POISON_ACTION,
+        from: "enemy:front",
+        to: "ally:front",
+      }),
+    },
+    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
