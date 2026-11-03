@@ -1,4 +1,5 @@
 import { createMarkerReference, type MarkerReference } from "./marker-reference.js";
+import type { MarkerCountCondition } from "./marker-count-condition.js";
 import {
   CONTINUOUS_DAMAGE_KINDS,
   STAT_KINDS,
@@ -26,6 +27,11 @@ import {
   type TargetReference,
   type TargetReferenceInput,
 } from "./references.js";
+import {
+  createTargetSelectorDefinition,
+  type TargetSelectorDefinition,
+  type TargetSelectorDefinitionInput,
+} from "./target-selector-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import {
   assertBoolean,
@@ -109,6 +115,8 @@ export const CONDITION_KINDS = [
   "TARGET_HAS_EFFECT",
   "TARGET_EFFECT_COUNT",
   "SELF_MEMORY_EQUIPPED",
+  "ATTRIBUTE_ADVANTAGE",
+  "SELECTED_TARGET_STATE",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -183,7 +191,10 @@ export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
       kind !== "TARGET_STATE" &&
       kind !== "TARGET_HAS_MARKER" &&
       kind !== "TARGET_HAS_EFFECT" &&
-      kind !== "TARGET_EFFECT_COUNT",
+      kind !== "TARGET_EFFECT_COUNT" &&
+      kind !== "ATTRIBUTE_ADVANTAGE" &&
+      // R-PS-09: PSの発動判定専用。EffectStep評価器は処理しない。
+      kind !== "SELECTED_TARGET_STATE",
   ),
 );
 
@@ -208,6 +219,7 @@ export const TARGET_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set([
   "TARGET_HAS_MARKER",
   "TARGET_HAS_EFFECT",
   "TARGET_EFFECT_COUNT",
+  "ATTRIBUTE_ADVANTAGE",
   "EVENT_PAYLOAD",
 ]);
 
@@ -260,6 +272,7 @@ export function assertTargetConditionReferencesOwnTarget(
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
     case "TARGET_EFFECT_COUNT":
+    case "ATTRIBUTE_ADVANTAGE":
       if (!targetReferenceEquals(condition.target, expectedTarget)) {
         throw new DomainValidationError(
           `${path}.target`,
@@ -329,6 +342,8 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
     "op",
     "value",
   ],
+  ATTRIBUTE_ADVANTAGE: ["kind", "target"],
+  SELECTED_TARGET_STATE: ["kind", "selector", "field", "op", "value"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -352,10 +367,7 @@ export type ResolutionPhase = (typeof RESOLUTION_PHASES)[number];
 export const TARGET_SET_COUNT_OF = ["ALIVE", "DEFEATED"] as const;
 export type TargetSetCountOf = (typeof TARGET_SET_COUNT_OF)[number];
 
-export interface MarkerCountCondition {
-  readonly op: ComparisonOperator;
-  readonly value: number;
-}
+export type { MarkerCountCondition } from "./marker-count-condition.js";
 
 export type ConditionDefinition =
   | { readonly kind: "TRUE" }
@@ -521,6 +533,29 @@ export type ConditionDefinition =
       readonly dispellable?: boolean;
       readonly op: ComparisonOperator;
       readonly value: number;
+    }
+  | {
+      /**
+       * R-ATR-05: 条件を評価しているユニット自身（`SELF`）が`target`に対して有利属性か。
+       * ダメージの属性倍率と同じ判定（防御側はメイン属性だけ、攻撃側はメインが
+       * 有利でなければサブ属性で再判定、R-ATR-01/03）を使う。`TARGET_STATE`の
+       * `ATTRIBUTE`は対象のサブ属性も含む存在量化（R-ATR-04）のため代用できない。
+       */
+      readonly kind: "ATTRIBUTE_ADVANTAGE";
+      readonly target: TargetReference;
+    }
+  | {
+      /**
+       * R-PS-09: 評価時点で`selector`を副作用なしに解決し、選ばれたユニットの
+       * いずれかが`TARGET_STATE`と同じ`field`/`op`/`value`を満たすか。PSの
+       * trigger条件・`activationCondition`は解決済みTargetBindingを持たないため、
+       * 「最も遠い敵が○属性でない場合は発動しない」をこの条件で表す。0件は不成立。
+       */
+      readonly kind: "SELECTED_TARGET_STATE";
+      readonly selector: TargetSelectorDefinition;
+      readonly field: TargetStateField;
+      readonly op: ComparisonOperator;
+      readonly value: JsonPrimitive;
     };
 
 export interface ConditionDefinitionInput {
@@ -551,7 +586,11 @@ export interface ConditionDefinitionInput {
   readonly continuousDamageKinds?: readonly string[];
   readonly statKinds?: readonly string[];
   readonly dispellable?: boolean;
+  readonly selector?: TargetSelectorDefinitionInput;
 }
+
+/** R-PS-09: 選択結果をTargetBinding無しで評価するため、BINDING参照は一切宣言できない。 */
+const NO_TARGET_BINDINGS: TargetBindingScope = new Set();
 
 function requireField<K extends keyof ConditionDefinitionInput>(
   input: ConditionDefinitionInput,
@@ -578,6 +617,24 @@ function createOperator(input: ConditionDefinitionInput, path: string): Comparis
   const op = requireField(input, "op", path);
   assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
   return op;
+}
+
+/** `TARGET_STATE`／`SELECTED_TARGET_STATE`が共有する`field`と、fieldの型に合う`value`。 */
+function createTargetStateComparison(
+  input: ConditionDefinitionInput,
+  path: string,
+): { readonly field: TargetStateField; readonly value: JsonPrimitive } {
+  const field = requireField(input, "field", path);
+  assertEnumValue(field, TARGET_STATE_FIELDS, `${path}.field`);
+  const value = requireField(input, "value", path);
+  const expectedType = TARGET_STATE_FIELD_TYPES[field];
+  if (typeof value !== expectedType) {
+    throw new DomainValidationError(
+      `${path}.value`,
+      `must be of type ${expectedType} for field "${field}", got ${typeof value}`,
+    );
+  }
+  return { field, value };
 }
 
 /** Issue #649: `TARGET_EFFECT_COUNT.op`用。`NUMERIC_COMPARISON_OPERATORS`の理由を参照。 */
@@ -704,19 +761,39 @@ export function createConditionDefinition(
     }
     case "TARGET_STATE": {
       const target = requireField(input, "target", path);
-      const field = requireField(input, "field", path);
-      assertEnumValue(field, TARGET_STATE_FIELDS, `${path}.field`);
-      const value = requireField(input, "value", path);
-      const expectedType = TARGET_STATE_FIELD_TYPES[field];
-      if (typeof value !== expectedType) {
-        throw new DomainValidationError(
-          `${path}.value`,
-          `must be of type ${expectedType} for field "${field}", got ${typeof value}`,
-        );
-      }
+      const { field, value } = createTargetStateComparison(input, path);
       return {
         kind: "TARGET_STATE",
         target: createTargetReference(target, `${path}.target`, scope),
+        field,
+        op: createOperator(input, path),
+        value,
+      };
+    }
+    case "ATTRIBUTE_ADVANTAGE": {
+      const target = requireField(input, "target", path);
+      return {
+        kind: "ATTRIBUTE_ADVANTAGE",
+        target: createTargetReference(target, `${path}.target`, scope),
+      };
+    }
+    case "SELECTED_TARGET_STATE": {
+      const selectorInput = requireField(input, "selector", path);
+      const selector = createTargetSelectorDefinition(
+        selectorInput,
+        `${path}.selector`,
+        NO_TARGET_BINDINGS,
+      );
+      if (selector.kind !== "SELECT") {
+        throw new DomainValidationError(
+          `${path}.selector.kind`,
+          `must be "SELECT" (a "${selector.kind}" selector needs resolved TargetBindings, which a PS activation check does not have)`,
+        );
+      }
+      const { field, value } = createTargetStateComparison(input, path);
+      return {
+        kind: "SELECTED_TARGET_STATE",
+        selector,
         field,
         op: createOperator(input, path),
         value,

@@ -58,6 +58,8 @@ function matchesUpdateTrigger(
   event: TriggerCandidateEvent,
   unitsById: ReadonlyMap<BattleUnitId, BattleUnit>,
   memoriesBySide: Readonly<Record<Side, readonly MemoryDefinition[]>> | undefined,
+  units: readonly BattleUnit[],
+  unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): boolean {
   const trigger = update.trigger;
   return (
@@ -73,6 +75,10 @@ function matchesUpdateTrigger(
       owner,
       skillDefinitionId,
       getUnit: (id) => unitsById.get(id),
+      // `ALIVE_UNIT_COUNT`・`SELECTED_TARGET_STATE`（R-PS-09）の母集団と、
+      // `TARGET_STATE`の`UNIT_TYPE`/`ROLE`が引く定義もPS triggerと同じものを渡す。
+      units,
+      unitDefinitions,
       ...(memoriesBySide !== undefined ? { memoriesBySide } : {}),
     })
   );
@@ -198,7 +204,18 @@ export function matchRuntimeCounterUpdates(
             `scope "${update.scope}" is not supported yet (Issue #143 only implements SKILL_RUNTIME scope)`,
           );
         }
-        if (!matchesUpdateTrigger(update, owner, skillId, event, unitsById, memoriesBySide)) {
+        if (
+          !matchesUpdateTrigger(
+            update,
+            owner,
+            skillId,
+            event,
+            unitsById,
+            memoriesBySide,
+            input.units,
+            unitDefinitions,
+          )
+        ) {
           continue;
         }
         matched.push({ ownerUnitId: owner.battleUnitId, skillDefinitionId: skillId, update });

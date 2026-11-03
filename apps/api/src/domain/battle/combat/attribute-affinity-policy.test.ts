@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isFavorableAttribute, resolveAttributeMultiplier } from "./attribute-affinity-policy.js";
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
 import { createPercentage } from "../../shared/percentage.js";
+import { hasAttributeAdvantage } from "../model/attribute-advantage.js";
 
 const ALL_ATTRIBUTES: readonly Attribute[] = [
   "AGGRESSIVE",
@@ -163,5 +164,22 @@ describe("resolveAttributeMultiplier — R-ATR-03 サブ属性の属性倍率", 
       createPercentage(0.15),
     );
     expect(result).toBeCloseTo(1);
+  });
+});
+
+describe("ATTRIBUTE_ADVANTAGE agrees with the attribute multiplier (R-ATR-05)", () => {
+  it("UT-R-ATR-05-012: for every attacker main/sub and defender attribute, the condition holds exactly when the multiplier exceeds 100%", () => {
+    const bonus = createPercentage(0.25);
+    const subBonus = createPercentage(0.15);
+    for (const main of ALL_ATTRIBUTES) {
+      for (const sub of [undefined, ...ALL_ATTRIBUTES]) {
+        for (const defender of ALL_ATTRIBUTES) {
+          const attacker = { attribute: main, ...(sub === undefined ? {} : { subAttribute: sub }) };
+          expect(hasAttributeAdvantage(attacker, defender)).toBe(
+            resolveAttributeMultiplier(main, defender, bonus, sub, subBonus) > 1,
+          );
+        }
+      }
+    }
   });
 });

@@ -9,7 +9,7 @@ import type {
   Side,
 } from "./catalog-enums.js";
 import { createMarkerId, type MarkerId } from "./catalog-ids.js";
-import type { MarkerCountCondition } from "./condition-definition.js";
+import type { MarkerCountCondition } from "./marker-count-condition.js";
 import {
   createTargetReference,
   type TargetBindingScope,

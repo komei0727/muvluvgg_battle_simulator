@@ -270,6 +270,8 @@ export const CONDITION_KIND_ENUM = [
   "TARGET_HAS_EFFECT",
   "TARGET_EFFECT_COUNT",
   "SELF_MEMORY_EQUIPPED",
+  "ATTRIBUTE_ADVANTAGE",
+  "SELECTED_TARGET_STATE",
 ] as const;
 /**
  * `EffectActionStarting.kind`／`EffectApplied.effectKind`。値集合の正本はDomainの
@@ -1998,6 +2000,18 @@ export const conditionDefinitionDetailsSchema = {
         grantedBy: { const: "SELF" },
         op: { type: "string", enum: NUMERIC_COMPARISON_OPERATOR_ENUM },
         value: { type: "number" },
+      },
+    },
+    // R-ATR-05: 評価しているユニット自身が`target`に対して有利属性か。
+    // `SELECTED_TARGET_STATE`（R-PS-09）はPSの発動判定専用で`expiration.conditions`へ
+    // 置けない（Catalogロード時に拒否）ため、wireに現れることはなくvariantを持たない。
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "target"],
+      properties: {
+        kind: { const: "ATTRIBUTE_ADVANTAGE" },
+        target: targetReferenceDetailsSchema,
       },
     },
   ],

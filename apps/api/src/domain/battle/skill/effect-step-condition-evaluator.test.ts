@@ -1372,4 +1372,54 @@ describe("evaluateEffectStepCondition", () => {
       ).toThrow(DomainValidationError);
     });
   });
+
+  describe("evaluateEffectStepCondition: ATTRIBUTE_ADVANTAGE (R-ATR-05)", () => {
+    const SELF: TargetReference = { kind: "SELF" };
+    const user = unit("self", "UNIT_A", { attribute: "SHY", subAttribute: "SMART" });
+    const resolveSelf = (reference: TargetReference) => (reference.kind === "SELF" ? [user] : []);
+    const advantage: ConditionDefinition = { kind: "ATTRIBUTE_ADVANTAGE", target: STEP_TARGET };
+    const perTarget = (current: BattleUnit) =>
+      evaluateEffectStepCondition(advantage, undefined, {
+        stepTarget: STEP_TARGET,
+        current,
+        resolveOtherReference: resolveSelf,
+        unitDefinitions: new Map(),
+      });
+
+    it("UT-R-ATR-05-004: targetCondition is true against a target the user's main attribute beats, and against one only its sub attribute beats", () => {
+      expect(perTarget(unit("cute", "UNIT_A", { attribute: "CUTE" }))).toBe(true);
+      expect(perTarget(unit("aggressive", "UNIT_A", { attribute: "AGGRESSIVE" }))).toBe(true);
+    });
+
+    it("UT-R-ATR-05-005: a target whose sub attribute alone would be beaten is not an advantage (the defender is judged by its main attribute only)", () => {
+      expect(
+        perTarget(unit("shy-cute", "UNIT_A", { attribute: "SHY", subAttribute: "CUTE" })),
+      ).toBe(false);
+      expect(perTarget(unit("clever", "UNIT_A", { attribute: "CLEVER" }))).toBe(false);
+    });
+
+    it("UT-R-ATR-05-006: a BRANCH (step-wide) condition resolves both the user and the single target through the TargetSetResolver", () => {
+      const target = unit("cute", "UNIT_A", { attribute: "CUTE" });
+      const resolve = (reference: TargetReference) =>
+        reference.kind === "SELF" ? [user] : reference === STEP_TARGET ? [target] : [];
+      expect(evaluateEffectStepCondition(advantage, undefined, undefined, resolve)).toBe(true);
+      expect(
+        evaluateEffectStepCondition(
+          { kind: "ATTRIBUTE_ADVANTAGE", target: SELF },
+          undefined,
+          undefined,
+          resolve,
+        ),
+      ).toBe(false);
+      expect(
+        evaluateEffectStepCondition(advantage, undefined, undefined, (reference) =>
+          reference.kind === "SELF" ? [user] : [],
+        ),
+      ).toBe(false);
+    });
+
+    it("UT-R-ATR-05-007: throws when neither a per-target context nor a TargetSetResolver is supplied", () => {
+      expect(() => evaluateEffectStepCondition(advantage)).toThrow(DomainValidationError);
+    });
+  });
 });

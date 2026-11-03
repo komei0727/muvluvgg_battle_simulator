@@ -4512,4 +4512,201 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     );
     expect(index.effectActions.get("ACT_PLAIN_A" as never)?.kindKey).toBeUndefined();
   });
+
+  describe("SELECTED_TARGET_STATE placement (R-PS-09) / ATTRIBUTE_ADVANTAGE owner (R-ATR-05)", () => {
+    const farthestIsCute = {
+      kind: "SELECTED_TARGET_STATE",
+      selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["FARTHEST"] },
+      field: "ATTRIBUTE",
+      op: "EQ",
+      value: "CUTE",
+    } as const;
+    const rulesOf = (definitions: CatalogDefinitions): readonly string[] => {
+      try {
+        buildCatalogIndex(definitions);
+        return [];
+      } catch (error) {
+        return (error as CatalogIntegrityError).violations.map((v) => v.rule);
+      }
+    };
+    const withSkill = (skill: SkillDefinition, slot: "active" | "passive") => {
+      const defs = baseDefinitions();
+      return {
+        ...defs,
+        skills: [...defs.skills, skill],
+        units: [
+          unit(
+            "UNIT_001",
+            slot === "passive"
+              ? { passive: [skill.skillDefinitionId] }
+              : { active: ["SKL_AS1", skill.skillDefinitionId] },
+          ),
+        ],
+      };
+    };
+
+    it("UT-R-PS-09-005: accepts SELECTED_TARGET_STATE in a PS activationCondition, trigger condition, and counterUpdates trigger", () => {
+      for (const where of [
+        { activationCondition: farthestIsCute },
+        { trigger: farthestIsCute },
+        { counterUpdateTrigger: farthestIsCute },
+      ]) {
+        expect(rulesOf(withSkill(psSkillWithCondition("SKL_PS_SEL", where), "passive"))).toEqual(
+          [],
+        );
+      }
+    });
+
+    it("UT-R-PS-09-006: rejects SELECTED_TARGET_STATE in an AS/EX activationCondition and in any resolution step condition", () => {
+      const asWithActivation = createSkillDefinition({
+        skillDefinitionId: "SKL_AS_SEL",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        activationCondition: farthestIsCute,
+        resolution: {
+          kind: "IMMEDIATE",
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "SELF" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        metadata: { displayName: "AS" },
+      });
+      expect(rulesOf(withSkill(asWithActivation, "active"))).toContain(
+        "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
+      );
+
+      const psWithBranch = createSkillDefinition({
+        skillDefinitionId: "SKL_PS_BRANCH",
+        skillType: "PS",
+        cost: { resource: "PP", amount: 1 },
+        triggers: [
+          {
+            eventType: "TurnStarted",
+            category: "FACT",
+            sourceSelector: "SELF",
+            targetSelector: "SELF",
+          },
+        ],
+        resolution: {
+          kind: "IMMEDIATE",
+          steps: [
+            {
+              kind: "BRANCH",
+              condition: farthestIsCute,
+              thenSteps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "SELF" },
+                  actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+                },
+              ],
+              elseSteps: [],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 0 },
+        traits: {},
+        metadata: { displayName: "PS" },
+      });
+      expect(rulesOf(withSkill(psWithBranch, "passive"))).toContain(
+        "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
+      );
+    });
+
+    it("UT-R-PS-09-007: rejects SELECTED_TARGET_STATE in an effect's expiration.conditions (a holder-scoped expiry, not a PS activation check)", () => {
+      const action = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_EXPIRING",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              expiration: { conditions: [farthestIsCute] },
+            },
+          },
+        },
+        "effectAction",
+      );
+      const defs = baseDefinitions();
+      expect(
+        rulesOf({
+          ...defs,
+          skills: [...defs.skills, asSkill("SKL_AS2", "ACT_EXPIRING")],
+          units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+          effectActions: [...defs.effectActions, action],
+        }),
+      ).toContain("SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER");
+    });
+
+    it("UT-R-PS-09-009: rejects SELECTED_TARGET_STATE in an effect's duration.counterUpdates trigger (an AppliedEffect-scoped counter, not a PS activation check)", () => {
+      const action = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_COUNTING",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              counterUpdates: [
+                {
+                  kind: "INCREMENT",
+                  counter: "EFF_TEST_COUNT",
+                  scope: "APPLIED_EFFECT",
+                  trigger: {
+                    eventType: "TurnStarted",
+                    category: "FACT",
+                    sourceSelector: "SELF",
+                    targetSelector: "SELF",
+                    condition: farthestIsCute,
+                  },
+                  amount: 1,
+                },
+              ],
+            },
+          },
+        },
+        "effectAction",
+      );
+      const defs = baseDefinitions();
+      expect(
+        rulesOf({
+          ...defs,
+          skills: [...defs.skills, asSkill("SKL_AS2", "ACT_COUNTING")],
+          units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+          effectActions: [...defs.effectActions, action],
+        }),
+      ).toContain("SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER");
+    });
+
+    it("UT-R-ATR-05-011: rejects ATTRIBUTE_ADVANTAGE and SELECTED_TARGET_STATE in a Memory trigger condition (no attacking / selecting unit, R-MEM-04)", () => {
+      const defs = baseDefinitions();
+      for (const condition of [
+        { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } },
+        farthestIsCute,
+      ] as const) {
+        expect(
+          rulesOf({
+            ...defs,
+            effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+            memories: [memoryWithTrigger("MEM_OWNERLESS", condition)],
+          }),
+        ).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
+      }
+    });
+  });
 });

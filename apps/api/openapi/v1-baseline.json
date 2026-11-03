@@ -646,6 +646,50 @@
                 "type": "number"
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "target"],
+            "properties": {
+              "kind": {
+                "enum": ["ATTRIBUTE_ADVANTAGE"]
+              },
+              "target": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "targetBindingId"],
+                    "properties": {
+                      "kind": {
+                        "enum": ["BINDING"]
+                      },
+                      "targetBindingId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind"],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "SELF",
+                          "TRIGGER_SOURCE",
+                          "TRIGGER_TARGET",
+                          "LAST_ACTION_TARGETS",
+                          "LAST_DAMAGED_TARGETS"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
           }
         ],
         "title": "https://muvluvgg-battle-simulator/schemas/ConditionDefinition"
@@ -3564,7 +3608,9 @@
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
                                       "TARGET_EFFECT_COUNT",
-                                      "SELF_MEMORY_EQUIPPED"
+                                      "SELF_MEMORY_EQUIPPED",
+                                      "ATTRIBUTE_ADVANTAGE",
+                                      "SELECTED_TARGET_STATE"
                                     ]
                                   }
                                 }
@@ -3676,7 +3722,9 @@
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
                                       "TARGET_EFFECT_COUNT",
-                                      "SELF_MEMORY_EQUIPPED"
+                                      "SELF_MEMORY_EQUIPPED",
+                                      "ATTRIBUTE_ADVANTAGE",
+                                      "SELECTED_TARGET_STATE"
                                     ]
                                   },
                                   "result": {
@@ -10487,6 +10535,50 @@
                                               "type": "number"
                                             }
                                           }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": ["kind", "target"],
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["ATTRIBUTE_ADVANTAGE"]
+                                            },
+                                            "target": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind", "targetBindingId"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "enum": ["BINDING"]
+                                                    },
+                                                    "targetBindingId": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "SELF",
+                                                        "TRIGGER_SOURCE",
+                                                        "TRIGGER_TARGET",
+                                                        "LAST_ACTION_TARGETS",
+                                                        "LAST_DAMAGED_TARGETS"
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
                                         }
                                       ]
                                     }
@@ -16538,7 +16630,9 @@
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
                                       "TARGET_EFFECT_COUNT",
-                                      "SELF_MEMORY_EQUIPPED"
+                                      "SELF_MEMORY_EQUIPPED",
+                                      "ATTRIBUTE_ADVANTAGE",
+                                      "SELECTED_TARGET_STATE"
                                     ]
                                   }
                                 }
@@ -16650,7 +16744,9 @@
                                       "TARGET_SET_COUNT",
                                       "TARGET_HAS_EFFECT",
                                       "TARGET_EFFECT_COUNT",
-                                      "SELF_MEMORY_EQUIPPED"
+                                      "SELF_MEMORY_EQUIPPED",
+                                      "ATTRIBUTE_ADVANTAGE",
+                                      "SELECTED_TARGET_STATE"
                                     ]
                                   },
                                   "result": {
@@ -23463,6 +23559,50 @@
                                             },
                                             "value": {
                                               "type": "number"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": ["kind", "target"],
+                                          "properties": {
+                                            "kind": {
+                                              "enum": ["ATTRIBUTE_ADVANTAGE"]
+                                            },
+                                            "target": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind", "targetBindingId"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "enum": ["BINDING"]
+                                                    },
+                                                    "targetBindingId": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "additionalProperties": false,
+                                                  "required": ["kind"],
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "SELF",
+                                                        "TRIGGER_SOURCE",
+                                                        "TRIGGER_TARGET",
+                                                        "LAST_ACTION_TARGETS",
+                                                        "LAST_DAMAGED_TARGETS"
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              ]
                                             }
                                           }
                                         }
