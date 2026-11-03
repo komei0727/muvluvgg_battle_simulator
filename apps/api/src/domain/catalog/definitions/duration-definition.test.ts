@@ -478,4 +478,52 @@ describe("DurationDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-DUR-037 [R-EFF-07]: accepts consumption.instancePolicy OLDEST_ONLY on NEXT_INCOMING_ATTACK", () => {
+    const result = createDurationDefinition(
+      {
+        consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "OLDEST_ONLY" },
+      },
+      "duration",
+      undefined,
+    );
+    expect(result.consumption).toEqual({
+      kind: "NEXT_INCOMING_ATTACK",
+      maxCount: 1,
+      instancePolicy: "OLDEST_ONLY",
+    });
+  });
+
+  it("UT-CAT-DUR-038 [R-EFF-07]: rejects consumption.instancePolicy on kinds other than NEXT_INCOMING_ATTACK", () => {
+    expect(() =>
+      createDurationDefinition(
+        { consumption: { kind: "INCOMING_HIT", maxCount: 1, instancePolicy: "OLDEST_ONLY" } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-039 [R-EFF-07]: rejects an unknown consumption.instancePolicy", () => {
+    expect(() =>
+      createDurationDefinition(
+        { consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "ALL" } },
+        "duration",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-DUR-040 [R-EFF-09]: accepts linkedEffectGroupScope SKILL_USE", () => {
+    const result = createDurationDefinition(
+      {
+        linkedEffectGroupId: "LINK_A",
+        linkedEffectGroupRole: "PARENT",
+        linkedEffectGroupScope: "SKILL_USE",
+      },
+      "duration",
+      undefined,
+    );
+    expect(result.linkedEffectGroupScope).toBe("SKILL_USE");
+  });
 });

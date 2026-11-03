@@ -762,6 +762,64 @@ describe("consumeEffectDurations", () => {
     expect(updated.appliedEffects[0]!.duration.consumptionRemaining).toBe(0);
   });
 
+  it("UT-R-EFF-07-016 [R-EFF-07]: an OLDEST_ONLY consumption decrements only the oldest instance with remaining count per EffectActionDefinitionId", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const oldestOnly = {
+      consumption: {
+        kind: "NEXT_INCOMING_ATTACK",
+        maxCount: 1,
+        instancePolicy: "OLDEST_ONLY",
+      },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    } as const;
+    const everyInstance = {
+      consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    } as const;
+    const otherDefinitionId = createEffectActionDefinitionId("ACT_OTHER");
+    const spent = effectOn(target, source, oldestOnly, {
+      duration: { definition: oldestOnly, consumptionRemaining: 0 },
+    });
+    const oldest = effectOn(target, source, oldestOnly, {
+      duration: { definition: oldestOnly, consumptionRemaining: 1 },
+    });
+    const newer = effectOn(target, source, oldestOnly, {
+      duration: { definition: oldestOnly, consumptionRemaining: 1 },
+    });
+    const otherOldest = effectOn(target, source, oldestOnly, {
+      effectActionDefinitionId: otherDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(otherDefinitionId),
+      duration: { definition: oldestOnly, consumptionRemaining: 1 },
+    });
+    const plainA = effectOn(target, source, everyInstance, {
+      effectActionDefinitionId: otherDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(otherDefinitionId),
+      duration: { definition: everyInstance, consumptionRemaining: 1 },
+    });
+    const plainB = effectOn(target, source, everyInstance, {
+      effectActionDefinitionId: otherDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(otherDefinitionId),
+      duration: { definition: everyInstance, consumptionRemaining: 1 },
+    });
+    target = withEffects(target, [spent, oldest, newer, otherOldest, plainA, plainB]);
+
+    const result = consumeEffectDurations(
+      [source, target],
+      target.battleUnitId,
+      "NEXT_INCOMING_ATTACK",
+    );
+
+    expect(result.changes.map((change) => change.effectInstanceId)).toEqual([
+      oldest.effectInstanceId,
+      otherOldest.effectInstanceId,
+      plainA.effectInstanceId,
+      plainB.effectInstanceId,
+    ]);
+  });
+
   it("UT-R-EFF-07-002: ignores effects with a different consumption kind or no consumption clause", () => {
     const source = unit("source-1");
     let target = unit("target-1");

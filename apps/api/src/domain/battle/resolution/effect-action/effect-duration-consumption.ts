@@ -7,6 +7,9 @@ import {
 import { consumeEffectDurations } from "../../model/applied-effect-duration.js";
 import type { ConsumptionKind } from "../../../catalog/definitions/catalog-enums.js";
 import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
+import type { BattleUnit } from "../../model/battle-unit.js";
+import type { BattleUnitId } from "../../../shared/ids.js";
+import type { EffectInstanceId } from "../../../shared/event-ids.js";
 
 /**
  * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は「効果ownerが次に攻撃/攻撃対象に
@@ -43,6 +46,24 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
   >;
 } {
   const pendingExpirySeeds: ExpirationSeed[] = [];
+  // `consumption.instancePolicy: OLDEST_ONLY`は「1回の攻撃で最古の1インスタンス」。
+  // このフックは1 EffectAction（＝1回の攻撃）ごとに組み立てられるため、ここで消費済みの
+  // 保持ユニット×定義を覚えておき、多段ヒットの2ヒット目以降が次のインスタンスへ
+  // 進むのを止める。
+  const oldestOnlyConsumedKeys = new Set<string>();
+  const oldestOnlyKeyOf = (
+    units: readonly BattleUnit[],
+    battleUnitId: BattleUnitId,
+    effectInstanceId: EffectInstanceId,
+  ): string | null => {
+    const effect = units
+      .find((unit) => unit.battleUnitId === battleUnitId)
+      ?.appliedEffects.find((candidate) => candidate.effectInstanceId === effectInstanceId);
+    if (effect?.duration.definition.consumption?.instancePolicy !== "OLDEST_ONLY") {
+      return null;
+    }
+    return JSON.stringify([battleUnitId, effect.effectActionDefinitionId]);
+  };
   // 失効はステップを`yield`する`expireEffectsSteps`へ委譲し、通知（またはyield）の粒度は
   // `damage-application-service.ts`の`driveRemovalSteps`が決める。
   // `onFactEventForPassiveChain`をこの`eventContext`へ渡すと、そのstep通知とDAMAGE側の
@@ -66,6 +87,14 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
       let lastEventId = callParentEventId;
       const seeds: ExpirationSeed[] = [];
       for (const plannedChange of planned.changes) {
+        const oldestOnlyKey = oldestOnlyKeyOf(
+          workingUnits,
+          plannedChange.battleUnitId,
+          plannedChange.effectInstanceId,
+        );
+        if (oldestOnlyKey !== null && oldestOnlyConsumedKeys.has(oldestOnlyKey)) {
+          continue;
+        }
         // 先行stepのPS/Memory連鎖が後続の対象を解除・失効させている場合があるため、
         // 最新の`workingUnits`に対して都度再評価する。既に消えていれば
         // （`changes`が空）このインスタンスの消費自体を行わない。
@@ -80,6 +109,9 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
           continue;
         }
         workingUnits = applied.units;
+        if (oldestOnlyKey !== null) {
+          oldestOnlyConsumedKeys.add(oldestOnlyKey);
+        }
         const stepEventsStart = eventContext.recorder.getEvents().length;
         lastEventId = emitEffectConsumptionChangedEvents(
           eventContext,

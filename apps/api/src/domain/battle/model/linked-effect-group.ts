@@ -1,10 +1,8 @@
 import type { BattleUnit } from "./battle-unit.js";
 import type { EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type {
-  DurationDefinition,
-  LinkedEffectGroupRole,
-} from "../../catalog/definitions/duration-definition.js";
+import type { EffectDurationState } from "./applied-effect.js";
+import type { LinkedEffectGroupRole } from "../../catalog/definitions/duration-definition.js";
 
 /** `LinkedGroupInstances`の片側だけをseedにする呼び出し向けの共有空集合。 */
 export const NO_EFFECT_INSTANCE_IDS: ReadonlySet<EffectInstanceId> = new Set();
@@ -66,23 +64,30 @@ export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemb
 /**
  * R-EFF-09: 連動グループを識別するキー。`linkedEffectGroupScope: HOLDER`のメンバーは
  * 保持ユニットごとに別のグループとして扱う（同じ`linkedEffectGroupId`でも他ユニットの
- * メンバーとは連動しない）。連動しない（`linkedEffectGroupId: null`）なら`null`。
+ * メンバーとは連動しない）。`SKILL_USE`はさらに付与時の`SkillUseId`ごとに分ける。
+ * 連動しない（`linkedEffectGroupId: null`）なら`null`。
  *
  * キーは要素数の違うJSON配列で表す。区切り文字で連結すると、`HOLDER`の
  * 「GROUP_A」＋保持者「ally:1」と、`BATTLE`でIDがたまたま「GROUP_A@ally:1」のグループが
  * 同じ文字列になり、無関係な効果まで連動してしまう（どちらの文字列もスキーマ上許される）。
  */
 export function linkedGroupKeyOf(
-  definition: DurationDefinition,
+  duration: EffectDurationState,
   holderUnitId: BattleUnitId,
 ): string | null {
+  const definition = duration.definition;
   const groupId = definition.linkedEffectGroupId;
   if (groupId === null) {
     return null;
   }
-  return JSON.stringify(
-    definition.linkedEffectGroupScope === "HOLDER" ? [groupId, holderUnitId] : [groupId],
-  );
+  switch (definition.linkedEffectGroupScope) {
+    case "HOLDER":
+      return JSON.stringify([groupId, holderUnitId]);
+    case "SKILL_USE":
+      return JSON.stringify([groupId, holderUnitId, duration.linkedGroupSkillUseId ?? null]);
+    default:
+      return JSON.stringify([groupId]);
+  }
 }
 
 export function collectLinkedGroupCascade(
@@ -95,15 +100,15 @@ export function collectLinkedGroupCascade(
 
   const register = (
     member: LinkedGroupMember,
-    definition: DurationDefinition,
+    duration: EffectDurationState,
     holderUnitId: BattleUnitId,
   ): void => {
-    const groupId = linkedGroupKeyOf(definition, holderUnitId);
+    const groupId = linkedGroupKeyOf(duration, holderUnitId);
     if (groupId === null) {
       return;
     }
     groupIdByKey.set(linkedGroupMemberKey(member), groupId);
-    roleByKey.set(linkedGroupMemberKey(member), definition.linkedEffectGroupRole);
+    roleByKey.set(linkedGroupMemberKey(member), duration.definition.linkedEffectGroupRole);
     const bucket = membersByGroupId.get(groupId);
     if (bucket === undefined) {
       membersByGroupId.set(groupId, [member]);
@@ -116,14 +121,14 @@ export function collectLinkedGroupCascade(
     for (const effect of unit.appliedEffects) {
       register(
         { kind: "EFFECT", effectInstanceId: effect.effectInstanceId },
-        effect.duration.definition,
+        effect.duration,
         unit.battleUnitId,
       );
     }
     for (const marker of unit.markerStates) {
       register(
         { kind: "MARKER", markerInstanceId: marker.markerInstanceId },
-        marker.duration.definition,
+        marker.duration,
         unit.battleUnitId,
       );
     }

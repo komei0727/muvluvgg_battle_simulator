@@ -2424,6 +2424,43 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-R-EFF-09-036 [R-EFF-09]: rejects linkedEffectGroupScope SKILL_USE on APPLY_MARKER, since re-applications stack into one MarkerState that keeps a single SkillUseId", () => {
+    const skillUseScopedMarker = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MARKER_SKILL_USE_SCOPE",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_TEST",
+          stack: { policy: "ADD", max: null },
+          duration: {
+            dispellable: true,
+            linkedEffectGroupId: "GROUP_SET",
+            linkedEffectGroupScope: "SKILL_USE",
+          },
+        },
+      },
+      "effectAction",
+    );
+
+    const defs = baseDefinitions();
+    try {
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SKILL_USE_SCOPE")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        effectActions: [...defs.effectActions, skillUseScopedMarker],
+      });
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE")
+          .map((v) => v.targetId),
+      ).toEqual(["ACT_MARKER_SKILL_USE_SCOPE"]);
+    }
+  });
+
   it("UT-R-EFF-10-044 (R-EFF-10 APPLY_SHIELD拡張、Issue #660): accepts duration.removeOnSourceDefeated on APPLY_SHIELD", () => {
     const shieldWithSourceDefeatRemoval = createEffectActionDefinition(
       {

@@ -343,6 +343,14 @@ export interface EffectDurationState {
    */
   readonly grantedSkillUseId?: SkillUseId;
   /**
+   * R-EFF-09: `definition.linkedEffectGroupScope === "SKILL_USE"`の場合、付与時の
+   * `SkillUseId`。同じスキル使用で付与されたメンバーだけを連動させるキーに使う。
+   * スキル使用の外の付与（Memory由来など）では持たず、その場合は保持ユニット単位で
+   * 連動する（`HOLDER`と同じ）。`MarkerState`は`SKILL_USE`をCatalogロード時に拒否するため
+   * 持たない。
+   */
+  readonly linkedGroupSkillUseId?: SkillUseId;
+  /**
    * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（R-EFF-11、
    * EFF-005/Issue #162）。`definition.counterUpdates`が存在する場合だけ空の
    * マップから始まる（`AppliedEffect`／`MarkerState`のどちらも同じ
@@ -375,6 +383,9 @@ export function buildInitialDurationState(
     ...(timeLimit?.unit === "TURN" ? { grantedTurnNumber: context.turnNumber } : {}),
     ...(timeLimit?.unit === "SKILL_USE" && context.skillUseId !== undefined
       ? { grantedSkillUseId: context.skillUseId }
+      : {}),
+    ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.skillUseId !== undefined
+      ? { linkedGroupSkillUseId: context.skillUseId }
       : {}),
     ...(definition.counterUpdates !== undefined && definition.counterUpdates.length > 0
       ? { counters: {} }

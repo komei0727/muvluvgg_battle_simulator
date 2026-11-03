@@ -10,7 +10,11 @@ import type { MarkerState } from "./marker-state.js";
 import type { BattlePartyMember } from "./battle-party.js";
 import type { FormationPosition } from "./formation-input.js";
 import { toGlobalCoordinate } from "./global-coordinate.js";
-import { createEffectInstanceId, createMarkerInstanceId } from "../../shared/event-ids.js";
+import {
+  createEffectInstanceId,
+  createMarkerInstanceId,
+  createSkillUseId,
+} from "../../shared/event-ids.js";
 import { createBattleUnitId } from "../../shared/ids.js";
 import {
   createEffectActionDefinitionId,
@@ -210,6 +214,52 @@ describe("collectLinkedGroupCascade", () => {
       effectInstanceIds: new Set(),
       markerInstanceIds: new Set([holderScopedParent.markerInstanceId]),
     });
+  });
+
+  it("UT-R-EFF-09-033 [R-EFF-09]: a SKILL_USE-scoped group cascades only within the members granted by the same skill use", () => {
+    const skillUseScoped = (instance: AppliedEffect, skillUse: string): AppliedEffect => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: { ...instance.duration.definition, linkedEffectGroupScope: "SKILL_USE" },
+        linkedGroupSkillUseId: createSkillUseId(skillUse),
+      },
+    });
+    const holder = unit("holder");
+    const shield1 = skillUseScoped(effect("shield-1", holder, "GROUP_SET", "PARENT"), "use-1");
+    const buff1 = skillUseScoped(effect("buff-1", holder, "GROUP_SET", "CHILD"), "use-1");
+    const shield2 = skillUseScoped(effect("shield-2", holder, "GROUP_SET", "PARENT"), "use-2");
+    const buff2 = skillUseScoped(effect("buff-2", holder, "GROUP_SET", "CHILD"), "use-2");
+    const units = [{ ...holder, appliedEffects: [shield1, buff1, shield2, buff2] }];
+
+    const result = collectLinkedGroupCascade(units, effectSeeds(shield1));
+
+    expect(result.effectInstanceIds).toEqual(
+      new Set([shield1.effectInstanceId, buff1.effectInstanceId]),
+    );
+  });
+
+  it("UT-R-EFF-09-034 [R-EFF-09]: a SKILL_USE-scoped group stays within its holder even when the skill use matches", () => {
+    const skillUseScoped = (instance: AppliedEffect): AppliedEffect => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: { ...instance.duration.definition, linkedEffectGroupScope: "SKILL_USE" },
+        linkedGroupSkillUseId: createSkillUseId("use-1"),
+      },
+    });
+    const targetA = unit("target-a");
+    const targetB = unit("target-b");
+    const parentA = skillUseScoped(effect("parent-a", targetA, "GROUP_SET", "PARENT"));
+    const childB = skillUseScoped(effect("child-b", targetB, "GROUP_SET", "CHILD"));
+    const units = [
+      { ...targetA, appliedEffects: [parentA] },
+      { ...targetB, appliedEffects: [childB] },
+    ];
+
+    const result = collectLinkedGroupCascade(units, effectSeeds(parentA));
+
+    expect(result.effectInstanceIds).toEqual(new Set([parentA.effectInstanceId]));
   });
 
   it("UT-R-EFF-09-004 (R-EFF-09): does not expand through an instance with linkedEffectGroupId null", () => {

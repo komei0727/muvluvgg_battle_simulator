@@ -288,6 +288,17 @@ export function validateEffectAction(
       message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER and APPLY_SHIELD (R-EFF-10, M7-020, Issue #660): this kind has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
     });
   }
+  // R-EFF-09: `SKILL_USE`範囲は付与ごとのインスタンスが付与時の`SkillUseId`を持つことを
+  // 前提にする。Markerは再付与が既存の1つの`MarkerState`へスタックとして積まれ、
+  // 最初の付与の`SkillUseId`しか保持できないため、スキル使用ごとの連動を表せない
+  // （後の付与分のスタックが連動せず、最初のセットの失効でMarker全体が消える）。
+  if (effectAction.kind === "APPLY_MARKER" && duration?.linkedEffectGroupScope === "SKILL_USE") {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE",
+      message: `duration.linkedEffectGroupScope "SKILL_USE" is not supported on APPLY_MARKER (R-EFF-09): re-applications stack into one MarkerState that keeps a single SkillUseId, so per-skill-use linking cannot be represented`,
+    });
+  }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的
   // 期間を解決するのは`resolveDurationOnReapply`（`effect-grant-service.ts`）を
   // 通る付与経路だけである。`APPLY_MARKER`は`marker-apply-service.ts`が

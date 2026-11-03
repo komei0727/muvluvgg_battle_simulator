@@ -110,6 +110,35 @@ describe("buildInitialDurationState", () => {
     expect(state.consumptionRemaining).toBeUndefined();
   });
 
+  it("UT-R-EFF-01-068 [R-EFF-09]: records the granting SkillUseId for a SKILL_USE-scoped linked group", () => {
+    const definition: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_SET",
+      linkedEffectGroupScope: "SKILL_USE",
+    };
+    const skillUseId = createSkillUseId("battle-1:skill-use:4");
+
+    const state = buildInitialDurationState(definition, { turnNumber: 1, skillUseId });
+
+    expect(state.linkedGroupSkillUseId).toBe(skillUseId);
+    expect(state.grantedSkillUseId).toBeUndefined();
+  });
+
+  it("UT-R-EFF-01-069 [R-EFF-09]: does not record a SkillUseId for linked groups of other scopes", () => {
+    const definition: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_SET",
+      linkedEffectGroupScope: "HOLDER",
+    };
+
+    const state = buildInitialDurationState(definition, {
+      turnNumber: 1,
+      skillUseId: createSkillUseId("battle-1:skill-use:4"),
+    });
+
+    expect(state.linkedGroupSkillUseId).toBeUndefined();
+  });
+
   it("UT-R-EFF-01-007: does not set grantedActionId for an ACTION-unit duration granted outside an action (PS from a top-level event)", () => {
     const definition: DurationDefinition = {
       timeLimit: { unit: "ACTION", count: 1 },

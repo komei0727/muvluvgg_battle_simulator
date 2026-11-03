@@ -10,7 +10,7 @@ import {
 import type { EffectSequencePlan } from "../skill/skill-resolution-service.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createEffectInstanceId, createSkillUseId } from "../../shared/event-ids.js";
 import { createEffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { DurationDefinition } from "../../catalog/definitions/duration-definition.js";
@@ -273,6 +273,210 @@ describe("applyEffectActionGroups", () => {
     expect(eventTypes).toContain("CombatStatChanged");
     expect(eventTypes.indexOf("DamageApplied")).toBeLessThan(eventTypes.indexOf("EffectExpired"));
     expect(result.outcome.status).toBe("COMPLETED");
+  });
+
+  it("UT-R-EFF-07-017 [R-EFF-07]: a multi-hit attack consumes only the oldest of several OLDEST_ONLY instances, not one per hit", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const attack = damageAction("ACT_ATTACK", 4);
+    const setBuffId = createEffectActionDefinitionId("ACT_SET_BUFF");
+    const setBuffDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "OLDEST_ONLY" },
+    };
+    const setBuff: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: setBuffId,
+      metadata: { tags: [] },
+      payload: {
+        stat: "DEFENSE",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 0 },
+        stacking: { mode: "STACKABLE", max: null },
+        duration: setBuffDuration,
+      },
+    };
+    const setInstance = (id: string): AppliedEffect => ({
+      effectInstanceId: createEffectInstanceId(id),
+      effectActionDefinitionId: setBuffId,
+      kindKey: effectKindKeyFromDefinitionId(setBuffId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("ENEMY"),
+      targetUnitId: createBattleUnitId("ENEMY"),
+      magnitude: 0,
+      categories: ["BUFF"],
+      duration: { definition: setBuffDuration, consumptionRemaining: 1 },
+      appliedTurnNumber: 1,
+    });
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [setInstance("set-1"), setInstance("set-2"), setInstance("set-3")],
+    });
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [setBuff.effectActionDefinitionId, setBuff],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const fourHitStep: EffectSequencePlan["steps"][number] = {
+      planKind: "ACTION_PLAN",
+      stepIndex: 0,
+      stepKind: "ACTION",
+      conditionKind: "TRUE",
+      satisfied: true,
+      actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+      applications: [
+        {
+          targetUnitId: enemy.battleUnitId,
+          effectActionDefinitionId: attack.effectActionDefinitionId,
+          includeDefeated: false,
+          hits: [1, 2, 3, 4].map((hitIndex) => ({
+            targetUnitId: enemy.battleUnitId,
+            effectActionDefinitionId: attack.effectActionDefinitionId,
+            hitIndex,
+          })),
+        },
+      ],
+    };
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [fourHitStep],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const confirmedHits = recorder.getEvents().filter((e) => e.eventType === "HitConfirmed");
+    expect(confirmedHits).toHaveLength(4);
+    const finalEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(finalEnemy.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("set-2"),
+      createEffectInstanceId("set-3"),
+    ]);
+    const expired = recorder.getEvents().filter((e) => e.eventType === "EffectExpired");
+    expect(expired.map((e) => e.payload.effectInstanceId)).toEqual([
+      createEffectInstanceId("set-1"),
+    ]);
+  });
+
+  it("UT-R-EFF-09-035 [R-EFF-07][R-EFF-09]: a multi-hit attack on a holder of three shield+buff sets removes only the oldest set's shield and its SKILL_USE-linked buff", () => {
+    const actor = unit("ACTOR", "ALLY");
+    const attack = damageAction("ACT_ATTACK", 4);
+    const shieldId = createEffectActionDefinitionId("ACT_SET_SHIELD");
+    const buffId = createEffectActionDefinitionId("ACT_SET_CRIT_UP");
+    const shieldDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_SET",
+      linkedEffectGroupRole: "PARENT",
+      linkedEffectGroupScope: "SKILL_USE",
+      consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "OLDEST_ONLY" },
+    };
+    const buffDuration: DurationDefinition = {
+      dispellable: false,
+      linkedEffectGroupId: "GROUP_SET",
+      linkedEffectGroupRole: "CHILD",
+      linkedEffectGroupScope: "SKILL_USE",
+    };
+    const shield: EffectActionDefinition = {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: shieldId,
+      metadata: { tags: [] },
+      payload: { formula: { kind: "CONSTANT", value: 1000 }, duration: shieldDuration },
+    };
+    const buff: EffectActionDefinition = {
+      kind: "APPLY_STAT_MOD",
+      effectActionDefinitionId: buffId,
+      metadata: { tags: [] },
+      payload: {
+        stat: "CRITICAL_RATE",
+        valueType: "FIXED",
+        formula: { kind: "CONSTANT", value: 0 },
+        stacking: { mode: "STACKABLE", max: null },
+        duration: buffDuration,
+      },
+    };
+    const holderId = createBattleUnitId("ENEMY");
+    const setMembers = (n: number): AppliedEffect[] => [
+      {
+        effectInstanceId: createEffectInstanceId(`shield-${n}`),
+        effectActionDefinitionId: shieldId,
+        kindKey: effectKindKeyFromDefinitionId(shieldId),
+        duplicate: true,
+        sourceUnitId: holderId,
+        targetUnitId: holderId,
+        magnitude: 1000,
+        categories: ["SHIELD"],
+        shield: { shieldType: null, remaining: 1000 },
+        duration: {
+          definition: shieldDuration,
+          consumptionRemaining: 1,
+          linkedGroupSkillUseId: createSkillUseId(`use-${n}`),
+        },
+        appliedTurnNumber: 1,
+      },
+      {
+        effectInstanceId: createEffectInstanceId(`buff-${n}`),
+        effectActionDefinitionId: buffId,
+        kindKey: effectKindKeyFromDefinitionId(buffId),
+        duplicate: true,
+        sourceUnitId: holderId,
+        targetUnitId: holderId,
+        magnitude: 0,
+        categories: ["BUFF"],
+        duration: {
+          definition: buffDuration,
+          linkedGroupSkillUseId: createSkillUseId(`use-${n}`),
+        },
+        appliedTurnNumber: 1,
+      },
+    ];
+    const enemy = unit("ENEMY", "ENEMY", {
+      appliedEffects: [...setMembers(1), ...setMembers(2), ...setMembers(3)],
+    });
+    const effectActions = new Map([
+      [attack.effectActionDefinitionId, attack],
+      [shield.effectActionDefinitionId, shield],
+      [buff.effectActionDefinitionId, buff],
+    ]);
+    const { recorder, rootEventId } = seedRecorder();
+    const context = contextFor(actor, effectActions, recorder, rootEventId);
+    const plan: EffectSequencePlan = {
+      stealthConsumptions: [],
+      steps: [
+        {
+          planKind: "ACTION_PLAN",
+          stepIndex: 0,
+          stepKind: "ACTION",
+          conditionKind: "TRUE",
+          satisfied: true,
+          actions: [{ effectActionDefinitionId: attack.effectActionDefinitionId }],
+          applications: [
+            {
+              targetUnitId: enemy.battleUnitId,
+              effectActionDefinitionId: attack.effectActionDefinitionId,
+              includeDefeated: false,
+              hits: [1, 2, 3, 4].map((hitIndex) => ({
+                targetUnitId: enemy.battleUnitId,
+                effectActionDefinitionId: attack.effectActionDefinitionId,
+                hitIndex,
+              })),
+            },
+          ],
+        },
+      ],
+      targetUnitIds: [enemy.battleUnitId],
+      resolvedBindings: new Map(),
+    };
+
+    const result = applyEffectActionGroups(plan, [actor, enemy], context);
+
+    const finalEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+    expect(finalEnemy.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("shield-2"),
+      createEffectInstanceId("buff-2"),
+      createEffectInstanceId("shield-3"),
+      createEffectInstanceId("buff-3"),
+    ]);
   });
 });
 
