@@ -2690,7 +2690,7 @@
       "maximumAp": 4,
       "maximumPp": 4
     },
-    "levelGrowth": { "hp": 300, "attack": 194, "defense": 106, "actionSpeed": 2 },
+    "levelGrowth": { "hp": 300, "attack": 188, "defense": 106, "actionSpeed": 2 },
     "extraGaugeMaximum": 7,
     "activeSkillDefinitionIds": ["SKL_YIFEI_STORM_AS1", "SKL_YIFEI_STORM_AS2"],
     "passiveSkillDefinitionIds": ["SKL_YIFEI_STORM_PS1", "SKL_YIFEI_STORM_PS2"],
