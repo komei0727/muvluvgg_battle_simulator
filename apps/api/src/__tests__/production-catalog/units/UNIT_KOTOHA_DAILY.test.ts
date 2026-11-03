@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { removeMarkers } from "../../../domain/battle/effects/marker-removal-service.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
 import {
@@ -473,5 +479,67 @@ describe("production Catalog UNIT_KOTOHA_DAILY (【歩む先に新たな日常�
     expect(cleared.appliedEffects.map((effect) => effect.effectActionDefinitionId)).not.toContain(
       "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
     );
+  });
+
+  it("IT-UNIT-KOTOHA-DAILY-006 (R-EFF-09): EXが横一列へ配ったデバフは対象ごとの連動グループで、1体のMarkerが解除されても他の敵のMarkerとデバフは残る", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const recorder = new EventRecorder(createBattleId("B_KOTOHA_DAILY_EX_SCOPE"));
+    const afterEx = resolveSkillUse(
+      board.subject,
+      skillFrom(snapshot, "SKL_KOTOHA_DAILY_EX"),
+      "EX",
+      "EX",
+      board.units,
+      board.definitions,
+      new SequenceRandomSource(new Array<number>(64).fill(0.99)),
+      recorder,
+      1,
+      0,
+      createActionId("B_KOTOHA_DAILY_EX_SCOPE:action:1"),
+      recorder.nextResolutionScopeId(),
+    ).units;
+    const holdersOf = (units: typeof afterEx) =>
+      units
+        .filter(
+          (unit) =>
+            unit.markerStates.some((marker) => marker.markerId === EX_GAIN_DOWN_MARKER) &&
+            unit.appliedEffects.some(
+              (effect) => effect.effectActionDefinitionId === "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+            ),
+        )
+        .map((unit) => String(unit.battleUnitId));
+    expect(holdersOf(afterEx)).toEqual(["enemy:front", "enemy:left"]);
+
+    const front = afterEx.find((unit) => unit.battleUnitId === "enemy:front")!;
+    const marker = front.markerStates.find((state) => state.markerId === EX_GAIN_DOWN_MARKER)!;
+    const scope = recorder.nextResolutionScopeId();
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      resolutionScopeId: scope,
+      payload: { turnNumber: 1 },
+    });
+    const { units } = removeMarkers(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: scope,
+        rootEventId: seed.eventId,
+      },
+      afterEx,
+      [
+        {
+          battleUnitId: createBattleUnitId("enemy:front"),
+          markerInstanceId: marker.markerInstanceId,
+          reason: "REMOVED",
+        },
+      ],
+      board.definitions.effectActions,
+      seed.eventId,
+    );
+    expect(holdersOf(units)).toEqual(["enemy:left"]);
   });
 });

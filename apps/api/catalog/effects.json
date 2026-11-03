@@ -4047,6 +4047,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER",
         "removeOnSourceDefeated": true
       }
     },
@@ -4063,7 +4064,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
       }
     },
     "metadata": { "tags": [] }
