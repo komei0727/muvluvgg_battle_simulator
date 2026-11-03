@@ -26,6 +26,11 @@ import {
   turnCompleting,
 } from "../../../testing/production-unit/trigger-events.js";
 import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
+import {
+  activatedPassiveSkillIds,
+  openPassiveChain,
+} from "../../../testing/production-unit/passive-activation.js";
+import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
 
 /**
  * `UNIT_YIFEI_STORM`（【暴風小隊長】崔亦菲）のユニット単位production結合テスト
@@ -416,5 +421,29 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
     expect(
       remaining.every((effect) => effect.duration.linkedGroupSkillUseId === newerSkillUseId),
     ).toBe(true);
+  });
+
+  it("IT-UNIT-YIFEI-STORM-006 [R-EFF-05]: PS2はターン終了のたびに発動し、会心率と防御力の上昇が置き換わらずに重なって残る", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    let units = board.units;
+    for (const turnNumber of [1, 2]) {
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_YIFEI_PS2_TURN_${turnNumber}`,
+        turnNumber,
+      });
+      units = chain.fire(turnCompleting({ turnNumber }), units);
+      expect(activatedPassiveSkillIds(chain)).toEqual(["SKL_YIFEI_STORM_PS2"]);
+    }
+
+    const subject = units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    const countOf = (id: string) =>
+      subject.appliedEffects.filter((effect) => effect.effectActionDefinitionId === id).length;
+    expect(countOf("ACT_YIFEI_STORM_PS2_CRIT_UP")).toBe(2);
+    expect(countOf("ACT_YIFEI_STORM_PS2_DEF_UP")).toBe(2);
+    const effective = computeCombatStats(subject, board.definitions.effectActions).combatStats;
+    expect(effective.criticalRate).toBeCloseTo(subject.baseCombatStats.criticalRate + 0.15, 10);
+    expect(effective.defense).toBe(Math.floor(subject.baseCombatStats.defense * 1.15));
   });
 });
