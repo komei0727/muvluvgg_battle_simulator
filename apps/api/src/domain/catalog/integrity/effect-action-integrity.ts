@@ -65,13 +65,17 @@ export function validateEffectAction(
   }
   if (
     duration !== undefined &&
-    (duration.expiration?.conditions ?? []).some(conditionContainsSelectedTargetState)
+    [
+      ...(duration.expiration?.conditions ?? []),
+      ...(duration.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger.condition),
+    ].some(conditionContainsSelectedTargetState)
   ) {
-    // R-PS-09: 保持者スコープの失効条件はPSの発動判定ではない。
+    // R-PS-09: 保持者スコープの失効条件・AppliedEffectスコープのcounterはPSの発動判定
+    // ではなく、評価経路もユニット一覧を渡さないため選択を解決できない。
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
-      message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+      message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
     });
   }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {

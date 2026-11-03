@@ -1070,4 +1070,48 @@ describe("DAMAGE_MAX_HP_RATIO in counterUpdates triggers (R-PS-01)", () => {
     });
     expect(smallHit.changes).toHaveLength(0);
   });
+
+  it("UT-RCOUNTER-M-020 [R-PS-09]: a SKILL_RUNTIME counterUpdates trigger can use SELECTED_TARGET_STATE — the selector is resolved against the battle's units", () => {
+    const skill = passiveSkillOf("SKL_PS1", [
+      {
+        kind: "INCREMENT",
+        counter: "RUNTIME_COUNTER_CRIT",
+        scope: "SKILL_RUNTIME",
+        trigger: {
+          eventType: "CriticalCheckResolved",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "SELECTED_TARGET_STATE",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["FARTHEST"] },
+            field: "ATTRIBUTE",
+            op: "EQ",
+            value: "CUTE",
+          },
+        },
+        amount: 1,
+      },
+    ]);
+    const owner = unit("U1", "ALLY", { row: "FRONT", column: "LEFT" }, UNIT_DEF_A);
+    const unitDefinitions = new Map([
+      [UNIT_DEF_A, unitDefinitionOf(UNIT_DEF_A, [skill.skillDefinitionId])],
+    ]);
+    const skillDefinitions = new Map([[skill.skillDefinitionId, skill]]);
+    const changesWith = (attribute: "CUTE" | "CLEVER") => {
+      const enemy = {
+        ...unit("E1", "ENEMY", { row: "BACK", column: "RIGHT" }, UNIT_DEF_A),
+        attribute,
+      };
+      return detectRuntimeCounterUpdates({
+        event: critEvent(owner.battleUnitId),
+        units: [owner, enemy],
+        unitDefinitions,
+        skillDefinitions,
+      }).changes.filter((change) => change.ownerUnitId === owner.battleUnitId);
+    };
+
+    expect(changesWith("CLEVER")).toEqual([]);
+    expect(changesWith("CUTE").map((change) => change.after)).toEqual([1]);
+  });
 });

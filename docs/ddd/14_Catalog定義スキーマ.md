@@ -2045,7 +2045,7 @@ condition:
   target: { kind: BINDING, targetBindingId: TGT_ENEMY }
 ```
 
-`SELECTED_TARGET_STATE`（`R-PS-09`）は、PSの発動判定（Skillの`triggers[].condition`／`counterUpdates[].trigger.condition`、PSの`activationCondition`）でだけ使える。評価時点でPS所有者を起点に`selector`を副作用なしに解決し（Stealthを消費しない）、選ばれたユニットのいずれかが`TARGET_STATE`と同じ`field`/`op`/`value`（fieldごとの`value`型も同じ）を満たせば成立、0件なら不成立とする。`selector`は`kind: SELECT`だけを受理し、TargetBindingを参照するfilter等は宣言できない（発動判定時点に解決済みbindingが無いため）。それ以外の配置は`SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER`として、Memoryの評価文脈は`MEMORY_REQUIRES_SOURCE_UNIT`として拒否する。不成立なら発動しないため、PP消費・EXゲージ獲得・発動回数counterの更新は起きない — resolution内の`BRANCH`で効果だけを止める書き方と異なる点である。
+`SELECTED_TARGET_STATE`（`R-PS-09`）は、PSの発動判定（Skillの`triggers[].condition`／`counterUpdates[].trigger.condition`、PSの`activationCondition`）でだけ使える。評価時点でPS所有者を起点に`selector`を副作用なしに解決し（Stealthを消費しない）、選ばれたユニットのいずれかが`TARGET_STATE`と同じ`field`/`op`/`value`（fieldごとの`value`型も同じ）を満たせば成立、0件なら不成立とする。`selector`は`kind: SELECT`だけを受理し、TargetBindingを参照するfilter等は宣言できない（発動判定時点に解決済みbindingが無いため）。それ以外の配置（resolution step、AS/EXの`activationCondition`、効果の`expiration.conditions`・`duration.counterUpdates`）は`SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER`として、Memoryの評価文脈は`MEMORY_REQUIRES_SOURCE_UNIT`として拒否する。不成立なら発動しないため、PP消費・EXゲージ獲得・発動回数counterの更新は起きない — resolution内の`BRANCH`で効果だけを止める書き方と異なる点である。
 
 ```yaml
 activationCondition:

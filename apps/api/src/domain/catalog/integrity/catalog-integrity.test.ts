@@ -4649,6 +4649,50 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
       ).toContain("SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER");
     });
 
+    it("UT-R-PS-09-009: rejects SELECTED_TARGET_STATE in an effect's duration.counterUpdates trigger (an AppliedEffect-scoped counter, not a PS activation check)", () => {
+      const action = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_COUNTING",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              counterUpdates: [
+                {
+                  kind: "INCREMENT",
+                  counter: "EFF_TEST_COUNT",
+                  scope: "APPLIED_EFFECT",
+                  trigger: {
+                    eventType: "TurnStarted",
+                    category: "FACT",
+                    sourceSelector: "SELF",
+                    targetSelector: "SELF",
+                    condition: farthestIsCute,
+                  },
+                  amount: 1,
+                },
+              ],
+            },
+          },
+        },
+        "effectAction",
+      );
+      const defs = baseDefinitions();
+      expect(
+        rulesOf({
+          ...defs,
+          skills: [...defs.skills, asSkill("SKL_AS2", "ACT_COUNTING")],
+          units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+          effectActions: [...defs.effectActions, action],
+        }),
+      ).toContain("SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER");
+    });
+
     it("UT-R-ATR-05-011: rejects ATTRIBUTE_ADVANTAGE and SELECTED_TARGET_STATE in a Memory trigger condition (no attacking / selecting unit, R-MEM-04)", () => {
       const defs = baseDefinitions();
       for (const condition of [
