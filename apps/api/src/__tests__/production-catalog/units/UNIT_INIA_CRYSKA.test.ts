@@ -52,6 +52,13 @@ const FREEZE_ACTION = "ACT_MIRIAM_MAGE_EX_FREEZE";
 /** 状態異常（STATUS）だが気絶・凍結ではない付与。PS1の条件が「状態異常全般」に緩んでいないかを見る。 */
 const POISON_SOURCE_UNIT_ID = "UNIT_CHIYURU_MAZE";
 const POISON_ACTION = "ACT_CHIYURU_MAZE_AS1_POISON";
+/**
+ * `statusKind`を持つ（`APPLY_STATUS`由来の）状態異常で、気絶・凍結ではないもの。毒は
+ * `APPLY_CONTINUOUS_DAMAGE`で`statusKind`を持たないため、`statusKind IN [...]`の値集合が
+ * 広がる回帰はこちらでしか検出できない。
+ */
+const BLIND_SOURCE_UNIT_ID = "UNIT_STELLA_STATUE";
+const BLIND_ACTION = "ACT_STELLA_STATUE_AS1_BLIND";
 const PRAVKA = "MARKER_INIA_CRYSKA_PRAVKA";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
@@ -59,6 +66,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   STUN_SOURCE_UNIT_ID,
   FREEZE_SOURCE_UNIT_ID,
   POISON_SOURCE_UNIT_ID,
+  BLIND_SOURCE_UNIT_ID,
 ]);
 
 /** 先行するDAMAGEの会心判定を 0.99 で外し、`RANDOM_BRANCH` の抽選値を置く列。 */
@@ -388,12 +396,28 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
-    intent: "(不成立: 他の状態異常): 気絶・凍結以外の状態異常（毒）の付与では発動しない",
+    intent:
+      "(不成立: 継続ダメージ系の状態異常): 毒の付与では発動しない（条件が状態異常全般へ緩む回帰の検出）",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
       trigger: realEffectApplication({
         effectActionDefinitionId: POISON_ACTION,
+        from: "enemy:front",
+        to: "ally:front",
+      }),
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+    intent:
+      "(不成立: 他の状態異常): 気絶・凍結以外の`statusKind`を持つ状態異常（暗闇）の付与では発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_INIA_CRYSKA_PS1",
+      trigger: realEffectApplication({
+        effectActionDefinitionId: BLIND_ACTION,
         from: "enemy:front",
         to: "ally:front",
       }),
