@@ -2676,6 +2676,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_YIFEI_STORM",
+    "attribute": "CUTE",
+    "unitType": "PHYSICAL",
+    "role": "PHYSICAL_ATTACKER",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 32158,
+      "attack": 20903,
+      "defense": 11468,
+      "criticalRate": 0.25,
+      "actionSpeed": 783,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 300, "attack": 194, "defense": 106, "actionSpeed": 2 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_YIFEI_STORM_AS1", "SKL_YIFEI_STORM_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_YIFEI_STORM_PS1", "SKL_YIFEI_STORM_PS2"],
+    "extraSkillDefinitionId": "SKL_YIFEI_STORM_EX",
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【暴風小隊長】崔亦菲",
+      "characterName": "崔亦菲",
+      "characterId": "CHAR_CUI_YIFEI"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_YUI_HEIR",
     "attribute": "CUTE",
     "unitType": "AGILE",

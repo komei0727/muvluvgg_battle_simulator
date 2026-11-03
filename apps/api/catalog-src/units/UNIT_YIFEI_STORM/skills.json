@@ -1,0 +1,179 @@
+[
+  {
+    "skillDefinitionId": "SKL_YIFEI_STORM_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["HIGHEST_CRITICAL_RATE", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_EX_DAMAGE_MULTI" },
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_EX_DAMAGE_FINISH" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "滾らせてちょうだい!", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YIFEI_STORM_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMIES",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 2,
+            "order": ["FRONT_ROW", "DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_NOMINATION" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "あんたを指名するわ！幸運ね！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YIFEI_STORM_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_SHIELD" },
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_CRIT_DMG_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "次ッ！次ッ！まとめて次ッ！", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_YIFEI_STORM_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_TRIGGER_TARGET",
+          "selector": { "kind": "TRIGGER_TARGET" }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_TRIGGER_TARGET" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_PS1_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_PS1_PP_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "やるじゃない、乗ったわ!", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "CriticalCheckResolved",
+        "category": "FACT",
+        "sourceSelector": "ALLY",
+        "targetSelector": "ENEMY",
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "result", "op": "EQ", "value": true },
+            {
+              "kind": "TARGET_HAS_MARKER",
+              "target": { "kind": "TRIGGER_TARGET" },
+              "markerId": "MARKER_YIFEI_STORM_NOMINATION"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_YIFEI_STORM_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_PS2_CRIT_UP" },
+            { "effectActionDefinitionId": "ACT_YIFEI_STORM_PS2_DEF_UP" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "暴風ナメんじゃないわよ！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnCompleting",
+        "category": "TIMING",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF"
+      }
+    ]
+  }
+]
