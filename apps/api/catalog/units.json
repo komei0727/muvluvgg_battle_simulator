@@ -703,6 +703,39 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_INIA_CRYSKA",
+    "attribute": "SHY",
+    "subAttribute": "SMART",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 27455,
+      "attack": 24481,
+      "defense": 10421,
+      "criticalRate": 0.2,
+      "actionSpeed": 757,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 253, "attack": 230, "defense": 94, "actionSpeed": 2 },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_INIA_CRYSKA_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_INIA_CRYSKA_PS1",
+      "SKL_INIA_CRYSKA_PS2",
+      "SKL_INIA_CRYSKA_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_INIA_CRYSKA_EX",
+    "metadata": {
+      "affiliations": [],
+      "tags": [],
+      "displayName": "【スカーレット・ツイン】イーニァ＆クリスカ",
+      "characterName": "イーニァ＆クリスカ",
+      "characterId": "CHAR_INIA_CRYSKA"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_JULIE_SNOW",
     "attribute": "SHY",
     "unitType": "ENERGY",

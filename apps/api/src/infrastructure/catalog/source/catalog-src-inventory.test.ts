@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { readCatalogSource } from "./catalog-src-aggregator.js";
 
 /**
- * `catalog-src/` の変換済み件数の正本。ここで固定する期待件数（変換済み Unit 84 /
+ * `catalog-src/` の変換済み件数の正本。ここで固定する期待件数（変換済み Unit 85 /
  * Memory 45 / EXERCISE_ENEMY 12）が唯一の台帳であり、Unit・Memory を追加・削除する
  * PR は同じ PR でこの期待値を更新する。黙った増減（変換したのに数え漏れる、
  * 消したのに気づかれない）をここで検出する。
@@ -26,7 +26,7 @@ function apiPackageRootPath(...segments: string[]): string {
 }
 
 describe("catalog-src/ inventory", () => {
-  it("IT-CAT-INV-001: catalog-src/ has exactly 84 converted units, excluding synthetic INTERNAL fixtures and EXERCISE_ENEMY units", () => {
+  it("IT-CAT-INV-001: catalog-src/ has exactly 85 converted units, excluding synthetic INTERNAL fixtures and EXERCISE_ENEMY units", () => {
     const source = readCatalogSource(apiPackageRootPath("catalog-src"));
     const converted = source.units.filter(
       (unit) =>
@@ -34,7 +34,7 @@ describe("catalog-src/ inventory", () => {
           "INTERNAL",
         ) && (unit as { category?: string }).category !== "EXERCISE_ENEMY",
     );
-    expect(converted).toHaveLength(84);
+    expect(converted).toHaveLength(85);
   });
 
   it("IT-CAT-INV-002: catalog-src/ has exactly 45 converted memories", () => {
