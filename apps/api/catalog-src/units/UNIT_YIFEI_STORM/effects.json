@@ -1,0 +1,150 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_EX_DAMAGE_MULTI",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.234 },
+      "hitCount": 7
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_EX_DAMAGE_FINISH",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.848 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_NOMINATION",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_YIFEI_STORM_NOMINATION",
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
+        "removeOnSourceDefeated": true
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.9036 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.39 },
+      "hitCount": 4
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.25 },
+      "duration": {
+        "dispellable": true,
+        "consumption": {
+          "kind": "NEXT_INCOMING_ATTACK",
+          "maxCount": 1,
+          "instancePolicy": "OLDEST_ONLY"
+        },
+        "linkedEffectGroupId": "YIFEI_STORM_AS2_SET_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "YIFEI_STORM_AS2_SET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_AS2_CRIT_DMG_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_DAMAGE_BONUS",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.135 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "YIFEI_STORM_AS2_SET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 1.06 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_PS1_PP_UP",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_PS2_CRIT_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "CRITICAL_RATE",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_YIFEI_STORM_PS2_DEF_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  }
+]

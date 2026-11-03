@@ -163,6 +163,7 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         // Issue #701: 桃園めるの3バリアント目（#700 エンジン拡張依存）
         "UNIT_MERU_BESIDE",
         "UNIT_NINA_ZINA_FRONTRUNNER",
+        "UNIT_YIFEI_STORM",
         // Issue #719: 戦術演習敵ユニット追加: 破壊：榊野ヒイロ
         "UNIT_HIIRO_FREEWOLF_TEX",
         // Issue #721: 戦術演習敵ユニット追加: 破壊：オルガ＆ナージャ

@@ -3986,6 +3986,62 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_URUU_TIMID completes 
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YIFEI_STORM completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 2,
+  "completionReason": "ENEMY_DEFEATED",
+  "eventCount": 445,
+  "eventSequenceHash": "sha256:ab17ee969feb8cc0",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 9,
+    "ACTION_COMPLETING": 9,
+    "ACTION_QUEUE_CREATED": 5,
+    "ACTION_RESERVATION_REMOVED": 1,
+    "ACTION_STARTED": 9,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COMBAT_STAT_CHANGED": 22,
+    "COOLDOWN_COMPLETED": 2,
+    "COOLDOWN_REDUCED": 5,
+    "COOLDOWN_STARTED": 4,
+    "CRITICAL_CHECK_RESOLVED": 21,
+    "DAMAGE_APPLIED": 21,
+    "DAMAGE_CALCULATED": 21,
+    "DAMAGE_WILL_BE_APPLIED": 21,
+    "EFFECT_ACTION_COMPLETED": 32,
+    "EFFECT_ACTION_STARTING": 32,
+    "EFFECT_APPLIED": 19,
+    "EFFECT_CONSUMPTION_CHANGED": 4,
+    "EFFECT_EXPIRED": 12,
+    "EFFECT_STEP_COMPLETED": 20,
+    "EFFECT_STEP_STARTING": 20,
+    "EXTRA_GAUGE_INCREASED": 2,
+    "HIT_CONFIRMED": 21,
+    "HIT_POINT_REDUCED": 21,
+    "MARKER_APPLIED": 4,
+    "MARKER_REMOVED": 3,
+    "MARKER_UPDATED": 5,
+    "PASSIVE_ACTIVATED": 2,
+    "PASSIVE_POINT_CONSUMED": 2,
+    "PASSIVE_RESOLVED": 2,
+    "RESOURCES_RECOVERED": 2,
+    "RESOURCE_CHANGED": 30,
+    "SHIELD_CONSUMED": 10,
+    "SKILL_USE_COMPLETED": 9,
+    "SKILL_USE_STARTED": 9,
+    "SKILL_USE_STARTING": 9,
+    "TARGETS_SELECTED": 9,
+    "TURN_COMPLETED": 1,
+    "TURN_COMPLETING": 1,
+    "TURN_STARTED": 2,
+    "UNIT_BEING_ATTACKED": 9,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_WIN",
+  "unitDefinitionId": "UNIT_YIFEI_STORM",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YUI_HEIR completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,
