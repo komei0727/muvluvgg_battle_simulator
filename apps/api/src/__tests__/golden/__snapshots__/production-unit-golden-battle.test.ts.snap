@@ -1364,6 +1364,53 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOKORO_SPORTSDAY comp
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOTOHA_DAILY completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 1,
+  "completionReason": "ENEMY_DEFEATED",
+  "eventCount": 204,
+  "eventSequenceHash": "sha256:7052b5115fd6ef39",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 7,
+    "ACTION_COMPLETING": 7,
+    "ACTION_QUEUE_CREATED": 4,
+    "ACTION_RESERVATION_REMOVED": 1,
+    "ACTION_STARTED": 7,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "CONTINUOUS_DAMAGE_APPLIED": 4,
+    "COOLDOWN_COMPLETED": 3,
+    "COOLDOWN_REDUCED": 7,
+    "COOLDOWN_STARTED": 5,
+    "CRITICAL_CHECK_RESOLVED": 5,
+    "DAMAGE_APPLIED": 5,
+    "DAMAGE_CALCULATED": 5,
+    "DAMAGE_WILL_BE_APPLIED": 5,
+    "EFFECT_ACTION_COMPLETED": 12,
+    "EFFECT_ACTION_STARTING": 12,
+    "EFFECT_APPLIED": 6,
+    "EFFECT_CONSUMPTION_CHANGED": 2,
+    "EFFECT_DURATION_REDUCED": 5,
+    "EFFECT_EXPIRED": 2,
+    "EFFECT_STEP_COMPLETED": 17,
+    "EFFECT_STEP_STARTING": 17,
+    "HIT_CONFIRMED": 5,
+    "HIT_POINT_REDUCED": 5,
+    "RESOURCES_RECOVERED": 1,
+    "RESOURCE_CHANGED": 18,
+    "SKILL_USE_COMPLETED": 7,
+    "SKILL_USE_STARTED": 7,
+    "SKILL_USE_STARTING": 7,
+    "TARGETS_SELECTED": 7,
+    "TURN_STARTED": 1,
+    "UNIT_BEING_ATTACKED": 5,
+    "UNIT_DEFEATED": 1,
+  },
+  "outcome": "ALLY_WIN",
+  "unitDefinitionId": "UNIT_KOTOHA_DAILY",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOTOHA_REBEL completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,
