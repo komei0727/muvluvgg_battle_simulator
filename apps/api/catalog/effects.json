@@ -3198,6 +3198,150 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.17 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_EX_REMOVE_PRAVKA",
+    "kind": "REMOVE_MARKER",
+    "payload": { "markerId": "MARKER_INIA_CRYSKA_PRAVKA" },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_EX_PRAVKA",
+    "kind": "APPLY_MARKER",
+    "payload": {
+      "markerId": "MARKER_INIA_CRYSKA_PRAVKA",
+      "stack": { "policy": "REFRESH", "max": 1 },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "INIA_CRYSKA_PRAVKA_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "HOLDER"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_EX_PRAVKA_BONUS_DAMAGE",
+    "kind": "APPLY_ATTACK_DAMAGE_BONUS",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 0.125
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 2 },
+        "linkedEffectGroupId": "INIA_CRYSKA_PRAVKA_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "HOLDER"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_AS1_VULNERABLE",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.351 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS1_CLEANSE",
+    "kind": "REMOVE_EFFECTS",
+    "payload": { "categories": ["DEBUFF"] },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS1_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.3 },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.546 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS2_ADVANTAGE_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.312 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS3_AFFINITY_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "AFFINITY_BONUS",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS3_AFFINITY_DOWN",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "AFFINITY_BONUS",
+      "valueType": "FIXED",
+      "formula": { "kind": "CONSTANT", "value": -0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_INIA_CRYSKA_PS3_VULNERABLE",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.1 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_JULIE_SNOW_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": {
