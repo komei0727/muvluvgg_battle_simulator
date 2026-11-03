@@ -1,4 +1,5 @@
 import { heldMarkerStackTotal } from "../model/marker-state.js";
+import { hasAttributeAdvantage } from "../model/attribute-advantage.js";
 import type {
   ConditionDefinition,
   JsonPrimitive,
@@ -230,6 +231,7 @@ export type TargetSetResolver = (reference: TargetReference) => readonly BattleU
  * active skillでの誤用）。
  */
 const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
+const SELF_REFERENCE: TargetReference = { kind: "SELF" };
 
 export function evaluateEffectStepCondition(
   condition: ConditionDefinition,
@@ -314,6 +316,34 @@ export function evaluateEffectStepCondition(
       throw new DomainValidationError(
         "step.condition",
         'kind "TARGET_STATE" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION) or a TargetSetResolver (BRANCH step-wide scope)',
+      );
+    }
+    case "ATTRIBUTE_ADVANTAGE": {
+      // R-ATR-05: 攻撃側は常に使用者（SELF）。対象と同じ解決経路でSELFを引く。
+      const resolve =
+        targetContext !== undefined
+          ? (reference: TargetReference) =>
+              targetReferenceEquals(reference, targetContext.stepTarget)
+                ? [targetContext.current]
+                : targetContext.resolveOtherReference(reference)
+          : resolveTargetSet;
+      if (resolve === undefined) {
+        throw new DomainValidationError(
+          "step.condition",
+          'kind "ATTRIBUTE_ADVANTAGE" requires an EffectStepTargetContext (CAP_EFFECT_STEP_CONDITION) or a TargetSetResolver (BRANCH step-wide scope)',
+        );
+      }
+      const user = resolve(SELF_REFERENCE)[0];
+      const candidates = resolve(condition.target);
+      if (targetContext === undefined && candidates.length > 1) {
+        throw new DomainValidationError(
+          "step.condition",
+          `kind "ATTRIBUTE_ADVANTAGE" resolved ${candidates.length} units for a step-wide (BRANCH) condition, but step-wide quantification over more than one unit is not supported (Catalog preflight should already guarantee at most one unit for this TargetReference)`,
+        );
+      }
+      return (
+        user !== undefined &&
+        candidates.some((target) => hasAttributeAdvantage(user, target.attribute))
       );
     }
     case "TARGET_HAS_MARKER": {

@@ -34,6 +34,7 @@ export function collectConditionTargetReferences(
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
     case "TARGET_EFFECT_COUNT":
+    case "ATTRIBUTE_ADVANTAGE":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
       return [condition.target];
@@ -141,6 +142,7 @@ export function conditionContainsTargetStateOrMarker(condition: ConditionDefinit
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
     case "TARGET_EFFECT_COUNT":
+    case "ATTRIBUTE_ADVANTAGE":
       return true;
     case "AND":
     case "OR":
@@ -152,7 +154,7 @@ export function conditionContainsTargetStateOrMarker(condition: ConditionDefinit
   }
 }
 
-/** 対象ごとに真偽が変わる4 kind（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT`）の参照をpath付きで集める。 */
+/** 対象ごとに真偽が変わるkind（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_HAS_EFFECT`/`TARGET_EFFECT_COUNT`/`ATTRIBUTE_ADVANTAGE`）の参照をpath付きで集める。 */
 export function collectTargetStateOrMarkerReferences(
   condition: ConditionDefinition,
   path: string,
@@ -162,6 +164,7 @@ export function collectTargetStateOrMarkerReferences(
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
     case "TARGET_EFFECT_COUNT":
+    case "ATTRIBUTE_ADVANTAGE":
       return [{ reference: condition.target, path }];
     case "AND":
     case "OR":
@@ -190,6 +193,7 @@ export function collectConditionTargetReferencePaths(
     case "TARGET_HAS_MARKER":
     case "TARGET_HAS_EFFECT":
     case "TARGET_EFFECT_COUNT":
+    case "ATTRIBUTE_ADVANTAGE":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
       return [{ reference: condition.target, path }];
@@ -248,6 +252,14 @@ export function collectConditionEffectActionReferences(
   }
 }
 
+/**
+ * R-PS-09: `SELECTED_TARGET_STATE`を評価できるのはPSの発動判定（`triggering/`の
+ * trigger条件評価器）だけで、EffectStep評価器・AS/EXの行動選択は処理しない。
+ */
+export function conditionContainsSelectedTargetState(condition: ConditionDefinition): boolean {
+  return conditionContainsKind(condition, "SELECTED_TARGET_STATE");
+}
+
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるか。 */
 export function conditionReferencesLastResult(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
@@ -276,8 +288,11 @@ export function conditionReferencesLastResult(condition: ConditionDefinition): b
  */
 export function conditionRequiresSourceUnit(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
+    // R-ATR-05: 攻撃側は評価しているユニット自身。R-PS-09: 選択の起点も同じ。
     case "POSITION_RELATION":
     case "RUNTIME_COUNTER":
+    case "ATTRIBUTE_ADVANTAGE":
+    case "SELECTED_TARGET_STATE":
       return true;
     case "ALIVE_UNIT_COUNT":
       return condition.excludeSelf === true;

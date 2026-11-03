@@ -1207,4 +1207,97 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
       );
     }
   });
+
+  it("UT-CAT-COND-070 [R-ATR-05]: maps ATTRIBUTE_ADVANTAGE with a target reference", () => {
+    expect(
+      createConditionDefinition(
+        { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({ kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } });
+  });
+
+  it("UT-CAT-COND-071 [R-ATR-05]: rejects ATTRIBUTE_ADVANTAGE without a target or with an unknown key", () => {
+    expect(() =>
+      createConditionDefinition({ kind: "ATTRIBUTE_ADVANTAGE" }, "condition", undefined),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createConditionDefinition(
+        { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "SELF" }, field: "ATTRIBUTE" },
+        "condition",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-CAT-COND-072 [R-PS-09]: maps SELECTED_TARGET_STATE with a SELECT selector and a TARGET_STATE field comparison", () => {
+    expect(
+      createConditionDefinition(
+        {
+          kind: "SELECTED_TARGET_STATE",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["FARTHEST"] },
+          field: "ATTRIBUTE",
+          op: "EQ",
+          value: "CUTE",
+        },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({
+      kind: "SELECTED_TARGET_STATE",
+      selector: {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [],
+        order: ["FARTHEST"],
+        includeDefeated: false,
+      },
+      field: "ATTRIBUTE",
+      op: "EQ",
+      value: "CUTE",
+    });
+  });
+
+  it("UT-CAT-COND-073 [R-PS-09]: rejects SELECTED_TARGET_STATE whose selector is not SELECT, references a TargetBinding, or whose value type does not match the field", () => {
+    const base = {
+      kind: "SELECTED_TARGET_STATE",
+      selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["FARTHEST"] },
+      field: "ATTRIBUTE",
+      op: "EQ",
+      value: "CUTE",
+    } as const;
+    for (const input of [
+      {
+        ...base,
+        selector: {
+          kind: "BINDING_DERIVED",
+          side: "ENEMY",
+          base: { kind: "SELF" },
+          area: { kind: "SAME_ROW_AS_BASE", includeBase: true },
+        },
+      },
+      {
+        ...base,
+        selector: {
+          kind: "SELECT",
+          side: "ENEMY",
+          count: 1,
+          filters: [
+            {
+              kind: "EXCLUDE_RESOLVED_UNIT",
+              reference: { kind: "BINDING", targetBindingId: "TGT" },
+            },
+          ],
+        },
+      },
+      { ...base, value: 1 },
+      { ...base, field: "UNKNOWN" },
+    ]) {
+      expect(() => createConditionDefinition(input, "condition", new Set(["TGT"]))).toThrow(
+        DomainValidationError,
+      );
+    }
+  });
 });

@@ -27,7 +27,8 @@ import {
 } from "../model/applied-effect-query.js";
 import type { RuntimeCounterMap } from "../model/runtime-counter-state.js";
 import { frontDirectionStep } from "../targeting/position-policy.js";
-import { matchesRelativeSideOf } from "../targeting/target-selection-policy.js";
+import { matchesRelativeSideOf, resolveTargets } from "../targeting/target-selection-policy.js";
+import { hasAttributeAdvantage } from "../model/attribute-advantage.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
 
 /**
@@ -234,7 +235,7 @@ function resolveTargetStateField(
  */
 function matchesTargetState(
   target: BattleUnit,
-  condition: Extract<ConditionDefinition, { kind: "TARGET_STATE" }>,
+  condition: Pick<Extract<ConditionDefinition, { kind: "TARGET_STATE" }>, "field" | "op" | "value">,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> | undefined,
 ): boolean {
   if (condition.field === "HAS_STATUS") {
@@ -483,6 +484,36 @@ export function evaluateTriggerCondition(
           condition.countCondition.value,
         );
       });
+    }
+    case "ATTRIBUTE_ADVANTAGE": {
+      if (context?.owner === undefined || context.getUnit === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "ATTRIBUTE_ADVANTAGE" requires a context with an owner BattleUnit (the attacker, R-ATR-05) and a getUnit lookup',
+        );
+      }
+      const { owner, getUnit } = context;
+      return resolveTargetReferenceIds(condition.target, owner, event).some((id) => {
+        const target = getUnit(id);
+        return target !== undefined && hasAttributeAdvantage(owner, target.attribute);
+      });
+    }
+    case "SELECTED_TARGET_STATE": {
+      if (context?.owner === undefined || context.units === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "SELECTED_TARGET_STATE" requires a context with an owner BattleUnit (the selector\'s source, R-PS-09) and units',
+        );
+      }
+      // 発動判定は選択を確定させないため、Stealthを消費しない`resolveTargets`を使う。
+      return resolveTargets(
+        condition.selector,
+        context.owner,
+        context.units,
+        undefined,
+        undefined,
+        context.unitDefinitions,
+      ).some((target) => matchesTargetState(target, condition, context.unitDefinitions));
     }
     case "ALIVE_UNIT_COUNT": {
       const relativeSide = context?.owner?.side ?? context?.ownerSide;

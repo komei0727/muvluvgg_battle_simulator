@@ -2010,30 +2010,51 @@ condition:
 
 ### kind 一覧
 
-| kind                   | 追加フィールド                                          | 意味                                                                                               |
-| ---------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `TRUE`                 | なし                                                    | 常に成立                                                                                           |
-| `AND`                  | `conditions[]`                                          | 全条件                                                                                             |
-| `OR`                   | `conditions[]`                                          | いずれか                                                                                           |
-| `NOT`                  | `condition`                                             | 否定                                                                                               |
-| `TARGET_STATE`         | `target`, `field`, `op`, `value`                        | 対象状態比較                                                                                       |
-| `TARGET_HAS_MARKER`    | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                    |
-| `EVENT_PAYLOAD`        | `field`, `op`, `value`                                  | trigger payload比較                                                                                |
-| `DAMAGE_MAX_HP_RATIO`  | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                 |
-| `HP_RATIO_CROSSED`     | `threshold`, `direction`                                | trigger payloadの`hpBefore`/`hpAfter`の最大HP比が閾値を上から下へ跨いだか（`R-PS-01`）             |
-| `LAST_RESULT`          | `field`, `op`, `value`                                  | 直前結果比較                                                                                       |
-| `RUNTIME_COUNTER`      | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                        |
-| `TURN_NUMBER`          | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                     |
-| `ALIVE_UNIT_COUNT`     | `side`, `excludeSelf`, `op`, `value`                    | 生存ユニット数の直接比較（G-03、Issue #44）                                                        |
-| `POSITION_RELATION`    | `target`, `relation`                                    | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）             |
-| `RESOLUTION_PHASE`     | `phase`, `negate`                                       | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144） |
-| `TARGET_SET_COUNT`     | `target`, `countOf`, `op`, `value`                      | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）       |
-| `TARGET_EFFECT_COUNT`  | `target`, `categories`, `op`, `value`                   | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                             |
-| `SELF_MEMORY_EQUIPPED` | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                      |
+| kind                    | 追加フィールド                                          | 意味                                                                                                  |
+| ----------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `TRUE`                  | なし                                                    | 常に成立                                                                                              |
+| `AND`                   | `conditions[]`                                          | 全条件                                                                                                |
+| `OR`                    | `conditions[]`                                          | いずれか                                                                                              |
+| `NOT`                   | `condition`                                             | 否定                                                                                                  |
+| `TARGET_STATE`          | `target`, `field`, `op`, `value`                        | 対象状態比較                                                                                          |
+| `TARGET_HAS_MARKER`     | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                       |
+| `EVENT_PAYLOAD`         | `field`, `op`, `value`                                  | trigger payload比較                                                                                   |
+| `DAMAGE_MAX_HP_RATIO`   | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                    |
+| `HP_RATIO_CROSSED`      | `threshold`, `direction`                                | trigger payloadの`hpBefore`/`hpAfter`の最大HP比が閾値を上から下へ跨いだか（`R-PS-01`）                |
+| `LAST_RESULT`           | `field`, `op`, `value`                                  | 直前結果比較                                                                                          |
+| `RUNTIME_COUNTER`       | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                           |
+| `TURN_NUMBER`           | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                        |
+| `ALIVE_UNIT_COUNT`      | `side`, `excludeSelf`, `op`, `value`                    | 生存ユニット数の直接比較（G-03、Issue #44）                                                           |
+| `POSITION_RELATION`     | `target`, `relation`                                    | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）                |
+| `RESOLUTION_PHASE`      | `phase`, `negate`                                       | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144）    |
+| `TARGET_SET_COUNT`      | `target`, `countOf`, `op`, `value`                      | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）          |
+| `TARGET_EFFECT_COUNT`   | `target`, `categories`, `op`, `value`                   | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                                |
+| `SELF_MEMORY_EQUIPPED`  | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                         |
+| `ATTRIBUTE_ADVANTAGE`   | `target`                                                | 自身が`target`に対して有利属性か（`R-ATR-05`、Issue #762、後述）                                      |
+| `SELECTED_TARGET_STATE` | `selector`, `field`, `op`, `value`                      | 評価時点に`selector`で選んだ対象の`TARGET_STATE`比較。PSの発動判定専用（`R-PS-09`、Issue #762、後述） |
 
 `MARKER_COUNT_SCALE`・`MARKER_COUNT`（order）・`TARGET_HAS_MARKER`はいずれも、単一の`markerId`に代えて`markerIds`（1件以上、重複不可）を指定できる。両方の指定や、どちらも無い指定はCatalogロード時点で拒否する。`markerIds`を指定した場合、所持数は列挙したマーカーのスタック数の合計になる。`TARGET_HAS_MARKER`は、列挙したマーカーを1つも所持していなければ`countCondition`に関わらず不成立とする（単一`markerId`の不所持と同じ規約）。用途は寿命の違う同名マーカーを合算して数えることである — `MarkerState`はmarkerIdごとに1インスタンス・1 Durationしか持てないため（R-EFF-10）、寿命の違うスタックはmarkerIdを分けて付与し、所持数を問う側で合計する。
 
 `SELF_MEMORY_EQUIPPED`は`ALIVE_UNIT_COUNT`と同じ`owner.side`/`ownerSide`解決規則を使う（`owner`が無いMemory評価文脈では`ownerSide`が基準）。`BattleDefinitions.memoriesBySide`（陣営ごとの装備メモリー射影）を参照するため、この文脈を配線していない評価経路（PS本体のactivation trigger等）では明確な`DomainValidationError`で隔離される — 現状は`RuntimeCounterUpdateDefinition`（`counterUpdates`）のtrigger.conditionからの利用のみ配線済み。
+
+`ATTRIBUTE_ADVANTAGE`（`R-ATR-05`）は、条件を評価しているユニット自身から`target`への有利属性を、ダメージの属性倍率と同じ判定（防御側はメイン属性だけ、攻撃側はメインが有利でなければサブ属性で再判定）で問う。`TARGET_STATE.field: ATTRIBUTE`は対象のサブ属性も含む存在量化（`R-ATR-04`）のため、相性の代用にはならない。対象ごとに真偽が変わる条件として`TARGET_STATE`と同じスコープ表（後述「TARGET_HAS_EFFECT」節の表）に従う。
+
+```yaml
+condition:
+  kind: ATTRIBUTE_ADVANTAGE
+  target: { kind: BINDING, targetBindingId: TGT_ENEMY }
+```
+
+`SELECTED_TARGET_STATE`（`R-PS-09`）は、PSの発動判定（Skillの`triggers[].condition`／`counterUpdates[].trigger.condition`、PSの`activationCondition`）でだけ使える。評価時点でPS所有者を起点に`selector`を副作用なしに解決し（Stealthを消費しない）、選ばれたユニットのいずれかが`TARGET_STATE`と同じ`field`/`op`/`value`（fieldごとの`value`型も同じ）を満たせば成立、0件なら不成立とする。`selector`は`kind: SELECT`だけを受理し、TargetBindingを参照するfilter等は宣言できない（発動判定時点に解決済みbindingが無いため）。それ以外の配置は`SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER`として、Memoryの評価文脈は`MEMORY_REQUIRES_SOURCE_UNIT`として拒否する。不成立なら発動しないため、PP消費・EXゲージ獲得・発動回数counterの更新は起きない — resolution内の`BRANCH`で効果だけを止める書き方と異なる点である。
+
+```yaml
+activationCondition:
+  kind: SELECTED_TARGET_STATE
+  selector: { kind: SELECT, side: ENEMY, count: 1, order: [FARTHEST] }
+  field: ATTRIBUTE
+  op: EQ
+  value: CUTE
+```
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。
 

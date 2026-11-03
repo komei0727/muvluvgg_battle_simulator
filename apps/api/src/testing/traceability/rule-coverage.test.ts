@@ -88,8 +88,10 @@ describe("Rule coverage ledger", () => {
     // 評価するR-ATR-04を新設し145→146 — R-ATR-03はダメージ計算の有利属性判定に
     // 限定したフォールバックであり、条件・フィルタ全般でのサブ属性無視は
     // 別の欠陥だった。
+    // Issue #762で自身→対象の有利属性条件（R-ATR-05）とPS発動判定での対象選択
+    // （R-PS-09）を新設し146→148。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(146);
+    expect(RULE_COVERAGE).toHaveLength(148);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

@@ -8,12 +8,14 @@ import {
   collectConditionEffectActionReferences,
   collectConditionTargetReferencePaths,
   collectTargetStateOrMarkerReferences,
+  conditionContainsSelectedTargetState,
   triggerScopedConditionKindIn,
 } from "./condition-inspection.js";
 import {
   collectStepConditionEffectActionReferences,
   triggerScopedConditionKindInSteps,
   stepsContainEventPayloadCondition,
+  stepsSomeCondition,
 } from "./effect-step-inspection.js";
 import {
   validateBranchTargetStateUnboundedReference,
@@ -230,6 +232,23 @@ export function validateSkill(
       targetId: skill.skillDefinitionId,
       rule: `${activationScopedKind}_REQUIRES_TRIGGER`,
       message: `a ${activationScopedKind} condition is trigger-scoped (TriggerDefinition.condition only) — an activationCondition cannot resolve it, so "${skill.skillDefinitionId}" would fail at action selection`,
+    });
+  }
+  // R-PS-09: `SELECTED_TARGET_STATE`はPSの発動判定（trigger条件・PSの
+  // `activationCondition`）専用。step評価器とAS/EXの行動選択は処理しないため、
+  // ロードを通すと解決中・行動選択中に例外で止まる。
+  if (
+    sequences.some((sequence) =>
+      stepsSomeCondition(sequence.steps, conditionContainsSelectedTargetState),
+    ) ||
+    (skill.skillType !== "PS" &&
+      skill.activationCondition !== undefined &&
+      conditionContainsSelectedTargetState(skill.activationCondition))
+  ) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
+      message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it in a resolution step or an ${skill.skillType} activationCondition`,
     });
   }
   for (const trigger of skill.triggers) {

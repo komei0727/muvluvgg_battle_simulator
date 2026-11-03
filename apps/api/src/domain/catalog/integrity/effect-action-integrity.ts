@@ -6,6 +6,7 @@ import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
   collectConditionEffectActionReferences,
+  conditionContainsSelectedTargetState,
   triggerScopedConditionKindIn,
 } from "./condition-inspection.js";
 import { durationOf } from "./effect-action-inspection.js";
@@ -61,6 +62,17 @@ export function validateEffectAction(
         message: `a ${scopedKind} condition is trigger-scoped (TriggerDefinition.condition only) — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
       });
     }
+  }
+  if (
+    duration !== undefined &&
+    (duration.expiration?.conditions ?? []).some(conditionContainsSelectedTargetState)
+  ) {
+    // R-PS-09: 保持者スコープの失効条件はPSの発動判定ではない。
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
+      message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — expiration.conditions of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+    });
   }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {
     for (const referencedId of effectAction.payload.effectActionDefinitionIds ?? []) {

@@ -1627,3 +1627,111 @@ describe("evaluateTriggerCondition", () => {
     });
   });
 });
+
+describe("evaluateTriggerCondition: ATTRIBUTE_ADVANTAGE (R-ATR-05)", () => {
+  const owner = unitAt("OWNER", "ALLY", "FRONT", "LEFT", {
+    attribute: "SHY",
+    subAttribute: "SMART",
+  });
+  const evaluate = (target: BattleUnit) => {
+    const units = [owner, target];
+    return evaluateTriggerCondition(
+      { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } },
+      { payload: {}, sourceUnitId: target.battleUnitId },
+      {
+        owner,
+        skillDefinitionId: SKILL_ID,
+        getUnit: (id) => units.find((unit) => unit.battleUnitId === id),
+      },
+    );
+  };
+
+  it("UT-R-ATR-05-008: the PS owner is the attacker; main and sub attribute advantages both hold", () => {
+    expect(evaluate(unitAt("E_CUTE", "ENEMY", "FRONT", "LEFT", { attribute: "CUTE" }))).toBe(true);
+    expect(evaluate(unitAt("E_AGG", "ENEMY", "FRONT", "LEFT", { attribute: "AGGRESSIVE" }))).toBe(
+      true,
+    );
+  });
+
+  it("UT-R-ATR-05-009: the target's sub attribute is not considered, and an unresolvable target is not a match", () => {
+    expect(
+      evaluate(
+        unitAt("E_SHY_CUTE", "ENEMY", "FRONT", "LEFT", { attribute: "SHY", subAttribute: "CUTE" }),
+      ),
+    ).toBe(false);
+    expect(
+      evaluateTriggerCondition(
+        { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } },
+        { payload: {} },
+        { owner, skillDefinitionId: SKILL_ID, getUnit: () => undefined },
+      ),
+    ).toBe(false);
+  });
+
+  it("UT-R-ATR-05-010: throws without an owner (Memory evaluation has no attacking unit)", () => {
+    expect(() =>
+      evaluateTriggerCondition(
+        { kind: "ATTRIBUTE_ADVANTAGE", target: { kind: "TRIGGER_SOURCE" } },
+        { payload: {} },
+        { ownerSide: "ALLY", getUnit: () => undefined },
+      ),
+    ).toThrow(DomainValidationError);
+  });
+});
+
+describe("evaluateTriggerCondition: SELECTED_TARGET_STATE (R-PS-09)", () => {
+  const owner = unitAt("OWNER", "ALLY", "FRONT", "CENTER");
+  const farthestIsCute: ConditionDefinition = {
+    kind: "SELECTED_TARGET_STATE",
+    selector: {
+      kind: "SELECT",
+      side: "ENEMY",
+      count: 1,
+      filters: [],
+      order: ["FARTHEST"],
+      includeDefeated: false,
+    },
+    field: "ATTRIBUTE",
+    op: "EQ",
+    value: "CUTE",
+  };
+  const evaluate = (units: readonly BattleUnit[]) =>
+    evaluateTriggerCondition(
+      farthestIsCute,
+      { payload: {} },
+      { owner, skillDefinitionId: SKILL_ID, units: [owner, ...units] },
+    );
+
+  it("UT-R-PS-09-001: evaluates the field against the unit the selector picks (the farthest enemy), not against any enemy", () => {
+    const near = unitAt("E_NEAR", "ENEMY", "FRONT", "CENTER", { attribute: "CUTE" });
+    const far = unitAt("E_FAR", "ENEMY", "BACK", "LEFT", { attribute: "CLEVER" });
+    expect(evaluate([near, far])).toBe(false);
+    expect(evaluate([near, { ...far, attribute: "CUTE" }])).toBe(true);
+  });
+
+  it("UT-R-PS-09-002: a defeated farthest enemy is skipped, so the selection moves to the next one", () => {
+    const near = unitAt("E_NEAR", "ENEMY", "FRONT", "CENTER", { attribute: "CUTE" });
+    const far = unitAt("E_FAR", "ENEMY", "BACK", "LEFT", {
+      attribute: "CLEVER",
+      currentHp: 0,
+    });
+    expect(evaluate([near, far])).toBe(true);
+  });
+
+  it("UT-R-PS-09-003: an empty selection is not a match", () => {
+    expect(evaluate([])).toBe(false);
+  });
+
+  it("UT-R-PS-09-004: throws without an owner or without the unit list", () => {
+    expect(() =>
+      evaluateTriggerCondition(farthestIsCute, { payload: {} }, { ownerSide: "ALLY", units: [] }),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      evaluateTriggerCondition(
+        farthestIsCute,
+        { payload: {} },
+        { owner, skillDefinitionId: SKILL_ID },
+      ),
+    ).toThrow(DomainValidationError);
+  });
+});

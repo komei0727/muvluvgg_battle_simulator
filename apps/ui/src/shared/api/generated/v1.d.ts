@@ -921,7 +921,9 @@ export interface paths {
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
                         | "TARGET_EFFECT_COUNT"
-                        | "SELF_MEMORY_EQUIPPED";
+                        | "SELF_MEMORY_EQUIPPED"
+                        | "ATTRIBUTE_ADVANTAGE"
+                        | "SELECTED_TARGET_STATE";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -965,7 +967,9 @@ export interface paths {
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
                         | "TARGET_EFFECT_COUNT"
-                        | "SELF_MEMORY_EQUIPPED";
+                        | "SELF_MEMORY_EQUIPPED"
+                        | "ATTRIBUTE_ADVANTAGE"
+                        | "SELECTED_TARGET_STATE";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -2912,6 +2916,25 @@ export interface paths {
                             op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
                             value: number;
                           }
+                        | {
+                            /** @enum {unknown} */
+                            kind: "ATTRIBUTE_ADVANTAGE";
+                            target:
+                              | {
+                                  /** @enum {unknown} */
+                                  kind: "BINDING";
+                                  targetBindingId: string;
+                                }
+                              | {
+                                  /** @enum {string} */
+                                  kind:
+                                    | "SELF"
+                                    | "TRIGGER_SOURCE"
+                                    | "TRIGGER_TARGET"
+                                    | "LAST_ACTION_TARGETS"
+                                    | "LAST_DAMAGED_TARGETS";
+                                };
+                          }
                       )[];
                       linkedEffectGroupId: string | null;
                       grantedActionId?: string;
@@ -4770,7 +4793,9 @@ export interface paths {
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
                         | "TARGET_EFFECT_COUNT"
-                        | "SELF_MEMORY_EQUIPPED";
+                        | "SELF_MEMORY_EQUIPPED"
+                        | "ATTRIBUTE_ADVANTAGE"
+                        | "SELECTED_TARGET_STATE";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -4814,7 +4839,9 @@ export interface paths {
                         | "TARGET_SET_COUNT"
                         | "TARGET_HAS_EFFECT"
                         | "TARGET_EFFECT_COUNT"
-                        | "SELF_MEMORY_EQUIPPED";
+                        | "SELF_MEMORY_EQUIPPED"
+                        | "ATTRIBUTE_ADVANTAGE"
+                        | "SELECTED_TARGET_STATE";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -6756,6 +6783,25 @@ export interface paths {
                             /** @enum {string} */
                             op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
                             value: number;
+                          }
+                        | {
+                            /** @enum {unknown} */
+                            kind: "ATTRIBUTE_ADVANTAGE";
+                            target:
+                              | {
+                                  /** @enum {unknown} */
+                                  kind: "BINDING";
+                                  targetBindingId: string;
+                                }
+                              | {
+                                  /** @enum {string} */
+                                  kind:
+                                    | "SELF"
+                                    | "TRIGGER_SOURCE"
+                                    | "TRIGGER_TARGET"
+                                    | "LAST_ACTION_TARGETS"
+                                    | "LAST_DAMAGED_TARGETS";
+                                };
                           }
                       )[];
                       linkedEffectGroupId: string | null;
@@ -9493,6 +9539,25 @@ export interface components {
           /** @enum {string} */
           op: "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ";
           value: number;
+        }
+      | {
+          /** @enum {unknown} */
+          kind: "ATTRIBUTE_ADVANTAGE";
+          target:
+            | {
+                /** @enum {unknown} */
+                kind: "BINDING";
+                targetBindingId: string;
+              }
+            | {
+                /** @enum {string} */
+                kind:
+                  | "SELF"
+                  | "TRIGGER_SOURCE"
+                  | "TRIGGER_TARGET"
+                  | "LAST_ACTION_TARGETS"
+                  | "LAST_DAMAGED_TARGETS";
+              };
         };
   };
   responses: never;

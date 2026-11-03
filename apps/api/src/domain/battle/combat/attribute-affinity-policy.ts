@@ -1,23 +1,8 @@
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
+import { attributeAdvantageOf } from "../model/attribute-advantage.js";
 import type { Percentage } from "../../shared/percentage.js";
 
-/**
- * R-ATR-01: 攻撃側属性ごとの有利な防御側属性。Catalogにはデータ化されておらず
- * (`07_戦闘ルール詳細.md`のprose定義のみ)、固定テーブルとして扱う。
- */
-const FAVORABLE_DEFENDER: Readonly<Record<Attribute, Attribute>> = {
-  AGGRESSIVE: "SHY",
-  SHY: "CUTE",
-  CUTE: "SMART",
-  SMART: "AGGRESSIVE",
-  COMICAL: "CLEVER",
-  CLEVER: "COMICAL",
-};
-
-/** R-ATR-01: 攻撃側属性が防御側属性に対して有利かどうか。 */
-export function isFavorableAttribute(attacker: Attribute, defender: Attribute): boolean {
-  return FAVORABLE_DEFENDER[attacker] === defender;
-}
+export { isFavorableAttribute } from "../model/attribute-advantage.js";
 
 /**
  * R-ATR-02: 有利属性なら`100% + 属性相性ボーナス`、そうでなければ100%。
@@ -40,10 +25,14 @@ export function resolveAttributeMultiplier(
   subAttacker: Attribute | undefined,
   subAffinityBonus: Percentage,
 ): number {
-  if (isFavorableAttribute(attacker, defender)) {
+  const advantage = attributeAdvantageOf(
+    { attribute: attacker, ...(subAttacker === undefined ? {} : { subAttribute: subAttacker }) },
+    defender,
+  );
+  if (advantage === "MAIN") {
     return 1 + affinityBonus;
   }
-  if (subAttacker !== undefined && isFavorableAttribute(subAttacker, defender)) {
+  if (advantage === "SUB") {
     return 1 + subAffinityBonus;
   }
   return 1;
