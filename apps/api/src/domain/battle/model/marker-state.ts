@@ -1,6 +1,6 @@
 import type { EffectDurationState } from "./applied-effect.js";
 import { buildInitialDurationState } from "./applied-effect.js";
-import type { ActionId, MarkerInstanceId } from "../../shared/event-ids.js";
+import type { ActionId, MarkerInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
@@ -85,7 +85,11 @@ export function buildInitialMarkerState(
   targetUnitId: BattleUnitId,
   stackMax: number | null,
   durationDefinition: DurationDefinition,
-  context: { readonly actionId?: ActionId; readonly turnNumber: number },
+  context: {
+    readonly actionId?: ActionId;
+    readonly turnNumber: number;
+    readonly skillUseId?: SkillUseId;
+  },
   decay?: MarkerStackDecayDefinition,
 ): MarkerState {
   return {

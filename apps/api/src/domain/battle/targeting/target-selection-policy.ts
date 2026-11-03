@@ -372,6 +372,10 @@ function compareLowestDefense(a: BattleUnit, b: BattleUnit): number {
   return a.combatStats.defense - b.combatStats.defense;
 }
 
+function compareHighestCriticalRate(a: BattleUnit, b: BattleUnit): number {
+  return b.combatStats.criticalRate - a.combatStats.criticalRate;
+}
+
 function compareLowestMaxHp(a: BattleUnit, b: BattleUnit): number {
   return a.combatStats.maximumHp - b.combatStats.maximumHp;
 }
@@ -429,6 +433,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   LOWEST_ATTACK: () => compareLowestAttack,
   HIGHEST_DEFENSE: () => compareHighestDefense,
   LOWEST_DEFENSE: () => compareLowestDefense,
+  HIGHEST_CRITICAL_RATE: () => compareHighestCriticalRate,
   LOWEST_MAX_HP: () => compareLowestMaxHp,
   HIGHEST_MAX_HP: () => compareHighestMaxHp,
   LOWEST_CURRENT_HP: () => compareLowestCurrentHp,

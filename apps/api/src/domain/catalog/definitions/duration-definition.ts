@@ -33,7 +33,7 @@ const DURATION_ALLOWED_KEYS = [
   "removeOnSourceDefeated",
 ] as const;
 const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner", "countGrantTurn"] as const;
-const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount"] as const;
+const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount", "instancePolicy"] as const;
 const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
 const REAPPLY_ALLOWED_KEYS = ["existingRemaining", "count"] as const;
 const REAPPLY_REMAINING_ALLOWED_KEYS = ["op", "value"] as const;
@@ -56,6 +56,7 @@ const CONSUMPTION_KINDS = [
   "LETHAL_DAMAGE",
 ] as const;
 const LINKED_EFFECT_GROUP_ROLES = ["PARENT", "CHILD"] as const;
+const CONSUMPTION_INSTANCE_POLICIES = ["OLDEST_ONLY"] as const;
 
 export interface DurationTimeLimit {
   readonly unit: DurationTimeUnit;
@@ -69,9 +70,19 @@ export interface DurationTimeLimit {
   readonly countGrantTurn?: true;
 }
 
+/**
+ * R-EFF-07: 同じ`EffectActionDefinitionId`由来のインスタンスを複数保持しているときの
+ * 消費対象。省略時は一致する全インスタンスを減算する。`OLDEST_ONLY`は1回の攻撃で
+ * 付与順が最も古い1インスタンスだけを減算する（多段ヒットの2ヒット目以降も次の
+ * インスタンスへ進まない）。「1回攻撃を受けると消滅する」効果を重複付与したとき、
+ * 1回の攻撃で全セットが消えないようにするためのもの。
+ */
+export type ConsumptionInstancePolicy = (typeof CONSUMPTION_INSTANCE_POLICIES)[number];
+
 export interface DurationConsumption {
   readonly kind: ConsumptionKind;
   readonly maxCount: number;
+  readonly instancePolicy?: ConsumptionInstancePolicy;
 }
 
 export interface DurationExpiration {
@@ -125,8 +136,11 @@ export type LinkedEffectGroupRole = (typeof LINKED_EFFECT_GROUP_ROLES)[number];
  * メンバー全体（保持ユニットを問わない）、`HOLDER`は同じ保持ユニットのメンバーだけで
  * 連動する。敵ごとに失効時期が違う付与（例: 対象の1行動で消える刻痕）を連動させると、
  * `BATTLE`ではある対象の親の失効が他の対象の子まで解除してしまう。
+ * `SKILL_USE`は同じ保持ユニットかつ同じスキル使用（`SkillUseId`）で付与されたメンバー
+ * だけで連動する。同じスキルを繰り返し使って重複付与したセット（例: シールドと、
+ * シールドと同時に消えるバフ）を、セットごとに独立して連動させるためのもの。
  */
-export const LINKED_EFFECT_GROUP_SCOPES = ["BATTLE", "HOLDER"] as const;
+export const LINKED_EFFECT_GROUP_SCOPES = ["BATTLE", "HOLDER", "SKILL_USE"] as const;
 export type LinkedEffectGroupScope = (typeof LINKED_EFFECT_GROUP_SCOPES)[number];
 
 export interface DurationDefinition {
@@ -181,6 +195,7 @@ export interface DurationTimeLimitInput {
 export interface DurationConsumptionInput {
   readonly kind: string;
   readonly maxCount: number;
+  readonly instancePolicy?: string;
 }
 
 export interface DurationExpirationInput {
@@ -262,7 +277,19 @@ function createConsumption(input: DurationConsumptionInput, path: string): Durat
   assertKnownKeys(input, CONSUMPTION_ALLOWED_KEYS, path);
   assertEnumValue(input.kind, CONSUMPTION_KINDS, `${path}.kind`);
   assertInteger(input.maxCount, `${path}.maxCount`, { min: 1 });
-  return { kind: input.kind, maxCount: input.maxCount };
+  if (input.instancePolicy === undefined) {
+    return { kind: input.kind, maxCount: input.maxCount };
+  }
+  assertEnumValue(input.instancePolicy, CONSUMPTION_INSTANCE_POLICIES, `${path}.instancePolicy`);
+  // 「1回の攻撃」を単位にできるのは攻撃単位で消費するkindだけで、他のkindでは
+  // 最古1件へ絞る契機の境界が定まらない。
+  if (input.kind !== "NEXT_INCOMING_ATTACK") {
+    throw new DomainValidationError(
+      `${path}.instancePolicy`,
+      "is only supported with kind NEXT_INCOMING_ATTACK",
+    );
+  }
+  return { kind: input.kind, maxCount: input.maxCount, instancePolicy: input.instancePolicy };
 }
 
 /**

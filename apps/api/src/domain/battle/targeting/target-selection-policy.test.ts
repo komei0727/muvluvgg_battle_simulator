@@ -1641,6 +1641,61 @@ describe("resolveTargets", () => {
       ]);
     });
 
+    it("UT-TGT-002-035: HIGHEST_CRITICAL_RATE orders by combatStats.criticalRate descending", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const dull = unit(
+        "DULL",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, criticalRate: 10 } },
+      );
+      const sharp = unit(
+        "SHARP",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, criticalRate: 35 } },
+      );
+
+      const targets = resolveTargets(
+        selector({ side: "ENEMY", count: "ALL", order: ["HIGHEST_CRITICAL_RATE"] }),
+        actor,
+        [actor, dull, sharp],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("SHARP"),
+        createBattleUnitId("DULL"),
+      ]);
+    });
+
+    it("UT-TGT-002-036: HIGHEST_CRITICAL_RATE ties fall back to the next order key", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const right = unit(
+        "RIGHT",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, criticalRate: 20 } },
+      );
+      const left = unit(
+        "LEFT",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        { combatStats: { ...actor.combatStats, criticalRate: 20 } },
+      );
+
+      const targets = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: 1,
+          order: ["HIGHEST_CRITICAL_RATE", "FRONT_ROW", "LEFT_TO_RIGHT"],
+        }),
+        actor,
+        [actor, right, left],
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("LEFT")]);
+    });
+
     it("UT-TGT-002-028: LOWEST_CURRENT_HP orders by currentHp ascending (not HP ratio)", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       // ratio的にはLOWがHIGHより高い(50/100=0.5 > 30/500=0.06)が、絶対値ではLOWの方が低い。

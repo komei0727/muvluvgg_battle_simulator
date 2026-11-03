@@ -223,14 +223,14 @@ function planRemovalBatch(
   // linkedEffectGroupに一致した非CHILDメンバー（cascade起点になり得る親/ロールなし）が
   // 存在するCHILDロールのとき、root seedから除外する（cascadeが必ず巻き込むため）。
   const hasMatchedParent = (effect: AppliedEffect): boolean => {
-    const groupKey = linkedGroupKeyOf(effect.duration.definition, effect.targetUnitId);
+    const groupKey = linkedGroupKeyOf(effect.duration, effect.targetUnitId);
     if (groupKey === null || effect.duration.definition.linkedEffectGroupRole !== "CHILD") {
       return false;
     }
     return capped.some(
       (candidate) =>
         candidate.effectInstanceId !== effect.effectInstanceId &&
-        linkedGroupKeyOf(candidate.duration.definition, candidate.targetUnitId) === groupKey &&
+        linkedGroupKeyOf(candidate.duration, candidate.targetUnitId) === groupKey &&
         candidate.duration.definition.linkedEffectGroupRole !== "CHILD",
     );
   };

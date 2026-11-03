@@ -495,6 +495,15 @@ describe("TargetSelectorDefinition", () => {
     expect(result.order).toEqual(["LOWEST_DEFENSE", "HIGHEST_DEFENSE"]);
   });
 
+  it("UT-CAT-TSEL-044: HIGHEST_CRITICAL_RATE is a valid order key", () => {
+    const result = createTargetSelectorDefinition(
+      { kind: "SELECT", side: "ENEMY", count: 1, order: ["HIGHEST_CRITICAL_RATE", "DEFAULT"] },
+      "selector",
+      undefined,
+    );
+    expect(result.order).toEqual(["HIGHEST_CRITICAL_RATE", "DEFAULT"]);
+  });
+
   it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind", () => {
     for (const kind of [
       "TRIGGER_SOURCE",
