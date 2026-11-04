@@ -11,7 +11,7 @@ import {
   evaluateMemoryTargetSelector,
 } from "./trigger-selector-evaluator.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
-import { matchesTriggerEventType } from "./trigger-event-matching.js";
+import { matchesMemoryTriggerEventType } from "./trigger-event-matching.js";
 
 /**
  * R-MEM-02 #1「APIリクエストで指定された Memory の順序」を保つため、両陣営の
@@ -73,7 +73,7 @@ function matchesMemoryTriggerWith(
   turnNumber: number | undefined,
 ): boolean {
   if (
-    !matchesTriggerEventType(trigger.eventType, event.eventType) ||
+    !matchesMemoryTriggerEventType(trigger.eventType, event, side) ||
     trigger.category !== event.category
   ) {
     return false;

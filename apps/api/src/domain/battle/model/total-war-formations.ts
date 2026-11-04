@@ -1,4 +1,5 @@
 import { isDefeated, type BattleUnit } from "./battle-unit.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import type { Side } from "../../shared/side.js";
 
 /** R-TWR-03 #2: 出撃前の編成。そのユニットは盤面（`Battle.allyUnits`／`enemyUnits`）に置かない。 */
@@ -20,6 +21,11 @@ export interface TotalWarSideFormations {
   readonly defeatedCount: number;
   /** 控えの編成を出撃順に並べたもの。先頭が次に出撃する。 */
   readonly reserves: readonly TotalWarReserveFormation[];
+  /**
+   * R-TWR-05 #1: 編成ごとのメモリー（添字＝編成番号−1）。並びはAPI指定順のまま保つ
+   * （R-MEM-02 #1）。候補化の対象は `activeMemoriesBySide` が出撃中の編成のものに絞る。
+   */
+  readonly memoriesByFormation: readonly (readonly MemoryDefinition[])[];
 }
 
 export type TotalWarFormations = Readonly<Record<Side, TotalWarSideFormations>>;
@@ -43,4 +49,19 @@ export function isActiveFormationWiped(
   return sideUnits
     .filter((unit) => unit.formationNumber === side.activeFormationNumber)
     .every(isDefeated);
+}
+
+/**
+ * R-TWR-05 #1: 各陣営で候補化してよいメモリー。出撃中の編成のものだけを返し、全滅を
+ * 検出して交代を待つ陣営は空にする — 全滅した編成のメモリーは、次の編成が出撃するまでの
+ * ターン終了処理でも候補化しない。
+ */
+export function activeMemoriesBySide(
+  formations: TotalWarFormations,
+): Readonly<Record<Side, readonly MemoryDefinition[]>> {
+  const activeOf = (side: TotalWarSideFormations): readonly MemoryDefinition[] =>
+    isAwaitingDeployment(side)
+      ? []
+      : (side.memoriesByFormation[side.activeFormationNumber - 1] ?? []);
+  return { ALLY: activeOf(formations.ALLY), ENEMY: activeOf(formations.ENEMY) };
 }
