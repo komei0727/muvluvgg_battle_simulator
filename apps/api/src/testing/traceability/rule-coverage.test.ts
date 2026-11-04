@@ -35,7 +35,7 @@ const NON_NUMERIC_TERMINAL_TEST_CASE_IDS: ReadonlySet<string> = new Set([
 ]);
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 145 rule IDs", () => {
+  it("UT-TRACEABILITY-001: ledger contains exactly 154 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
     // M7-018（Issue #272）でR-HIT-04（Nヒット回避）・R-HIT-05（必中付与）を
     // 追加し110→112 — どちらも`07_戦闘ルール詳細.md`にRule定義自体が無いまま
@@ -90,8 +90,10 @@ describe("Rule coverage ledger", () => {
     // 別の欠陥だった。
     // Issue #762で自身→対象の有利属性条件（R-ATR-05）とPS発動判定での対象選択
     // （R-PS-09）を新設し146→148。
+    // Issue #768（TW-001）で総力戦（最大3編成の勝ち抜き戦）のR-TWR-01〜06を新設し
+    // 148→154 — 実装はRoadmap #766のTW-002〜TW-009が行うため、空カバレッジで登録する。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(148);
+    expect(RULE_COVERAGE).toHaveLength(154);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {

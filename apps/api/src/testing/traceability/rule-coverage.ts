@@ -173,6 +173,14 @@ const RULE_KINDS: Record<string, readonly TestKind[]> = {
   "R-TEX-09": ["POSITIVE", "NEGATIVE", "SCENARIO"],
   "R-TEX-10": ["POSITIVE", "NEGATIVE", "SCENARIO"],
   "R-TEX-11": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  // 総力戦（Roadmap #766）は設計だけが確定しており、実装はTW-002〜TW-009で行う。
+  // テストが無いため空カバレッジで登録する（R-ENH-07を設計だけ先に登録したときと同じ扱い）。
+  "R-TWR-01": [],
+  "R-TWR-02": [],
+  "R-TWR-03": [],
+  "R-TWR-04": [],
+  "R-TWR-05": [],
+  "R-TWR-06": [],
 };
 
 const apiSrcPath = fileURLToPath(new URL("../../", import.meta.url));
