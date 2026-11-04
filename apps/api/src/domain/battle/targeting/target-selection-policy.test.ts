@@ -2359,3 +2359,77 @@ describe("resolveTargets", () => {
     });
   });
 });
+
+/**
+ * R-TWR-03 #8: 総力戦では全滅した編成のユニットが戦闘不能のまま盤面に残り、次に出撃した
+ * 編成のユニットが同じ配置位置に加わる。一覧上は戦闘不能のユニットが先に並ぶため、
+ * 座標で候補を絞る処理が戦闘不能者を除く前に座標を見ると、生きている側を取りこぼす。
+ */
+describe("R-TWR-03 #8: a defeated unit sharing a square with a deployed unit", () => {
+  const defeatedAt = (id: string, side: Side, position: FormationPosition) =>
+    unit(id, side, position, { formationNumber: 1, currentHp: 0 });
+  const deployedAt = (id: string, side: Side, position: FormationPosition) =>
+    unit(id, side, position, { formationNumber: 2 });
+
+  it("UT-R-TWR-03-010: 目の前 (DIRECTLY_AHEAD_OF_BASE) resolves the deployed unit, not the defeated one on the same square", () => {
+    const actor = deployedAt("ACTOR", "ALLY", { column: "CENTER", row: "BACK" });
+    const defeated = defeatedAt("ALLY_F1_FRONT", "ALLY", { column: "CENTER", row: "FRONT" });
+    const deployed = deployedAt("ALLY_F2_FRONT", "ALLY", { column: "CENTER", row: "FRONT" });
+
+    const targets = resolveTargets(
+      {
+        kind: "BINDING_DERIVED",
+        side: "ALLY",
+        base: { kind: "SELF" },
+        area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      },
+      actor,
+      [defeated, actor, deployed],
+    );
+
+    expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ALLY_F2_FRONT")]);
+  });
+
+  it("UT-R-TWR-03-011: 隣接 (ADJACENT_ORTHOGONAL) resolves only the deployed unit on each neighbouring square", () => {
+    const actor = deployedAt("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const main = deployedAt("MAIN", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const defeatedLeft = defeatedAt("ENEMY_F1_LEFT", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const deployedLeft = deployedAt("ENEMY_F2_LEFT", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const resolvedBindings = new Map([[createTargetBindingId("TGT_MAIN"), [main]]]);
+
+    const targets = resolveTargets(
+      {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_MAIN") },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["DEFAULT"],
+        includeDefeated: false,
+      },
+      actor,
+      [actor, defeatedLeft, main, deployedLeft],
+      resolvedBindings,
+    );
+
+    expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_F2_LEFT")]);
+  });
+
+  it("UT-R-TWR-03-012: 列優先 (FRONT_ROW) picks the deployed front-row unit even though a defeated unit occupies the same front square", () => {
+    const actor = deployedAt("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const defeatedFront = defeatedAt("ENEMY_F1_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const deployedBack = deployedAt("ENEMY_F2_BACK", "ENEMY", { column: "LEFT", row: "BACK" });
+    const deployedFront = deployedAt("ENEMY_F2_FRONT", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+    const targets = resolveTargets(
+      selector({ side: "ENEMY", count: 1, order: ["FRONT_ROW", "DEFAULT"] }),
+      actor,
+      [actor, defeatedFront, deployedBack, deployedFront],
+    );
+
+    expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_F2_FRONT")]);
+  });
+});

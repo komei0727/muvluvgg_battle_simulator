@@ -1179,6 +1179,38 @@ const unitRevivedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「総力戦イベント」（R-TWR-03 #7）。出撃中の編成の全滅。
+ * 総力戦のレスポンスにだけ現れる。
+ */
+const formationDefeatedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["side", "formationNumber", "turnNumber", "remainingReserveCount"],
+  properties: {
+    side: { type: "string", enum: ["ALLY", "ENEMY"] },
+    formationNumber: { type: "integer", minimum: 1, maximum: 3 },
+    turnNumber: { type: "integer", minimum: 1 },
+    remainingReserveCount: { type: "integer", minimum: 0, maximum: 2 },
+  },
+} as const;
+
+/**
+ * `08_ドメインイベント.md`「総力戦イベント」（R-TWR-04 #2）。控えの編成の出撃。
+ * 総力戦のレスポンスにだけ現れる。1番目の編成は出撃イベントを持たないため、編成番号は2以上。
+ */
+const formationDeployedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["side", "formationNumber", "turnNumber", "battleUnitIds"],
+  properties: {
+    side: { type: "string", enum: ["ALLY", "ENEMY"] },
+    formationNumber: { type: "integer", minimum: 2, maximum: 3 },
+    turnNumber: { type: "integer", minimum: 2 },
+    battleUnitIds: { type: "array", minItems: 1, maxItems: 5, items: { type: "string" } },
+  },
+} as const;
+
 const unitDefeatedDetailsSchema = {
   type: "object",
   additionalProperties: false,
@@ -2588,3 +2620,21 @@ export const EXERCISE_ONLY_EVENT_TYPES = [
   "UNIT_BROKEN",
   "UNIT_REVIVED",
 ] as const;
+
+/**
+ * 総力戦のレスポンスだけに現れるイベント種別（R-TWR-03・04）。通常戦闘と戦術演習の
+ * unionへは足さず、既存エンドポイントの契約を変えない。
+ */
+const TOTAL_WAR_ONLY_EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, object>> = {
+  FORMATION_DEFEATED: formationDefeatedDetailsSchema,
+  FORMATION_DEPLOYED: formationDeployedDetailsSchema,
+};
+
+/** 総力戦のレスポンスが使うイベントunion（総力戦専用variantを含み、演習専用variantを含まない）。 */
+export const totalWarBattleLogEventResponseDocSchema = toEventDocSchema({
+  ...EVENT_DETAILS_SCHEMA_BY_TYPE,
+  ...TOTAL_WAR_ONLY_EVENT_DETAILS_SCHEMA_BY_TYPE,
+});
+
+/** 総力戦のレスポンスにだけ現れるイベント種別。エンドポイント別unionの差分を機械照合するために公開する。 */
+export const TOTAL_WAR_ONLY_EVENT_TYPES = ["FORMATION_DEFEATED", "FORMATION_DEPLOYED"] as const;

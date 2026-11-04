@@ -1,6 +1,16 @@
 import type { Violation } from "../contracts/application-error.js";
 import { validateFormationShape, type FormationPairCommand } from "./simulate-battle-command.js";
-import { BATTLE_MODES, type BattleMode } from "../../domain/battle/model/exercise-runtime.js";
+import type { BattleMode } from "../../domain/battle/model/exercise-runtime.js";
+
+/**
+ * プレビューが受け付けるモード。総力戦は1陣営に複数の編成を持ち、1編成どうしの
+ * プレビューの形に収まらないため含めない。
+ */
+const PREVIEW_BATTLE_MODES = [
+  "NORMAL",
+  "TACTICAL_EXERCISE",
+] as const satisfies readonly BattleMode[];
+type PreviewBattleMode = (typeof PREVIEW_BATTLE_MODES)[number];
 
 /**
  * `09_アプリケーション設計.md` の PreviewFormationStatsCommand。
@@ -11,7 +21,7 @@ import { BATTLE_MODES, type BattleMode } from "../../domain/battle/model/exercis
  * ステータスの計算自体はモードへ依存しない。
  */
 export interface PreviewFormationStatsCommand extends FormationPairCommand {
-  readonly mode?: BattleMode;
+  readonly mode?: PreviewBattleMode;
 }
 
 /**
@@ -35,10 +45,13 @@ export function validatePreviewFormationStatsCommandShape(
     ...validateFormationShape(command.enemyFormation, "enemyFormation", options),
   ];
 
-  if (command.mode !== undefined && !BATTLE_MODES.includes(command.mode)) {
+  if (
+    command.mode !== undefined &&
+    !(PREVIEW_BATTLE_MODES as readonly string[]).includes(command.mode)
+  ) {
     violations.push({
       path: "mode",
-      reason: `must be one of ${BATTLE_MODES.join(", ")}, got "${String(command.mode)}"`,
+      reason: `must be one of ${PREVIEW_BATTLE_MODES.join(", ")}, got "${String(command.mode)}"`,
     });
   }
 

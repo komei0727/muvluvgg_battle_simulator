@@ -94,6 +94,8 @@ describe("Rule coverage ledger", () => {
     // 148→154 — 実装はRoadmap #766のTW-002〜TW-009が行うため、空カバレッジで登録する。
     // Issue #769（TW-002）が編成検証（R-TWR-01）と再登場補正（R-TWR-02）のDomain部品を
     // 実装し、両ルールの`kinds`を埋めた（総数は変わらない）。
+    // Issue #770（TW-003）がBattle集約の編成の全滅（R-TWR-03）と出撃（R-TWR-04）を実装し、
+    // 両ルールの`kinds`を埋めた（総数は変わらない）。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(154);
   });

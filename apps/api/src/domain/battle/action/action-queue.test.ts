@@ -187,3 +187,23 @@ describe("reorderRemainingQueue", () => {
     expect(reorderRemainingQueue([], [])).toEqual([]);
   });
 });
+
+describe("createActionQueue (R-TWR-03 #8: overlapping squares in a total war)", () => {
+  it("UT-R-TWR-03-009: queues the deployed unit and not the defeated unit of the earlier formation standing on the same square", () => {
+    // 全滅した編成のユニットは一覧の先頭側に残り、出撃したユニットが同じ配置位置に後から加わる。
+    const defeated = unit("ENEMY_F1", "ENEMY", 50, {
+      formationNumber: 1,
+      currentHp: 0,
+      currentAp: 3,
+    });
+    const deployed = unit("ENEMY_F2", "ENEMY", 10, { formationNumber: 2, currentAp: 3 });
+    const ally = unit("ALLY", "ALLY", 20, { currentAp: 3 });
+
+    const queue = createActionQueue([ally, defeated, deployed]);
+
+    expect(queue.entries.map((entry) => entry.battleUnitId)).toEqual([
+      createBattleUnitId("ALLY"),
+      createBattleUnitId("ENEMY_F2"),
+    ]);
+  });
+});

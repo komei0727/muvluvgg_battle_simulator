@@ -109,8 +109,8 @@ function validateRankGrowth(
 }
 
 /**
- * R-TEX-11: 戦闘モードごとの編成プール。通常戦闘は両陣営とも`PLAYABLE`のみ、
- * 戦術演習は味方`PLAYABLE`・敵`EXERCISE_ENEMY`のみを受理する。`exerciseActive`
+ * R-TEX-11・R-TWR-01 #6: 戦闘モードごとの編成プール。通常戦闘と総力戦は両陣営とも
+ * `PLAYABLE`のみ、戦術演習は味方`PLAYABLE`・敵`EXERCISE_ENEMY`のみを受理する。`exerciseActive`
  * は表示専用の開催情報であり、ここでは参照しない（開催終了ユニットも受理する）。
  */
 const ALLOWED_CATEGORIES: Readonly<
@@ -118,6 +118,8 @@ const ALLOWED_CATEGORIES: Readonly<
 > = {
   NORMAL: { allyFormation: "PLAYABLE", enemyFormation: "PLAYABLE" },
   TACTICAL_EXERCISE: { allyFormation: "PLAYABLE", enemyFormation: "EXERCISE_ENEMY" },
+  // R-TWR-01 #6: 総力戦は対人戦のため、両陣営とも`PLAYABLE`のみ。
+  TOTAL_WAR: { allyFormation: "PLAYABLE", enemyFormation: "PLAYABLE" },
 };
 
 function validateUnitCategories(
