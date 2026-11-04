@@ -14,6 +14,7 @@ import {
 } from "../catalog/definitions/memory-definition.js";
 import type { UnitDefinition } from "../catalog/definitions/unit-definition.js";
 import { createBattleUnitId } from "../shared/ids.js";
+import { createBattleUnit, isDefeated } from "../battle/model/battle-unit.js";
 import { DomainValidationError } from "../shared/errors.js";
 import type { Attribute, PositionRow } from "../catalog/definitions/catalog-enums.js";
 
@@ -662,6 +663,122 @@ describe("createBattleParty — FormationFactory", () => {
     const units = unitsMap(unitDefinition("UNIT_001", "AGGRESSIVE"));
 
     expect(() => createBattleParty("ALLY", formation, battleUnitIds, units, NO_MEMORIES)).toThrow(
+      DomainValidationError,
+    );
+  });
+});
+
+describe("createBattleParty — 再登場ユニットの基礎値係数 (R-TWR-02)", () => {
+  function singleSlot(
+    row: PositionRow,
+    enhancement?: FormationInput["enhancement"],
+  ): FormationInput {
+    return {
+      slots: [
+        { unitDefinitionId: createUnitDefinitionId("UNIT_001"), position: { column: "LEFT", row } },
+      ],
+      memoryDefinitionIds: [],
+      ...(enhancement === undefined ? {} : { enhancement }),
+    };
+  }
+
+  function buildMember(
+    formation: FormationInput,
+    definition: UnitDefinition,
+    baseStatMultipliers?: readonly number[],
+  ) {
+    return createBattleParty(
+      "ALLY",
+      formation,
+      [createBattleUnitId("BU_1")],
+      unitsMap(definition),
+      NO_MEMORIES,
+      "formation",
+      baseStatMultipliers,
+    ).members[0]!;
+  }
+
+  it("UT-R-TWR-02-004: scales only HP, attack and defense of the Catalog base stats when no enhancement is given", () => {
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE");
+
+    const member = buildMember(singleSlot("FRONT"), definition, [0.01]);
+
+    expect(member.enhancedBaseStats).toEqual({
+      ...definition.baseStats,
+      maximumHp: 1,
+      attack: 0.1,
+      defense: 0.1,
+    });
+  });
+
+  it("UT-R-TWR-02-005: applies the multiplier to the R-ENH-06 enhanced base stats when an enhancement is given", () => {
+    const definition: UnitDefinition = {
+      ...unitDefinition("UNIT_001", "AGGRESSIVE"),
+      levelGrowth: { hp: 255, attack: 209, defense: 106, actionSpeed: 2 },
+    };
+    const formation = singleSlot("FRONT", {
+      academyLevels: { unitTypes: { PHYSICAL: 50 }, attributes: { AGGRESSIVE: 50 } },
+    });
+
+    const firstAppearance = buildMember(formation, definition);
+    const reappearance = buildMember(formation, definition, [0.01]);
+
+    const enhanced = firstAppearance.enhancedBaseStats;
+    expect(enhanced.attack).toBeGreaterThan(definition.baseStats.attack);
+    expect(reappearance.enhancedBaseStats.maximumHp).toBeCloseTo(enhanced.maximumHp * 0.01, 9);
+    expect(reappearance.enhancedBaseStats.attack).toBeCloseTo(enhanced.attack * 0.01, 9);
+    expect(reappearance.enhancedBaseStats.defense).toBeCloseTo(enhanced.defense * 0.01, 9);
+    // 行動速度・会心率などは強化後の値のまま補正しない（R-TWR-02 #5）。
+    expect(reappearance.enhancedBaseStats.actionSpeed).toBe(enhanced.actionSpeed);
+    expect(reappearance.enhancedBaseStats.criticalRate).toBe(enhanced.criticalRate);
+    expect(reappearance.enhancedBaseStats.maximumAp).toBe(enhanced.maximumAp);
+  });
+
+  it("UT-R-TWR-02-006: the formation bonus and the aptitude penalty apply on top of the scaled base value", () => {
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE", ["FRONT"]);
+
+    const member = buildMember(singleSlot("BACK"), definition, [0.01]);
+
+    // 適正外配置の -5%（R-STA-01）が補正後の基本値 0.1 に掛かる。
+    expect(member.combatStats.attack).toBeCloseTo(0.095, 9);
+    expect(member.combatStats.defense).toBeCloseTo(0.095, 9);
+    expect(member.combatStats.actionSpeed).toBe(definition.baseStats.actionSpeed);
+    expect(member.combatStats.criticalRate).toBe(definition.baseStats.criticalRate);
+  });
+
+  it("UT-R-TWR-02-008: a reappearing unit placed off-aptitude still starts with 1 HP instead of being defeated", () => {
+    // 基本HP100 → 再登場補正で1 → 適正外配置 -5% で0.95。HPゲージは切り捨てで整数化される
+    // （R-NUM-02）ため、開始時の最大HPが1未満のままだと現在HP0で戦闘不能から始まる。
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE", ["FRONT"]);
+
+    const member = buildMember(singleSlot("BACK"), definition, [0.01]);
+    const unit = createBattleUnit(member, "ALLY", {
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 100,
+    });
+
+    expect(member.enhancedBaseStats.maximumHp).toBe(1);
+    expect(member.combatStats.maximumHp).toBe(1);
+    expect(unit.currentHp).toBe(1);
+    expect(isDefeated(unit)).toBe(false);
+  });
+
+  it("UT-R-TWR-02-007: raises a maximum HP that falls below 1 to 1", () => {
+    const definition: UnitDefinition = {
+      ...unitDefinition("UNIT_001", "AGGRESSIVE"),
+      baseStats: { ...unitDefinition("UNIT_001", "AGGRESSIVE").baseStats, maximumHp: 50 },
+    };
+
+    const member = buildMember(singleSlot("FRONT"), definition, [0.01]);
+
+    expect(member.enhancedBaseStats.maximumHp).toBe(1);
+  });
+
+  it("UT-R-FRM-FACTORY-011: rejects base stat multipliers whose count differs from the slots", () => {
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE");
+
+    expect(() => buildMember(singleSlot("FRONT"), definition, [1, 0.01])).toThrow(
       DomainValidationError,
     );
   });
