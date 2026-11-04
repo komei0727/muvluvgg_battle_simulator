@@ -22,6 +22,8 @@ import {
   battleLogEventResponseSchema,
   exerciseBattleLogEventResponseDocSchema,
   EXERCISE_ONLY_EVENT_TYPES,
+  totalWarBattleLogEventResponseDocSchema,
+  TOTAL_WAR_ONLY_EVENT_TYPES,
   runtimeCounterChangedDetailsSchema,
   effectDurationReducedDetailsSchema,
   CONDITION_KIND_ENUM,
@@ -1095,7 +1097,7 @@ describe("OpenAPI document", () => {
     ).toBe(true);
   });
 
-  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): the exercise event union declares exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
+  it("API-OPENAPI-024 (regression: COOLDOWN_*/CHARGE_*/ACTION_QUEUE_REORDERED were silently unvalidated): the per-endpoint event unions together declare exactly one variant per BattleDomainEventType, so a newly-added domain event type fails this test (not silently) until its OpenAPI details schema is added", () => {
     // `BATTLE_DOMAIN_EVENT_TYPES` is a mapped type over `BattleDomainEventType`,
     // so it gains a compile error (missing or excess key) whenever
     // `BattleDomainEventPayloadMap` changes. Using it as the event-type roster
@@ -1117,19 +1119,25 @@ describe("OpenAPI document", () => {
         ),
       );
 
-    // 演習側のunionが全種別を持つ正本。
-    expect(declaredTypesOf(exerciseBattleLogEventResponseDocSchema)).toEqual(expectedTypes);
+    const excluding = (...excluded: readonly (readonly string[])[]): Set<string> =>
+      new Set([...expectedTypes].filter((type) => !excluded.some((list) => list.includes(type))));
 
-    // 通常戦闘側は、そこから演習だけが発行する種別（R-TEX-02〜04）をちょうど除いた集合。
+    // 演習・総力戦の専用種別は互いに重ならず、どちらも全種別の一部である。
+    for (const type of [...EXERCISE_ONLY_EVENT_TYPES, ...TOTAL_WAR_ONLY_EVENT_TYPES]) {
+      expect(expectedTypes.has(type), type).toBe(true);
+    }
+    // 各エンドポイントのunionは、全種別から他モードの専用種別をちょうど除いた集合。
+    // 3つのunionを合わせると全種別を覆うため、新しい種別のschemaが無ければどれかで落ちる。
     // `Q-TEX-08`「既存の`POST /api/v1/battle-simulations`の契約は変更しない」を、
-    // 「演習用variantが混ざっていない」と「他の種別は1つも落ちていない」の両方向で固定する。
-    const battleTypes = declaredTypesOf(battleLogEventResponseDocSchema);
-    expect(battleTypes).toEqual(
-      new Set(
-        [...expectedTypes].filter(
-          (type) => !(EXERCISE_ONLY_EVENT_TYPES as readonly string[]).includes(type),
-        ),
-      ),
+    // 「他モード用variantが混ざっていない」と「他の種別は1つも落ちていない」の両方向で固定する。
+    expect(declaredTypesOf(exerciseBattleLogEventResponseDocSchema)).toEqual(
+      excluding(TOTAL_WAR_ONLY_EVENT_TYPES),
+    );
+    expect(declaredTypesOf(totalWarBattleLogEventResponseDocSchema)).toEqual(
+      excluding(EXERCISE_ONLY_EVENT_TYPES),
+    );
+    expect(declaredTypesOf(battleLogEventResponseDocSchema)).toEqual(
+      excluding(EXERCISE_ONLY_EVENT_TYPES, TOTAL_WAR_ONLY_EVENT_TYPES),
     );
   });
 

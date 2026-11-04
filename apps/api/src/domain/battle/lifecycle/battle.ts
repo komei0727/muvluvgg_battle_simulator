@@ -8,7 +8,7 @@ import {
   ExerciseRuntime,
   type BattleMode,
 } from "../model/exercise-runtime.js";
-import { isDefeated, recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
+import { recoverTurnResources, type BattleUnit } from "../model/battle-unit.js";
 import { decrementTurnCooldowns } from "../model/cooldown-state.js";
 import { decrementTurnEffectDurations } from "../model/applied-effect-duration.js";
 import { decrementTurnMarkerDurations } from "../model/marker-duration.js";
@@ -27,14 +27,21 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, ResourceRecoveryEntry } from "../events/domain-event.js";
 import { beginNextTurn, createTurnState, isFinalTurn, type TurnState } from "./turn-state.js";
 import type { TurnLimit } from "../model/turn-limit.js";
-import {
-  resolveCompletionAt,
-  type CompletionCheckResult,
+import type {
+  CompletionCheckpointMode,
+  CompletionCheckResult,
 } from "../outcome/completion-checkpoint.js";
+import { passCompletionCheckpoint } from "../resolution/completion-checkpoint-recorder.js";
 import type { BattleResultSnapshot } from "../events/state-delta.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
+import {
+  isAwaitingDeployment,
+  TOTAL_WAR_SIDE_ORDER,
+  type TotalWarFormations,
+} from "../model/total-war-formations.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
@@ -66,6 +73,12 @@ export interface Battle {
    * Battleが所有するため、両者が同じ実体を指す必要がある（`ExerciseRuntime`の説明）。
    */
   readonly exercise?: ExerciseRuntime;
+  /**
+   * 総力戦だけが持つ編成状態（`05_ドメインモデル.md`「編成状態（総力戦のみ）」）。
+   * 控えの編成のユニットはここにだけ置き、出撃するまで`allyUnits`／`enemyUnits`へ加えない
+   * （R-TWR-03 #2）。
+   */
+  readonly formations?: TotalWarFormations;
 }
 
 /** Battle集約の主要操作: create（05_ドメインモデル.md）。 */
@@ -98,6 +111,75 @@ export function createBattle(
       ? { exercise: new ExerciseRuntime(enemyUnits[0]!.baseCombatStats) }
       : {}),
   };
+}
+
+/** 総力戦の陣営1つ分の編成。出撃順（編成番号1→3）に並べる。 */
+export type TotalWarSideFormationUnits = readonly (readonly BattleUnit[])[];
+
+/**
+ * 総力戦（`TOTAL_WAR`）のBattleを生成する（R-TWR-01・R-TWR-03 #1）。各陣営の1番目の編成を
+ * 出撃中の編成として盤面へ置き、2番目以降は控えとして`formations`にだけ持つ。
+ * 各ユニットへ所属する編成番号を写す — 全滅した編成のユニットは盤面に残り続けるため、
+ * 出撃中の編成の全滅判定はこの番号で絞り込む（R-TWR-03 #8）。
+ */
+export function createTotalWarBattle(
+  battleId: BattleId,
+  formationsBySide: Readonly<Record<Side, TotalWarSideFormationUnits>>,
+  turnLimit: TurnLimit,
+  definitions: BattleDefinitions,
+): Battle {
+  const numbered = {
+    ALLY: numberFormations(formationsBySide.ALLY, "battle.formations.ALLY"),
+    ENEMY: numberFormations(formationsBySide.ENEMY, "battle.formations.ENEMY"),
+  };
+  assertUniqueBattleUnitIds([...numbered.ALLY.flat(), ...numbered.ENEMY.flat()]);
+  const battle = createBattle(
+    battleId,
+    numbered.ALLY[0] ?? [],
+    numbered.ENEMY[0] ?? [],
+    turnLimit,
+    definitions,
+    "TOTAL_WAR",
+  );
+  const sideFormations = (formations: readonly (readonly BattleUnit[])[]) => ({
+    formationCount: formations.length,
+    activeFormationNumber: 1,
+    defeatedCount: 0,
+    reserves: formations.slice(1).map((units, index) => ({ formationNumber: index + 2, units })),
+  });
+  return {
+    ...battle,
+    formations: { ALLY: sideFormations(numbered.ALLY), ENEMY: sideFormations(numbered.ENEMY) },
+  };
+}
+
+function numberFormations(
+  formations: TotalWarSideFormationUnits,
+  path: string,
+): readonly (readonly BattleUnit[])[] {
+  if (formations.length === 0) {
+    throw new DomainValidationError(path, "must contain at least one formation");
+  }
+  return formations.map((units, index) => {
+    if (units.length === 0) {
+      throw new DomainValidationError(`${path}[${index}]`, "must contain at least one BattleUnit");
+    }
+    return units.map((unit) => ({ ...unit, formationNumber: index + 1 }));
+  });
+}
+
+/** 控え・全滅済みを含めて同じ集約に最大30体が並ぶため、編成をまたいでも`BattleUnitId`を重複させない。 */
+function assertUniqueBattleUnitIds(units: readonly BattleUnit[]): void {
+  const seen = new Set<string>();
+  for (const unit of units) {
+    if (seen.has(unit.battleUnitId)) {
+      throw new DomainValidationError(
+        "battle.formations",
+        `duplicates a BattleUnitId across formations: "${unit.battleUnitId}"`,
+      );
+    }
+    seen.add(unit.battleUnitId);
+  }
 }
 
 /**
@@ -183,8 +265,78 @@ export function startBattle(battle: Battle, random: RandomSource, recorder: Even
   return { ...battle, status: "RUNNING", allyUnits, enemyUnits };
 }
 
-function allDefeated(units: readonly BattleUnit[]): boolean {
-  return units.every(isDefeated);
+function checkpointModeOf(battle: Battle): CompletionCheckpointMode {
+  return {
+    ...(battle.exercise !== undefined ? { exercise: battle.exercise } : {}),
+    ...(battle.formations !== undefined ? { totalWarFormations: battle.formations } : {}),
+  };
+}
+
+function withFormations(battle: Battle, formations: TotalWarFormations | undefined): Battle {
+  return formations !== undefined ? { ...battle, formations } : battle;
+}
+
+/**
+ * R-TWR-04 #2・#3・#5: 編成が全滅した陣営ごとに、控えのうち最も前の編成を盤面へ加えて
+ * `FormationDeployed`を発行する。次ターンの`TurnStarted`より前に、両陣営をまとめて
+ * 1つの行動外トップレベル解決スコープ（出撃スコープ）として行う。2件目（敵）は1件目（味方）の
+ * 子とし、ルートを共有する（`08_ドメインイベント.md`「総力戦イベント」）。
+ *
+ * 出撃したユニットは戦闘開始時と同じ開始状態のまま加わり、AP・PPは続くTURN_STARTINGで
+ * 勝ち残った編成のユニットと一緒に回復する（R-TWR-04 #4、`06_戦闘状態遷移.md`「編成の交代」#5）。
+ */
+function deployPendingFormations(
+  battle: Battle,
+  turnNumber: number,
+  recorder: EventRecorder,
+): Battle {
+  const formations = battle.formations;
+  if (formations === undefined) {
+    return battle;
+  }
+  let next = battle;
+  let nextFormations = formations;
+  let scope:
+    | { readonly resolutionScopeId: ResolutionScopeId; readonly rootEventId: DomainEventId }
+    | undefined;
+  for (const side of TOTAL_WAR_SIDE_ORDER) {
+    const current = nextFormations[side];
+    const reserve = current.reserves[0];
+    if (!isAwaitingDeployment(current) || reserve === undefined) {
+      continue;
+    }
+    const resolutionScopeId = scope?.resolutionScopeId ?? recorder.nextResolutionScopeId();
+    const deployed = recorder.record({
+      eventType: "FormationDeployed",
+      category: "FACT",
+      turnNumber,
+      cycleNumber: 0,
+      resolutionScopeId,
+      ...(scope !== undefined
+        ? { parentEventId: scope.rootEventId, rootEventId: scope.rootEventId }
+        : {}),
+      payload: {
+        side,
+        formationNumber: reserve.formationNumber,
+        turnNumber,
+        battleUnitIds: reserve.units.map((unit) => unit.battleUnitId),
+      },
+    });
+    scope ??= { resolutionScopeId, rootEventId: deployed.eventId };
+    nextFormations = {
+      ...nextFormations,
+      [side]: {
+        ...current,
+        activeFormationNumber: reserve.formationNumber,
+        reserves: current.reserves.slice(1),
+      },
+    };
+    next =
+      side === "ALLY"
+        ? { ...next, allyUnits: [...next.allyUnits, ...reserve.units] }
+        : { ...next, enemyUnits: [...next.enemyUnits, ...reserve.units] };
+  }
+  return { ...next, formations: nextFormations };
 }
 
 /**
@@ -302,18 +454,19 @@ function applyTurnCooldownDecrements(
  * （05_ドメインモデル.md「結果が確定した後は、未処理の...を処理しない」）。
  */
 export function advanceBattle(
-  battle: Battle,
+  current: Battle,
   random: RandomSource,
   recorder: EventRecorder,
 ): Battle {
-  if (battle.status !== "RUNNING") {
+  if (current.status !== "RUNNING") {
     throw new DomainValidationError(
       "battle.status",
-      `cannot advance a battle in status "${battle.status}"`,
+      `cannot advance a battle in status "${current.status}"`,
     );
   }
 
-  const nextTurnNumber = battle.turnState.currentTurn + 1;
+  const nextTurnNumber = current.turnState.currentTurn + 1;
+  const battle = deployPendingFormations(current, nextTurnNumber, recorder);
   const turnScope = recorder.nextResolutionScopeId();
   const turnStarted = recorder.record({
     eventType: "TurnStarted",
@@ -403,36 +556,44 @@ export function advanceBattle(
   const { units: afterPassives } = passiveRuntime.finalizeResolutionScope(turnStarted.eventId);
   const allyUnits = afterPassives.filter((unit) => unit.side === "ALLY");
   const enemyUnits = afterPassives.filter((unit) => unit.side === "ENEMY");
-  const started: Battle = { ...battle, turnState, allyUnits, enemyUnits };
-
   // R-END-01／R-TEX-09 #1 判定タイミング区分「ターン開始・終了など、行動外のトップレベル解決スコープ完了後」その1: TURN_STARTING完了後。
-  const afterTurnStart = resolveCompletionAt(battle.exercise, {
-    allAlliesDefeated: allDefeated(allyUnits),
-    allEnemiesDefeated: allDefeated(enemyUnits),
-    turnLimitReached: false,
+  const afterTurnStart = passCompletionCheckpoint(checkpointModeOf(battle), afterPassives, false, {
+    recorder,
+    turnNumber: nextTurnNumber,
+    cycleNumber: 0,
+    resolutionScopeId: turnScope,
+    rootEventId: turnStarted.eventId,
+    parentEventId: turnStarted.eventId,
   });
-  if (afterTurnStart !== undefined) {
-    return complete(started, afterTurnStart, recorder);
+  const started: Battle = withFormations(
+    { ...battle, turnState, allyUnits, enemyUnits },
+    afterTurnStart.totalWarFormations,
+  );
+  if (afterTurnStart.completion !== undefined) {
+    return complete(started, afterTurnStart.completion, recorder);
   }
 
   // QUEUE_BUILDING〜ACTION_RESOLUTION: R-END-01「ユニットの1行動完了後」の判定は
-  // `resolveActionPhase` 内部で各行動ごとに行う。
-  const actionPhase = resolveActionPhase(
-    allyUnits,
-    enemyUnits,
-    battle.definitions,
-    random,
-    recorder,
-    nextTurnNumber,
-    turnStarted.eventId,
-    resourcesRecovered.eventId,
-    battle.exercise,
+  // `resolveActionPhase` 内部で各行動ごとに行う。R-TWR-03 #4: ターン開始の判定タイミングで
+  // 編成の全滅を検出した場合は、行動フェーズを開始せずにTURN_ENDINGへ進む。
+  const actionPhase = afterTurnStart.awaitingDeployment
+    ? { allyUnits, enemyUnits, result: undefined, totalWarFormations: started.formations }
+    : resolveActionPhase(
+        allyUnits,
+        enemyUnits,
+        battle.definitions,
+        random,
+        recorder,
+        nextTurnNumber,
+        turnStarted.eventId,
+        resourcesRecovered.eventId,
+        battle.exercise,
+        started.formations,
+      );
+  const progressed: Battle = withFormations(
+    { ...started, allyUnits: actionPhase.allyUnits, enemyUnits: actionPhase.enemyUnits },
+    actionPhase.totalWarFormations,
   );
-  const progressed: Battle = {
-    ...started,
-    allyUnits: actionPhase.allyUnits,
-    enemyUnits: actionPhase.enemyUnits,
-  };
   if (actionPhase.result !== undefined) {
     return complete(progressed, actionPhase.result, recorder);
   }
@@ -642,16 +803,26 @@ export function advanceBattle(
 
   // 演習ではこの`turnLimitReached`が「5ターン目の終了」に一致する
   // （規定ターン数は5固定のため、R-TEX-01 #4／R-TEX-09 #1）。
-  const afterTurnEnd = resolveCompletionAt(battle.exercise, {
-    allAlliesDefeated: allDefeated(progressedWithMarkerDuration.allyUnits),
-    allEnemiesDefeated: allDefeated(progressedWithMarkerDuration.enemyUnits),
-    turnLimitReached: isFinalTurn(turnState),
-  });
-  if (afterTurnEnd !== undefined) {
-    return complete(progressedWithMarkerDuration, afterTurnEnd, recorder);
+  // R-TWR-03 #6: 総力戦ではここで別の陣営の全滅を検出しても、同じターンの全滅として扱う。
+  const afterTurnEnd = passCompletionCheckpoint(
+    checkpointModeOf(progressedWithMarkerDuration),
+    afterTurnEndScope,
+    isFinalTurn(turnState),
+    {
+      recorder,
+      turnNumber: nextTurnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: turnEndScope,
+      rootEventId: turnCompleting.eventId,
+      parentEventId: turnCompleted.eventId,
+    },
+  );
+  const turnEnded = withFormations(progressedWithMarkerDuration, afterTurnEnd.totalWarFormations);
+  if (afterTurnEnd.completion !== undefined) {
+    return complete(turnEnded, afterTurnEnd.completion, recorder);
   }
 
-  return progressedWithMarkerDuration;
+  return turnEnded;
 }
 
 /**

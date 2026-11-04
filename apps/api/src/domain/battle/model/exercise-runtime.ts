@@ -4,10 +4,10 @@ import type { CombatStats } from "./starting-combat-stats.js";
 
 /**
  * `05_ドメインモデル.md`「集約が所有する状態」の戦闘モード。`TACTICAL_EXERCISE`の
- * ときだけR-TEX領域のルールを適用し、`NORMAL`の挙動と既存ルールは変更しない
- * （`07_戦闘ルール詳細.md`「戦術演習（スコアアタック）」前文）。
+ * ときだけR-TEX領域、`TOTAL_WAR`のときだけR-TWR領域のルールを適用し、`NORMAL`の挙動と
+ * 既存ルールは変更しない（`07_戦闘ルール詳細.md`「戦術演習（スコアアタック）」「総力戦」前文）。
  */
-export const BATTLE_MODES = ["NORMAL", "TACTICAL_EXERCISE"] as const;
+export const BATTLE_MODES = ["NORMAL", "TACTICAL_EXERCISE", "TOTAL_WAR"] as const;
 export type BattleMode = (typeof BATTLE_MODES)[number];
 
 /**

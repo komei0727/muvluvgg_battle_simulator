@@ -21,10 +21,9 @@ import {
 } from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
-import {
-  resolveCompletionAt,
-  type CompletionCheckResult,
-} from "../outcome/completion-checkpoint.js";
+import type { CompletionCheckResult } from "../outcome/completion-checkpoint.js";
+import { passCompletionCheckpoint } from "./completion-checkpoint-recorder.js";
+import type { TotalWarFormations } from "../model/total-war-formations.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -37,6 +36,8 @@ export interface ActionPhaseResult {
    * （通常戦闘は勝敗、戦術演習は終了理由だけ。R-END-02／R-TEX-09）。
    */
   readonly result: CompletionCheckResult | undefined;
+  /** 総力戦だけが持つ、行動フェーズ終了時点の編成状態（R-TWR-03）。 */
+  readonly totalWarFormations?: TotalWarFormations;
 }
 
 function splitBySide(units: readonly BattleUnit[]): {
@@ -331,8 +332,14 @@ export function resolveActionPhase(
   turnScopeParentEventId: DomainEventId,
   /** R-TEX-02: 戦術演習だけが持つ演習状態。未指定なら通常戦闘（スコア計上なし）。 */
   exercise?: ExerciseRuntime,
+  /**
+   * R-TWR-03: 総力戦だけが持つ編成状態。出撃中の編成の全滅を検出したら、決着しなくても
+   * そのターンの行動フェーズを打ち切る（同 #4）。
+   */
+  totalWarFormations?: TotalWarFormations,
 ): ActionPhaseResult {
   let units: readonly BattleUnit[] = [...allyUnits, ...enemyUnits];
+  let formations = totalWarFormations;
   let cycleNumber = 0;
   let turnScopeParent = turnScopeParentEventId;
 
@@ -460,18 +467,40 @@ export function resolveActionPhase(
         }
       }
 
-      const { ally, enemy } = splitBySide(units);
-      const completion = resolveCompletionAt(exercise, {
-        allAlliesDefeated: ally.every(isDefeated),
-        allEnemiesDefeated: enemy.every(isDefeated),
-        turnLimitReached: false,
-      });
-      if (completion !== undefined) {
-        return { allyUnits: ally, enemyUnits: enemy, result: completion };
+      const checkpoint = passCompletionCheckpoint(
+        { ...(exercise !== undefined ? { exercise } : {}), ...formationsOf(formations) },
+        units,
+        false,
+        {
+          recorder,
+          turnNumber,
+          cycleNumber,
+          resolutionScopeId: resolution.actionScope,
+          rootEventId: resolution.rootEventId,
+          parentEventId: resolution.completedEventId,
+        },
+      );
+      formations = checkpoint.totalWarFormations;
+      if (checkpoint.completion !== undefined || checkpoint.awaitingDeployment) {
+        return phaseResult(units, checkpoint.completion, formations);
       }
     }
   }
 
+  return phaseResult(units, undefined, formations);
+}
+
+function formationsOf(formations: TotalWarFormations | undefined): {
+  readonly totalWarFormations?: TotalWarFormations;
+} {
+  return formations !== undefined ? { totalWarFormations: formations } : {};
+}
+
+function phaseResult(
+  units: readonly BattleUnit[],
+  result: CompletionCheckResult | undefined,
+  formations: TotalWarFormations | undefined,
+): ActionPhaseResult {
   const { ally, enemy } = splitBySide(units);
-  return { allyUnits: ally, enemyUnits: enemy, result: undefined };
+  return { allyUnits: ally, enemyUnits: enemy, result, ...formationsOf(formations) };
 }

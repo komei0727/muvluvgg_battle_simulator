@@ -6,6 +6,7 @@ import { BATTLE_DOMAIN_EVENT_TYPES } from "../../../../domain/battle/events/doma
 import {
   battleLogEventResponseDocSchema,
   exerciseBattleLogEventResponseDocSchema,
+  totalWarBattleLogEventResponseDocSchema,
 } from "./battle-log-schema.js";
 
 /**
@@ -237,12 +238,13 @@ describe("battle-log event schema ⇄ domain event payload parity (REF-051 / Iss
   );
 
   it("API-OPENAPI-038: every published details schema requires no key that isn't also required by the corresponding BattleDomainEventPayloadMap member", () => {
-    // 通常戦闘・戦術演習の両unionを見る。`BattleCompleted`等はモードごとに別schema
+    // 通常戦闘・戦術演習・総力戦のunionを見る。`BattleCompleted`等はモードごとに別schema
     // オブジェクトを参照する（同じ`type`でも要求されるpayloadの形が変わる）ため、
     // 片方だけを見ると通常戦闘用／演習用のどちらか一方のvariantが未検査になる。
     const variants = [
       ...collectVariants(battleLogEventResponseDocSchema),
       ...collectVariants(exerciseBattleLogEventResponseDocSchema),
+      ...collectVariants(totalWarBattleLogEventResponseDocSchema),
     ];
     expect(variants.length).toBeGreaterThan(0);
 

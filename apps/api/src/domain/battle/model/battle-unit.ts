@@ -34,6 +34,11 @@ export interface BattleUnit {
   /** R-ATR-03: サブ属性付きユニットのみ持つ。 */
   readonly subAttribute?: Attribute;
   readonly side: Side;
+  /**
+   * R-TWR-03: 総力戦で所属する編成の番号（1～3）。総力戦以外のモードでは持たない。
+   * 全滅した編成のユニットは盤面に残るため、出撃中の編成の全滅判定はこの番号で絞る。
+   */
+  readonly formationNumber?: number;
   readonly position: FormationPosition;
   readonly globalCoordinate: GlobalCoordinate;
   readonly combatStats: CombatStats;

@@ -1495,6 +1495,30 @@ export interface BattleDomainEventPayloadMap {
     /** 強化後の基礎戦闘ステータス（R-TEX-04の適用結果）。 */
     readonly baseCombatStats: CombatStats;
   };
+  /**
+   * `08_ドメインイベント.md`「総力戦イベント」（R-TWR-03 #7）: 判定タイミングで出撃中の
+   * 編成の全滅を検出した時点で、陣営ごとに1回だけ発行する。結果判定（`BattleCompleted`）より前。
+   */
+  readonly FormationDefeated: {
+    readonly side: Side;
+    readonly formationNumber: number;
+    readonly turnNumber: number;
+    /** 全滅を検出した時点で、その陣営に残る控えの編成数。0なら次の出撃はない。 */
+    readonly remainingReserveCount: number;
+  };
+  /**
+   * `08_ドメインイベント.md`「総力戦イベント」（R-TWR-04 #2）: 次ターンの`TURN_STARTING`の前に
+   * 開く出撃スコープで、控えのうち最も前の編成を盤面へ加えた直後に発行する。
+   * 1番目の編成は`BattleStarted`で戦闘を開始し、本イベントを発行しない。
+   */
+  readonly FormationDeployed: {
+    readonly side: Side;
+    readonly formationNumber: number;
+    /** 出撃したターン。続く`TurnStarted`と同じ番号。 */
+    readonly turnNumber: number;
+    /** 盤面へ加わったユニット（配置順）。 */
+    readonly battleUnitIds: readonly BattleUnitId[];
+  };
 }
 
 /**
@@ -1741,6 +1765,8 @@ export const BATTLE_DOMAIN_EVENT_TYPES: Readonly<Record<BattleDomainEventType, t
   ExerciseScoreDeducted: true,
   UnitBroken: true,
   UnitRevived: true,
+  FormationDefeated: true,
+  FormationDeployed: true,
 };
 
 export type BattleDomainEvent = {
