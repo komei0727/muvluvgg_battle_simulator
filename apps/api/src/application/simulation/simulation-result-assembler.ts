@@ -21,15 +21,20 @@ import {
 } from "../../domain/battle/events/state-delta-reducer.js";
 import {
   isExerciseBattleResult,
+  isTotalWarBattleResult,
   type CooldownState,
   type EffectSnapshot,
+  type FormationsStateSnapshot,
   type MarkerSnapshot,
+  type TotalWarBattleResultSnapshot,
 } from "../../domain/battle/events/state-delta.js";
 import type {
   BattleOutcome,
   CompletionReason,
 } from "../../domain/battle/outcome/victory-policy.js";
 import type { ExerciseCompletionReason } from "../../domain/battle/outcome/exercise-end-policy.js";
+import type { TotalWarOutcome } from "../../domain/battle/outcome/total-war-end-policy.js";
+import type { TotalWarStage } from "../../domain/battle/model/total-war-stages.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type {
   SkillDefinitionId,
@@ -105,6 +110,41 @@ export interface SimulateTacticalExerciseResult {
   readonly unitRoster: readonly BattleUnitRosterEntry[];
 }
 
+/**
+ * `10_API設計.md`「TotalWarUnitRosterResponse」のうち、集約とイベント列から決まる項目。
+ * `deployed`は最終状態に居るか（盤面へ一度でも加わったか）で決まり、`SUMMARY`で
+ * `finalState`を省略しても失われないよう、ここで確定させる。
+ */
+export interface TotalWarUnitRosterEntry extends BattleUnitRosterEntry {
+  readonly formationNumber: number;
+  readonly deployed: boolean;
+}
+
+/**
+ * `09_アプリケーション設計.md`「SimulateTotalWarResult」。`initialState`は1番目の編成の
+ * ユニットだけを含み、全編成のユニットは`unitRoster`・`unitSummaries`が運ぶ。
+ */
+export interface SimulateTotalWarResult {
+  readonly battleId: BattleId;
+  readonly catalogRevision: string;
+  readonly outcome: TotalWarOutcome;
+  readonly completionReason: CompletionReason;
+  readonly completedTurn: number;
+  readonly stages: readonly TotalWarStage[];
+  readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
+  readonly initialState: BattleStateSnapshot;
+  /** `SimulateBattleResult.finalState`と同じ規約。`SUMMARY`では省略する。 */
+  readonly finalState: BattleStateSnapshot | undefined;
+  /** `SUMMARY`では空。 */
+  readonly events: readonly BattleLogEvent[];
+  /** `SUMMARY`では空。 */
+  readonly stateTransitions: readonly StateTransition[];
+  /** 全編成の全ユニットのユニット別集計。出撃しなかったユニットは集計値0。 */
+  readonly unitSummaries: readonly UnitBattleSummary[];
+  /** 全編成の全ユニット。公開レベルに依存せず返す。 */
+  readonly unitRoster: readonly TotalWarUnitRosterEntry[];
+}
+
 interface AssembleResultInputBase {
   readonly battleId: BattleId;
   readonly catalogRevision: string;
@@ -121,6 +161,10 @@ export interface AssembleSimulationResultInput extends AssembleResultInputBase {
     readonly completionReason: CompletionReason;
     readonly completedTurn: number;
   };
+}
+
+export interface AssembleTotalWarResultInput extends AssembleResultInputBase {
+  readonly result: TotalWarBattleResultSnapshot;
 }
 
 export interface AssembleTacticalExerciseResultInput extends AssembleResultInputBase {
@@ -223,7 +267,8 @@ function unitSnapshotsEqual(
 
 /**
  * 通常戦闘は勝敗・終了理由・終了ターン、戦術演習は終了理由・終了ターン・総スコア・
- * ブレイク回数（R-TEX-10 #1）を比較する。演習では総スコアの比較そのものが、独立
+ * ブレイク回数（R-TEX-10 #1）、総力戦は勝敗・終了理由・終了ターンに加えて撃破された
+ * 編成数と戦闘履歴（R-TWR-06 #4）を比較する。演習では総スコアの比較そのものが、独立
  * Reducerで復元した結果と最終状態の累計スコアの一致（R-TEX-10 #3）の検証になる。
  */
 function resultsEqual(
@@ -241,15 +286,47 @@ function resultsEqual(
       isExerciseBattleResult(b) && a.totalScore === b.totalScore && a.breakCount === b.breakCount
     );
   }
-  return !isExerciseBattleResult(b) && a.outcome === b.outcome;
+  if (isExerciseBattleResult(b) || a.outcome !== b.outcome) {
+    return false;
+  }
+  if (isTotalWarBattleResult(a) || isTotalWarBattleResult(b)) {
+    return (
+      isTotalWarBattleResult(a) &&
+      isTotalWarBattleResult(b) &&
+      a.defeatedFormationCounts.ally === b.defeatedFormationCounts.ally &&
+      a.defeatedFormationCounts.enemy === b.defeatedFormationCounts.enemy &&
+      JSON.stringify(a.stages) === JSON.stringify(b.stages)
+    );
+  }
+  return true;
 }
 
-/** `status`/`currentTurn`/`units`/`result`をキー順に依存せず比較する（独立Reducerによる復元結果の検証用）。 */
+/**
+ * R-TWR-03・R-TWR-04: 総力戦の編成状態を比較する。`FormationDeployed`／`FormationDefeated`の
+ * 差分の欠落は、ユニットの状態だけを比べても検出できない（出撃中の編成番号だけが食い違う）。
+ */
+function formationsEqual(
+  a: FormationsStateSnapshot | undefined,
+  b: FormationsStateSnapshot | undefined,
+): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (["ALLY", "ENEMY"] as const).every(
+    (side) =>
+      a[side].formationCount === b[side].formationCount &&
+      a[side].activeFormationNumber === b[side].activeFormationNumber &&
+      a[side].defeatedCount === b[side].defeatedCount,
+  );
+}
+
+/** `status`/`currentTurn`/`units`/`result`/`formations`をキー順に依存せず比較する（独立Reducerによる復元結果の検証用）。 */
 function statesEqual(a: BattleStateSnapshot, b: BattleStateSnapshot): boolean {
   if (
     a.status !== b.status ||
     a.currentTurn !== b.currentTurn ||
-    !resultsEqual(a.result, b.result)
+    !resultsEqual(a.result, b.result) ||
+    !formationsEqual(a.formations, b.formations)
   ) {
     return false;
   }
@@ -426,6 +503,49 @@ export function assembleTacticalExerciseResult(
     stateTransitions,
     unitSummaries,
     unitRoster: input.unitRoster,
+  };
+}
+
+/**
+ * `09_アプリケーション設計.md`「SimulateTotalWarResult」の組み立て。他のモードと同じ検証
+ * （`stateVersion`連続性、独立Reducerによる`initialState` + 全差分 = `finalState`）を、
+ * 途中で加わったユニット（`addedUnits`）と編成状態（`formations.<side>.*`）を含めて通す。
+ * `unitRoster`の`deployed`は最終状態に居るかで決める — 盤面へ加わったユニットは全滅しても
+ * 状態から取り除かれないため（R-TWR-03 #8）、最終状態は出撃したことのある全ユニットを含む。
+ */
+export function assembleTotalWarResult(input: AssembleTotalWarResultInput): SimulateTotalWarResult {
+  const { observation, events, stateTransitions, finalState, unitSummaries } =
+    buildVerifiedObservation(input);
+
+  const unitRoster = input.unitRoster.map((entry) => {
+    if (entry.formationNumber === undefined) {
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        {
+          reason: `the total war unit roster has an entry without a formation number (${entry.battleUnitId})`,
+        },
+      ]);
+    }
+    return {
+      ...entry,
+      formationNumber: entry.formationNumber,
+      deployed: observation.finalState.units[entry.battleUnitId] !== undefined,
+    };
+  });
+
+  return {
+    battleId: input.battleId,
+    catalogRevision: input.catalogRevision,
+    outcome: input.result.outcome,
+    completionReason: input.result.completionReason,
+    completedTurn: input.result.completedTurn,
+    stages: input.result.stages,
+    defeatedFormationCounts: input.result.defeatedFormationCounts,
+    initialState: observation.initialState,
+    finalState,
+    events,
+    stateTransitions,
+    unitSummaries,
+    unitRoster,
   };
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { captureBattleState, captureUnitRoster } from "./battle-state-snapshot.js";
 import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
-import { createBattle } from "./battle.js";
+import { createBattle, createTotalWarBattle } from "./battle.js";
 import { createBattleUnit, type BattleUnitResourceLimits } from "../model/battle-unit.js";
 import {
   buildInitialDurationState,
@@ -230,5 +230,35 @@ describe("captureUnitRoster", () => {
       maximumExtraGauge: ally1.maximumExtraGauge,
     });
     expect(roster[2]!.side).toBe("ENEMY");
+  });
+
+  it("UT-R-TWR-03-014: a total war roster lists every formation of each side, reserves included, with its formation number, in side → formation → slot order", () => {
+    const definitions = {
+      activeSkillsByUnit: new Map(),
+      exSkillByUnit: new Map(),
+      effectActions: new Map(),
+      unitDefinitions: new Map(),
+      skillDefinitions: new Map(),
+    };
+    const battle = createTotalWarBattle(
+      createBattleId("battle-1"),
+      {
+        ALLY: [[unit("ally:1", "ALLY"), unit("ally:2", "ALLY")], [unit("ally:3", "ALLY")]],
+        ENEMY: [[unit("enemy:1", "ENEMY")], [unit("enemy:2", "ENEMY")], [unit("enemy:3", "ENEMY")]],
+      },
+      createTurnLimit(15),
+      definitions,
+    );
+
+    const roster = captureUnitRoster(battle);
+
+    expect(roster.map((entry) => [entry.battleUnitId, entry.formationNumber])).toEqual([
+      ["ally:1", 1],
+      ["ally:2", 1],
+      ["ally:3", 2],
+      ["enemy:1", 1],
+      ["enemy:2", 2],
+      ["enemy:3", 3],
+    ]);
   });
 });

@@ -461,3 +461,89 @@ describe("projectUnitBattleSummaries", () => {
     expect(summaryOf(summaries, DEFENDER).combatStatus).toBe("ACTIVE");
   });
 });
+
+describe("projectUnitBattleSummaries (TOTAL_WAR)", () => {
+  const RESERVE = createBattleUnitId("ally:3");
+  const DEPLOYED_RESERVE = createBattleUnitId("enemy:2");
+  const TOTAL_WAR_ROSTER: readonly BattleUnitRosterEntry[] = [
+    { ...rosterEntry(ATTACKER, "ALLY", 0), formationNumber: 1 },
+    { ...rosterEntry(HEALER, "ALLY", 1), formationNumber: 1 },
+    {
+      ...rosterEntry(RESERVE, "ALLY", 0),
+      formationNumber: 2,
+      combatStats: { ...COMBAT_STATS, maximumHp: 7 },
+    },
+    { ...rosterEntry(DEFENDER, "ENEMY", 0), formationNumber: 1 },
+    { ...rosterEntry(DEPLOYED_RESERVE, "ENEMY", 0), formationNumber: 2 },
+  ];
+
+  /** 敵だけが2番目の編成を出撃させ、味方の2番目の編成は控えのまま終わった最終状態。 */
+  function totalWarFinalState(): BattleStateSnapshot {
+    const base = finalStateWith({ [DEFENDER]: 0 });
+    return {
+      ...base,
+      units: { ...base.units, [DEPLOYED_RESERVE]: { ...base.units[DEFENDER]!, hp: 55 } },
+      formations: {
+        ALLY: { formationCount: 2, activeFormationNumber: 1, defeatedCount: 0 },
+        ENEMY: { formationCount: 2, activeFormationNumber: 2, defeatedCount: 1 },
+      },
+    };
+  }
+
+  it("UT-UNIT-SUMMARY-009 [R-TWR-03]: returns a row for every unit of every formation with its formation number and whether it was ever deployed", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    recordDamageApplied(recorder, {
+      sourceUnitId: ATTACKER,
+      targetUnitId: DEPLOYED_RESERVE,
+      hitPointDamage: 45,
+    });
+
+    const summaries = projectUnitBattleSummaries(
+      recorder.getEvents(),
+      totalWarFinalState(),
+      TOTAL_WAR_ROSTER,
+    );
+
+    expect(
+      summaries.map((summary) => [summary.battleUnitId, summary.formationNumber, summary.deployed]),
+    ).toEqual([
+      [ATTACKER, 1, true],
+      [HEALER, 1, true],
+      [RESERVE, 2, false],
+      [DEFENDER, 1, true],
+      [DEPLOYED_RESERVE, 2, true],
+    ]);
+    expect(summaryOf(summaries, ATTACKER).damageDealt).toBe(45);
+    expect(summaryOf(summaries, DEPLOYED_RESERVE)).toMatchObject({
+      damageTaken: 45,
+      finalHp: 55,
+      combatStatus: "ACTIVE",
+    });
+  });
+
+  it("UT-UNIT-SUMMARY-010 [R-TWR-03]: a reserve that never deployed reports zero totals and its starting HP as both finalHp and maximumHp", () => {
+    expect(
+      summaryOf(projectUnitBattleSummaries([], totalWarFinalState(), TOTAL_WAR_ROSTER), RESERVE),
+    ).toEqual({
+      battleUnitId: RESERVE,
+      side: "ALLY",
+      formationNumber: 2,
+      deployed: false,
+      damageDealt: 0,
+      damageTaken: 0,
+      healingDone: 0,
+      finalHp: 7,
+      maximumHp: 7,
+      combatStatus: "ACTIVE",
+    });
+  });
+
+  it("UT-UNIT-SUMMARY-011 [R-TWR-04]: still rejects a roster unit absent from the final state when its formation has already deployed", () => {
+    const state = totalWarFinalState();
+    const { [DEPLOYED_RESERVE]: _dropped, ...units } = state.units;
+
+    expect(() => projectUnitBattleSummaries([], { ...state, units }, TOTAL_WAR_ROSTER)).toThrow(
+      /absent from the state snapshot/,
+    );
+  });
+});

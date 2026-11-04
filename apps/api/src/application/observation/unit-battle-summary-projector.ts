@@ -15,6 +15,13 @@ import type { BattleUnitId } from "../../domain/shared/ids.js";
 export interface UnitBattleSummary {
   readonly battleUnitId: BattleUnitId;
   readonly side: Side;
+  /** 総力戦のみ。所属する編成の番号（1～3）。他のモードではキー自体を持たない。 */
+  readonly formationNumber?: number;
+  /**
+   * 総力戦のみ。一度でも出撃したか。`false`のユニットは集計値がすべて0で、`finalHp`・
+   * `maximumHp`は開始時の値とする（`10_API設計.md`「UnitBattleSummaryResponse」）。
+   */
+  readonly deployed?: boolean;
   readonly damageDealt: number;
   readonly damageTaken: number;
   readonly healingDone: number;
@@ -127,14 +134,33 @@ export function projectUnitBattleSummaries(
 
   return unitRoster.map((entry) => {
     const snapshot = finalState.units[entry.battleUnitId];
+    const formation =
+      entry.formationNumber !== undefined
+        ? { formationNumber: entry.formationNumber, deployed: snapshot !== undefined }
+        : {};
     if (snapshot === undefined) {
-      throw new Error(
-        `unitRoster references a BattleUnitId absent from the state snapshot: "${entry.battleUnitId}"`,
-      );
+      if (!isUndeployedReserve(entry, finalState)) {
+        throw new Error(
+          `unitRoster references a BattleUnitId absent from the state snapshot: "${entry.battleUnitId}"`,
+        );
+      }
+      // 盤面へ一度も加わらなかった控えはイベントの対象にもならないため集計値は0のまま。
+      return {
+        battleUnitId: entry.battleUnitId,
+        side: entry.side,
+        ...formation,
+        damageDealt: 0,
+        damageTaken: 0,
+        healingDone: 0,
+        combatStatus: "ACTIVE",
+        finalHp: entry.combatStats.maximumHp,
+        maximumHp: entry.combatStats.maximumHp,
+      };
     }
     return {
       battleUnitId: entry.battleUnitId,
       side: entry.side,
+      ...formation,
       damageDealt: accumulator.damageDealt.get(entry.battleUnitId) ?? 0,
       damageTaken: accumulator.damageTaken.get(entry.battleUnitId) ?? 0,
       healingDone: accumulator.healingDone.get(entry.battleUnitId) ?? 0,
@@ -146,4 +172,21 @@ export function projectUnitBattleSummaries(
       maximumHp: snapshot.combatStats.maximumHp,
     };
   });
+}
+
+/**
+ * R-TWR-03 #2: 最終状態に居なくてよいのは、総力戦で出撃中の編成より後ろの編成（控えのまま
+ * 終わった編成）のユニットだけである。出撃済みの編成のユニットが欠けているのは状態の欠落であり、
+ * 0として黙って埋めない。
+ */
+function isUndeployedReserve(
+  entry: BattleUnitRosterEntry,
+  finalState: BattleStateSnapshot,
+): boolean {
+  const formations = finalState.formations;
+  return (
+    formations !== undefined &&
+    entry.formationNumber !== undefined &&
+    entry.formationNumber > formations[entry.side].activeFormationNumber
+  );
 }

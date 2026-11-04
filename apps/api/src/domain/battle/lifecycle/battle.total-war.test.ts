@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import * as fc from "fast-check";
 import { advanceBattle, createTotalWarBattle, startBattle, type Battle } from "./battle.js";
+import { captureBattleState } from "./battle-state-snapshot.js";
+import { reduceStateDeltas } from "../events/state-delta-reducer.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
@@ -27,6 +30,7 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 import { DefaultUnitDefinitionMap } from "../../../testing/fixtures/default-unit-definition-map.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
+import { PROPERTY_ASSERT_CONFIG, positionArb } from "../../../testing/property/index.js";
 
 /** ASを持つユニット定義。持たない定義（`PASSIVE_UNIT`）のユニットは行動フェーズで待機する。 */
 const ATTACKER_UNIT = createUnitDefinitionId("UNIT_001");
@@ -846,5 +850,185 @@ describe("advanceBattle (TOTAL_WAR) result", () => {
       defeatedFormationCounts: { ally: 0, enemy: 1 },
     });
     expect(typesOf(recorder.getEvents())).not.toContain("FormationDeployed");
+  });
+});
+
+/** 両陣営の1番目の編成が同じ行動で相討ちになり、2番目の編成どうしが続けて戦う総力戦。 */
+function mutualWipeBattle(): Battle {
+  return totalWar(
+    [
+      [
+        unit("ally:1", "ALLY", {
+          unitDefinitionId: ATTACKER_UNIT,
+          stats: { attack: 999, defense: 0, maximumHp: 10 },
+        }),
+      ],
+      [unit("ally:2", "ALLY", { unitDefinitionId: ATTACKER_UNIT })],
+    ],
+    [
+      [unit("enemy:1", "ENEMY", { stats: { maximumHp: 10, defense: 0 } })],
+      [unit("enemy:2", "ENEMY", { stats: { maximumHp: 80 } })],
+    ],
+    definitions(MUTUALLY_LETHAL_SKILL),
+  );
+}
+
+function deltasOf(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter((event) => event.stateDelta !== undefined)
+    .map((event) => event.stateDelta!);
+}
+
+describe("state deltas (TOTAL_WAR)", () => {
+  it("UT-R-TWR-04-004: the state snapshot carries each side's formation state and only the units on the board", () => {
+    const battle = totalWar(
+      [[unit("ally:1", "ALLY")], [unit("ally:2", "ALLY")], [unit("ally:3", "ALLY")]],
+      [[unit("enemy:1", "ENEMY")]],
+    );
+
+    const snapshot = captureBattleState(battle);
+
+    expect(snapshot.formations).toEqual({
+      ALLY: { formationCount: 3, activeFormationNumber: 1, defeatedCount: 0 },
+      ENEMY: { formationCount: 1, activeFormationNumber: 1, defeatedCount: 0 },
+    });
+    expect(Object.keys(snapshot.units)).toEqual(["ally:1", "enemy:1"]);
+  });
+
+  it("UT-R-TWR-03-013: FormationDefeated owns the defeated formation count delta of its side", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    advanceBattle(startBattle(mutualWipeBattle(), NO_RANDOM(), recorder), NO_RANDOM(), recorder);
+
+    expect(
+      recorder
+        .getEvents()
+        .filter((event) => event.eventType === "FormationDefeated")
+        .map((event) => event.stateDelta),
+    ).toEqual([
+      { formations: { ALLY: { defeatedCount: { before: 0, after: 1 } } } },
+      { formations: { ENEMY: { defeatedCount: { before: 0, after: 1 } } } },
+    ]);
+  });
+
+  it("UT-R-TWR-04-005: FormationDeployed owns the active formation number delta and adds the deployed units with their starting state", () => {
+    const battle = mutualWipeBattle();
+    const reserveSnapshot = captureBattleState({
+      ...battle,
+      enemyUnits: battle.formations!.ENEMY.reserves[0]!.units,
+    }).units[createBattleUnitId("enemy:2")];
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const afterTurn1 = advanceBattle(
+      startBattle(battle, NO_RANDOM(), recorder),
+      NO_RANDOM(),
+      recorder,
+    );
+    advanceBattle(afterTurn1, NO_RANDOM(), recorder);
+
+    const deployed = recorder
+      .getEvents()
+      .filter((event) => event.eventType === "FormationDeployed");
+    expect(deployed.map((event) => event.stateDelta?.formations)).toEqual([
+      { ALLY: { activeFormationNumber: { before: 1, after: 2 } } },
+      { ENEMY: { activeFormationNumber: { before: 1, after: 2 } } },
+    ]);
+    expect(Object.keys(deployed[0]!.stateDelta!.addedUnits!)).toEqual(["ally:2"]);
+    expect(deployed[1]!.stateDelta!.addedUnits).toEqual({
+      [createBattleUnitId("enemy:2")]: reserveSnapshot,
+    });
+    expect(reserveSnapshot).toMatchObject({ hp: 80, ap: 0, pp: 0, extraGauge: 0 });
+  });
+
+  it("UT-R-TWR-04-006: initialState + every recorded delta restores the final state, including the units that joined mid-battle", () => {
+    const battle = mutualWipeBattle();
+    const initialState = captureBattleState(battle);
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const completed = runToCompletion(startBattle(battle, NO_RANDOM(), recorder), recorder);
+
+    expect(completed.status).toBe("COMPLETED");
+    const finalState = captureBattleState(completed);
+    expect(Object.keys(finalState.units)).toEqual(["ally:1", "ally:2", "enemy:1", "enemy:2"]);
+    expect(reduceStateDeltas(initialState, deltasOf(recorder))).toEqual(finalState);
+  });
+});
+
+const unitSpecArb = fc.record({
+  unitDefinitionId: fc.constantFrom(ATTACKER_UNIT, PASSIVE_UNIT, TURN_END_STRIKER_UNIT),
+  maximumHp: fc.integer({ min: 1, max: 300 }),
+  attack: fc.integer({ min: 1, max: 300 }),
+  defense: fc.integer({ min: 0, max: 100 }),
+  actionSpeed: fc.integer({ min: 1, max: 20 }),
+});
+
+/** 1編成：配置が重複しない1～5体。 */
+const formationSpecArb = fc.uniqueArray(fc.tuple(positionArb, unitSpecArb), {
+  minLength: 1,
+  maxLength: 5,
+  selector: ([position]) => `${position.column}:${position.row}`,
+});
+
+const sideSpecArb = fc.array(formationSpecArb, { minLength: 1, maxLength: 3 });
+
+function sideFormations(
+  side: Side,
+  specs: readonly (readonly (readonly [FormationPosition, UnitSpecValue])[])[],
+): readonly (readonly BattleUnit[])[] {
+  let serial = 0;
+  const prefix = side === "ALLY" ? "ally" : "enemy";
+  return specs.map((formation) =>
+    formation.map(([position, spec]) => {
+      serial += 1;
+      return unit(`${prefix}:${serial}`, side, {
+        unitDefinitionId: spec.unitDefinitionId,
+        position,
+        // 会心率0で会心判定の乱数を消費させない（乱数列を与えずに完走させるため）。
+        stats: {
+          maximumHp: spec.maximumHp,
+          attack: spec.attack,
+          defense: spec.defense,
+          actionSpeed: spec.actionSpeed,
+          criticalRate: 0,
+        },
+      });
+    }),
+  );
+}
+
+type UnitSpecValue = typeof unitSpecArb extends fc.Arbitrary<infer T> ? T : never;
+
+describe("total war state restoration properties (R-TWR-04)", () => {
+  it("PROP-TWR-04-001 [R-TWR-04]: for any total war, initialState + every recorded delta restores the final state, which holds exactly the units of the formations that deployed", () => {
+    fc.assert(
+      fc.property(
+        sideSpecArb,
+        sideSpecArb,
+        fc.boolean(),
+        (allySpecs, enemySpecs, mutuallyLethal) => {
+          const battle = totalWar(
+            sideFormations("ALLY", allySpecs),
+            sideFormations("ENEMY", enemySpecs),
+            definitions(mutuallyLethal ? MUTUALLY_LETHAL_SKILL : ATTACK_SKILL),
+          );
+          const initialState = captureBattleState(battle);
+          const recorder = new EventRecorder(createBattleId("B_1"));
+
+          const completed = runToCompletion(startBattle(battle, NO_RANDOM(), recorder), recorder);
+
+          const finalState = captureBattleState(completed);
+          expect(reduceStateDeltas(initialState, deltasOf(recorder))).toEqual(finalState);
+          const deployedUnitIds = [
+            ...completed.allyUnits.filter(
+              (u) => u.formationNumber! <= finalState.formations!.ALLY.activeFormationNumber,
+            ),
+            ...completed.enemyUnits.filter(
+              (u) => u.formationNumber! <= finalState.formations!.ENEMY.activeFormationNumber,
+            ),
+          ].map((u) => u.battleUnitId);
+          expect(Object.keys(finalState.units)).toEqual(deployedUnitIds);
+        },
+      ),
+      { ...PROPERTY_ASSERT_CONFIG, numRuns: 100 },
+    );
   });
 });

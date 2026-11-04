@@ -1,5 +1,6 @@
 import {
   isExerciseBattleResult,
+  isTotalWarBattleResult,
   type BattleResultSnapshot,
   type BattleStateSnapshot,
   type BattleUnitSnapshot,
@@ -7,6 +8,9 @@ import {
   type CooldownState,
   type EffectSnapshot,
   type ExerciseStateDelta,
+  type FormationsStateDelta,
+  type FormationsStateSnapshot,
+  type SideFormationStateSnapshot,
   type MarkerSnapshot,
   type StateDelta,
   type UnitStateDelta,
@@ -17,6 +21,7 @@ import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { RuntimeCounterId, SkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { Side } from "../../shared/side.js";
 import type { EffectInstanceId, MarkerInstanceId } from "../../shared/event-ids.js";
 
 function assertBeforeMatches<T>(path: string, current: T, change: ValueChange<T>): void {
@@ -717,6 +722,9 @@ export function applyStateDelta(
   delta: StateDelta,
 ): BattleStateSnapshot {
   const units: Record<BattleUnitId, BattleUnitSnapshot> = { ...state.units };
+  if (delta.addedUnits !== undefined) {
+    addUnits(units, delta.addedUnits, state.formations);
+  }
   if (delta.units !== undefined) {
     for (const [unitId, unitDelta] of Object.entries(delta.units) as [
       BattleUnitId,
@@ -743,8 +751,10 @@ export function applyStateDelta(
   }
   const nextResult = delta.result !== undefined ? delta.result.after : state.result;
   const nextExercise = applyExerciseDelta(state.exercise, delta.exercise);
+  const nextFormations = applyFormationsDelta(state.formations, delta.formations);
   if (delta.result?.after !== undefined) {
     assertResultMatchesMode(delta.result.after, nextExercise);
+    assertResultMatchesFormations(delta.result.after, nextFormations);
   }
   return {
     status: delta.battleStatus?.after ?? state.status,
@@ -752,7 +762,121 @@ export function applyStateDelta(
     units,
     ...(nextResult !== undefined ? { result: nextResult } : {}),
     ...(nextExercise !== undefined ? { exercise: nextExercise } : {}),
+    ...(nextFormations !== undefined ? { formations: nextFormations } : {}),
   };
+}
+
+/**
+ * R-TWR-04: 出撃したユニットを盤面へ加える。編成状態を持たない状態（総力戦以外）への追加と、
+ * 既に盤面にいるユニットの再追加は、差分の混線・重複適用を意味するため拒否する。
+ */
+function addUnits(
+  units: Record<BattleUnitId, BattleUnitSnapshot>,
+  addedUnits: Readonly<Record<BattleUnitId, BattleUnitSnapshot>>,
+  formations: FormationsStateSnapshot | undefined,
+): void {
+  if (formations === undefined) {
+    throw new DomainValidationError(
+      "delta.addedUnits",
+      "adds units to a state without formation state; only a TOTAL_WAR battle deploys units mid-battle",
+    );
+  }
+  for (const [unitId, snapshot] of Object.entries(addedUnits) as [
+    BattleUnitId,
+    BattleUnitSnapshot,
+  ][]) {
+    if (units[unitId] !== undefined) {
+      throw new DomainValidationError(
+        `delta.addedUnits[${unitId}]`,
+        "adds a BattleUnitId already present in the current state; the deployment is duplicated",
+      );
+    }
+    units[unitId] = snapshot;
+  }
+}
+
+/**
+ * R-TWR-03・R-TWR-04: 編成状態の差分を適用する。`applyExerciseDelta`と同じく、編成状態を
+ * 持たない状態へ編成差分が来ることはモードの取り違えを意味するため拒否する。
+ */
+function applyFormationsDelta(
+  current: FormationsStateSnapshot | undefined,
+  delta: FormationsStateDelta | undefined,
+): FormationsStateSnapshot | undefined {
+  if (delta === undefined) {
+    return current;
+  }
+  if (current === undefined) {
+    throw new DomainValidationError(
+      "delta.formations",
+      "references formation state absent from the current state; only a TOTAL_WAR battle owns one",
+    );
+  }
+  const applySide = (side: Side): SideFormationStateSnapshot => {
+    const sideDelta = delta[side];
+    const sideState = current[side];
+    if (sideDelta === undefined) {
+      return sideState;
+    }
+    if (sideDelta.activeFormationNumber !== undefined) {
+      assertBeforeMatches(
+        `delta.formations.${side}.activeFormationNumber`,
+        sideState.activeFormationNumber,
+        sideDelta.activeFormationNumber,
+      );
+    }
+    if (sideDelta.defeatedCount !== undefined) {
+      assertBeforeMatches(
+        `delta.formations.${side}.defeatedCount`,
+        sideState.defeatedCount,
+        sideDelta.defeatedCount,
+      );
+    }
+    return {
+      formationCount: sideState.formationCount,
+      activeFormationNumber:
+        sideDelta.activeFormationNumber?.after ?? sideState.activeFormationNumber,
+      defeatedCount: sideDelta.defeatedCount?.after ?? sideState.defeatedCount,
+    };
+  };
+  return { ALLY: applySide("ALLY"), ENEMY: applySide("ENEMY") };
+}
+
+/**
+ * R-TWR-06: 総力戦の結果は編成状態を持つ戦闘だけが確定でき、逆に編成状態を持つ戦闘は
+ * 総力戦の結果しか確定しない。結果の撃破された編成数は、同じ時点まで復元した編成状態と
+ * 一致する — 結果の確定は`formations.<side>.defeatedCount`差分を所有しないため、ここで
+ * 検証しないと`FormationDefeated`の差分の欠落が結果側の値だけ正しい形で潜伏する。
+ */
+function assertResultMatchesFormations(
+  result: BattleResultSnapshot,
+  formations: FormationsStateSnapshot | undefined,
+): void {
+  if (!isTotalWarBattleResult(result)) {
+    if (formations !== undefined) {
+      throw new DomainValidationError(
+        "delta.result",
+        "a non-total-war result was applied to a battle with formation state",
+      );
+    }
+    return;
+  }
+  if (formations === undefined) {
+    throw new DomainValidationError(
+      "delta.result",
+      "a total war result was applied to a state without formation state; only a TOTAL_WAR battle owns one",
+    );
+  }
+  const restored = { ally: formations.ALLY.defeatedCount, enemy: formations.ENEMY.defeatedCount };
+  if (
+    result.defeatedFormationCounts.ally !== restored.ally ||
+    result.defeatedFormationCounts.enemy !== restored.enemy
+  ) {
+    throw new DomainValidationError(
+      "delta.result.after.defeatedFormationCounts",
+      `the total war result's defeated formation counts (${JSON.stringify(result.defeatedFormationCounts)}) do not match the formation state restored so far (${JSON.stringify(restored)}); a FormationDefeated delta is missing or duplicated`,
+    );
+  }
 }
 
 /**

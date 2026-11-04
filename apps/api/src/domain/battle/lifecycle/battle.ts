@@ -46,6 +46,7 @@ import {
 } from "../model/total-war-formations.js";
 import { closeStageHistory, openNextStage, startStageHistory } from "../model/total-war-stages.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
+import { captureBattleUnitSnapshot } from "../events/battle-unit-snapshot.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
@@ -396,6 +397,21 @@ function deployPendingFormations(
         formationNumber: reserve.formationNumber,
         turnNumber,
         battleUnitIds: reserve.units.map((unit) => unit.battleUnitId),
+      },
+      // 出撃中の編成番号と、盤面へ加わるユニットの開始状態はこのイベントが単独で所有する
+      // （`08_ドメインイベント.md`「総力戦イベント」）。開始状態は盤面へ加える前に射影する。
+      stateDelta: {
+        addedUnits: Object.fromEntries(
+          reserve.units.map((unit) => [unit.battleUnitId, captureBattleUnitSnapshot(unit)]),
+        ),
+        formations: {
+          [side]: {
+            activeFormationNumber: {
+              before: current.activeFormationNumber,
+              after: reserve.formationNumber,
+            },
+          },
+        },
       },
     });
     deployedEvents.push(deployed);
