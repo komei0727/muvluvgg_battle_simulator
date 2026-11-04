@@ -343,16 +343,21 @@ function withFormations(battle: Battle, formations: TotalWarFormations | undefin
  *
  * 全陣営の盤面への追加を終えてから、同じスコープで出撃した編成の戦闘開始時Memoryを
  * 味方、敵の順に解決する（R-TWR-04 #3・R-TWR-05 #2）。
+ *
+ * スコープ完了後にR-END-01の判定タイミングを通す（R-TWR-04 #5）。Memory自身はダメージを
+ * 与えられなくても、その付与に反応したPSの連鎖で出撃した編成が全滅し得るため、`TurnStarted`
+ * より前に全滅と終了を確定させる — 確定させないと、全滅した編成のターン開始時Memoryが
+ * 候補化されてしまう（R-TWR-05 #1）。
  */
 function deployPendingFormations(
   battle: Battle,
   turnNumber: number,
   random: RandomSource,
   recorder: EventRecorder,
-): Battle {
+): DeploymentOutcome {
   const formations = battle.formations;
   if (formations === undefined) {
-    return battle;
+    return { battle };
   }
   let next = battle;
   let nextFormations = formations;
@@ -400,9 +405,9 @@ function deployPendingFormations(
   }
   const placed: Battle = { ...next, formations: nextFormations };
   if (scope === undefined) {
-    return placed;
+    return { battle: placed };
   }
-  return resolveDeployedFormationMemories(
+  const resolved = resolveDeployedFormationMemories(
     placed,
     deployedEvents,
     scope,
@@ -410,6 +415,29 @@ function deployPendingFormations(
     random,
     recorder,
   );
+  const checkpoint = passCompletionCheckpoint(
+    checkpointModeOf(resolved),
+    [...resolved.allyUnits, ...resolved.enemyUnits],
+    false,
+    {
+      recorder,
+      turnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: scope.resolutionScopeId,
+      rootEventId: scope.rootEventId,
+      parentEventId: scope.rootEventId,
+    },
+  );
+  return {
+    battle: withFormations(resolved, checkpoint.totalWarFormations),
+    ...(checkpoint.completion !== undefined ? { completion: checkpoint.completion } : {}),
+  };
+}
+
+interface DeploymentOutcome {
+  readonly battle: Battle;
+  /** 出撃スコープ完了後の判定タイミングで確定した結果。`undefined`は戦闘継続。 */
+  readonly completion?: CompletionCheckResult;
 }
 
 /**
@@ -581,7 +609,13 @@ export function advanceBattle(
   }
 
   const nextTurnNumber = current.turnState.currentTurn + 1;
-  const battle = deployPendingFormations(current, nextTurnNumber, random, recorder);
+  const deployment = deployPendingFormations(current, nextTurnNumber, random, recorder);
+  const battle = deployment.battle;
+  if (deployment.completion !== undefined) {
+    // 出撃スコープは次ターンの番号で記録しているため、終了ターンもその番号に揃える
+    // （`BattleCompleted`がそれより前のターン番号で後に並ばないようにする）。
+    return complete(battle, deployment.completion, recorder, nextTurnNumber);
+  }
   const turnScope = recorder.nextResolutionScopeId();
   const turnStarted = recorder.record({
     eventType: "TurnStarted",
@@ -964,8 +998,12 @@ function buildResult(
 }
 
 /** BattleCompletedを発行する。結果確定契機が複数あるため、単一の親イベントには紐付けずルート化する。 */
-function complete(battle: Battle, result: CompletionCheckResult, recorder: EventRecorder): Battle {
-  const completedTurn = battle.turnState.currentTurn;
+function complete(
+  battle: Battle,
+  result: CompletionCheckResult,
+  recorder: EventRecorder,
+  completedTurn: number = battle.turnState.currentTurn,
+): Battle {
   const fullResult: BattleResult = buildResult(battle, result, completedTurn);
   recorder.record({
     eventType: "BattleCompleted",

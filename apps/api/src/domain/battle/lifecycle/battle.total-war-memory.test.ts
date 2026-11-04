@@ -188,16 +188,46 @@ function memory(
   });
 }
 
+const REACTOR_UNIT = createUnitDefinitionId("UNIT_REACTOR");
+const REACTION_PS_ID = createSkillDefinitionId("SKL_PS_REACTION_STRIKE");
+
+/** 効果の付与（`EffectApplied`）に反応して敵全体へダメージを与えるPS。出撃Memoryの付与に反応する。 */
+const REACTION_STRIKE_PS: SkillDefinition = {
+  ...attackSkill(false),
+  skillDefinitionId: REACTION_PS_ID,
+  skillType: "PS",
+  cost: { resource: "PP", amount: 1 },
+  triggers: [
+    {
+      eventType: "EffectApplied",
+      category: "FACT",
+      sourceSelector: "ANY",
+      targetSelector: "ANY",
+      condition: { kind: "TRUE" },
+    },
+  ],
+  cooldown: { unit: "TURN", count: 0 },
+  metadata: { displayName: "ReactionStrike", tags: [] },
+};
+
 function definitions(hitSelf = false): BattleDefinitions {
+  const unitDefinitions = new DefaultUnitDefinitionMap();
+  unitDefinitions.set(REACTOR_UNIT, {
+    ...unitDefinitions.get(REACTOR_UNIT)!,
+    passiveSkillDefinitionIds: [REACTION_PS_ID],
+  });
   return {
-    activeSkillsByUnit: new Map([[ATTACKER_UNIT, [attackSkill(hitSelf)]]]),
+    activeSkillsByUnit: new Map([
+      [ATTACKER_UNIT, [attackSkill(hitSelf)]],
+      [REACTOR_UNIT, [attackSkill(hitSelf)]],
+    ]),
     exSkillByUnit: new Map(),
     effectActions: new Map<EffectActionDefinitionId, EffectActionDefinition>([
       [ATTACK_ACTION, DAMAGE_ACTION],
       [ATTACK_UP, ATTACK_UP_ACTION],
     ]),
-    unitDefinitions: new DefaultUnitDefinitionMap(),
-    skillDefinitions: new Map(),
+    unitDefinitions,
+    skillDefinitions: new Map([[REACTION_PS_ID, REACTION_STRIKE_PS]]),
   };
 }
 
@@ -425,5 +455,87 @@ describe("Memory scope in TOTAL_WAR (R-TWR-05)", () => {
     const triggered = turn2.filter((event) => event.eventType === "MemoryTriggered");
     expect(triggered[0]!.parentEventId).toBe(allyDeployed!.eventId);
     expect(triggered[1]!.parentEventId).toBe(enemyDeployed!.eventId);
+  });
+
+  it("UT-R-TWR-05-009: a formation wiped inside the deployment scope is detected before TurnStarted, so a last formation's loss ends the battle there and its turn-start memory never activates", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const battle = totalWar(
+      [
+        {
+          units: [
+            unit("ally:1", "ALLY", { unitDefinitionId: REACTOR_UNIT, stats: { attack: 999 } }),
+          ],
+        },
+      ],
+      [
+        { units: [fragile("enemy:1", "ENEMY")] },
+        {
+          units: [fragile("enemy:2", "ENEMY")],
+          memories: [memory("MEM_E2", "BattleStarted"), memory("MEM_E2_TURN", "TurnStarted")],
+        },
+      ],
+    );
+
+    const completed = run(battle, 2, recorder);
+
+    const turn2 = eventsOfTurn(recorder, 2);
+    const types = turn2.map((event) => event.eventType);
+    expect(completed.status).toBe("COMPLETED");
+    expect(completed.result).toMatchObject({
+      outcome: "ALLY_WIN",
+      completionReason: "ENEMY_DEFEATED",
+      completedTurn: 2,
+    });
+    expect(turn2.at(-1)).toMatchObject({ eventType: "BattleCompleted", turnNumber: 2 });
+    expect(types).toEqual(expect.arrayContaining(["MemoryTriggered", "UnitDefeated"]));
+    expect(types).not.toContain("TurnStarted");
+    expect(memoryTriggers(recorder.getEvents())).toEqual(["MEM_E2"]);
+    const deployed = turn2.find((event) => event.eventType === "FormationDeployed")!;
+    const defeated = turn2.filter((event) => event.eventType === "FormationDefeated");
+    expect(defeated.map((event) => event.payload)).toEqual([
+      { side: "ENEMY", formationNumber: 2, turnNumber: 2, remainingReserveCount: 0 },
+    ]);
+    expect(defeated[0]!.resolutionScopeId).toBe(deployed.resolutionScopeId);
+    expect(types.indexOf("UnitDefeated")).toBeLessThan(types.indexOf("FormationDefeated"));
+    expect(types.indexOf("FormationDefeated")).toBeLessThan(types.indexOf("BattleCompleted"));
+  });
+
+  it("UT-R-TWR-05-010: when the formation wiped inside the deployment scope still has a reserve, the turn skips its action phase, the wiped formation's turn-start memory stays silent, and the next formation deploys on the following turn", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const battle = totalWar(
+      [
+        {
+          units: [
+            unit("ally:1", "ALLY", { unitDefinitionId: REACTOR_UNIT, stats: { attack: 999 } }),
+          ],
+        },
+      ],
+      [
+        { units: [fragile("enemy:1", "ENEMY")] },
+        {
+          units: [fragile("enemy:2", "ENEMY")],
+          memories: [memory("MEM_E2", "BattleStarted"), memory("MEM_E2_TURN", "TurnStarted")],
+        },
+        { units: [unit("enemy:3", "ENEMY", { stats: { defense: 5000 } })] },
+      ],
+    );
+
+    const afterTurn3 = run(battle, 3, recorder);
+
+    const turn2 = eventsOfTurn(recorder, 2);
+    const types = turn2.map((event) => event.eventType);
+    expect(types.indexOf("FormationDefeated")).toBeLessThan(types.indexOf("TurnStarted"));
+    expect(memoryTriggers(turn2)).toEqual(["MEM_E2"]);
+    expect(types).not.toContain("ActionQueueCreated");
+    expect(types).toContain("TurnCompleted");
+    expect(afterTurn3.status).toBe("RUNNING");
+    expect(afterTurn3.formations?.ENEMY).toMatchObject({
+      activeFormationNumber: 3,
+      defeatedCount: 2,
+    });
+    expect(eventsOfTurn(recorder, 3)[0]).toMatchObject({
+      eventType: "FormationDeployed",
+      payload: { side: "ENEMY", formationNumber: 3 },
+    });
   });
 });
