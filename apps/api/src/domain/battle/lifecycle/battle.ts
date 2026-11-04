@@ -41,14 +41,17 @@ import {
   activeMemoriesBySide,
   isAwaitingDeployment,
   TOTAL_WAR_SIDE_ORDER,
+  TOTAL_WAR_TURN_LIMIT,
   type TotalWarFormations,
 } from "../model/total-war-formations.js";
+import { closeStageHistory, openNextStage, startStageHistory } from "../model/total-war-stages.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
 /**
- * 通常戦闘は勝敗と終了理由（R-END-02）、戦術演習は勝敗を持たない演習結果（R-TEX-10 #1）。
+ * 通常戦闘は勝敗と終了理由（R-END-02）、戦術演習は勝敗を持たない演習結果（R-TEX-10 #1）、
+ * 総力戦は引き分けを含む勝敗と戦闘履歴（R-TWR-06 #4）。
  * 型の正本は`events/state-delta.js`にある（`StateDelta.result`が同じ形を運ぶため）。
  */
 export type BattleResult = BattleResultSnapshot;
@@ -143,6 +146,12 @@ export function createTotalWarBattle(
   };
   assertUniqueBattleUnitIds([...numbered.ALLY.flat(), ...numbered.ENEMY.flat()]);
   assertNoSideMemories(definitions);
+  if (turnLimit !== TOTAL_WAR_TURN_LIMIT) {
+    throw new DomainValidationError(
+      "battle.turnLimit",
+      `must be ${TOTAL_WAR_TURN_LIMIT} in a total war (received ${turnLimit})`,
+    );
+  }
   const battle = createBattle(
     battleId,
     numbered.ALLY[0] ?? [],
@@ -175,6 +184,7 @@ export function createTotalWarBattle(
     formations: {
       ALLY: sideFormations(numbered.ALLY, memoriesBySide.ALLY, "battle.memories.ALLY"),
       ENEMY: sideFormations(numbered.ENEMY, memoriesBySide.ENEMY, "battle.memories.ENEMY"),
+      stages: startStageHistory(),
     },
   };
 }
@@ -403,10 +413,24 @@ function deployPendingFormations(
         ? { ...next, allyUnits: [...next.allyUnits, ...reserve.units] }
         : { ...next, enemyUnits: [...next.enemyUnits, ...reserve.units] };
   }
-  const placed: Battle = { ...next, formations: nextFormations };
   if (scope === undefined) {
-    return { battle: placed };
+    return { battle: next };
   }
+  // R-TWR-06 #4: 出撃で編成が入れ替わったターンから、新しい組み合わせが始まる。
+  const placed: Battle = {
+    ...next,
+    formations: {
+      ...nextFormations,
+      stages: openNextStage(
+        nextFormations.stages,
+        {
+          allyFormationNumber: nextFormations.ALLY.activeFormationNumber,
+          enemyFormationNumber: nextFormations.ENEMY.activeFormationNumber,
+        },
+        turnNumber,
+      ),
+    },
+  };
   const resolved = resolveDeployedFormationMemories(
     placed,
     deployedEvents,
@@ -977,15 +1001,46 @@ export function advanceBattle(
 /**
  * 判定結果へ終了ターンを加えて確定形にする。戦術演習ではさらに、その時点の累計スコアと
  * ブレイク回数を写す（R-TEX-10 #1／#3）。ブレイク履歴は集約に持たせず、`UnitBroken`の
- * 投影として出力する（同 #2）。
+ * 投影として出力する（同 #2）。総力戦では戦闘履歴と各陣営の撃破された編成数を写す
+ * （R-TWR-06 #4）。
  */
 function buildResult(
   battle: Battle,
   result: CompletionCheckResult,
   completedTurn: number,
 ): BattleResult {
+  const formations = battle.formations;
+  if (formations !== undefined) {
+    if (!("outcome" in result)) {
+      throw new DomainValidationError(
+        "battle.formations",
+        "an exercise end reason was resolved for a total war; the completion checkpoint and the battle mode disagree",
+      );
+    }
+    return {
+      outcome: result.outcome,
+      completionReason: result.completionReason,
+      completedTurn,
+      stages: closeStageHistory(formations.stages, completedTurn),
+      defeatedFormationCounts: {
+        ally: formations.ALLY.defeatedCount,
+        enemy: formations.ENEMY.defeatedCount,
+      },
+    };
+  }
   if ("outcome" in result) {
-    return { ...result, completedTurn };
+    // 引き分けは総力戦だけが確定する（R-TWR-06 #1）。通常戦闘はR-END-02の勝敗だけを持つ。
+    if (result.outcome === "DRAW") {
+      throw new DomainValidationError(
+        "battle.result",
+        "a draw was resolved for a battle that is not a total war; the completion checkpoint and the battle mode disagree",
+      );
+    }
+    return {
+      outcome: result.outcome,
+      completionReason: result.completionReason,
+      completedTurn,
+    };
   }
   const exercise = battle.exercise;
   if (exercise === undefined) {

@@ -629,3 +629,222 @@ describe("advanceBattle (TOTAL_WAR)", () => {
     expect(types).not.toContain("TurnCompleting");
   });
 });
+
+/** 結果が確定するまで、または規定ターン数まで`advanceBattle`を繰り返す。 */
+function runToCompletion(battle: Battle, recorder: EventRecorder): Battle {
+  let current = battle;
+  while (current.status === "RUNNING") {
+    current = advanceBattle(current, NO_RANDOM(), recorder);
+  }
+  return current;
+}
+
+describe("advanceBattle (TOTAL_WAR) result", () => {
+  it("UT-R-TWR-01-008: rejects a turn limit other than 15", () => {
+    expect(() =>
+      totalWar([[unit("ally:1", "ALLY")]], [[unit("enemy:1", "ENEMY")]], definitions(), 14),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-R-TWR-06-010: defeating every enemy formation is an ally win whose stage history follows the deployments and wipes", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const started = startBattle(
+      totalWar(
+        [[unit("ally:1", "ALLY", { unitDefinitionId: ATTACKER_UNIT, stats: { attack: 999 } })]],
+        [
+          [unit("enemy:1", "ENEMY", { stats: { maximumHp: 10, defense: 0 } })],
+          [unit("enemy:2", "ENEMY", { stats: { maximumHp: 10, defense: 0 } })],
+        ],
+      ),
+      NO_RANDOM(),
+      recorder,
+    );
+
+    const completed = runToCompletion(started, recorder);
+
+    expect(completed.result).toEqual({
+      outcome: "ALLY_WIN",
+      completionReason: "ENEMY_DEFEATED",
+      completedTurn: 2,
+      stages: [
+        {
+          stageNumber: 1,
+          allyFormationNumber: 1,
+          enemyFormationNumber: 1,
+          startTurn: 1,
+          endTurn: 1,
+          defeatedSides: ["ENEMY"],
+        },
+        {
+          stageNumber: 2,
+          allyFormationNumber: 1,
+          enemyFormationNumber: 2,
+          startTurn: 2,
+          endTurn: 2,
+          defeatedSides: ["ENEMY"],
+        },
+      ],
+      defeatedFormationCounts: { ally: 0, enemy: 2 },
+    });
+    // 戦闘履歴は出撃・全滅のイベントと同じ流れを表す。
+    const relayEvents = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "FormationDeployed" || event.eventType === "FormationDefeated",
+      )
+      .map((event) => [event.eventType, event.turnNumber, event.payload.formationNumber]);
+    expect(relayEvents).toEqual([
+      ["FormationDefeated", 1, 1],
+      ["FormationDeployed", 2, 2],
+      ["FormationDefeated", 2, 2],
+    ]);
+    const completedEvent = recorder.getEvents().at(-1);
+    expect(completedEvent?.eventType).toBe("BattleCompleted");
+    expect(completedEvent?.payload).toEqual(completed.result);
+  });
+
+  it("UT-R-TWR-06-011: the last formations of both sides wiped together is a draw by SIMULTANEOUS_DEFEAT", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const started = startBattle(
+      totalWar(
+        [
+          [
+            unit("ally:1", "ALLY", {
+              unitDefinitionId: ATTACKER_UNIT,
+              stats: { attack: 999, defense: 0, maximumHp: 10 },
+            }),
+          ],
+        ],
+        [[unit("enemy:1", "ENEMY", { stats: { maximumHp: 10, defense: 0 } })]],
+        definitions(MUTUALLY_LETHAL_SKILL),
+      ),
+      NO_RANDOM(),
+      recorder,
+    );
+
+    const completed = runToCompletion(started, recorder);
+
+    expect(completed.result).toEqual({
+      outcome: "DRAW",
+      completionReason: "SIMULTANEOUS_DEFEAT",
+      completedTurn: 1,
+      stages: [
+        {
+          stageNumber: 1,
+          allyFormationNumber: 1,
+          enemyFormationNumber: 1,
+          startTurn: 1,
+          endTurn: 1,
+          defeatedSides: ["ALLY", "ENEMY"],
+        },
+      ],
+      defeatedFormationCounts: { ally: 1, enemy: 1 },
+    });
+  });
+
+  it("UT-R-TWR-06-012: a simultaneous wipe where only the enemy keeps a reserve is an ally loss", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const started = startBattle(
+      totalWar(
+        [
+          [
+            unit("ally:1", "ALLY", {
+              unitDefinitionId: ATTACKER_UNIT,
+              stats: { attack: 999, defense: 0, maximumHp: 10 },
+            }),
+          ],
+        ],
+        [
+          [unit("enemy:1", "ENEMY", { stats: { maximumHp: 10, defense: 0 } })],
+          [unit("enemy:2", "ENEMY")],
+        ],
+        definitions(MUTUALLY_LETHAL_SKILL),
+      ),
+      NO_RANDOM(),
+      recorder,
+    );
+
+    const completed = runToCompletion(started, recorder);
+
+    expect(completed.result).toMatchObject({
+      outcome: "ALLY_LOSE",
+      completionReason: "ALLY_DEFEATED",
+      completedTurn: 1,
+      defeatedFormationCounts: { ally: 1, enemy: 1 },
+    });
+    expect(typesOf(recorder.getEvents())).not.toContain("FormationDeployed");
+  });
+
+  it("UT-R-TWR-06-013: reaching the end of turn 15 with both sides still fighting is a draw by TURN_LIMIT_REACHED", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const started = startBattle(
+      totalWar(
+        [[unit("ally:1", "ALLY")]],
+        [[unit("enemy:1", "ENEMY")], [unit("enemy:2", "ENEMY")]],
+      ),
+      NO_RANDOM(),
+      recorder,
+    );
+
+    const completed = runToCompletion(started, recorder);
+
+    expect(completed.result).toEqual({
+      outcome: "DRAW",
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 15,
+      stages: [
+        {
+          stageNumber: 1,
+          allyFormationNumber: 1,
+          enemyFormationNumber: 1,
+          startTurn: 1,
+          endTurn: 15,
+          defeatedSides: [],
+        },
+      ],
+      defeatedFormationCounts: { ally: 0, enemy: 0 },
+    });
+  });
+
+  it("UT-R-TWR-06-014: a formation wiped in turn 15 while its side keeps a reserve still ends in a draw, without deploying the reserve", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    let battle = startBattle(
+      totalWar(
+        [[unit("ally:1", "ALLY")]],
+        [[unit("enemy:1", "ENEMY")], [unit("enemy:2", "ENEMY")]],
+      ),
+      NO_RANDOM(),
+      recorder,
+    );
+    for (let turn = 1; turn <= 14; turn += 1) {
+      battle = advanceBattle(battle, NO_RANDOM(), recorder);
+    }
+    // 15ターン目の開始時の判定タイミングで、敵の1番目の編成が全滅している状態を作る。
+    battle = {
+      ...battle,
+      enemyUnits: battle.enemyUnits.map((enemy) => ({ ...enemy, currentHp: 0 })),
+    };
+
+    const completed = advanceBattle(battle, NO_RANDOM(), recorder);
+
+    expect(completed.status).toBe("COMPLETED");
+    expect(completed.result).toEqual({
+      outcome: "DRAW",
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 15,
+      stages: [
+        {
+          stageNumber: 1,
+          allyFormationNumber: 1,
+          enemyFormationNumber: 1,
+          startTurn: 1,
+          endTurn: 15,
+          defeatedSides: ["ENEMY"],
+        },
+      ],
+      defeatedFormationCounts: { ally: 0, enemy: 1 },
+    });
+    expect(typesOf(recorder.getEvents())).not.toContain("FormationDeployed");
+  });
+});

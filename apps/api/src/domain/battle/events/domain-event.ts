@@ -7,6 +7,7 @@ import type {
   SkillUseId,
 } from "../../shared/event-ids.js";
 import type { StateDelta } from "./state-delta.js";
+import type { TotalWarOutcome } from "../outcome/total-war-end-policy.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { ExerciseCompletionReason } from "../outcome/exercise-end-policy.js";
 import type { BattleOutcome, CompletionReason } from "../outcome/victory-policy.js";
@@ -984,7 +985,8 @@ export interface BattleDomainEventPayloadMap {
   /**
    * 確定した結果そのものを運ぶ（`Battle.result`と同じ形）。戦術演習は勝敗を持たず、
    * 総スコアとブレイク回数を持つ（R-TEX-10 #1）。ブレイク履歴はこのpayloadではなく
-   * `UnitBroken`の投影として出力する（同 #2）。
+   * `UnitBroken`の投影として出力する（同 #2）。総力戦は引き分けを含む勝敗に、戦闘履歴と
+   * 各陣営の撃破された編成数を伴う（R-TWR-06 #4）。
    */
   readonly BattleCompleted:
     | {
@@ -997,6 +999,20 @@ export interface BattleDomainEventPayloadMap {
         readonly completedTurn: number;
         readonly totalScore: number;
         readonly breakCount: number;
+      }
+    | {
+        readonly outcome: TotalWarOutcome;
+        readonly completionReason: CompletionReason;
+        readonly completedTurn: number;
+        readonly stages: readonly {
+          readonly stageNumber: number;
+          readonly allyFormationNumber: number;
+          readonly enemyFormationNumber: number;
+          readonly startTurn: number;
+          readonly endTurn: number;
+          readonly defeatedSides: readonly Side[];
+        }[];
+        readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
       };
   /** R-ACT-04: AP/PP/EXゲージ変更を確定した後の主イベント（`08_ドメインイベント.md:475`）。変化量0では発行しない。 */
   readonly ResourceChanged: {

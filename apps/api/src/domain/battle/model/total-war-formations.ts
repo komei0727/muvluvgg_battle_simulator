@@ -1,6 +1,14 @@
 import { isDefeated, type BattleUnit } from "./battle-unit.js";
 import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 import type { Side } from "../../shared/side.js";
+import type { TotalWarStageRecord } from "./total-war-stages.js";
+
+/**
+ * R-TWR-01 #5: 総力戦の規定ターン数は15で固定であり、リクエストでは指定できない。
+ * `09_アプリケーション設計.md`の`TOTAL_WAR_TURN_LIMIT`と同じ値を、集約の生成時不変条件
+ * （`createTotalWarBattle`）が参照できるようDomain側の正本として持つ。
+ */
+export const TOTAL_WAR_TURN_LIMIT = 15;
 
 /** R-TWR-03 #2: 出撃前の編成。そのユニットは盤面（`Battle.allyUnits`／`enemyUnits`）に置かない。 */
 export interface TotalWarReserveFormation {
@@ -28,7 +36,13 @@ export interface TotalWarSideFormations {
   readonly memoriesByFormation: readonly (readonly MemoryDefinition[])[];
 }
 
-export type TotalWarFormations = Readonly<Record<Side, TotalWarSideFormations>>;
+/** `05_ドメインモデル.md`「編成状態（総力戦のみ）」: 陣営ごとの編成状態と戦闘履歴。 */
+export interface TotalWarFormations {
+  readonly ALLY: TotalWarSideFormations;
+  readonly ENEMY: TotalWarSideFormations;
+  /** R-TWR-06 #4: 戦闘履歴の正本。出撃と全滅の検出に合わせて組み合わせごとに積む。 */
+  readonly stages: readonly TotalWarStageRecord[];
+}
 
 /** 判定タイミングで味方、敵の順に評価する（R-TWR-03 #7・R-TWR-04 #3）。 */
 export const TOTAL_WAR_SIDE_ORDER: readonly Side[] = ["ALLY", "ENEMY"];

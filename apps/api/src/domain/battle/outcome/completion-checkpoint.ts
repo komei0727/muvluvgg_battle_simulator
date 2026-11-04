@@ -4,9 +4,13 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { TotalWarFormations } from "../model/total-war-formations.js";
 import { resolveTotalWarCheckpoint, type FormationDefeat } from "./total-war-checkpoint.js";
+import type { TotalWarEndResult } from "./total-war-end-policy.js";
 
-/** 判定タイミングで確定した結果。通常戦闘は勝敗を持ち、演習は終了理由だけを持つ（R-TEX-10 #1）。 */
-export type CompletionCheckResult = VictoryResult | ExerciseEndResult;
+/**
+ * 判定タイミングで確定した結果。通常戦闘は勝敗を持ち、演習は終了理由だけを持つ（R-TEX-10 #1）。
+ * 総力戦は引き分けを含む勝敗を持つ（R-TWR-06 #1）。
+ */
+export type CompletionCheckResult = VictoryResult | ExerciseEndResult | TotalWarEndResult;
 
 /**
  * `06_戦闘状態遷移.md`「判定タイミング」で共有する観測。通常戦闘・演習の
@@ -66,9 +70,15 @@ export function evaluateCompletionCheckpoint(
   mode: CompletionCheckpointMode,
   units: readonly BattleUnit[],
   turnLimitReached: boolean,
+  turnNumber: number,
 ): CompletionCheckpointOutcome {
   if (mode.totalWarFormations !== undefined) {
-    const checked = resolveTotalWarCheckpoint(mode.totalWarFormations, units, turnLimitReached);
+    const checked = resolveTotalWarCheckpoint(
+      mode.totalWarFormations,
+      units,
+      turnLimitReached,
+      turnNumber,
+    );
     return {
       completion: checked.completion,
       totalWarFormations: checked.formations,
