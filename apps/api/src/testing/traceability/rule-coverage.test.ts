@@ -96,6 +96,8 @@ describe("Rule coverage ledger", () => {
     // 実装し、両ルールの`kinds`を埋めた（総数は変わらない）。
     // Issue #770（TW-003）がBattle集約の編成の全滅（R-TWR-03）と出撃（R-TWR-04）を実装し、
     // 両ルールの`kinds`を埋めた（総数は変わらない）。
+    // Issue #771（TW-004）がメモリーの有効範囲（R-TWR-05）を実装し、`kinds`を埋めた
+    // （総数は変わらない）。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(154);
   });

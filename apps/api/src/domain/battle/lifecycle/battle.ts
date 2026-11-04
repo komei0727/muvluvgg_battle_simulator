@@ -38,10 +38,12 @@ import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import {
+  activeMemoriesBySide,
   isAwaitingDeployment,
   TOTAL_WAR_SIDE_ORDER,
   type TotalWarFormations,
 } from "../model/total-war-formations.js";
+import type { MemoryDefinition } from "../../catalog/definitions/memory-definition.js";
 
 export type { BattleStatus } from "../model/battle-status.js";
 
@@ -116,23 +118,31 @@ export function createBattle(
 /** 総力戦の陣営1つ分の編成。出撃順（編成番号1→3）に並べる。 */
 export type TotalWarSideFormationUnits = readonly (readonly BattleUnit[])[];
 
+/** 総力戦の陣営1つ分の編成ごとのメモリー。添字は`TotalWarSideFormationUnits`と揃える。 */
+export type TotalWarSideFormationMemories = readonly (readonly MemoryDefinition[])[];
+
 /**
  * 総力戦（`TOTAL_WAR`）のBattleを生成する（R-TWR-01・R-TWR-03 #1）。各陣営の1番目の編成を
  * 出撃中の編成として盤面へ置き、2番目以降は控えとして`formations`にだけ持つ。
  * 各ユニットへ所属する編成番号を写す — 全滅した編成のユニットは盤面に残り続けるため、
  * 出撃中の編成の全滅判定はこの番号で絞り込む（R-TWR-03 #8）。
+ *
+ * メモリーは編成に属するため（R-TWR-05 #1）、陣営単位の`definitions.memoriesBySide`では
+ * 受け取らず`memoriesBySide`で編成ごとに受け取る。省略した編成はメモリーなしとする。
  */
 export function createTotalWarBattle(
   battleId: BattleId,
   formationsBySide: Readonly<Record<Side, TotalWarSideFormationUnits>>,
   turnLimit: TurnLimit,
   definitions: BattleDefinitions,
+  memoriesBySide: Readonly<Record<Side, TotalWarSideFormationMemories>> = { ALLY: [], ENEMY: [] },
 ): Battle {
   const numbered = {
     ALLY: numberFormations(formationsBySide.ALLY, "battle.formations.ALLY"),
     ENEMY: numberFormations(formationsBySide.ENEMY, "battle.formations.ENEMY"),
   };
   assertUniqueBattleUnitIds([...numbered.ALLY.flat(), ...numbered.ENEMY.flat()]);
+  assertNoSideMemories(definitions);
   const battle = createBattle(
     battleId,
     numbered.ALLY[0] ?? [],
@@ -141,16 +151,62 @@ export function createTotalWarBattle(
     definitions,
     "TOTAL_WAR",
   );
-  const sideFormations = (formations: readonly (readonly BattleUnit[])[]) => ({
-    formationCount: formations.length,
-    activeFormationNumber: 1,
-    defeatedCount: 0,
-    reserves: formations.slice(1).map((units, index) => ({ formationNumber: index + 2, units })),
-  });
+  const sideFormations = (
+    formations: readonly (readonly BattleUnit[])[],
+    memories: TotalWarSideFormationMemories,
+    path: string,
+  ) => {
+    if (memories.length > formations.length) {
+      throw new DomainValidationError(
+        path,
+        `declares memories for ${memories.length} formations, but the side has only ${formations.length}`,
+      );
+    }
+    return {
+      formationCount: formations.length,
+      activeFormationNumber: 1,
+      defeatedCount: 0,
+      reserves: formations.slice(1).map((units, index) => ({ formationNumber: index + 2, units })),
+      memoriesByFormation: formations.map((_, index) => memories[index] ?? []),
+    };
+  };
   return {
     ...battle,
-    formations: { ALLY: sideFormations(numbered.ALLY), ENEMY: sideFormations(numbered.ENEMY) },
+    formations: {
+      ALLY: sideFormations(numbered.ALLY, memoriesBySide.ALLY, "battle.memories.ALLY"),
+      ENEMY: sideFormations(numbered.ENEMY, memoriesBySide.ENEMY, "battle.memories.ENEMY"),
+    },
   };
+}
+
+/**
+ * 総力戦では`definitions.memoriesBySide`を出撃中の編成のメモリーで置き換えて使うため
+ * （`definitionsOf`）、呼び出し側が陣営単位で渡したメモリーは黙って捨てられてしまう。
+ * 2つの経路を併存させず、生成時に拒否する。
+ */
+function assertNoSideMemories(definitions: BattleDefinitions): void {
+  const sideMemories = definitions.memoriesBySide;
+  if (
+    sideMemories !== undefined &&
+    (sideMemories.ALLY.length > 0 || sideMemories.ENEMY.length > 0)
+  ) {
+    throw new DomainValidationError(
+      "battle.definitions.memoriesBySide",
+      "must be empty in a total war; pass memories per formation instead",
+    );
+  }
+}
+
+/**
+ * PS/Memoryの解決へ渡す定義。総力戦では`memoriesBySide`を出撃中の編成のメモリーへ
+ * 差し替える（R-TWR-05 #1・#6）。編成状態は出撃と全滅の検出で変わるため、解決スコープを
+ * 開くたびにその時点の編成状態から作る。
+ */
+function definitionsOf(battle: Battle): BattleDefinitions {
+  if (battle.formations === undefined) {
+    return battle.definitions;
+  }
+  return { ...battle.definitions, memoriesBySide: activeMemoriesBySide(battle.formations) };
 }
 
 function numberFormations(
@@ -245,7 +301,7 @@ export function startBattle(battle: Battle, random: RandomSource, recorder: Even
 
   const passiveRuntime = new PassiveActivationRuntime(
     {
-      definitions: battle.definitions,
+      definitions: definitionsOf(battle),
       random,
       recorder,
       turnNumber: 0,
@@ -284,10 +340,14 @@ function withFormations(battle: Battle, formations: TotalWarFormations | undefin
  *
  * 出撃したユニットは戦闘開始時と同じ開始状態のまま加わり、AP・PPは続くTURN_STARTINGで
  * 勝ち残った編成のユニットと一緒に回復する（R-TWR-04 #4、`06_戦闘状態遷移.md`「編成の交代」#5）。
+ *
+ * 全陣営の盤面への追加を終えてから、同じスコープで出撃した編成の戦闘開始時Memoryを
+ * 味方、敵の順に解決する（R-TWR-04 #3・R-TWR-05 #2）。
  */
 function deployPendingFormations(
   battle: Battle,
   turnNumber: number,
+  random: RandomSource,
   recorder: EventRecorder,
 ): Battle {
   const formations = battle.formations;
@@ -299,6 +359,7 @@ function deployPendingFormations(
   let scope:
     | { readonly resolutionScopeId: ResolutionScopeId; readonly rootEventId: DomainEventId }
     | undefined;
+  const deployedEvents: BattleDomainEvent[] = [];
   for (const side of TOTAL_WAR_SIDE_ORDER) {
     const current = nextFormations[side];
     const reserve = current.reserves[0];
@@ -322,6 +383,7 @@ function deployPendingFormations(
         battleUnitIds: reserve.units.map((unit) => unit.battleUnitId),
       },
     });
+    deployedEvents.push(deployed);
     scope ??= { resolutionScopeId, rootEventId: deployed.eventId };
     nextFormations = {
       ...nextFormations,
@@ -336,7 +398,60 @@ function deployPendingFormations(
         ? { ...next, allyUnits: [...next.allyUnits, ...reserve.units] }
         : { ...next, enemyUnits: [...next.enemyUnits, ...reserve.units] };
   }
-  return { ...next, formations: nextFormations };
+  const placed: Battle = { ...next, formations: nextFormations };
+  if (scope === undefined) {
+    return placed;
+  }
+  return resolveDeployedFormationMemories(
+    placed,
+    deployedEvents,
+    scope,
+    turnNumber,
+    random,
+    recorder,
+  );
+}
+
+/**
+ * R-TWR-05 #2・#4: 出撃した編成の戦闘開始時Memoryを、各`FormationDeployed`へ照合して解決する
+ * （`matchesMemoryTriggerEventType`）。R-MEM-03と同じ解決フェーズ（`BATTLE_START`）として扱い、
+ * `TurnStarted`の発行前に終える。
+ */
+function resolveDeployedFormationMemories(
+  battle: Battle,
+  deployedEvents: readonly BattleDomainEvent[],
+  scope: { readonly resolutionScopeId: ResolutionScopeId; readonly rootEventId: DomainEventId },
+  turnNumber: number,
+  random: RandomSource,
+  recorder: EventRecorder,
+): Battle {
+  const runtime = new PassiveActivationRuntime(
+    {
+      definitions: definitionsOf(battle),
+      random,
+      recorder,
+      turnNumber,
+      cycleNumber: 0,
+      resolutionScopeId: scope.resolutionScopeId,
+      rootEventId: scope.rootEventId,
+      resolutionPhase: "BATTLE_START",
+      ...(battle.exercise !== undefined ? { exercise: battle.exercise } : {}),
+    },
+    [...battle.allyUnits, ...battle.enemyUnits],
+  );
+  let units: readonly BattleUnit[] = [...battle.allyUnits, ...battle.enemyUnits];
+  let cursor = scope.rootEventId;
+  for (const deployed of deployedEvents) {
+    const resolved = runtime.onFactEvent(deployed, units);
+    units = resolved.units;
+    cursor = resolved.lastEventId;
+  }
+  const { units: afterScope } = runtime.finalizeResolutionScope(cursor, units);
+  return {
+    ...battle,
+    allyUnits: afterScope.filter((unit) => unit.side === "ALLY"),
+    enemyUnits: afterScope.filter((unit) => unit.side === "ENEMY"),
+  };
 }
 
 /**
@@ -466,7 +581,7 @@ export function advanceBattle(
   }
 
   const nextTurnNumber = current.turnState.currentTurn + 1;
-  const battle = deployPendingFormations(current, nextTurnNumber, recorder);
+  const battle = deployPendingFormations(current, nextTurnNumber, random, recorder);
   const turnScope = recorder.nextResolutionScopeId();
   const turnStarted = recorder.record({
     eventType: "TurnStarted",
@@ -538,7 +653,7 @@ export function advanceBattle(
   // `TurnStarted`のため、`resolutionPhase: "TURN_START"`を渡す。
   const passiveRuntime = new PassiveActivationRuntime(
     {
-      definitions: battle.definitions,
+      definitions: definitionsOf(battle),
       random,
       recorder,
       turnNumber: nextTurnNumber,
@@ -581,7 +696,7 @@ export function advanceBattle(
     : resolveActionPhase(
         allyUnits,
         enemyUnits,
-        battle.definitions,
+        definitionsOf(started),
         random,
         recorder,
         nextTurnNumber,
@@ -614,7 +729,7 @@ export function advanceBattle(
   // `resolutionPhase: "TURN_END"`を渡す）。行動外のため`actionId`は持たない。
   const turnEndPassiveRuntime = new PassiveActivationRuntime(
     {
-      definitions: battle.definitions,
+      definitions: definitionsOf(progressed),
       random,
       recorder,
       turnNumber: nextTurnNumber,
