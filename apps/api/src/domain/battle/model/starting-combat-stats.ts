@@ -49,6 +49,10 @@ function resolveFormationBonus(
   }
 }
 
+function atLeastOne(value: number): number {
+  return value < 1 ? 1 : value;
+}
+
 export interface StartingCombatStatsInput {
   readonly baseStats: BaseStats;
   readonly positionAptitudes: readonly PositionRow[];
@@ -82,7 +86,12 @@ export function calculateStartingCombatStats(input: StartingCombatStatsInput): C
     // 丸めると二重丸め誤差になる）。maximumHp が HP ゲージの最大値として整数を
     // 要求される制約は、ゲージへ渡す境界（`createBattleUnit`/`applyDamageAction`）
     // で R-NUM-02（0方向へ切り捨て）により満たす。
-    maximumHp: stat("MAXIMUM_HP", input.baseStats.maximumHp),
+    //
+    // 開始時の最大HPは1未満を1へ切り上げる。基本値のクランプ（R-ENH-06・R-TWR-02 #6）
+    // だけでは、適性補正で1未満に落ちた値がゲージ境界の切り捨てで0になり、ユニットが
+    // 戦闘不能のまま出撃する。ゲージ境界ごとに個別に下限を足すと、最大HPを切り捨てて
+    // 参照する他の箇所（回復上限・HP割合）と食い違うため、正本の値で保証する。
+    maximumHp: atLeastOne(stat("MAXIMUM_HP", input.baseStats.maximumHp)),
     attack: stat("ATTACK", input.baseStats.attack),
     defense: stat("DEFENSE", input.baseStats.defense),
     criticalRate: stat("CRITICAL_RATE", input.baseStats.criticalRate),

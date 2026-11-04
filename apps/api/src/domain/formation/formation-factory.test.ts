@@ -14,6 +14,7 @@ import {
 } from "../catalog/definitions/memory-definition.js";
 import type { UnitDefinition } from "../catalog/definitions/unit-definition.js";
 import { createBattleUnitId } from "../shared/ids.js";
+import { createBattleUnit, isDefeated } from "../battle/model/battle-unit.js";
 import { DomainValidationError } from "../shared/errors.js";
 import type { Attribute, PositionRow } from "../catalog/definitions/catalog-enums.js";
 
@@ -743,6 +744,24 @@ describe("createBattleParty — 再登場ユニットの基礎値係数 (R-TWR-0
     expect(member.combatStats.defense).toBeCloseTo(0.095, 9);
     expect(member.combatStats.actionSpeed).toBe(definition.baseStats.actionSpeed);
     expect(member.combatStats.criticalRate).toBe(definition.baseStats.criticalRate);
+  });
+
+  it("UT-R-TWR-02-008: a reappearing unit placed off-aptitude still starts with 1 HP instead of being defeated", () => {
+    // 基本HP100 → 再登場補正で1 → 適正外配置 -5% で0.95。HPゲージは切り捨てで整数化される
+    // （R-NUM-02）ため、開始時の最大HPが1未満のままだと現在HP0で戦闘不能から始まる。
+    const definition = unitDefinition("UNIT_001", "AGGRESSIVE", ["FRONT"]);
+
+    const member = buildMember(singleSlot("BACK"), definition, [0.01]);
+    const unit = createBattleUnit(member, "ALLY", {
+      maximumAp: 3,
+      maximumPp: 3,
+      maximumExtraGauge: 100,
+    });
+
+    expect(member.enhancedBaseStats.maximumHp).toBe(1);
+    expect(member.combatStats.maximumHp).toBe(1);
+    expect(unit.currentHp).toBe(1);
+    expect(isDefeated(unit)).toBe(false);
   });
 
   it("UT-R-TWR-02-007: raises a maximum HP that falls below 1 to 1", () => {

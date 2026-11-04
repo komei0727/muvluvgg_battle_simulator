@@ -170,4 +170,28 @@ describe("calculateStartingCombatStats — R-STA-01 開始ステータス", () =
 
     expect(result.affinityBonus).toBeCloseTo(0.4);
   });
+
+  it("UT-R-STA-01-038: raises a starting maximum HP that the aptitude penalty pushes below 1 to 1, so the truncated HP gauge never starts at 0", () => {
+    const result = calculateStartingCombatStats({
+      baseStats: { ...BASE_STATS, maximumHp: 1 },
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: ZERO_BONUS,
+    });
+
+    expect(result.maximumHp).toBe(1);
+    // 攻撃力・防御力には下限を設けない（R-ENH-06のクランプと同じく最大HPだけ）。
+    expect(result.attack).toBeCloseTo(190, 9);
+  });
+
+  it("UT-R-STA-01-039: keeps a starting maximum HP of 1 or more at full precision", () => {
+    const result = calculateStartingCombatStats({
+      baseStats: { ...BASE_STATS, maximumHp: 2 },
+      positionAptitudes: ["FRONT"],
+      row: "BACK",
+      formationBonus: ZERO_BONUS,
+    });
+
+    expect(result.maximumHp).toBeCloseTo(1.9, 9);
+  });
 });
