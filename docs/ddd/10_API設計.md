@@ -101,6 +101,26 @@ POST /api/v1/tactical-exercise-evaluations
 
 期限（`SIMULATION_TIMEOUT_MS`）はリクエスト全体に掛かり、超過した場合はエラーではなく**部分結果**を返す（Q-TEX-18）。候補ごとの `completedRuns` が要求した `runsPerCandidate` より小さいことで不足を判別できる。
 
+### 総力戦をシミュレーションする
+
+```http
+POST /api/v1/total-war-simulations
+```
+
+味方・敵それぞれ1～3個の編成で総力戦（UC-05、R-TWR-01～06）を最後まで実行し、勝敗（引き分けを含む）と戦闘履歴を含む結果を返す。
+
+| 項目                   | 値                                           |
+| ---------------------- | -------------------------------------------- |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。 |
+| リクエストContent-Type | `application/json`                           |
+| レスポンスContent-Type | `application/json; charset=utf-8`            |
+| 成功ステータス         | `200 OK`                                     |
+| 永続化                 | しない                                       |
+| 冪等性                 | 保証しない                                   |
+| 既定ログレベル         | `SUMMARY`                                    |
+
+既存のエンドポイントの契約は変更しない（加算的変更）。規定ターン数は15で固定であり、リクエストで指定できない。
+
 ### 編成の開始時ステータスをプレビューする
 
 ```http
@@ -492,6 +512,24 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 
 候補数・総試行数の上限は設定（`EVALUATION_*` 環境変数）で変わるため、JSON Schemaでは範囲を固定せずアプリケーション検証の `422`（`INVALID_COMMAND`）として返す。候補の編成違反は `candidates[i].allyFormation...` として候補indexを含むパスで返し、共有の敵編成の違反は候補数によらず1回だけ返す。
 
+### TotalWarRequest
+
+`POST /api/v1/total-war-simulations` のリクエスト本文。
+
+| プロパティ        | 型                   | 必須 | 制約                                                                                               |
+| ----------------- | -------------------- | ---- | -------------------------------------------------------------------------------------------------- |
+| `allyFormations`  | `FormationRequest[]` | 必須 | 味方陣営の編成を出撃順に1～3件。各要素は `BattleSimulationRequest` の `allyFormation` と同じ制約。 |
+| `enemyFormations` | `FormationRequest[]` | 必須 | 敵陣営の編成を出撃順に1～3件。制約は `allyFormations` と同じ。                                     |
+| `options`         | `SimulationOptions`  | 任意 | 省略時は既定値を使用する。                                                                         |
+
+`turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。次はアプリケーション検証の `422`（`INVALID_COMMAND`）として返し、violationのパスに編成の添字を含める（例: `/allyFormations/1/units/3/unitDefinitionId`）。
+
+- 編成数が1～3件でない
+- 1つの編成に同じ `unitDefinitionId` が2回以上現れる（R-TWR-01 #3）
+- 1つの編成に同じメモリーIDが2回以上現れる（R-TWR-01 #4）
+
+別の編成に同じ `unitDefinitionId`・同じメモリーIDを指定することは許可する。再登場ユニットの基礎値補正（R-TWR-02）はサーバーが自動で適用し、リクエストでは指定しない。編成プール（R-TEX-11 #3）の違反は通常戦闘と同じく `ruleId: "R-TEX-11"` 付きの `422` とする。
+
 ### FormationStatPreviewRequest
 
 `POST /api/v1/formation-stat-previews` のリクエスト本文。編成部分は `BattleSimulationRequest` と同形にし、同じ `FormationRequest`（強化指定を含む）をそのまま送れるようにする。
@@ -603,16 +641,18 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 
 ユニット別の戦闘集計。両エンドポイントが同じ形で返す。配列順は `BattleStateResponse.units` と同じ（味方陣営を先に、各陣営は配置順）で、参加ユニット全件を必ず含む。
 
-| プロパティ     | 型      | 説明                                                                     |
-| -------------- | ------- | ------------------------------------------------------------------------ |
-| `battleUnitId` | string  | 対象の戦闘ユニット。                                                     |
-| `side`         | string  | `ALLY` または `ENEMY`。                                                  |
-| `damageDealt`  | integer | このユニットが与えたダメージのうち、HPへ向かった量の合計。0以上。        |
-| `damageTaken`  | integer | このユニットが受けたダメージのうち、HPへ向かった量の合計。0以上。        |
-| `healingDone`  | integer | このユニットが行った実HP増加量の合計。0以上。                            |
-| `finalHp`      | number  | `finalState` 時点の現在HP。`BattleUnitStateResponse.hp.current` と同値。 |
-| `maximumHp`    | number  | `finalState` 時点の最大HP。`BattleUnitStateResponse.hp.maximum` と同値。 |
-| `combatStatus` | string  | `finalState` 時点の `ACTIVE` / `DEFEATED`。                              |
+| プロパティ        | 型      | 説明                                                                                                                                               |
+| ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `battleUnitId`    | string  | 対象の戦闘ユニット。                                                                                                                               |
+| `side`            | string  | `ALLY` または `ENEMY`。                                                                                                                            |
+| `damageDealt`     | integer | このユニットが与えたダメージのうち、HPへ向かった量の合計。0以上。                                                                                  |
+| `damageTaken`     | integer | このユニットが受けたダメージのうち、HPへ向かった量の合計。0以上。                                                                                  |
+| `healingDone`     | integer | このユニットが行った実HP増加量の合計。0以上。                                                                                                      |
+| `finalHp`         | number  | `finalState` 時点の現在HP。`BattleUnitStateResponse.hp.current` と同値。                                                                           |
+| `maximumHp`       | number  | `finalState` 時点の最大HP。`BattleUnitStateResponse.hp.maximum` と同値。                                                                           |
+| `combatStatus`    | string  | `finalState` 時点の `ACTIVE` / `DEFEATED`。                                                                                                        |
+| `formationNumber` | integer | 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する。                                                                           |
+| `deployed`        | boolean | 総力戦のみ。一度でも出撃したか。`false` のユニットは集計値がすべて0で、`finalHp`・`maximumHp` は開始時の値とする。他のエンドポイントでは省略する。 |
 
 #### 集計セマンティクス
 
@@ -671,6 +711,63 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `sourceUnitDefinitionId` | string  | ブレイクを起こしたユニットの定義ID（`R-TEX-03` #2 の発生源）。発生源ユニットを持たないブレイクでは省略する（`R-MEM-04`）。 |
 
 勝敗（`outcome`）は含めない。`sourceUnitDefinitionId` が省略されるのは、メモリー由来の継続ダメージのように具体的な発生源ユニットが存在しない場合である。
+
+### TotalWarResponse
+
+`POST /api/v1/total-war-simulations` の成功レスポンス。`BattleSimulationResponse` と同じ構造を再利用し、`result` を総力戦の結果へ差し替える。
+
+| プロパティ         | 型                             | 説明                                                                                    |
+| ------------------ | ------------------------------ | --------------------------------------------------------------------------------------- |
+| `schemaVersion`    | integer                        | レスポンス本文スキーマのバージョン。初期値は1。                                         |
+| `battleId`         | string                         | 今回の実行を識別するID。                                                                |
+| `catalogRevision`  | string                         | 今回使用したCatalogスナップショットの版。                                               |
+| `result`           | `TotalWarResultResponse`       | 確定した総力戦の結果。                                                                  |
+| `initialState`     | `BattleStateResponse`          | `READY` 時点の状態。両陣営の1番目の編成のユニットだけを含む。                           |
+| `finalState`       | `BattleStateResponse`          | `COMPLETED` 時点の状態。出撃したことのある全ユニットを含む。`SUMMARY` では省略する。    |
+| `unitRoster`       | `TotalWarUnitRosterResponse[]` | 全編成の全ユニットの一覧。公開レベルに依存せず常に返す。                                |
+| `unitSummaries`    | `UnitBattleSummaryResponse[]`  | 全編成の全ユニットのユニット別集計。出撃しなかったユニットも含み、その集計値は0とする。 |
+| `events`           | `BattleLogEventResponse[]`     | 公開レベルのイベント。`SUMMARY` では空配列。                                            |
+| `stateTransitions` | `StateTransitionResponse[]`    | 全状態変更。`SUMMARY` では空配列。                                                      |
+
+`initialState` には1番目の編成しか含まれないため、総力戦の表示用Rosterは `initialState` ではなく `unitRoster` から解決する。`unitSummaries`・`finalState`・状態差分に現れる `battleUnitId` は、すべて `unitRoster` のいずれかの要素に対応する。
+
+### TotalWarUnitRosterResponse
+
+| プロパティ          | 型      | 説明                                                                                           |
+| ------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `battleUnitId`      | string  | この戦闘内の参加枠ID。陣営ごとに全編成を通した通し番号。                                       |
+| `unitDefinitionId`  | string  | 元となるユニット定義ID。                                                                       |
+| `side`              | string  | `ALLY` または `ENEMY`。                                                                        |
+| `formationNumber`   | integer | 所属する編成の番号（1～3）。                                                                   |
+| `formationPosition` | object  | `{ column, row }`。リクエストと同じ陣営内表現。                                                |
+| `coordinate`        | object  | `{ x, y }`。3×4共通座標。                                                                      |
+| `reappearance`      | boolean | 再登場ユニット（R-TWR-02）として基礎値補正を受けたか。                                         |
+| `deployed`          | boolean | 一度でも出撃したか。`false` のユニットは状態（`initialState`・`finalState`・差分）に現れない。 |
+
+並びは陣営（味方、敵）、編成番号、配置順とする。
+
+### TotalWarResultResponse
+
+| プロパティ                | 型                        | 値                                                                                                       |
+| ------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `outcome`                 | string                    | `ALLY_WIN`、`ALLY_LOSE` または `DRAW`。                                                                  |
+| `completionReason`        | string                    | `ENEMY_DEFEATED`、`ALLY_DEFEATED`、`SIMULTANEOUS_DEFEAT`（引き分け）、`TURN_LIMIT_REACHED`（引き分け）。 |
+| `completedTurn`           | integer                   | 戦闘が終了したターン。1～15。                                                                            |
+| `stages`                  | `TotalWarStageResponse[]` | 戦闘履歴。出撃した編成の組み合わせごとに発生順。                                                         |
+| `defeatedFormationCounts` | object                    | `{ ally, enemy }`。各陣営の撃破された編成数。                                                            |
+
+通常戦闘の `BattleResultResponse` と異なり、`SIMULTANEOUS_DEFEAT` は引き分け（`DRAW`）を表す（R-TWR-06 #1.1）。
+
+### TotalWarStageResponse
+
+| プロパティ             | 型       | 値                                                                                |
+| ---------------------- | -------- | --------------------------------------------------------------------------------- |
+| `stageNumber`          | integer  | 1から始まる組み合わせの番号。                                                     |
+| `allyFormationNumber`  | integer  | この組み合わせで出撃していた味方の編成番号（1～3）。                              |
+| `enemyFormationNumber` | integer  | この組み合わせで出撃していた敵の編成番号（1～3）。                                |
+| `startTurn`            | integer  | この組み合わせで戦い始めたターン。                                                |
+| `endTurn`              | integer  | この組み合わせが終わったターン（どちらかの全滅、または戦闘終了）。                |
+| `defeatedSides`        | string[] | この組み合わせで全滅した陣営（`ALLY`／`ENEMY`）。決着せず戦闘が終わった場合は空。 |
 
 ### TacticalExerciseEvaluationResponse
 
@@ -801,19 +898,34 @@ BattleStateResponse {
   cycleNumber
   units[]
   actionQueue[]
+  formations?
 }
 ```
 
-| プロパティ     | 型                            | 説明                                            |
-| -------------- | ----------------------------- | ----------------------------------------------- |
-| `stateVersion` | integer                       | 状態変更ごとに増加するバージョン。初期状態は0。 |
-| `battleStatus` | string                        | `READY`、`RUNNING`、`COMPLETED`。               |
-| `turnNumber`   | integer                       | 開始前は0、開始後は1～99。                      |
-| `cycleNumber`  | integer                       | 周回外は0、ターン内では1以上。                  |
-| `units`        | `BattleUnitStateResponse[]`   | 味方、敵の順で、各陣営は配置順に並べる。        |
-| `actionQueue`  | `ActionReservationResponse[]` | 現在の未行動予約。順位順。                      |
+| プロパティ     | 型                            | 説明                                                                               |
+| -------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `stateVersion` | integer                       | 状態変更ごとに増加するバージョン。初期状態は0。                                    |
+| `battleStatus` | string                        | `READY`、`RUNNING`、`COMPLETED`。                                                  |
+| `turnNumber`   | integer                       | 開始前は0、開始後は1～99。                                                         |
+| `cycleNumber`  | integer                       | 周回外は0、ターン内では1以上。                                                     |
+| `units`        | `BattleUnitStateResponse[]`   | 味方、敵の順で、各陣営は配置順に並べる。                                           |
+| `actionQueue`  | `ActionReservationResponse[]` | 現在の未行動予約。順位順。                                                         |
+| `formations`   | `FormationsStateResponse`     | 総力戦のみ。陣営ごとの編成状態。他のエンドポイントでは省略する（任意プロパティ）。 |
 
-配列順は表示上の安定性のため定めるが、差分適用や同一性判定には各IDを使用する。
+配列順は表示上の安定性のため定めるが、差分適用や同一性判定には各IDを使用する。総力戦の `units` は、盤面へ加わったことのあるユニット（全滅済みを含む）だけを、味方、敵の順で、各陣営は編成番号順・編成内は配置順に並べる。控えのまま出撃していないユニットは含めない。
+
+```text
+FormationsStateResponse {
+  ally: SideFormationStateResponse
+  enemy: SideFormationStateResponse
+}
+
+SideFormationStateResponse {
+  formationCount           # 指定された編成数（1～3）。戦闘中に変化しない
+  activeFormationNumber    # 出撃中の編成番号（1～3）
+  defeatedCount            # 撃破された編成数（0～formationCount）
+}
+```
 
 ### BattleUnitStateResponse
 
@@ -845,6 +957,7 @@ BattleUnitStateResponse {
 | `formationPosition` | object                    | `{ column, row }`。リクエストと同じ陣営内表現。                                                                                                                                                        |
 | `coordinate`        | object                    | `{ x, y }`。3×4共通座標。                                                                                                                                                                              |
 | `combatStatus`      | string                    | `ACTIVE` または `DEFEATED`。                                                                                                                                                                           |
+| `formationNumber`   | integer                   | 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する（任意プロパティ）。                                                                                                             |
 | `hp`                | `CurrentMaximumValue`     | 現在HPと最大HP。                                                                                                                                                                                       |
 | `resources`         | `ResourceStateResponse`   | AP、PP、EXゲージ。                                                                                                                                                                                     |
 | `combatStats`       | `CombatStatsResponse`     | 現時点で有効な戦闘ステータス。                                                                                                                                                                         |
@@ -1117,12 +1230,12 @@ BattleLogEventResponse {
 
 | レベル     | 含めるもの                                                                                                                                                              |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUMMARY`  | `result`・`initialState`・`unitSummaries`（演習は `breaks` も）。イベントと状態差分は返さず、`finalState` は省略する。                                                  |
+| `SUMMARY`  | `result`・`initialState`・`unitSummaries`（演習は `breaks` も、総力戦は `unitRoster` も）。イベントと状態差分は返さず、`finalState` は省略する。                        |
 | `DETAILED` | 全イベント。スキル、PS、各ヒット、ダメージ、シールド、効果、リソース変更に加え、候補除外・乱数判定・上限超過などの診断イベントを含む。加えて全状態差分と `finalState`。 |
 
 用途は「大量実行して勝敗とユニット別集計だけを見る」（`SUMMARY`）と「効果発動を追う」（`DETAILED`）の2つしかない。既定値は `SUMMARY` とする。
 
-`SUMMARY` はイベント・状態差分・`finalState` を返さない。前者の用途が必要とするのは勝敗とユニット別集計だけであり、主要イベントを数種類だけ返しても読まれないまま応答サイズだけが増えるためである。表示に要る最終HP・戦闘状態は `unitSummaries` が運ぶ。`initialState` だけは残す — クライアントが表示用Rosterを解決する唯一の入力だからである。
+`SUMMARY` はイベント・状態差分・`finalState` を返さない。前者の用途が必要とするのは勝敗とユニット別集計だけであり、主要イベントを数種類だけ返しても読まれないまま応答サイズだけが増えるためである。表示に要る最終HP・戦闘状態は `unitSummaries` が運ぶ。`initialState` だけは残す — クライアントが表示用Rosterを解決する唯一の入力だからである。総力戦だけは `initialState` に1番目の編成しか含まれないため、全編成の `unitRoster` を全レベルで返し、表示用Rosterはそこから解決する。
 
 `DIAGNOSTIC` は廃止した。`DETAILED` と同一挙動になった以上、同じ意味の値が2つある状態を公開契約へ残さない。指定は `422 INVALID_COMMAND`（`path: /options/logLevel`）で拒否する。
 
@@ -1155,9 +1268,11 @@ StateTransitionResponse {
 ```text
 BattleStateDeltaResponse {
   battle?
+  addedUnits?
   units?
   actionQueue?
   exercise?
+  formations?
 }
 ```
 
@@ -1175,6 +1290,17 @@ exercise: {
 ```
 
 `exercise` は戦術演習だけで現れる（R-TEX-02／03）。
+
+```text
+addedUnits: BattleUnitStateResponse[]
+
+formations: {
+  ally?: { activeFormationNumber?: ValueChange, defeatedCount?: ValueChange }
+  enemy?: { activeFormationNumber?: ValueChange, defeatedCount?: ValueChange }
+}
+```
+
+`addedUnits` と `formations` は総力戦だけで現れる（R-TWR-03／04）。`addedUnits` は `FormationDeployed` が所有する差分で、出撃によって盤面へ加わったユニットの開始状態を、`BattleStateResponse.units` の要素と同じ完全な形（`battleUnitId`・`unitDefinitionId`・`side`・`formationNumber`・`formationPosition`・`coordinate`・HP・リソース・ステータスなど）で運ぶ。並びは `units` と同じ規則（陣営、編成番号、配置順）とする。`formations` は `FormationDeployed`（`activeFormationNumber`）と `FormationDefeated`（`defeatedCount`）が所有し、`BattleStateResponse.formations` の同名フィールドへ適用する。
 
 ```text
 units: {
@@ -1253,6 +1379,8 @@ reconstructedFinalState = apply(
 ```
 
 `reconstructedFinalState` は `finalState` と一致しなければならない。クライアントはイベント配列ではなく `stateTransitions` を状態復元の正本として使用する。
+
+1つの差分に複数の種別が含まれる場合は、`addedUnits` を最初に適用する（`units` 配列の規定の位置へ挿入する）。その後で `units`・`battle`・`actionQueue`・`exercise`・`formations` を適用する。`addedUnits` で加わったユニットは、同じ差分の `units` およびそれ以後の差分の対象になる。`addedUnits` が既存の `battleUnitId` を含むことはない。
 
 ## エラーレスポンス
 
