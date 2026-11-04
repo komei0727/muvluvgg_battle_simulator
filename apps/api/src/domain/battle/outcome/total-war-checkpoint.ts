@@ -1,4 +1,4 @@
-import { resolveVictory, type VictoryResult } from "./victory-policy.js";
+import { resolveTotalWarEnd, type TotalWarEndResult } from "./total-war-end-policy.js";
 import {
   isActiveFormationWiped,
   isAwaitingDeployment,
@@ -6,6 +6,7 @@ import {
   type TotalWarFormations,
   type TotalWarSideFormations,
 } from "../model/total-war-formations.js";
+import { recordStageDefeat } from "../model/total-war-stages.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { Side } from "../../shared/side.js";
 
@@ -21,7 +22,7 @@ export interface TotalWarCheckpointResult {
   /** 新たに全滅を検出した編成を、味方、敵の順に並べたもの。 */
   readonly defeats: readonly FormationDefeat[];
   /** 確定した結果。`undefined`は戦闘継続。 */
-  readonly completion: VictoryResult | undefined;
+  readonly completion: TotalWarEndResult | undefined;
   /**
    * R-TWR-03 #4: 出撃中の編成が全滅したまま交代を待つ陣営がある。行動フェーズを打ち切り、
    * ターン開始の判定タイミングなら行動フェーズを開始しない。
@@ -31,16 +32,16 @@ export interface TotalWarCheckpointResult {
 
 /**
  * R-TWR-03・R-END-01: 総力戦の判定タイミング1回分。出撃中の編成が新たに全滅した陣営を
- * 味方、敵の順に検出し、撃破された編成数を進めてから終了判定を行う。既に全滅を検出済みの
- * 編成は、同じターンの後の判定タイミングで再び数えない。
+ * 味方、敵の順に検出し、撃破された編成数と戦闘履歴を進めてから終了判定（R-TWR-06）を行う。
+ * 既に全滅を検出済みの編成は、同じターンの後の判定タイミングで再び数えない。
  *
- * 終了判定は、控えが残らない陣営の全滅だけを通常戦闘の勝敗優先順（R-END-02）へ渡す。
  * 控えが残る陣営の全滅は負けとせず、編成の交代へ進む（R-TWR-06 #3）。
  */
 export function resolveTotalWarCheckpoint(
   formations: TotalWarFormations,
   units: readonly BattleUnit[],
   turnLimitReached: boolean,
+  turnNumber: number,
 ): TotalWarCheckpointResult {
   let next = formations;
   const defeats: FormationDefeat[] = [];
@@ -58,12 +59,16 @@ export function resolveTotalWarCheckpoint(
       formationNumber: current.activeFormationNumber,
       remainingReserveCount: current.reserves.length,
     });
-    next = { ...next, [side]: { ...current, defeatedCount: current.defeatedCount + 1 } };
+    next = {
+      ...next,
+      [side]: { ...current, defeatedCount: current.defeatedCount + 1 },
+      stages: recordStageDefeat(next.stages, side, turnNumber),
+    };
   }
 
-  const completion = resolveVictory({
-    allAlliesDefeated: hasNoFormationLeft(next.ALLY),
-    allEnemiesDefeated: hasNoFormationLeft(next.ENEMY),
+  const completion = resolveTotalWarEnd({
+    allyOutOfFormations: hasNoFormationLeft(next.ALLY),
+    enemyOutOfFormations: hasNoFormationLeft(next.ENEMY),
     turnLimitReached,
   });
   return {

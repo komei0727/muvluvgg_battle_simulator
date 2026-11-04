@@ -6,7 +6,10 @@ import {
   type SimulateBattleResult,
 } from "./simulation-result-assembler.js";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
-import { isExerciseBattleResult } from "../../domain/battle/events/state-delta.js";
+import {
+  isExerciseBattleResult,
+  isTotalWarBattleResult,
+} from "../../domain/battle/events/state-delta.js";
 
 export type SimulateBattleUseCaseDependencies = BattleExecutionDependencies;
 
@@ -42,6 +45,13 @@ export class SimulateBattleUseCase {
       // （勝敗を持たない、R-TEX-10 #1）は`SimulateTacticalExerciseUseCase`が扱う。
       throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
         { reason: "a normal battle simulation resolved a tactical exercise result" },
+      ]);
+    }
+    if (isTotalWarBattleResult(executed.result)) {
+      // 同じく到達しない。総力戦の結果（引き分けと戦闘履歴を持つ、R-TWR-06 #4）は
+      // 総力戦のユースケースが扱う。
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        { reason: "a normal battle simulation resolved a total war result" },
       ]);
     }
 

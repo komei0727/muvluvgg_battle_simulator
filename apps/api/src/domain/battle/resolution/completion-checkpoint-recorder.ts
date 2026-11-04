@@ -31,7 +31,7 @@ export function passCompletionCheckpoint(
   turnLimitReached: boolean,
   context: CompletionCheckpointEventContext,
 ): CompletionCheckpointOutcome {
-  const outcome = evaluateCompletionCheckpoint(mode, units, turnLimitReached);
+  const outcome = evaluateCompletionCheckpoint(mode, units, turnLimitReached, context.turnNumber);
   for (const defeat of outcome.formationDefeats) {
     context.recorder.record({
       eventType: "FormationDefeated",

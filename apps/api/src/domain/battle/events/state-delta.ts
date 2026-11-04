@@ -21,6 +21,8 @@ import type { CombatStats } from "../model/starting-combat-stats.js";
 import type { CooldownUnit } from "../../catalog/definitions/skill-definition.js";
 import type { ExerciseEndResult } from "../outcome/exercise-end-policy.js";
 import type { VictoryResult } from "../outcome/victory-policy.js";
+import type { TotalWarEndResult } from "../outcome/total-war-end-policy.js";
+import type { TotalWarStage } from "../model/total-war-stages.js";
 import type {
   MarkerId,
   RuntimeCounterId,
@@ -56,10 +58,23 @@ export type ExerciseBattleResultSnapshot = ExerciseEndResult & {
 };
 
 /**
+ * 総力戦の結果（R-TWR-06 #4）: 引き分けを含む勝敗、終了理由、終了ターン、戦闘履歴、
+ * 各陣営の撃破された編成数。
+ */
+export type TotalWarBattleResultSnapshot = TotalWarEndResult & {
+  readonly completedTurn: number;
+  readonly stages: readonly TotalWarStage[];
+  readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
+};
+
+/**
  * `Battle.result`と同じ形（`battle.js`が`BattleResult`として再輸出する）。型の正本を
  * こちら側に置くのは、`state-delta.js`から`battle.js`をimportすると循環になるためである。
  */
-export type BattleResultSnapshot = NormalBattleResultSnapshot | ExerciseBattleResultSnapshot;
+export type BattleResultSnapshot =
+  | NormalBattleResultSnapshot
+  | ExerciseBattleResultSnapshot
+  | TotalWarBattleResultSnapshot;
 
 /**
  * 演習結果を判別する。演習結果だけが総スコアを持ち、通常戦闘の結果だけが勝敗を持つため、
@@ -69,6 +84,13 @@ export function isExerciseBattleResult(
   result: BattleResultSnapshot,
 ): result is ExerciseBattleResultSnapshot {
   return "totalScore" in result;
+}
+
+/** 総力戦の結果を判別する。総力戦の結果だけが戦闘履歴を持つ（R-TWR-06 #4）。 */
+export function isTotalWarBattleResult(
+  result: BattleResultSnapshot,
+): result is TotalWarBattleResultSnapshot {
+  return "stages" in result;
 }
 
 /**
