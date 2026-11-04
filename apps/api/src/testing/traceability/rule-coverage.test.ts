@@ -92,6 +92,8 @@ describe("Rule coverage ledger", () => {
     // （R-PS-09）を新設し146→148。
     // Issue #768（TW-001）で総力戦（最大3編成の勝ち抜き戦）のR-TWR-01〜06を新設し
     // 148→154 — 実装はRoadmap #766のTW-002〜TW-009が行うため、空カバレッジで登録する。
+    // Issue #769（TW-002）が編成検証（R-TWR-01）と再登場補正（R-TWR-02）のDomain部品を
+    // 実装し、両ルールの`kinds`を埋めた（総数は変わらない）。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(154);
   });

@@ -173,10 +173,11 @@ const RULE_KINDS: Record<string, readonly TestKind[]> = {
   "R-TEX-09": ["POSITIVE", "NEGATIVE", "SCENARIO"],
   "R-TEX-10": ["POSITIVE", "NEGATIVE", "SCENARIO"],
   "R-TEX-11": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  // 総力戦（Roadmap #766）は設計だけが確定しており、実装はTW-002〜TW-009で行う。
-  // テストが無いため空カバレッジで登録する（R-ENH-07を設計だけ先に登録したときと同じ扱い）。
-  "R-TWR-01": [],
-  "R-TWR-02": [],
+  // 総力戦（Roadmap #766）。R-TWR-01・02はDomainの部品（編成検証・再登場補正）を実装済み。
+  // R-TWR-03〜06は実装がTW-003〜TW-009で行われるまでテストが無いため空カバレッジで登録する
+  // （R-ENH-07を設計だけ先に登録したときと同じ扱い）。
+  "R-TWR-01": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  "R-TWR-02": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
   "R-TWR-03": [],
   "R-TWR-04": [],
   "R-TWR-05": [],
