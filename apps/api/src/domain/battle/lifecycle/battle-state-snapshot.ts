@@ -1,23 +1,18 @@
-import {
-  toEffectSnapshot,
-  toMarkerSnapshot,
-  type BattleStateSnapshot,
-  type BattleUnitSnapshot,
-  type CooldownState,
+import type {
+  BattleStateSnapshot,
+  BattleUnitSnapshot,
+  FormationsStateSnapshot,
 } from "../events/state-delta.js";
-import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
+import { captureBattleUnitSnapshot } from "../events/battle-unit-snapshot.js";
+import type { TotalWarFormations, TotalWarSideFormations } from "../model/total-war-formations.js";
 import type { Battle } from "./battle.js";
+import type { BattleUnit } from "../model/battle-unit.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import type { GlobalCoordinate } from "../model/global-coordinate.js";
 import type { Side } from "../../shared/side.js";
 import type { CombatStats } from "../model/starting-combat-stats.js";
-import type {
-  RuntimeCounterId,
-  SkillDefinitionId,
-  UnitDefinitionId,
-} from "../../catalog/definitions/catalog-ids.js";
+import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { SkillUseId } from "../../shared/event-ids.js";
 
 export type {
   BattleResultSnapshot,
@@ -29,102 +24,7 @@ export type {
 export function captureBattleState(battle: Battle): BattleStateSnapshot {
   const units: Record<BattleUnitId, BattleUnitSnapshot> = {};
   for (const unit of [...battle.allyUnits, ...battle.enemyUnits]) {
-    const cooldownIds = Object.keys(unit.cooldowns) as SkillDefinitionId[];
-    const cooldowns: Record<SkillDefinitionId, CooldownState> = {};
-    for (const skillDefinitionId of cooldownIds) {
-      const entry = unit.cooldowns[skillDefinitionId]!;
-      cooldowns[skillDefinitionId] = {
-        unit: entry.unit,
-        remaining: entry.remaining,
-        ...(entry.setActionId !== undefined ? { setActionId: entry.setActionId } : {}),
-        ...(entry.setTurnNumber !== undefined ? { setTurnNumber: entry.setTurnNumber } : {}),
-      };
-    }
-    const skillCounterSkillIds = Object.keys(unit.skillCounters ?? {}) as SkillDefinitionId[];
-    const skillCounters: Record<SkillDefinitionId, Readonly<Record<RuntimeCounterId, number>>> = {};
-    const skillCounterCarry: Record<
-      SkillDefinitionId,
-      Readonly<Record<RuntimeCounterId, number>>
-    > = {};
-    for (const skillDefinitionId of skillCounterSkillIds) {
-      const counters = unit.skillCounters![skillDefinitionId]!;
-      const values: Record<RuntimeCounterId, number> = {};
-      const carryValues: Record<RuntimeCounterId, number> = {};
-      for (const counterId of Object.keys(counters) as RuntimeCounterId[]) {
-        values[counterId] = counters[counterId]!.value;
-        if (counters[counterId]!.carry !== 0) {
-          carryValues[counterId] = counters[counterId]!.carry;
-        }
-      }
-      skillCounters[skillDefinitionId] = values;
-      if (Object.keys(carryValues).length > 0) {
-        skillCounterCarry[skillDefinitionId] = carryValues;
-      }
-    }
-    const effectSequenceSkillUseIds = Object.keys(
-      unit.effectSequenceCounters ?? {},
-    ) as SkillUseId[];
-    const effectSequenceCounters: Record<
-      SkillUseId,
-      Readonly<Record<RuntimeCounterId, number>>
-    > = {};
-    const effectSequenceCounterCarry: Record<
-      SkillUseId,
-      Readonly<Record<RuntimeCounterId, number>>
-    > = {};
-    for (const skillUseId of effectSequenceSkillUseIds) {
-      const counters = unit.effectSequenceCounters![skillUseId]!;
-      const values: Record<RuntimeCounterId, number> = {};
-      const carryValues: Record<RuntimeCounterId, number> = {};
-      for (const counterId of Object.keys(counters) as RuntimeCounterId[]) {
-        values[counterId] = counters[counterId]!.value;
-        if (counters[counterId]!.carry !== 0) {
-          carryValues[counterId] = counters[counterId]!.carry;
-        }
-      }
-      effectSequenceCounters[skillUseId] = values;
-      if (Object.keys(carryValues).length > 0) {
-        effectSequenceCounterCarry[skillUseId] = carryValues;
-      }
-    }
-    const effective = selectEffectiveInstances(unit.appliedEffects);
-    units[unit.battleUnitId] = {
-      hp: unit.currentHp,
-      ap: unit.currentAp,
-      pp: unit.currentPp,
-      extraGauge: unit.currentExtraGauge,
-      maximumAp: unit.maximumAp,
-      maximumPp: unit.maximumPp,
-      maximumExtraGauge: unit.maximumExtraGauge,
-      combatStats: unit.combatStats,
-      baseCombatStats: unit.baseCombatStats,
-      ...(cooldownIds.length > 0 ? { cooldowns } : {}),
-      ...(unit.charge !== undefined
-        ? {
-            charge: {
-              skillDefinitionId: unit.charge.skill.skillDefinitionId,
-              startedActionId: unit.charge.startedActionId,
-            },
-          }
-        : {}),
-      ...(skillCounterSkillIds.length > 0 ? { skillCounters } : {}),
-      ...(Object.keys(skillCounterCarry).length > 0 ? { skillCounterCarry } : {}),
-      ...(effectSequenceSkillUseIds.length > 0 ? { effectSequenceCounters } : {}),
-      ...(Object.keys(effectSequenceCounterCarry).length > 0 ? { effectSequenceCounterCarry } : {}),
-      ...(unit.cumulativeDamageDealt !== undefined
-        ? { cumulativeDamageDealt: unit.cumulativeDamageDealt }
-        : {}),
-      ...(unit.appliedEffects.length > 0
-        ? {
-            effects: unit.appliedEffects.map((effect) =>
-              toEffectSnapshot(effect, effective.has(effect.effectInstanceId)),
-            ),
-          }
-        : {}),
-      ...(unit.markerStates.length > 0
-        ? { markers: unit.markerStates.map((marker) => toMarkerSnapshot(marker)) }
-        : {}),
-    };
+    units[unit.battleUnitId] = captureBattleUnitSnapshot(unit);
   }
   return {
     status: battle.status,
@@ -132,7 +32,23 @@ export function captureBattleState(battle: Battle): BattleStateSnapshot {
     units,
     ...(battle.result !== undefined ? { result: battle.result } : {}),
     ...(battle.exercise !== undefined ? { exercise: battle.exercise.snapshot() } : {}),
+    ...(battle.formations !== undefined
+      ? { formations: captureFormationsState(battle.formations) }
+      : {}),
   };
+}
+
+/**
+ * 状態スナップショットへ載せる編成状態（`08_ドメインイベント.md`「総力戦イベント」）。
+ * 控えのユニット・メモリー・戦闘履歴は状態差分の対象にしないため含めない。
+ */
+function captureFormationsState(formations: TotalWarFormations): FormationsStateSnapshot {
+  const sideOf = (side: TotalWarSideFormations) => ({
+    formationCount: side.formationCount,
+    activeFormationNumber: side.activeFormationNumber,
+    defeatedCount: side.defeatedCount,
+  });
+  return { ALLY: sideOf(formations.ALLY), ENEMY: sideOf(formations.ENEMY) };
 }
 
 /**
@@ -155,11 +71,25 @@ export interface BattleUnitRosterEntry {
   readonly maximumAp: number;
   readonly maximumPp: number;
   readonly maximumExtraGauge: number;
+  /** 総力戦のみ。所属する編成の番号（1～3）。他のモードではキー自体を持たない。 */
+  readonly formationNumber?: number;
 }
 
-/** 味方陣営を先に、各陣営は配置(参加枠)順のまま列挙する（`10_API設計.md`「配列順」）。 */
+/**
+ * 味方陣営を先に、各陣営は配置(参加枠)順のまま列挙する（`10_API設計.md`「配列順」）。
+ * 総力戦では控えの編成のユニットも含め、陣営 → 編成番号 → 配置順に並べる
+ * （`10_API設計.md`「TotalWarUnitRosterResponse」）。盤面には出撃済みの編成が番号順に、
+ * 控えには未出撃の編成が出撃順に並ぶため、両者を続けるだけでこの順になる。
+ */
 export function captureUnitRoster(battle: Battle): readonly BattleUnitRosterEntry[] {
-  return [...battle.allyUnits, ...battle.enemyUnits].map((unit) => ({
+  const reservesOf = (side: Side): readonly BattleUnit[] =>
+    battle.formations?.[side].reserves.flatMap((reserve) => reserve.units) ?? [];
+  return [
+    ...battle.allyUnits,
+    ...reservesOf("ALLY"),
+    ...battle.enemyUnits,
+    ...reservesOf("ENEMY"),
+  ].map((unit) => ({
     battleUnitId: unit.battleUnitId,
     unitDefinitionId: unit.unitDefinitionId,
     side: unit.side,
@@ -169,5 +99,6 @@ export function captureUnitRoster(battle: Battle): readonly BattleUnitRosterEntr
     maximumAp: unit.maximumAp,
     maximumPp: unit.maximumPp,
     maximumExtraGauge: unit.maximumExtraGauge,
+    ...(unit.formationNumber !== undefined ? { formationNumber: unit.formationNumber } : {}),
   }));
 }

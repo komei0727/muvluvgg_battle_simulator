@@ -15,6 +15,8 @@ export interface FormationDefeat {
   readonly side: Side;
   readonly formationNumber: number;
   readonly remainingReserveCount: number;
+  /** 検出前の撃破された編成数。`FormationDefeated`が所有する差分の`before`になる。 */
+  readonly defeatedCountBefore: number;
 }
 
 export interface TotalWarCheckpointResult {
@@ -58,6 +60,7 @@ export function resolveTotalWarCheckpoint(
       side,
       formationNumber: current.activeFormationNumber,
       remainingReserveCount: current.reserves.length,
+      defeatedCountBefore: current.defeatedCount,
     });
     next = {
       ...next,

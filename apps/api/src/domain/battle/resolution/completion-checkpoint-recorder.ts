@@ -23,6 +23,7 @@ export interface CompletionCheckpointEventContext {
 /**
  * R-END-01の判定タイミング1回分。判定（`evaluateCompletionCheckpoint`）を行い、総力戦で
  * 新たに検出した編成の全滅を味方、敵の順に`FormationDefeated`として発行する（R-TWR-03 #7）。
+ * 撃破された編成数の差分（`formations.<side>.defeatedCount`）はこのイベントが単独で所有する。
  * 結果判定（`BattleCompleted`）は呼び出し側がこの後で行うため、全滅は常にそれより前に並ぶ。
  */
 export function passCompletionCheckpoint(
@@ -46,6 +47,16 @@ export function passCompletionCheckpoint(
         formationNumber: defeat.formationNumber,
         turnNumber: context.turnNumber,
         remainingReserveCount: defeat.remainingReserveCount,
+      },
+      stateDelta: {
+        formations: {
+          [defeat.side]: {
+            defeatedCount: {
+              before: defeat.defeatedCountBefore,
+              after: defeat.defeatedCountBefore + 1,
+            },
+          },
+        },
       },
     });
   }

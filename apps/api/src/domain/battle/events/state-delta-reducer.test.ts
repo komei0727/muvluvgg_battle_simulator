@@ -1260,3 +1260,136 @@ describe("reduceStateDeltas", () => {
     expect(() => reduceStateDeltas(initialState(), withDuplicate)).toThrow(DomainValidationError);
   });
 });
+
+describe("applyStateDelta (TOTAL_WAR)", () => {
+  const UNIT_C = createBattleUnitId("unit-c");
+  const addedUnit = {
+    hp: 90,
+    ap: 0,
+    pp: 0,
+    extraGauge: 0,
+    maximumAp: 3,
+    maximumPp: 3,
+    maximumExtraGauge: 10,
+    combatStats: COMBAT_STATS,
+    baseCombatStats: COMBAT_STATS,
+  };
+  function totalWarState(): BattleStateSnapshot {
+    return {
+      ...initialState(),
+      formations: {
+        ALLY: { formationCount: 1, activeFormationNumber: 1, defeatedCount: 0 },
+        ENEMY: { formationCount: 2, activeFormationNumber: 1, defeatedCount: 0 },
+      },
+    };
+  }
+
+  it("UT-STATE-REDUCER-036 [R-TWR-04]: adds the units of an addedUnits delta to the state, so later deltas can target them", () => {
+    const deployed = applyStateDelta(totalWarState(), { addedUnits: { [UNIT_C]: addedUnit } });
+    const damaged = applyStateDelta(deployed, {
+      units: { [UNIT_C]: { hp: { before: 90, after: 40 } } },
+    });
+
+    expect(deployed.units[UNIT_C]).toEqual(addedUnit);
+    expect(damaged.units[UNIT_C]?.hp).toBe(40);
+    expect(damaged.units[UNIT_A]).toEqual(initialState().units[UNIT_A]);
+  });
+
+  it("UT-STATE-REDUCER-037 [R-TWR-04]: applies addedUnits before the unit deltas of the same delta", () => {
+    const next = applyStateDelta(totalWarState(), {
+      addedUnits: { [UNIT_C]: addedUnit },
+      units: { [UNIT_C]: { ap: { before: 0, after: 3 } } },
+    });
+
+    expect(next.units[UNIT_C]?.ap).toBe(3);
+  });
+
+  it("UT-STATE-REDUCER-038 [R-TWR-04]: rejects an addedUnits entry whose BattleUnitId is already on the board (a duplicated deployment)", () => {
+    expect(() => applyStateDelta(totalWarState(), { addedUnits: { [UNIT_A]: addedUnit } })).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-STATE-REDUCER-039 [R-TWR-04]: rejects addedUnits in a battle without formation state (only a TOTAL_WAR battle adds units)", () => {
+    expect(() => applyStateDelta(initialState(), { addedUnits: { [UNIT_C]: addedUnit } })).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-STATE-REDUCER-040 [R-TWR-03] [R-TWR-04]: applies formations.<side>.activeFormationNumber / defeatedCount, leaving the other side and fields untouched", () => {
+    const defeated = applyStateDelta(totalWarState(), {
+      formations: { ENEMY: { defeatedCount: { before: 0, after: 1 } } },
+    });
+    const deployed = applyStateDelta(defeated, {
+      formations: { ENEMY: { activeFormationNumber: { before: 1, after: 2 } } },
+    });
+
+    expect(deployed.formations).toEqual({
+      ALLY: { formationCount: 1, activeFormationNumber: 1, defeatedCount: 0 },
+      ENEMY: { formationCount: 2, activeFormationNumber: 2, defeatedCount: 1 },
+    });
+  });
+
+  it("UT-STATE-REDUCER-041 [R-TWR-03]: rejects a formations delta whose before does not match (dropped or reordered delta)", () => {
+    expect(() =>
+      applyStateDelta(totalWarState(), {
+        formations: { ENEMY: { defeatedCount: { before: 1, after: 2 } } },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-042 [R-TWR-03]: rejects a formations delta in a battle without formation state", () => {
+    expect(() =>
+      applyStateDelta(initialState(), {
+        formations: { ALLY: { defeatedCount: { before: 0, after: 1 } } },
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
+  it("UT-STATE-REDUCER-043 [R-TWR-06]: rejects a total war result whose defeated formation counts disagree with the restored formation state", () => {
+    const result = {
+      outcome: "ALLY_WIN" as const,
+      completionReason: "ENEMY_DEFEATED" as const,
+      completedTurn: 2,
+      stages: [],
+      defeatedFormationCounts: { ally: 0, enemy: 2 },
+    };
+    const restored = applyStateDelta(totalWarState(), {
+      formations: { ENEMY: { defeatedCount: { before: 0, after: 1 } } },
+    });
+
+    expect(() =>
+      applyStateDelta(restored, { result: { before: undefined, after: result } }),
+    ).toThrow(DomainValidationError);
+    expect(
+      applyStateDelta(restored, {
+        result: {
+          before: undefined,
+          after: { ...result, defeatedFormationCounts: { ally: 0, enemy: 1 } },
+        },
+      }).result,
+    ).toEqual({ ...result, defeatedFormationCounts: { ally: 0, enemy: 1 } });
+  });
+
+  it("UT-STATE-REDUCER-044 [R-TWR-06]: rejects a total war result in a battle without formation state, and a normal result in one with it", () => {
+    const totalWarResult = {
+      outcome: "DRAW" as const,
+      completionReason: "TURN_LIMIT_REACHED" as const,
+      completedTurn: 15,
+      stages: [],
+      defeatedFormationCounts: { ally: 0, enemy: 0 },
+    };
+    const normalResult = {
+      outcome: "ALLY_WIN" as const,
+      completionReason: "ENEMY_DEFEATED" as const,
+      completedTurn: 1,
+    };
+
+    expect(() =>
+      applyStateDelta(initialState(), { result: { before: undefined, after: totalWarResult } }),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      applyStateDelta(totalWarState(), { result: { before: undefined, after: normalResult } }),
+    ).toThrow(DomainValidationError);
+  });
+});

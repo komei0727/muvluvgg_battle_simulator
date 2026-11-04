@@ -439,7 +439,22 @@ export interface BattleStateSnapshot {
   readonly result?: BattleResultSnapshot;
   /** 戦術演習だけが持つ演習状態（R-TEX-02／R-TEX-10）。通常戦闘ではキー自体を持たない。 */
   readonly exercise?: ExerciseStateSnapshot;
+  /**
+   * 総力戦だけが持つ陣営ごとの編成状態（`08_ドメインイベント.md`「総力戦イベント」）。
+   * 他のモードではキー自体を持たない。控えの編成のユニットは`units`に含めない（R-TWR-03 #2）。
+   */
+  readonly formations?: FormationsStateSnapshot;
 }
+
+/** `10_API設計.md`「SideFormationStateResponse」に相当する陣営1つ分の編成状態。 */
+export interface SideFormationStateSnapshot {
+  /** 指定された編成数。戦闘中に変化しない。 */
+  readonly formationCount: number;
+  readonly activeFormationNumber: number;
+  readonly defeatedCount: number;
+}
+
+export type FormationsStateSnapshot = Readonly<Record<Side, SideFormationStateSnapshot>>;
 
 /** `08_ドメインイベント.md`「StateDelta」: 変更した項目だけを持つ。 */
 export interface UnitStateDelta {
@@ -582,7 +597,25 @@ export interface StateDelta {
    * （減算、同 #5/#6）が分け合い、各イベントが自分の差分を単独で所有する。
    */
   readonly exercise?: ExerciseStateDelta;
+  /**
+   * `08_ドメインイベント.md`「総力戦イベント」: 出撃によって盤面に加わったユニットの開始状態。
+   * `FormationDeployed`が単独で所有し、状態復元は同じ差分の`units`より先に適用する。
+   * 総力戦以外では発生しない。
+   */
+  readonly addedUnits?: Readonly<Record<BattleUnitId, BattleUnitSnapshot>>;
+  /**
+   * 編成状態の差分。`activeFormationNumber`は`FormationDeployed`、`defeatedCount`は
+   * `FormationDefeated`が単独で所有する。総力戦以外では発生しない。
+   */
+  readonly formations?: FormationsStateDelta;
 }
+
+export interface SideFormationStateDelta {
+  readonly activeFormationNumber?: ValueChange<number>;
+  readonly defeatedCount?: ValueChange<number>;
+}
+
+export type FormationsStateDelta = Readonly<Partial<Record<Side, SideFormationStateDelta>>>;
 
 /** 演習状態（累計スコア・ブレイク回数）の差分。通常戦闘では発生しない。 */
 export interface ExerciseStateDelta {
