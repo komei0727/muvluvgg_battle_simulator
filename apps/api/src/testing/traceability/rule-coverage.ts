@@ -176,13 +176,14 @@ const RULE_KINDS: Record<string, readonly TestKind[]> = {
   // 総力戦（Roadmap #766）。R-TWR-01・02はDomainの部品（編成検証・再登場補正）、
   // R-TWR-03・04はBattle集約の編成の全滅と出撃、R-TWR-05は編成単位のメモリー、
   // R-TWR-06は終了判定と結果（引き分け・戦闘履歴）を実装済み。R-TWR-04は途中で加わる
-  // ユニットの状態差分・状態復元をproperty testで検証する。
-  "R-TWR-01": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  "R-TWR-02": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  "R-TWR-03": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  "R-TWR-04": ["POSITIVE", "NEGATIVE", "BOUNDARY", "PROPERTY"],
-  "R-TWR-05": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
-  "R-TWR-06": ["POSITIVE", "NEGATIVE", "BOUNDARY"],
+  // ユニットの状態差分・状態復元をproperty testで検証する。本番Catalogでの基準シナリオ
+  // （SCN-BTL-029〜037）が全ルールを、本番Catalogでの状態復元をPROP-TWR-04-002が覆う。
+  "R-TWR-01": ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  "R-TWR-02": ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  "R-TWR-03": ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  "R-TWR-04": ["POSITIVE", "NEGATIVE", "BOUNDARY", "PROPERTY", "SCENARIO"],
+  "R-TWR-05": ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
+  "R-TWR-06": ["POSITIVE", "NEGATIVE", "BOUNDARY", "SCENARIO"],
 };
 
 const apiSrcPath = fileURLToPath(new URL("../../", import.meta.url));

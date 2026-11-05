@@ -100,6 +100,8 @@ describe("Rule coverage ledger", () => {
     // （総数は変わらない）。
     // Issue #772（TW-005）が終了判定と結果（R-TWR-06）を実装し、`kinds`を埋めた
     // （総数は変わらない）。
+    // Issue #776（TW-009）が本番Catalogでの基準シナリオを追加し、R-TWR-01〜06の
+    // `kinds`へ`SCENARIO`を足した（総数は変わらない）。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
     expect(RULE_COVERAGE).toHaveLength(154);
   });

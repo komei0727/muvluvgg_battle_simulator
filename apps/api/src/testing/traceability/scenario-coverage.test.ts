@@ -45,7 +45,7 @@ const RETIRED_SCENARIO_IDS: readonly string[] = RETIRED_TEST_CASE_IDS.map(
 
 describe("baseline scenario coverage", () => {
   it("UT-SCN-COVERAGE-001: every baseline scenario exists as an executable test, and retired IDs stay gaps", () => {
-    expect(BASELINE_SCENARIO_IDS).toHaveLength(27);
+    expect(BASELINE_SCENARIO_IDS).toHaveLength(36);
 
     // 実行対象のテストとして実在すること。`it.skip`/`todo`/条件付き無効化・
     // コメント内・文字列内は `collectTestCaseDefinitions` が除いている。
