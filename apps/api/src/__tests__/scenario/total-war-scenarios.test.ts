@@ -159,21 +159,32 @@ function actorsInTurn(result: SimulateTotalWarResult, turnNumber: number): reado
     .map((event) => String(details(event).actorUnitId));
 }
 
-/** `MEMORY_TRIGGERED` を、メモリーIDごとに「発動したターン」と「契機のイベント種別」へまとめる。 */
+/** メモリーの1回の発動: どの `triggeredEffects` が、どのターンに、どの種別のイベントを契機に発動したか。 */
+type MemoryActivation = readonly [
+  triggeredEffectIndex: number,
+  turnNumber: number,
+  triggerType: string,
+];
+
+/**
+ * `MEMORY_TRIGGERED` を、メモリーIDごとに発生順の一覧へまとめる。重複を除かないため、
+ * 同じ効果が同じターン・同じ契機で2回発動すれば一覧にも2件現れる。
+ */
 function memoryActivations(
   result: SimulateTotalWarResult,
-): ReadonlyMap<string, readonly { turnNumber: number; triggerType: string }[]> {
+): ReadonlyMap<string, readonly MemoryActivation[]> {
   const bySequence = new Map(result.events.map((event) => [event.sequence, event]));
-  const activations = new Map<string, { turnNumber: number; triggerType: string }[]>();
+  const activations = new Map<string, MemoryActivation[]>();
   for (const event of eventsOfType(result, "MEMORY_TRIGGERED")) {
-    const { memoryDefinitionId, triggerEventId } = details(event) as {
+    const { memoryDefinitionId, triggeredEffectIndex, triggerEventId } = details(event) as {
       memoryDefinitionId: string;
+      triggeredEffectIndex: number;
       triggerEventId: string;
     };
     // 内部のイベントIDは「戦闘ID:連番」で採番される。
     const trigger = bySequence.get(Number(triggerEventId.slice(`${BATTLE_ID}:`.length)));
     const list = activations.get(memoryDefinitionId) ?? [];
-    list.push({ turnNumber: event.turnNumber, triggerType: trigger?.type ?? "UNKNOWN" });
+    list.push([triggeredEffectIndex, event.turnNumber, trigger?.type ?? "UNKNOWN"]);
     activations.set(memoryDefinitionId, list);
   }
   return activations;
@@ -355,27 +366,31 @@ describe("total war scenarios (production catalog)", () => {
       [2, 2],
       [3, 3],
     ]);
-    const activations = memoryActivations(result);
-    const turnsOf = (memoryDefinitionId: string) => [
-      ...new Set((activations.get(memoryDefinitionId) ?? []).map((a) => a.turnNumber)),
-    ];
-    const triggersOf = (memoryDefinitionId: string) => [
-      ...new Set((activations.get(memoryDefinitionId) ?? []).map((a) => a.triggerType)),
-    ];
-
-    // 1番目の編成の戦闘開始時Memoryは BattleStarted で1回だけ。勝ち残った味方の分は、
-    // 相手の編成が出撃しても再び発動しない（R-TWR-05 #3）。
-    expect(turnsOf("MEM_ABSOLUTE_ORDER")).toEqual([0]);
-    expect(triggersOf("MEM_ABSOLUTE_ORDER")).toEqual(["BATTLE_STARTED"]);
-    expect(turnsOf("MEM_STRANGERS")).toEqual([0]);
-
-    // 2番目以降の編成の戦闘開始時Memoryは、その編成の出撃で1回だけ（R-TWR-05 #2）。
-    // それまで控えだった間（BattleStarted・ターン1）には発動しない。
-    expect(turnsOf("MEM_ENCOUNTER_WITH_GIRLS")).toEqual([2]);
-    expect(triggersOf("MEM_ENCOUNTER_WITH_GIRLS")).toEqual(["FORMATION_DEPLOYED"]);
-    expect(turnsOf("MEM_HEART_COLOR")).toEqual([3]);
-    expect(triggersOf("MEM_HEART_COLOR")).toEqual(["FORMATION_DEPLOYED"]);
-    expect(turnsOf("MEM_LIKE_FRIENDS")).toEqual([3]);
+    // 発動はメモリーID・`triggeredEffects` の添字ごとに件数まで固定する。1つのメモリーが
+    // 複数の効果を持つため、各効果がそれぞれ1回ずつ発動することを確かめる。対象が
+    // 盤面にいない効果（例: 味方にPHYSICALがいない MEM_ABSOLUTE_ORDER の添字1）は発動しない。
+    expect(Object.fromEntries(memoryActivations(result))).toEqual({
+      // 1番目の編成の戦闘開始時Memoryは BattleStarted で1回だけ。勝ち残った味方の分は、
+      // 相手の編成が出撃しても再び発動しない（R-TWR-05 #3）。
+      MEM_ABSOLUTE_ORDER: [[0, 0, "BATTLE_STARTED"]],
+      MEM_STRANGERS: [
+        [0, 0, "BATTLE_STARTED"],
+        [1, 0, "BATTLE_STARTED"],
+      ],
+      // ターン開始時Memoryは出撃中の編成のものだけ（R-TWR-05 #1・#6）。1編成目の分は
+      // 全滅したターン2以降に発動しない。
+      MEM_GIDDY_CIRCUMSTANCES: [[1, 1, "TURN_STARTED"]],
+      // 2番目以降の編成の戦闘開始時Memoryは、その編成の出撃で1回だけ（R-TWR-05 #2）。
+      // それまで控えだった間（BattleStarted・ターン1）には発動しない。
+      MEM_ENCOUNTER_WITH_GIRLS: [
+        [0, 2, "FORMATION_DEPLOYED"],
+        [1, 2, "FORMATION_DEPLOYED"],
+      ],
+      // 2編成目のターン開始時Memoryは、控えだったターン1には発動しない。
+      MEM_GREATEST_FORTUNE: [[0, 2, "TURN_STARTED"]],
+      MEM_HEART_COLOR: [[1, 3, "FORMATION_DEPLOYED"]],
+      MEM_LIKE_FRIENDS: [[1, 3, "FORMATION_DEPLOYED"]],
+    });
     // 出撃時Memoryの解決は、そのターンのTurnStartedより前に終わる（R-TWR-05 #4）。
     const turn2Started = turnEvent(result, "TURN_STARTED", 2);
     for (const event of eventsOfType(result, "MEMORY_TRIGGERED")) {
@@ -383,11 +398,6 @@ describe("total war scenarios (production catalog)", () => {
         expect(event.sequence).toBeLessThan(turn2Started.sequence);
       }
     }
-
-    // ターン開始時Memoryは出撃中の編成のものだけ（R-TWR-05 #1・#6）。1編成目の分は
-    // 全滅したターン2以降に発動せず、2編成目の分は控えだったターン1に発動しない。
-    expect(turnsOf("MEM_GIDDY_CIRCUMSTANCES")).toEqual([1]);
-    expect(turnsOf("MEM_GREATEST_FORTUNE")).toEqual([2]);
 
     // 勝ち残った味方へ付与したメモリー由来の効果は、相手の編成交代をまたいで残る（R-TWR-05 #5）。
     const absoluteOrderEffect = (state: BattleStateSnapshot) =>
