@@ -345,7 +345,7 @@ export const formationPositionResponseSchema = {
 } as const;
 
 /** `10_API設計.md`「FormationPositionResponse」共通座標表: `x`0-2、`y`0-3の3×4固定格子。 */
-const globalCoordinateResponseSchema = {
+export const globalCoordinateResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: ["x", "y"],
@@ -559,7 +559,7 @@ const chargeStateResponseSchema = {
   },
 } as const;
 
-const battleUnitStateResponseSchema = {
+export const battleUnitStateResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -596,7 +596,7 @@ const battleUnitStateResponseSchema = {
   },
 } as const;
 
-const actionReservationResponseSchema = {
+export const actionReservationResponseSchema = {
   type: "object",
   additionalProperties: false,
   required: ["order", "battleUnitId", "actionSpeedAtOrdering", "reservedActionType"],

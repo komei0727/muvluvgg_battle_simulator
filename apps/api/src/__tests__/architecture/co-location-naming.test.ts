@@ -46,6 +46,7 @@ const NAMING_EXCEPTIONS: readonly string[] = [
   "presentation/http/formation-stat-preview-route", // 対象は routes/formation-stat-preview-route.ts
   "presentation/http/tactical-exercise-route", // 対象は routes/tactical-exercise-route.ts
   "presentation/http/tactical-exercise-evaluation-route", // 対象は routes/tactical-exercise-evaluation-route.ts
+  "presentation/http/total-war-route", // 対象は routes/total-war-route.ts
   "presentation/http/simulation-route.log-level-projection", // 対象は routes/simulation-route.ts
   "presentation/http/simulation-route.memory-granted-marker", // 対象は routes/simulation-route.ts
 

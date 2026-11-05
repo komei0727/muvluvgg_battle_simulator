@@ -107,6 +107,8 @@ export async function bootstrap(): Promise<FastifyInstance> {
     // 戦術演習（UC-03）は戦闘と同じWorker Pool（同じタイムアウト・容量制御・
     // Catalogリビジョン検査）で実行する（`09_アプリケーション設計.md`「実行境界」）。
     exerciseUseCase: pool,
+    // 総力戦（UC-05）も同じWorker Poolで実行する（Workerのタスク種別`TOTAL_WAR`）。
+    totalWarUseCase: pool,
     // 一括評価（UC-04）はローカルの分析ツール向けであり、明示的に許可した配備だけで
     // 開く。無効な配備でもルートは登録され、404を返す（公開文書の形を保つため）。
     ...(evaluationEndpointEnabled ? { evaluationUseCase: pool } : {}),

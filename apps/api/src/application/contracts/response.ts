@@ -193,6 +193,8 @@ export interface BattleUnitStateResponseBody {
   readonly markers?: readonly MarkerStateResponseBody[];
   readonly cooldowns: readonly CooldownStateResponseBody[];
   readonly charge?: ChargeStateResponseBody;
+  /** 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する。 */
+  readonly formationNumber?: number;
 }
 
 export interface ActionReservationResponseBody {
@@ -209,6 +211,21 @@ export interface BattleStateResponseBody {
   readonly cycleNumber: number;
   readonly units: readonly BattleUnitStateResponseBody[];
   readonly actionQueue: readonly ActionReservationResponseBody[];
+  /** 総力戦のみ。陣営ごとの編成状態。他のエンドポイントでは省略する。 */
+  readonly formations?: FormationsStateResponseBody;
+}
+
+/** `10_API設計.md`「SideFormationStateResponse」。 */
+export interface SideFormationStateResponseBody {
+  readonly formationCount: number;
+  readonly activeFormationNumber: number;
+  readonly defeatedCount: number;
+}
+
+/** `10_API設計.md`「FormationsStateResponse」。 */
+export interface FormationsStateResponseBody {
+  readonly ally: SideFormationStateResponseBody;
+  readonly enemy: SideFormationStateResponseBody;
 }
 
 export interface BattleResultResponseBody {
@@ -312,6 +329,23 @@ export interface BattleStateDeltaResponseBody {
   readonly units?: Readonly<Record<string, UnitStateDeltaResponseBody>>;
   readonly actionQueue?: ActionQueueDeltaResponseBody;
   readonly exercise?: ExerciseDeltaResponseBody;
+  /**
+   * 総力戦のみ（R-TWR-04）。出撃によって盤面へ加わったユニットの開始状態を、
+   * `BattleStateResponse.units`の要素と同じ完全な形・同じ並びで運ぶ。
+   */
+  readonly addedUnits?: readonly BattleUnitStateResponseBody[];
+  /** 総力戦のみ（R-TWR-03／04）。`BattleStateResponse.formations`の同名フィールドへ適用する。 */
+  readonly formations?: FormationsDeltaResponseBody;
+}
+
+export interface SideFormationDeltaResponseBody {
+  readonly activeFormationNumber?: ValueChangeBody<number>;
+  readonly defeatedCount?: ValueChangeBody<number>;
+}
+
+export interface FormationsDeltaResponseBody {
+  readonly ally?: SideFormationDeltaResponseBody;
+  readonly enemy?: SideFormationDeltaResponseBody;
 }
 
 export interface StateTransitionResponseBody {
@@ -334,6 +368,10 @@ export interface UnitBattleSummaryResponseBody {
   readonly finalHp: number;
   readonly maximumHp: number;
   readonly combatStatus: string;
+  /** 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する。 */
+  readonly formationNumber?: number;
+  /** 総力戦のみ。一度でも出撃したか。他のエンドポイントでは省略する。 */
+  readonly deployed?: boolean;
 }
 
 export interface BattleSimulationResponseBody {
@@ -391,6 +429,60 @@ export interface TacticalExerciseResponseBody {
    * 戦闘状態は`unitSummaries`が運ぶ（`initialState`はロースター解決のため常に返す）。
    */
   readonly finalState?: BattleStateResponseBody;
+  readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
+  readonly events: readonly BattleLogEventResponseBody[];
+  readonly stateTransitions: readonly StateTransitionResponseBody[];
+}
+
+/** `10_API設計.md`「TotalWarStageResponse」（R-TWR-06 #4）。 */
+export interface TotalWarStageResponseBody {
+  readonly stageNumber: number;
+  readonly allyFormationNumber: number;
+  readonly enemyFormationNumber: number;
+  readonly startTurn: number;
+  readonly endTurn: number;
+  readonly defeatedSides: readonly string[];
+}
+
+/**
+ * `10_API設計.md`「TotalWarResultResponse」。通常戦闘と違い`outcome`は引き分け（`DRAW`）を
+ * とり、`SIMULTANEOUS_DEFEAT`は引き分けを表す（R-TWR-06 #1）。
+ */
+export interface TotalWarResultResponseBody {
+  readonly outcome: string;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly stages: readonly TotalWarStageResponseBody[];
+  readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
+}
+
+/** `10_API設計.md`「TotalWarUnitRosterResponse」。 */
+export interface TotalWarUnitRosterResponseBody {
+  readonly battleUnitId: string;
+  readonly unitDefinitionId: string;
+  readonly side: string;
+  readonly formationNumber: number;
+  readonly formationPosition: FormationPositionResponseBody;
+  readonly coordinate: GlobalCoordinateResponseBody;
+  readonly reappearance: boolean;
+  readonly deployed: boolean;
+}
+
+/**
+ * `10_API設計.md`「TotalWarResponse」。`BattleSimulationResponse`と同じ構造を再利用し、
+ * `result`を総力戦の結果へ差し替え、全編成のユニット一覧`unitRoster`を足す。
+ */
+export interface TotalWarResponseBody {
+  readonly schemaVersion: number;
+  readonly battleId: string;
+  readonly catalogRevision: string;
+  readonly result: TotalWarResultResponseBody;
+  /** 両陣営の1番目の編成のユニットだけを含む。 */
+  readonly initialState: BattleStateResponseBody;
+  /** `SUMMARY`ではキーごと省略する。出撃したことのある全ユニットを含む。 */
+  readonly finalState?: BattleStateResponseBody;
+  /** 全編成の全ユニット。公開レベルに依存せず常に返す。 */
+  readonly unitRoster: readonly TotalWarUnitRosterResponseBody[];
   readonly unitSummaries: readonly UnitBattleSummaryResponseBody[];
   readonly events: readonly BattleLogEventResponseBody[];
   readonly stateTransitions: readonly StateTransitionResponseBody[];
