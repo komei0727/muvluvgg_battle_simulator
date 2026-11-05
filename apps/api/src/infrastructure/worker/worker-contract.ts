@@ -7,11 +7,13 @@ import type {
   BattleSimulationRequestBody,
   TacticalExerciseEvaluationRequestBody,
   TacticalExerciseRequestBody,
+  TotalWarRequestBody,
 } from "../../application/contracts/request.js";
 import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
 import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
+  SimulateTotalWarResult,
 } from "../../application/simulation/simulation-result-assembler.js";
 
 /**
@@ -22,7 +24,8 @@ import type {
 export type WorkerSimulationMode =
   | "BATTLE_SIMULATION"
   | "TACTICAL_EXERCISE"
-  | "TACTICAL_EXERCISE_EVALUATION";
+  | "TACTICAL_EXERCISE_EVALUATION"
+  | "TOTAL_WAR";
 
 interface WorkerSimulationTaskBase {
   readonly requestId: string;
@@ -56,10 +59,17 @@ export interface WorkerTacticalExerciseEvaluationTask extends WorkerSimulationTa
   readonly request: TacticalExerciseEvaluationRequestBody;
 }
 
+/** R-TWR-01 #5: 総力戦リクエストも`turnLimit`を運ばない（規定ターン数は15固定）。 */
+export interface WorkerTotalWarTask extends WorkerSimulationTaskBase {
+  readonly mode: "TOTAL_WAR";
+  readonly request: TotalWarRequestBody;
+}
+
 export type WorkerSimulationTask =
   | WorkerBattleSimulationTask
   | WorkerTacticalExerciseTask
-  | WorkerTacticalExerciseEvaluationTask;
+  | WorkerTacticalExerciseEvaluationTask
+  | WorkerTotalWarTask;
 
 /**
  * `ApplicationError`のplain object表現。`Error`インスタンスをそのまま
@@ -89,6 +99,7 @@ export type WorkerSimulationResult =
       readonly mode: "TACTICAL_EXERCISE_EVALUATION";
       readonly result: EvaluateTacticalExerciseCandidatesResult;
     }
+  | { readonly ok: true; readonly mode: "TOTAL_WAR"; readonly result: SimulateTotalWarResult }
   | { readonly ok: false; readonly error: SerializedApplicationError };
 
 export function toSerializedApplicationError(error: ApplicationError): SerializedApplicationError {

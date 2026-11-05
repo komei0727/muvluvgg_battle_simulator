@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runPreflight } from "./simulation-preflight-validator.js";
+import { runPreflight, runTotalWarPreflight } from "./simulation-preflight-validator.js";
 import type { SimulateBattleCommand } from "./simulate-battle-command.js";
 import { ApplicationError } from "../contracts/application-error.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
@@ -463,5 +463,95 @@ describe("runPreflight", () => {
     } catch (error) {
       expect((error as ApplicationError).code).toBe("DEFINITION_NOT_FOUND");
     }
+  });
+});
+
+describe("runTotalWarPreflight", () => {
+  const totalWarSnapshot = (): BattleCatalogSnapshot =>
+    snapshot({
+      units: new Map<UnitDefinitionId, UnitDefinition>([
+        [createUnitDefinitionId("UNIT_001"), unitDefinition("UNIT_001")],
+        [
+          createUnitDefinitionId("UNIT_TEX"),
+          unitDefinition("UNIT_TEX", { category: "EXERCISE_ENEMY" }),
+        ],
+      ]),
+      memories: new Map<MemoryDefinitionId, MemoryDefinition>([
+        [createMemoryDefinitionId("MEM_001"), {} as MemoryDefinition],
+      ]),
+    });
+
+  const formationOf = (unitId: string, memoryIds: readonly string[] = []) => ({
+    slots: [
+      {
+        unitDefinitionId: createUnitDefinitionId(unitId),
+        position: { column: 0 as const, row: "FRONT" as const },
+      },
+    ],
+    memoryDefinitionIds: memoryIds.map((memoryId) => createMemoryDefinitionId(memoryId)),
+  });
+
+  const captureError = (run: () => void): ApplicationError => {
+    try {
+      run();
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApplicationError);
+      return error as ApplicationError;
+    }
+    expect.fail("expected runTotalWarPreflight to throw");
+  };
+
+  it("UT-TWPREFLIGHT-001 [R-TWR-01]: passes when every formation of both sides references known PLAYABLE units and memories", () => {
+    expect(() =>
+      runTotalWarPreflight(
+        {
+          allyFormations: [formationOf("UNIT_001", ["MEM_001"]), formationOf("UNIT_001")],
+          enemyFormations: [formationOf("UNIT_001")],
+        },
+        totalWarSnapshot(),
+      ),
+    ).not.toThrow();
+  });
+
+  it("UT-TWPREFLIGHT-002 [R-TWR-01] (R-FRM-06): collects unknown references of every formation at once, with the formation index in the path", () => {
+    const error = captureError(() =>
+      runTotalWarPreflight(
+        {
+          allyFormations: [formationOf("UNIT_001"), formationOf("UNIT_MISSING")],
+          enemyFormations: [
+            formationOf("UNIT_001"),
+            formationOf("UNIT_001"),
+            formationOf("UNIT_001", ["MEM_MISSING"]),
+          ],
+        },
+        totalWarSnapshot(),
+      ),
+    );
+
+    expect(error.code).toBe("DEFINITION_NOT_FOUND");
+    expect(error.violations.map((violation) => violation.path)).toEqual([
+      "allyFormations[1].slots[0].unitDefinitionId",
+      "enemyFormations[2].memoryDefinitionIds[0]",
+    ]);
+  });
+
+  it("UT-TWPREFLIGHT-003 [R-TWR-01, R-TEX-11] (R-TWR-01 #6): rejects a non-PLAYABLE unit in any formation of either side with the rule id", () => {
+    const error = captureError(() =>
+      runTotalWarPreflight(
+        {
+          allyFormations: [formationOf("UNIT_001")],
+          enemyFormations: [formationOf("UNIT_001"), formationOf("UNIT_TEX")],
+        },
+        totalWarSnapshot(),
+      ),
+    );
+
+    expect(error.code).toBe("INVALID_COMMAND");
+    expect(error.violations).toEqual([
+      expect.objectContaining({
+        path: "enemyFormations[1].slots[0].unitDefinitionId",
+        ruleId: "R-TEX-11",
+      }),
+    ]);
   });
 });

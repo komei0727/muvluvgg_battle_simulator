@@ -7,6 +7,7 @@ import {
   advanceBattle,
   createBattle,
   startBattle,
+  type Battle,
   type BattleResult,
 } from "../../domain/battle/lifecycle/battle.js";
 import {
@@ -172,23 +173,17 @@ function buildMemoriesBySide(
   command: FormationPairCommand,
   memories: BattleCatalogSnapshot["memories"],
 ): Readonly<Record<Side, readonly MemoryDefinition[]>> {
-  const resolve = (
-    memoryDefinitionIds: readonly MemoryDefinitionId[],
-    path: string,
-  ): readonly MemoryDefinition[] =>
-    memoryDefinitionIds.map((memoryDefinitionId, index) => {
-      const memory = memories.get(memoryDefinitionId);
-      if (memory === undefined) {
-        throw new DomainValidationError(
-          `${path}.memoryDefinitionIds[${index}]`,
-          `references a MemoryDefinitionId absent from the loaded Catalog snapshot: "${memoryDefinitionId}"`,
-        );
-      }
-      return memory;
-    });
   return {
-    ALLY: resolve(command.allyFormation.memoryDefinitionIds, "allyFormation"),
-    ENEMY: resolve(command.enemyFormation.memoryDefinitionIds, "enemyFormation"),
+    ALLY: resolveFormationMemories(
+      command.allyFormation.memoryDefinitionIds,
+      memories,
+      "allyFormation",
+    ),
+    ENEMY: resolveFormationMemories(
+      command.enemyFormation.memoryDefinitionIds,
+      memories,
+      "enemyFormation",
+    ),
   };
 }
 
@@ -198,14 +193,48 @@ function buildBattleDefinitions(
   executionLimits: SimulationExecutionLimits,
 ): BattleDefinitions {
   return {
+    ...buildSharedBattleDefinitions(snapshot, executionLimits),
+    memoriesBySide: buildMemoriesBySide(command, snapshot.memories),
+  };
+}
+
+/**
+ * 陣営のメモリー以外の`BattleDefinitions`。総力戦はメモリーを編成ごとに集約へ渡すため
+ * （R-TWR-05 #1）、陣営単位の`memoriesBySide`を持たないこの形を使う。
+ */
+export function buildSharedBattleDefinitions(
+  snapshot: BattleCatalogSnapshot,
+  executionLimits: SimulationExecutionLimits,
+): BattleDefinitions {
+  return {
     activeSkillsByUnit: buildActiveSkillsByUnit(snapshot.units, snapshot.skills),
     exSkillByUnit: buildExSkillByUnit(snapshot.units, snapshot.skills),
     effectActions: snapshot.effectActions,
     unitDefinitions: snapshot.units,
     skillDefinitions: snapshot.skills,
-    memoriesBySide: buildMemoriesBySide(command, snapshot.memories),
     executionLimits,
   };
+}
+
+/**
+ * 1編成の`memoryDefinitionIds`を指定順のまま解決する（R-MEM-02 #1）。`loadSnapshot`の
+ * 推移閉包契約により欠落は起こらない前提だが、防御的に検出する。
+ */
+export function resolveFormationMemories(
+  memoryDefinitionIds: readonly MemoryDefinitionId[],
+  memories: BattleCatalogSnapshot["memories"],
+  path: string,
+): readonly MemoryDefinition[] {
+  return memoryDefinitionIds.map((memoryDefinitionId, index) => {
+    const memory = memories.get(memoryDefinitionId);
+    if (memory === undefined) {
+      throw new DomainValidationError(
+        `${path}.memoryDefinitionIds[${index}]`,
+        `references a MemoryDefinitionId absent from the loaded Catalog snapshot: "${memoryDefinitionId}"`,
+      );
+    }
+    return memory;
+  });
 }
 
 /**
@@ -255,68 +284,95 @@ export function executeBattleToCompletion(
     const allyUnits = createBattleUnitsFromParty(allyParty, snapshot.units);
     const enemyUnits = createBattleUnitsFromParty(enemyParty, snapshot.units);
 
-    const battleId = dependencies.battleIdGenerator.next();
-    // 09_アプリケーション設計.md「Battleごとに専用のRandomSourceを生成する」
-    // 「リクエスト間で共有しない」: このBattleの生存期間全体で1つだけ生成する。
-    const random = dependencies.randomSourceFactory.create();
-    // 08_ドメインイベント.md「イベント発行と処理」: BattleごとにEventRecorderを
-    // 1つだけ生成し、開始から完了までの全イベントを蓄積させる。
-    const recorder = new EventRecorder(battleId, executionLimits.maxTotalEvents);
-    let battle = createBattle(
-      battleId,
+    const battle = createBattle(
+      dependencies.battleIdGenerator.next(),
       allyUnits,
       enemyUnits,
       createTurnLimit(options.turnLimit),
       buildBattleDefinitions(snapshot, command, executionLimits),
       options.mode,
     );
-    const initialState = captureBattleState(battle);
-    const unitRoster = captureUnitRoster(battle);
-    battle = startBattle(battle, random, recorder);
-    while (battle.status !== "COMPLETED") {
-      // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階1（協調的停止）:
-      // ターン境界（advanceBattle呼び出し前）という安全な内部境界で
-      // deadlineEpochMsを確認する。期限超過を勝敗結果として返さず、
-      // ここまでに確定した状態も一切返さない。
-      if (dependencies.clock.now() >= context.deadlineEpochMs) {
-        throw new ApplicationError("EXECUTION_TIMEOUT", [
-          {
-            reason: `simulation exceeded its deadline (deadlineEpochMs=${context.deadlineEpochMs})`,
-          },
-        ]);
-      }
-      battle = advanceBattle(battle, random, recorder);
-    }
+    const ran = runBattleToCompletion(battle, context, dependencies, executionLimits);
 
-    const result = battle.result;
-    if (result === undefined) {
-      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
-        { reason: "Battle reached COMPLETED without a result" },
+    return { battleId: battle.battleId, catalogRevision: snapshot.catalogRevision, ...ran };
+  } catch (error) {
+    throw toExecutionApplicationError(error);
+  }
+}
+
+/** Battleを完了まで進めた結果のうち、生成した集約から決まるもの。 */
+export interface CompletedBattleRun {
+  readonly result: BattleResult;
+  readonly initialState: BattleStateSnapshot;
+  readonly finalState: BattleStateSnapshot;
+  readonly events: readonly BattleDomainEvent[];
+  readonly unitRoster: readonly BattleUnitRosterEntry[];
+}
+
+/**
+ * 生成済みの`Battle`を開始から完了まで進める。期限確認・乱数源・イベント記録は全モードで
+ * 共有し、集約の生成（`createBattle`／`createTotalWarBattle`）だけを呼び出し側が行う。
+ */
+export function runBattleToCompletion(
+  createdBattle: Battle,
+  context: SimulationExecutionContext,
+  dependencies: BattleExecutionDependencies,
+  executionLimits: SimulationExecutionLimits,
+): CompletedBattleRun {
+  // 09_アプリケーション設計.md「Battleごとに専用のRandomSourceを生成する」
+  // 「リクエスト間で共有しない」: このBattleの生存期間全体で1つだけ生成する。
+  const random = dependencies.randomSourceFactory.create();
+  // 08_ドメインイベント.md「イベント発行と処理」: BattleごとにEventRecorderを
+  // 1つだけ生成し、開始から完了までの全イベントを蓄積させる。
+  const recorder = new EventRecorder(createdBattle.battleId, executionLimits.maxTotalEvents);
+  let battle = createdBattle;
+  const initialState = captureBattleState(battle);
+  const unitRoster = captureUnitRoster(battle);
+  battle = startBattle(battle, random, recorder);
+  while (battle.status !== "COMPLETED") {
+    // `11_インフラストラクチャ設計.md`「キャンセルと期限」段階1（協調的停止）:
+    // ターン境界（advanceBattle呼び出し前）という安全な内部境界で
+    // deadlineEpochMsを確認する。期限超過を勝敗結果として返さず、
+    // ここまでに確定した状態も一切返さない。
+    if (dependencies.clock.now() >= context.deadlineEpochMs) {
+      throw new ApplicationError("EXECUTION_TIMEOUT", [
+        {
+          reason: `simulation exceeded its deadline (deadlineEpochMs=${context.deadlineEpochMs})`,
+        },
       ]);
     }
-
-    return {
-      battleId,
-      catalogRevision: snapshot.catalogRevision,
-      result,
-      initialState,
-      finalState: captureBattleState(battle),
-      events: recorder.getEvents(),
-      unitRoster,
-    };
-  } catch (error) {
-    if (error instanceof ExecutionGuardExceededError) {
-      // 09_アプリケーション設計.md「実行保護」: イベント数・PS深度・効果数の
-      // SimulationExecutionGuard上限超過はクライアント入力エラーではなく
-      // `EXECUTION_LIMIT_EXCEEDED`（HTTP 503）として返す。
-      throw new ApplicationError("EXECUTION_LIMIT_EXCEEDED", [{ reason: error.message }]);
-    }
-    if (error instanceof DomainValidationError) {
-      // 09_アプリケーション設計.md「ドメインエラーの変換」: 編成・値オブジェクト
-      // 生成時の入力違反はINVALID_COMMANDへ変換する。事前検証(preflight)を
-      // 通過済みのため、通常はここへ到達しない防御的な経路。
-      throw new ApplicationError("INVALID_COMMAND", [{ path: error.path, reason: error.message }]);
-    }
-    throw error;
+    battle = advanceBattle(battle, random, recorder);
   }
+
+  const result = battle.result;
+  if (result === undefined) {
+    throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+      { reason: "Battle reached COMPLETED without a result" },
+    ]);
+  }
+
+  return {
+    result,
+    initialState,
+    finalState: captureBattleState(battle),
+    events: recorder.getEvents(),
+    unitRoster,
+  };
+}
+
+/** 実行中に投げられたDomainの例外を、ユースケースが返す`ApplicationError`へ分類する。 */
+export function toExecutionApplicationError(error: unknown): unknown {
+  if (error instanceof ExecutionGuardExceededError) {
+    // 09_アプリケーション設計.md「実行保護」: イベント数・PS深度・効果数の
+    // SimulationExecutionGuard上限超過はクライアント入力エラーではなく
+    // `EXECUTION_LIMIT_EXCEEDED`（HTTP 503）として返す。
+    return new ApplicationError("EXECUTION_LIMIT_EXCEEDED", [{ reason: error.message }]);
+  }
+  if (error instanceof DomainValidationError) {
+    // 09_アプリケーション設計.md「ドメインエラーの変換」: 編成・値オブジェクト
+    // 生成時の入力違反はINVALID_COMMANDへ変換する。事前検証(preflight)を
+    // 通過済みのため、通常はここへ到達しない防御的な経路。
+    return new ApplicationError("INVALID_COMMAND", [{ path: error.path, reason: error.message }]);
+  }
+  return error;
 }

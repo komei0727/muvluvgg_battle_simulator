@@ -34,7 +34,12 @@ import type {
 } from "../../domain/battle/outcome/victory-policy.js";
 import type { ExerciseCompletionReason } from "../../domain/battle/outcome/exercise-end-policy.js";
 import type { TotalWarOutcome } from "../../domain/battle/outcome/total-war-end-policy.js";
-import type { TotalWarStage } from "../../domain/battle/model/total-war-stages.js";
+import {
+  closeStageHistory,
+  startStageHistory,
+  type TotalWarStage,
+  type TotalWarStageRecord,
+} from "../../domain/battle/model/total-war-stages.js";
 import type { CombatStats } from "../../domain/battle/model/starting-combat-stats.js";
 import type {
   SkillDefinitionId,
@@ -117,6 +122,8 @@ export interface SimulateTacticalExerciseResult {
  */
 export interface TotalWarUnitRosterEntry extends BattleUnitRosterEntry {
   readonly formationNumber: number;
+  /** R-TWR-02: 再登場ユニットとして基礎値補正を受けたか。 */
+  readonly reappearance: boolean;
   readonly deployed: boolean;
 }
 
@@ -165,6 +172,11 @@ export interface AssembleSimulationResultInput extends AssembleResultInputBase {
 
 export interface AssembleTotalWarResultInput extends AssembleResultInputBase {
   readonly result: TotalWarBattleResultSnapshot;
+  /**
+   * R-TWR-02: 再登場ユニットの参加枠。補正は生成時に基本値へ織り込まれ、集約にもイベントにも
+   * 「補正を受けた」という事実が残らないため、判定したユースケースから受け取る。
+   */
+  readonly reappearanceBattleUnitIds: ReadonlySet<BattleUnitId>;
 }
 
 export interface AssembleTacticalExerciseResultInput extends AssembleResultInputBase {
@@ -507,6 +519,66 @@ export function assembleTacticalExerciseResult(
 }
 
 /**
+ * `09_アプリケーション設計.md`「SimulateTotalWarResult」: 戦闘履歴を`FormationDefeated`／
+ * `FormationDeployed`（公開レベルによる間引き前）から投影する。集約が持つ正本と突き合わせ、
+ * 編成の交代を記録し損ねたイベント列を正常な応答として返さないためである。
+ *
+ * 1つの出撃スコープで両陣営が出撃する場合（同時全滅、R-TWR-04 #4）も組み合わせは1つしか
+ * 増えないため、まだ組み合わせを開いていないターンの出撃でだけ新しい組み合わせを開く。
+ * 1ターン目は`BattleStarted`で始まり出撃イベントを持たないので、この判定と衝突しない。
+ */
+function projectTotalWarStages(
+  events: readonly BattleDomainEvent[],
+  completedTurn: number,
+): readonly TotalWarStage[] {
+  const stages: TotalWarStageRecord[] = [...startStageHistory()];
+  for (const event of events) {
+    const current = stages.at(-1)!;
+    if (event.eventType === "FormationDefeated") {
+      stages[stages.length - 1] = {
+        ...current,
+        endTurn: event.payload.turnNumber,
+        defeatedSides: [...current.defeatedSides, event.payload.side],
+      };
+    } else if (event.eventType === "FormationDeployed") {
+      const formationKey =
+        event.payload.side === "ALLY" ? "allyFormationNumber" : "enemyFormationNumber";
+      if (current.startTurn === event.payload.turnNumber) {
+        stages[stages.length - 1] = { ...current, [formationKey]: event.payload.formationNumber };
+      } else {
+        stages.push({
+          stageNumber: stages.length + 1,
+          allyFormationNumber: current.allyFormationNumber,
+          enemyFormationNumber: current.enemyFormationNumber,
+          [formationKey]: event.payload.formationNumber,
+          startTurn: event.payload.turnNumber,
+          defeatedSides: [],
+        });
+      }
+    }
+  }
+  return closeStageHistory(stages, completedTurn);
+}
+
+function stagesEqual(a: readonly TotalWarStage[], b: readonly TotalWarStage[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((stage, index) => {
+      const other = b[index]!;
+      return (
+        stage.stageNumber === other.stageNumber &&
+        stage.allyFormationNumber === other.allyFormationNumber &&
+        stage.enemyFormationNumber === other.enemyFormationNumber &&
+        stage.startTurn === other.startTurn &&
+        stage.endTurn === other.endTurn &&
+        stage.defeatedSides.length === other.defeatedSides.length &&
+        stage.defeatedSides.every((side, sideIndex) => side === other.defeatedSides[sideIndex])
+      );
+    })
+  );
+}
+
+/**
  * `09_アプリケーション設計.md`「SimulateTotalWarResult」の組み立て。他のモードと同じ検証
  * （`stateVersion`連続性、独立Reducerによる`initialState` + 全差分 = `finalState`）を、
  * 途中で加わったユニット（`addedUnits`）と編成状態（`formations.<side>.*`）を含めて通す。
@@ -528,9 +600,20 @@ export function assembleTotalWarResult(input: AssembleTotalWarResultInput): Simu
     return {
       ...entry,
       formationNumber: entry.formationNumber,
+      reappearance: input.reappearanceBattleUnitIds.has(entry.battleUnitId),
       deployed: observation.finalState.units[entry.battleUnitId] !== undefined,
     };
   });
+
+  const projectedStages = projectTotalWarStages(observation.events, input.result.completedTurn);
+  if (!stagesEqual(projectedStages, input.result.stages)) {
+    throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+      {
+        reason:
+          "the battle history held by the Battle aggregate does not match the one projected from FormationDefeated / FormationDeployed",
+      },
+    ]);
+  }
 
   return {
     battleId: input.battleId,

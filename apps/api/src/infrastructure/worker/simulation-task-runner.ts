@@ -16,6 +16,8 @@ import { SimulateBattleUseCase } from "../../application/simulation/simulate-bat
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
 import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
+import { toSimulateTotalWarCommand } from "../../application/simulation/simulate-total-war-request-mapper.js";
+import { SimulateTotalWarUseCase } from "../../application/simulation/simulate-total-war-use-case.js";
 import type { BattleIdGenerator } from "../../domain/ports/battle-id-generator.js";
 import type { Clock } from "../../domain/ports/clock.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
@@ -64,6 +66,7 @@ export function createSimulationTaskRunner(
   };
   const useCase = new SimulateBattleUseCase(useCaseDependencies);
   const tacticalExerciseUseCase = new SimulateTacticalExerciseUseCase(useCaseDependencies);
+  const totalWarUseCase = new SimulateTotalWarUseCase(useCaseDependencies);
   const seededRandomSourceProvider =
     dependencies.seededRandomSourceProvider ?? new Mulberry32SeededRandomSourceProvider();
   const evaluationUseCase = new EvaluateTacticalExerciseCandidatesUseCase({
@@ -108,6 +111,13 @@ export function createSimulationTaskRunner(
             toEvaluateTacticalExerciseCandidatesCommand(task.request, randomUUID()),
             context,
           ),
+        };
+      }
+      if (task.mode === "TOTAL_WAR") {
+        return {
+          ok: true,
+          mode: "TOTAL_WAR",
+          result: totalWarUseCase.execute(toSimulateTotalWarCommand(task.request), context),
         };
       }
       if (task.mode === "TACTICAL_EXERCISE") {

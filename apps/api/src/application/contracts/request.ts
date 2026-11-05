@@ -92,6 +92,17 @@ export interface TacticalExerciseRequestBody {
 }
 
 /**
+ * `10_API設計.md`「TotalWarRequest」（`POST /api/v1/total-war-simulations`）の request body契約。
+ * 各陣営の編成を出撃順に1～3件持ち、`turnLimit`を持たない — 規定ターン数は15固定であり、
+ * リクエストで指定できない（R-TWR-01 #5）。
+ */
+export interface TotalWarRequestBody {
+  readonly allyFormations: readonly FormationRequestBody[];
+  readonly enemyFormations: readonly FormationRequestBody[];
+  readonly options?: SimulationOptionsRequestBody;
+}
+
+/**
  * `10_API設計.md`「FormationStatPreviewRequest」。編成部分は戦闘リクエストと
  * 同形にし、`turnLimit`・`options`を持たない（戦闘を実行しないため、どちらも
  * 開始時ステータスへ影響しない）。

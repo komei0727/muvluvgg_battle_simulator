@@ -8,6 +8,7 @@ import { ApplicationError } from "../../application/contracts/application-error.
 import type {
   BattleSimulationRequestBody,
   TacticalExerciseRequestBody,
+  TotalWarRequestBody,
 } from "../../application/contracts/request.js";
 import type { TacticalExerciseEvaluationRequestBody } from "../../application/contracts/request.js";
 import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
@@ -17,6 +18,7 @@ import type { SimulationExecutionContext } from "../../application/simulation/si
 import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
+  SimulateTotalWarResult,
 } from "../../application/simulation/simulation-result-assembler.js";
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 
@@ -322,6 +324,30 @@ export class SimulationWorkerPool {
     );
     if (outcome.mode !== "TACTICAL_EXERCISE_EVALUATION") {
       throw modeMismatchError("TACTICAL_EXERCISE_EVALUATION", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /**
+   * `09_アプリケーション設計.md`「実行境界」: 総力戦（UC-05）。最大3編成×15ターンでも1タスクで
+   * 完走させ、他のモードと同じタイムアウト・容量制御・Catalogリビジョン検査を共有する。
+   */
+  async executeTotalWar(
+    request: TotalWarRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<SimulateTotalWarResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "TOTAL_WAR",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "TOTAL_WAR") {
+      throw modeMismatchError("TOTAL_WAR", outcome.mode);
     }
     return outcome.result;
   }
