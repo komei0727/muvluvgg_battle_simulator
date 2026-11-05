@@ -1273,6 +1273,70 @@ const exerciseBattleCompletedDetailsSchema = {
   },
 } as const;
 
+/**
+ * `08_ドメインイベント.md`「BattleCompleted payload」の総力戦版（R-TWR-06）。勝敗は引き分けを
+ * とり、戦闘履歴と各陣営の撃破された編成数を伴う。通常戦闘用schemaは`DRAW`も追加の項目も
+ * 拒否するため、総力戦側unionでは必ずこちらへ差し替える。
+ */
+const totalWarBattleCompletedDetailsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["outcome", "completionReason", "completedTurn", "stages", "defeatedFormationCounts"],
+  properties: {
+    outcome: { type: "string", enum: ["ALLY_WIN", "ALLY_LOSE", "DRAW"] },
+    completionReason: {
+      type: "string",
+      enum: ["ENEMY_DEFEATED", "ALLY_DEFEATED", "SIMULTANEOUS_DEFEAT", "TURN_LIMIT_REACHED"],
+    },
+    // R-TWR-01 #5: 規定ターン数は15固定。
+    completedTurn: { type: "integer", minimum: 1, maximum: 15 },
+    stages: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "stageNumber",
+          "allyFormationNumber",
+          "enemyFormationNumber",
+          "startTurn",
+          "endTurn",
+          "defeatedSides",
+        ],
+        properties: {
+          stageNumber: { type: "integer", minimum: 1 },
+          allyFormationNumber: { type: "integer", minimum: 1, maximum: 3 },
+          enemyFormationNumber: { type: "integer", minimum: 1, maximum: 3 },
+          startTurn: { type: "integer", minimum: 1, maximum: 15 },
+          endTurn: { type: "integer", minimum: 1, maximum: 15 },
+          defeatedSides: {
+            type: "array",
+            maxItems: 2,
+            items: { type: "string", enum: ["ALLY", "ENEMY"] },
+          },
+        },
+      },
+    },
+    defeatedFormationCounts: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ally", "enemy"],
+      properties: {
+        ally: { type: "integer", minimum: 0, maximum: 3 },
+        enemy: { type: "integer", minimum: 0, maximum: 3 },
+      },
+    },
+  },
+} as const;
+
+/** `TotalWarResultResponse`と`BattleCompleted`の総力戦payloadが共有する戦闘履歴の要素。 */
+export const totalWarStageResponseSchema =
+  totalWarBattleCompletedDetailsSchema.properties.stages.items;
+
+/** `TotalWarResultResponse.defeatedFormationCounts`と同じ形。 */
+export const defeatedFormationCountsResponseSchema =
+  totalWarBattleCompletedDetailsSchema.properties.defeatedFormationCounts;
+
 const COOLDOWN_UNIT_ENUM = ["ACTION", "TURN"] as const;
 
 const cooldownStartedDetailsSchema = {
@@ -2633,6 +2697,7 @@ const TOTAL_WAR_ONLY_EVENT_DETAILS_SCHEMA_BY_TYPE: Readonly<Record<string, objec
 /** 総力戦のレスポンスが使うイベントunion（総力戦専用variantを含み、演習専用variantを含まない）。 */
 export const totalWarBattleLogEventResponseDocSchema = toEventDocSchema({
   ...EVENT_DETAILS_SCHEMA_BY_TYPE,
+  BATTLE_COMPLETED: totalWarBattleCompletedDetailsSchema,
   ...TOTAL_WAR_ONLY_EVENT_DETAILS_SCHEMA_BY_TYPE,
 });
 

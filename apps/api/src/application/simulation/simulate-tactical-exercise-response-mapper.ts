@@ -21,7 +21,9 @@ import type { TacticalExerciseResponseBody } from "../contracts/response.js";
 export function toTacticalExerciseResponseBody(
   result: SimulateTacticalExerciseResult,
 ): TacticalExerciseResponseBody {
-  const stateTransitions = result.stateTransitions.map(toStateTransitionResponseBody);
+  const stateTransitions = result.stateTransitions.map((transition) =>
+    toStateTransitionResponseBody(transition),
+  );
   const finalStateVersion =
     stateTransitions.length > 0
       ? stateTransitions[stateTransitions.length - 1]!.stateVersionAfter

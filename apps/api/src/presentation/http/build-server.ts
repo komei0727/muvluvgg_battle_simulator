@@ -30,6 +30,15 @@ import {
   type SimulateTacticalExerciseUseCasePort,
 } from "./routes/tactical-exercise-route.js";
 import {
+  registerTotalWarRoute,
+  TOTAL_WAR_SIMULATIONS_PATH,
+  type SimulateTotalWarUseCasePort,
+} from "./routes/total-war-route.js";
+import {
+  totalWarRequestDocSchema,
+  totalWarResponseDocSchema,
+} from "./schemas/simulation/total-war-schema.js";
+import {
   registerTacticalExerciseEvaluationRoute,
   TACTICAL_EXERCISE_EVALUATIONS_PATH,
   type EvaluateTacticalExerciseCandidatesUseCasePort,
@@ -69,6 +78,7 @@ export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simul
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
 export type { SimulateTacticalExerciseUseCasePort } from "./routes/tactical-exercise-route.js";
 export type { EvaluateTacticalExerciseCandidatesUseCasePort } from "./routes/tactical-exercise-evaluation-route.js";
+export type { SimulateTotalWarUseCasePort } from "./routes/total-war-route.js";
 export type { GetBattleSimulationCatalogUseCasePort } from "./routes/catalog-route.js";
 
 const ALWAYS_READY: ReadinessPort = { isReady: () => true };
@@ -110,6 +120,16 @@ const NO_EXERCISE: SimulateTacticalExerciseUseCasePort = {
     Promise.reject(
       new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
         { reason: "this server instance has no tactical exercise use case wired in" },
+      ]),
+    ),
+};
+
+/** `totalWarUseCase`省略時の既定値。`NO_EXERCISE`と同じ理由で、偽の結果を返さず`500`にする。 */
+const NO_TOTAL_WAR: SimulateTotalWarUseCasePort = {
+  executeTotalWar: () =>
+    Promise.reject(
+      new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        { reason: "this server instance has no total war use case wired in" },
       ]),
     ),
 };
@@ -225,6 +245,11 @@ export interface BuildServerOptions {
    * `SimulationWorkerPool`を渡す。省略時は`NO_EXERCISE`（上の注記参照）。
    */
   readonly exerciseUseCase?: SimulateTacticalExerciseUseCasePort;
+  /**
+   * `POST /api/v1/total-war-simulations`（UC-05）の実行境界。本番では戦闘POSTと同じ
+   * `SimulationWorkerPool`を渡す。省略時は`NO_TOTAL_WAR`（上の注記参照）。
+   */
+  readonly totalWarUseCase?: SimulateTotalWarUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
   readonly evaluationUseCase?: EvaluateTacticalExerciseCandidatesUseCasePort;
   /**
@@ -292,6 +317,7 @@ export async function buildServer(
   const catalogUseCase = options.catalogUseCase ?? NO_CATALOG;
   const previewUseCase = options.previewUseCase ?? NO_PREVIEW;
   const exerciseUseCase = options.exerciseUseCase ?? NO_EXERCISE;
+  const totalWarUseCase = options.totalWarUseCase ?? NO_TOTAL_WAR;
   const evaluationUseCase = options.evaluationUseCase ?? NO_EVALUATION;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
@@ -437,6 +463,25 @@ export async function buildServer(
           url,
         };
       }
+      if (url === TOTAL_WAR_SIMULATIONS_PATH) {
+        // 戦闘POSTと同じ理由で、値域・列挙値を持つschema（編成数の1～3件を含む）は
+        // 公開文書側だけへ差し込む。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.body !== undefined ? { body: totalWarRequestDocSchema } : {}),
+            ...(schema.response !== undefined
+              ? {
+                  response: withResponseDoc({
+                    ...schema.response,
+                    200: totalWarResponseDocSchema,
+                  }),
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url === TACTICAL_EXERCISE_EVALUATIONS_PATH) {
         // 演習POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ差し込む。
         return {
@@ -549,6 +594,11 @@ export async function buildServer(
     shutdownGate,
     simulationTimeoutMs,
   });
+  registerTotalWarRoute(app, {
+    useCase: totalWarUseCase,
+    shutdownGate,
+    simulationTimeoutMs,
+  });
   registerTacticalExerciseEvaluationRoute(app, {
     useCase: evaluationUseCase,
     shutdownGate,
@@ -560,6 +610,7 @@ export async function buildServer(
     BATTLE_SIMULATIONS_PATH,
     TACTICAL_EXERCISES_PATH,
     TACTICAL_EXERCISE_EVALUATIONS_PATH,
+    TOTAL_WAR_SIMULATIONS_PATH,
     FORMATION_STAT_PREVIEW_PATH,
     BATTLE_SIMULATION_CATALOG_PATH,
   ]);

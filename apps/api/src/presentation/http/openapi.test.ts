@@ -6,6 +6,7 @@ import { BATTLE_SIMULATION_CATALOG_PATH } from "./routes/catalog-route.js";
 import { BATTLE_SIMULATIONS_PATH } from "./routes/simulation-route.js";
 import { TACTICAL_EXERCISES_PATH } from "./routes/tactical-exercise-route.js";
 import { TACTICAL_EXERCISE_EVALUATIONS_PATH } from "./routes/tactical-exercise-evaluation-route.js";
+import { TOTAL_WAR_SIMULATIONS_PATH } from "./routes/total-war-route.js";
 import {
   HTTP_ERROR_CODES,
   errorCodesForHttpStatus,
@@ -72,6 +73,18 @@ function publishedErrorCodeEnum(response: OpenApiResponseForTest | undefined): u
     | undefined;
   return error?.properties?.code?.enum;
 }
+/** 生成文書を段階的に辿る。途中が無ければ`undefined`を返す。 */
+function navigate(root: unknown, keys: readonly string[]): unknown {
+  let node: unknown = root;
+  for (const key of keys) {
+    if (typeof node !== "object" || node === null) {
+      return undefined;
+    }
+    node = (node as Record<string, unknown>)[key];
+  }
+  return node;
+}
+
 describe("OpenAPI document", () => {
   let app: FastifyInstance;
 
@@ -296,6 +309,121 @@ describe("OpenAPI document", () => {
     );
   });
 
+  it("API-OPENAPI-043 (TW-008、10_API設計.md「総力戦をシミュレーションする」「TotalWarResponse」): documents POST /api/v1/total-war-simulations with the same status set as the battle POST, a result that can be a DRAW with stages, and a unitRoster returned at every log level", () => {
+    const operation = navigate(app.swagger(), ["paths", TOTAL_WAR_SIMULATIONS_PATH, "post"]);
+    expect(operation).toBeDefined();
+    expect(navigate(operation, ["requestBody"])).toBeDefined();
+    // 戦闘POSTと同じWorker Poolを通るため、返り得るステータスも同じ。
+    expect(Object.keys(navigate(operation, ["responses"]) as object).sort()).toEqual(
+      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+    );
+
+    const body = navigate(operation, ["responses", "200", "content", "application/json", "schema"]);
+    expect(navigate(body, ["required"])).toContain("unitRoster");
+    // R-TWR-06 #1: 総力戦の勝敗は引き分けをとる。
+    expect(navigate(body, ["properties", "result", "properties", "outcome", "enum"])).toEqual([
+      "ALLY_WIN",
+      "ALLY_LOSE",
+      "DRAW",
+    ]);
+    expect(
+      Object.keys(navigate(body, ["properties", "result", "properties"]) as object).sort(),
+    ).toEqual([
+      "completedTurn",
+      "completionReason",
+      "defeatedFormationCounts",
+      "outcome",
+      "stages",
+    ]);
+    expect(
+      Object.keys(
+        navigate(body, ["properties", "unitRoster", "items", "properties"]) as object,
+      ).sort(),
+    ).toEqual([
+      "battleUnitId",
+      "coordinate",
+      "deployed",
+      "formationNumber",
+      "formationPosition",
+      "reappearance",
+      "side",
+      "unitDefinitionId",
+    ]);
+    const delta = navigate(body, [
+      "properties",
+      "stateTransitions",
+      "items",
+      "properties",
+      "delta",
+      "properties",
+    ]) as object;
+    expect(Object.keys(delta)).toEqual(expect.arrayContaining(["addedUnits", "formations"]));
+    expect(Object.keys(delta)).not.toContain("exercise");
+  });
+
+  it("API-OPENAPI-044 (TW-008、R-TWR-01 #1・#5、10_API設計.md「TotalWarRequest」): the published total war request documents 1-3 formations per side and has no turnLimit, even though the runtime validator leaves the count to 422", () => {
+    const schema = navigate(app.swagger(), [
+      "paths",
+      TOTAL_WAR_SIMULATIONS_PATH,
+      "post",
+      "requestBody",
+      "content",
+      "application/json",
+      "schema",
+    ]);
+    expect(navigate(schema, ["additionalProperties"])).toBe(false);
+    expect(Object.keys(navigate(schema, ["properties"]) as object).sort()).toEqual([
+      "allyFormations",
+      "enemyFormations",
+      "options",
+    ]);
+    for (const side of ["allyFormations", "enemyFormations"]) {
+      expect(navigate(schema, ["properties", side, "minItems"]), side).toBe(1);
+      expect(navigate(schema, ["properties", side, "maxItems"]), side).toBe(3);
+      // 各要素は通常戦闘の編成と同じ値域（1～5体、メモリー0～6件）を公開する。
+      expect(
+        navigate(schema, ["properties", side, "items", "properties", "units", "maxItems"]),
+      ).toBe(5);
+    }
+  });
+
+  it("API-OPENAPI-045 (TW-008): only the total war POST's published event union carries the formation events and a BATTLE_COMPLETED that can be a DRAW", () => {
+    const document = app.swagger();
+    const variantsOf = (path: string): readonly unknown[] =>
+      navigate(document, [
+        "paths",
+        path,
+        "post",
+        "responses",
+        "200",
+        "content",
+        "application/json",
+        "schema",
+        "properties",
+        "events",
+        "items",
+        "oneOf",
+      ]) as readonly unknown[];
+    const typeOf = (variant: unknown): unknown =>
+      navigate(variant, ["properties", "type", "enum", "0"]);
+    const completedOutcomesOf = (path: string): unknown =>
+      navigate(
+        variantsOf(path).find((variant) => typeOf(variant) === "BATTLE_COMPLETED"),
+        ["properties", "details", "properties", "outcome", "enum"],
+      );
+
+    for (const type of TOTAL_WAR_ONLY_EVENT_TYPES) {
+      expect(variantsOf(TOTAL_WAR_SIMULATIONS_PATH).map(typeOf)).toContain(type);
+      expect(variantsOf(BATTLE_SIMULATIONS_PATH).map(typeOf)).not.toContain(type);
+      expect(variantsOf(TACTICAL_EXERCISES_PATH).map(typeOf)).not.toContain(type);
+    }
+    for (const type of EXERCISE_ONLY_EVENT_TYPES) {
+      expect(variantsOf(TOTAL_WAR_SIMULATIONS_PATH).map(typeOf)).not.toContain(type);
+    }
+    expect(completedOutcomesOf(TOTAL_WAR_SIMULATIONS_PATH)).toContain("DRAW");
+    expect(completedOutcomesOf(BATTLE_SIMULATIONS_PATH)).not.toContain("DRAW");
+  });
+
   it("API-OPENAPI-007 (10_API設計.md「OpenAPIへの反映」「CORS preflightと公開header」): documents an OPTIONS preflight operation for every CORS-enabled route", () => {
     interface MinimalOpenApiV3Document {
       readonly paths?: Readonly<
@@ -314,6 +442,7 @@ describe("OpenAPI document", () => {
 
     expect(document.paths?.["/api/v1/battle-simulations"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/tactical-exercises"]?.options).toBeDefined();
+    expect(document.paths?.["/api/v1/total-war-simulations"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/formation-stat-previews"]?.options).toBeDefined();
     expect(document.paths?.["/api/v1/battle-simulation-catalog"]?.options).toBeDefined();
   });

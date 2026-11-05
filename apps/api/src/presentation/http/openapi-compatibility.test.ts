@@ -123,7 +123,14 @@ describe("OpenAPI v1 compatibility", () => {
     const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Record<string, unknown>;
     const current = app.swagger() as unknown as Record<string, unknown>;
 
-    for (const path of ["/api/v1/battle-simulations", "/api/v1/battle-simulation-catalog"]) {
+    // 総力戦（TW-008）の追加でも、既存エンドポイントの公開定義は1つも変えない。
+    for (const path of [
+      "/api/v1/battle-simulations",
+      "/api/v1/battle-simulation-catalog",
+      "/api/v1/tactical-exercises",
+      "/api/v1/tactical-exercise-evaluations",
+      "/api/v1/formation-stat-previews",
+    ]) {
       const frozen = navigate(baseline, ["paths", path]);
       expect(frozen, `the baseline no longer freezes ${path}`).toBeDefined();
       expect(navigate(current, ["paths", path]), path).toEqual(frozen);

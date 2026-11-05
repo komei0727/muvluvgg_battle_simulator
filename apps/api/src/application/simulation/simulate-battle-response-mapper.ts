@@ -16,6 +16,8 @@ import type {
   EffectStateResponseBody,
   EntityCollectionDeltaResponseBody,
   FormationPositionResponseBody,
+  FormationsDeltaResponseBody,
+  FormationsStateResponseBody,
   MarkerStateResponseBody,
   StateTransitionResponseBody,
   SubUnitStateResponseBody,
@@ -32,6 +34,8 @@ import type {
 import type {
   CooldownState,
   EffectSnapshot,
+  FormationsStateDelta,
+  FormationsStateSnapshot,
   MarkerSnapshot,
   StateDelta,
   UnitStateDelta,
@@ -288,7 +292,15 @@ function toUnitStateResponseBody(
     markers: (snapshot.markers ?? []).map(toMarkerStateResponseBody),
     cooldowns: toCooldownStateResponseBodies(snapshot.cooldowns),
     ...(charge !== undefined ? { charge } : {}),
+    ...(roster.formationNumber !== undefined ? { formationNumber: roster.formationNumber } : {}),
   };
+}
+
+/** `10_API設計.md`「FormationsStateResponse」。陣営キーを公開形（小文字）へ写す。 */
+function toFormationsStateResponseBody(
+  formations: FormationsStateSnapshot,
+): FormationsStateResponseBody {
+  return { ally: { ...formations.ALLY }, enemy: { ...formations.ENEMY } };
 }
 
 /**
@@ -301,14 +313,21 @@ export function toBattleStateResponseBody(
   snapshot: SimulateBattleResult["initialState"],
   roster: readonly BattleUnitRosterEntry[],
 ): BattleStateResponseBody {
-  const units = roster.map((entry) => {
+  // 総力戦の状態は盤面へ加わったことのあるユニットだけを持ち、控えのまま出撃していない
+  // ユニットはrosterにだけ居る（`10_API設計.md`「BattleStateResponse」）。他のモードでは
+  // rosterと状態のユニットが一致するため、欠落は内部不整合として検出する。
+  const isTotalWar = snapshot.formations !== undefined;
+  const units = roster.flatMap((entry) => {
     const unitSnapshot = snapshot.units[entry.battleUnitId];
     if (unitSnapshot === undefined) {
+      if (isTotalWar) {
+        return [];
+      }
       throw new Error(
         `unitRoster references a BattleUnitId absent from the state snapshot: "${entry.battleUnitId}"`,
       );
     }
-    return toUnitStateResponseBody(entry, unitSnapshot);
+    return [toUnitStateResponseBody(entry, unitSnapshot)];
   });
   // M3時点ではinitialState(READY)/finalState(COMPLETED)いずれも周回外・未行動
   // 予約なしの境界状態しか公開しないため、cycleNumber/actionQueueは常にこの値。
@@ -320,6 +339,9 @@ export function toBattleStateResponseBody(
     cycleNumber: 0,
     units,
     actionQueue,
+    ...(snapshot.formations !== undefined
+      ? { formations: toFormationsStateResponseBody(snapshot.formations) }
+      : {}),
   };
 }
 
@@ -340,6 +362,8 @@ export function toUnitBattleSummaryResponseBody(
     finalHp: summary.finalHp,
     maximumHp: summary.maximumHp,
     combatStatus: summary.combatStatus,
+    ...(summary.formationNumber !== undefined ? { formationNumber: summary.formationNumber } : {}),
+    ...(summary.deployed !== undefined ? { deployed: summary.deployed } : {}),
   };
 }
 
@@ -650,7 +674,42 @@ function carriesPublicUnitDelta(delta: UnitStateDelta): boolean {
   return Object.keys(delta).some((key) => !INTERNAL_ONLY_UNIT_DELTA_KEYS.has(key));
 }
 
-function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResponseBody {
+/**
+ * R-TWR-04: 出撃したユニットの開始状態を`BattleStateResponse.units`の要素と同じ形・同じ並び
+ * （roster順＝陣営、編成番号、配置順）で写す。静的項目（配置・座標・編成番号）は差分が
+ * 持たずrosterにだけあるため、rosterを受け取らない変換で現れたら内部不整合とする。
+ */
+function toAddedUnitsResponseBody(
+  addedUnits: NonNullable<StateDelta["addedUnits"]>,
+  roster: readonly BattleUnitRosterEntry[] | undefined,
+): readonly BattleUnitStateResponseBody[] {
+  if (roster === undefined) {
+    throw new Error("a state delta adds units, but no unit roster was given to resolve them");
+  }
+  const added = roster.flatMap((entry) => {
+    const snapshot = addedUnits[entry.battleUnitId];
+    return snapshot !== undefined ? [toUnitStateResponseBody(entry, snapshot)] : [];
+  });
+  if (added.length !== Object.keys(addedUnits).length) {
+    throw new Error("a state delta adds a BattleUnitId absent from the unit roster");
+  }
+  return added;
+}
+
+/** `10_API設計.md`「BattleStateDeltaResponse」の`formations`。陣営キーを公開形へ写す。 */
+function toFormationsDeltaResponseBody(
+  formations: FormationsStateDelta,
+): FormationsDeltaResponseBody {
+  return {
+    ...(formations.ALLY !== undefined ? { ally: { ...formations.ALLY } } : {}),
+    ...(formations.ENEMY !== undefined ? { enemy: { ...formations.ENEMY } } : {}),
+  };
+}
+
+function toBattleStateDeltaResponseBody(
+  delta: StateDelta,
+  roster: readonly BattleUnitRosterEntry[] | undefined,
+): BattleStateDeltaResponseBody {
   const battle =
     delta.battleStatus !== undefined || delta.turnNumber !== undefined
       ? {
@@ -677,6 +736,13 @@ function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResp
     // R-TEX-02／03: 戦術演習だけが持つ演習状態差分。通常戦闘の`StateDelta`には
     // 現れないため、モードで分岐せず差分の有無だけで写す。
     ...(delta.exercise !== undefined ? { exercise: delta.exercise } : {}),
+    // R-TWR-03／04: 総力戦だけが持つ差分。演習と同じく差分の有無だけで写す。
+    ...(delta.addedUnits !== undefined
+      ? { addedUnits: toAddedUnitsResponseBody(delta.addedUnits, roster) }
+      : {}),
+    ...(delta.formations !== undefined
+      ? { formations: toFormationsDeltaResponseBody(delta.formations) }
+      : {}),
   };
 }
 
@@ -686,12 +752,13 @@ function toBattleStateDeltaResponseBody(delta: StateDelta): BattleStateDeltaResp
  */
 export function toStateTransitionResponseBody(
   transition: StateTransition,
+  roster?: readonly BattleUnitRosterEntry[],
 ): StateTransitionResponseBody {
   return {
     causedBySequence: transition.causedBySequence,
     stateVersionBefore: transition.stateVersionBefore,
     stateVersionAfter: transition.stateVersionAfter,
-    delta: toBattleStateDeltaResponseBody(transition.stateDelta),
+    delta: toBattleStateDeltaResponseBody(transition.stateDelta, roster),
   };
 }
 
@@ -703,7 +770,9 @@ export function toStateTransitionResponseBody(
 export function toBattleSimulationResponseBody(
   result: SimulateBattleResult,
 ): BattleSimulationResponseBody {
-  const stateTransitions = result.stateTransitions.map(toStateTransitionResponseBody);
+  const stateTransitions = result.stateTransitions.map((transition) =>
+    toStateTransitionResponseBody(transition),
+  );
   const finalStateVersion =
     stateTransitions.length > 0
       ? stateTransitions[stateTransitions.length - 1]!.stateVersionAfter
