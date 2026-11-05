@@ -124,6 +124,36 @@ describe("SimulationWorkerPool (tsc-compiled build, real Worker Thread)", () => 
     expect(battle).not.toHaveProperty("totalScore");
   });
 
+  it("INT-WORKER-008 (09_アプリケーション設計.md「実行境界」): a TOTAL_WAR task runs through the same compiled Worker Pool and returns a total war result with the battle history and every formation's units", async () => {
+    pool = await SimulationWorkerPool.create({
+      catalogDir: CATALOG_DIR,
+      catalogRevision: CATALOG_REVISION,
+      minThreads: 1,
+      maxThreads: 1,
+    });
+    const { allyFormation, enemyFormation } = minimalRequest();
+
+    const result = await pool.executeTotalWar(
+      {
+        allyFormations: [allyFormation, allyFormation],
+        enemyFormations: [enemyFormation, enemyFormation, enemyFormation],
+      },
+      freshContext("req-total-war-1"),
+    );
+
+    expect(result.catalogRevision).toBe(CATALOG_REVISION);
+    expect(["ALLY_WIN", "ALLY_LOSE", "DRAW"]).toContain(result.outcome);
+    expect(result.completedTurn).toBeLessThanOrEqual(15);
+    expect(result.stages.length).toBeGreaterThan(0);
+    expect(result.unitRoster.map((entry) => entry.battleUnitId)).toEqual([
+      "ally:1",
+      "ally:2",
+      "enemy:1",
+      "enemy:2",
+      "enemy:3",
+    ]);
+  });
+
   it("INT-WORKER-002 (11_インフラストラクチャ設計.md「必要数のワーカーを初期化できなければHTTP readinessも失敗させる」): create() rejects when the expected catalogRevision does not match the Worker's loaded Catalog, so the caller never obtains a usable pool", async () => {
     await expect(
       SimulationWorkerPool.create({

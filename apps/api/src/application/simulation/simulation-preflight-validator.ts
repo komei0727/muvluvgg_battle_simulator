@@ -7,20 +7,32 @@ import {
   DEFAULT_UNIT_LEVEL,
   DEFAULT_UNIT_RANK,
 } from "../../domain/battle/model/enhanced-base-stats-calculator.js";
+import type { Side } from "../../domain/shared/side.js";
 
-const FORMATIONS: readonly ["allyFormation", "enemyFormation"] = [
-  "allyFormation",
-  "enemyFormation",
-];
+/**
+ * 検証対象の編成1つ。違反のパスは`path`を接頭辞にする — 通常戦闘は`allyFormation`、
+ * 総力戦は編成の添字を含む`allyFormations[1]`のように、Commandの形をそのまま写す。
+ */
+interface PreflightFormation {
+  readonly path: string;
+  readonly side: Side;
+  readonly formation: FormationInput;
+}
+
+function pairFormations(command: FormationPairCommand): readonly PreflightFormation[] {
+  return [
+    { path: "allyFormation", side: "ALLY", formation: command.allyFormation },
+    { path: "enemyFormation", side: "ENEMY", formation: command.enemyFormation },
+  ];
+}
 
 function validateReferences(
-  command: FormationPairCommand,
+  formations: readonly PreflightFormation[],
   snapshot: BattleCatalogSnapshot,
 ): Violation[] {
   const violations: Violation[] = [];
 
-  for (const key of FORMATIONS) {
-    const formation: FormationInput = command[key];
+  for (const { path: key, formation } of formations) {
     formation.slots.forEach((slot, index) => {
       if (!snapshot.units.has(slot.unitDefinitionId)) {
         violations.push({
@@ -51,13 +63,12 @@ function validateReferences(
  * （`09_アプリケーション設計.md`「Command検証」末尾）。
  */
 function validateLevelGrowth(
-  command: FormationPairCommand,
+  formations: readonly PreflightFormation[],
   snapshot: BattleCatalogSnapshot,
 ): Violation[] {
   const violations: Violation[] = [];
 
-  for (const key of FORMATIONS) {
-    const formation: FormationInput = command[key];
+  for (const { path: key, formation } of formations) {
     formation.slots.forEach((slot, index) => {
       const level = slot.enhancement?.level;
       if (level === undefined || level === DEFAULT_UNIT_LEVEL) {
@@ -82,13 +93,12 @@ function validateLevelGrowth(
  * リクエストを拒否する。`validateLevelGrowth`（R-ENH-05 #5）と同じ理由・同じ段階で行う。
  */
 function validateRankGrowth(
-  command: FormationPairCommand,
+  formations: readonly PreflightFormation[],
   snapshot: BattleCatalogSnapshot,
 ): Violation[] {
   const violations: Violation[] = [];
 
-  for (const key of FORMATIONS) {
-    const formation: FormationInput = command[key];
+  for (const { path: key, formation } of formations) {
     formation.slots.forEach((slot, index) => {
       const rank = slot.enhancement?.rank;
       if (rank === undefined || rank === DEFAULT_UNIT_RANK) {
@@ -113,25 +123,22 @@ function validateRankGrowth(
  * `PLAYABLE`のみ、戦術演習は味方`PLAYABLE`・敵`EXERCISE_ENEMY`のみを受理する。`exerciseActive`
  * は表示専用の開催情報であり、ここでは参照しない（開催終了ユニットも受理する）。
  */
-const ALLOWED_CATEGORIES: Readonly<
-  Record<BattleMode, Readonly<Record<(typeof FORMATIONS)[number], UnitCategory>>>
-> = {
-  NORMAL: { allyFormation: "PLAYABLE", enemyFormation: "PLAYABLE" },
-  TACTICAL_EXERCISE: { allyFormation: "PLAYABLE", enemyFormation: "EXERCISE_ENEMY" },
+const ALLOWED_CATEGORIES: Readonly<Record<BattleMode, Readonly<Record<Side, UnitCategory>>>> = {
+  NORMAL: { ALLY: "PLAYABLE", ENEMY: "PLAYABLE" },
+  TACTICAL_EXERCISE: { ALLY: "PLAYABLE", ENEMY: "EXERCISE_ENEMY" },
   // R-TWR-01 #6: 総力戦は対人戦のため、両陣営とも`PLAYABLE`のみ。
-  TOTAL_WAR: { allyFormation: "PLAYABLE", enemyFormation: "PLAYABLE" },
+  TOTAL_WAR: { ALLY: "PLAYABLE", ENEMY: "PLAYABLE" },
 };
 
 function validateUnitCategories(
-  command: FormationPairCommand,
+  formations: readonly PreflightFormation[],
   snapshot: BattleCatalogSnapshot,
   mode: BattleMode,
 ): Violation[] {
   const violations: Violation[] = [];
 
-  for (const key of FORMATIONS) {
-    const allowed = ALLOWED_CATEGORIES[mode][key];
-    const formation: FormationInput = command[key];
+  for (const { path: key, side, formation } of formations) {
+    const allowed = ALLOWED_CATEGORIES[mode][side];
     formation.slots.forEach((slot, index) => {
       const unitDefinition = snapshot.units.get(slot.unitDefinitionId);
       if (unitDefinition !== undefined && unitDefinition.category !== allowed) {
@@ -158,7 +165,42 @@ export function runPreflight(
   snapshot: BattleCatalogSnapshot,
   mode: BattleMode,
 ): void {
-  const referenceViolations = validateReferences(command, snapshot);
+  runFormationsPreflight(pairFormations(command), snapshot, mode);
+}
+
+/**
+ * `09_アプリケーション設計.md`「SimulateTotalWarCommand」: 総力戦の参照検証は全編成分を
+ * まとめて行い、1件でも違反があれば戦闘を開始しない。違反のパスは編成の添字を含める。
+ */
+export function runTotalWarPreflight(
+  command: {
+    readonly allyFormations: readonly FormationInput[];
+    readonly enemyFormations: readonly FormationInput[];
+  },
+  snapshot: BattleCatalogSnapshot,
+): void {
+  const sideFormations = (
+    formations: readonly FormationInput[],
+    path: string,
+    side: Side,
+  ): readonly PreflightFormation[] =>
+    formations.map((formation, index) => ({ path: `${path}[${index}]`, side, formation }));
+  runFormationsPreflight(
+    [
+      ...sideFormations(command.allyFormations, "allyFormations", "ALLY"),
+      ...sideFormations(command.enemyFormations, "enemyFormations", "ENEMY"),
+    ],
+    snapshot,
+    "TOTAL_WAR",
+  );
+}
+
+function runFormationsPreflight(
+  formations: readonly PreflightFormation[],
+  snapshot: BattleCatalogSnapshot,
+  mode: BattleMode,
+): void {
+  const referenceViolations = validateReferences(formations, snapshot);
   if (referenceViolations.length > 0) {
     // 未解決の参照を先に返す。`levelGrowth`・`rankGrowth`・カテゴリ検査は解決済み
     // 定義を前提にするため、存在しないユニットについては参照エラーが正しい。
@@ -166,9 +208,9 @@ export function runPreflight(
   }
 
   const commandViolations = [
-    ...validateLevelGrowth(command, snapshot),
-    ...validateRankGrowth(command, snapshot),
-    ...validateUnitCategories(command, snapshot, mode),
+    ...validateLevelGrowth(formations, snapshot),
+    ...validateRankGrowth(formations, snapshot),
+    ...validateUnitCategories(formations, snapshot, mode),
   ];
   if (commandViolations.length > 0) {
     throw new ApplicationError("INVALID_COMMAND", commandViolations);

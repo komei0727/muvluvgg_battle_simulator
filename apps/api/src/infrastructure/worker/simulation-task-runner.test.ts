@@ -349,4 +349,82 @@ describe("createSimulationTaskRunner", () => {
       expect.fail("expected two ok TACTICAL_EXERCISE_EVALUATION outcomes");
     }
   });
+
+  it("UT-TASKRUNNER-012 (09_アプリケーション設計.md「実行境界」): dispatches a TOTAL_WAR task to the total war use case and returns the total war result tagged with the same mode", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_TOTAL_WAR"]),
+      randomSourceFactory: new SequenceRandomSourceFactory(Array(2000).fill(0.5) as number[]),
+      clock: new ManualClock(Date.now()),
+    });
+    const { allyFormation, enemyFormation } = minimalRequest();
+
+    const outcome = runner({
+      mode: "TOTAL_WAR",
+      requestId: "req-total-war-1",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        allyFormations: [allyFormation, allyFormation],
+        enemyFormations: [enemyFormation],
+      },
+    });
+
+    if (!outcome.ok || outcome.mode !== "TOTAL_WAR") {
+      expect.fail(`expected an ok TOTAL_WAR outcome, got ${JSON.stringify(outcome)}`);
+    }
+    expect(outcome.result.battleId).toBe("B_TOTAL_WAR");
+    expect(["ALLY_WIN", "ALLY_LOSE", "DRAW"]).toContain(outcome.result.outcome);
+    expect(outcome.result.completedTurn).toBeLessThanOrEqual(15);
+    expect(outcome.result.stages.length).toBeGreaterThan(0);
+    // R-TWR-02: 同じユニットを2番目の編成へ置いたため、そちらだけが再登場になる。
+    expect(
+      outcome.result.unitRoster.map((entry) => [entry.battleUnitId, entry.reappearance]),
+    ).toEqual([
+      ["ally:1", false],
+      ["ally:2", true],
+      ["enemy:1", false],
+    ]);
+    // `options.logLevel`の省略は`SUMMARY`。
+    expect(outcome.result.events).toEqual([]);
+  });
+
+  it("UT-TASKRUNNER-013 (R-TWR-01 #3): rejects a TOTAL_WAR task that repeats a unit within one formation with INVALID_COMMAND and the formation index in the path", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
+    });
+    const { enemyFormation } = minimalRequest();
+
+    const outcome = runner({
+      mode: "TOTAL_WAR",
+      requestId: "req-total-war-2",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        allyFormations: [
+          {
+            units: [
+              { unitDefinitionId: "UNIT_001", position: { column: 0, row: "FRONT" } },
+              { unitDefinitionId: "UNIT_001", position: { column: 1, row: "FRONT" } },
+            ],
+            memoryDefinitionIds: [],
+          },
+        ],
+        enemyFormations: [enemyFormation],
+      },
+    });
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_COMMAND",
+        violations: [
+          expect.objectContaining({ path: "allyFormations[0].slots[1].unitDefinitionId" }),
+        ],
+      },
+    });
+  });
 });

@@ -225,17 +225,20 @@ function assemble(
     readonly recorder?: EventRecorder;
     readonly finalState?: BattleStateSnapshot;
     readonly logLevel?: LogLevel;
+    readonly result?: TotalWarBattleResultSnapshot;
+    readonly reappearanceBattleUnitIds?: ReadonlySet<BattleUnitId>;
   } = {},
 ) {
   return assembleTotalWarResult({
     battleId: BATTLE_ID,
     catalogRevision: "rev-1",
     logLevel: options.logLevel ?? "DETAILED",
-    result: RESULT,
+    result: options.result ?? RESULT,
     initialState: INITIAL_STATE,
     finalState: options.finalState ?? FINAL_STATE,
     events: (options.recorder ?? recordTotalWar()).getEvents(),
     unitRoster: ROSTER,
+    reappearanceBattleUnitIds: options.reappearanceBattleUnitIds ?? new Set(),
   });
 }
 
@@ -320,5 +323,116 @@ describe("assembleTotalWarResult", () => {
         finalState: FINAL_STATE,
       }),
     );
+  });
+
+  it("UT-TWASSEMBLER-006 [R-TWR-02] (R-TWR-02 #1): marks exactly the reappearing units in the roster, whether or not they deployed", () => {
+    const result = assemble({ reappearanceBattleUnitIds: new Set([ALLY_2, ENEMY_2]) });
+
+    expect(result.unitRoster.map((entry) => [entry.battleUnitId, entry.reappearance])).toEqual([
+      [ALLY_1, false],
+      [ALLY_2, true],
+      [ENEMY_1, false],
+      [ENEMY_2, true],
+    ]);
+  });
+
+  it("UT-TWASSEMBLER-007 [R-TWR-06] (R-TWR-06 #4): rejects a battle history that disagrees with the one projected from FormationDefeated / FormationDeployed", () => {
+    const [first, second] = RESULT.stages;
+    expectInvariantViolation(() =>
+      assemble({
+        result: {
+          ...RESULT,
+          stages: [first!, { ...second!, enemyFormationNumber: 3 }],
+        },
+      }),
+    );
+  });
+
+  it("UT-TWASSEMBLER-008 [R-TWR-06] (R-TWR-06 #4): projects one stage per deployment scope, even when both sides deploy in the same turn", () => {
+    const recorder = new EventRecorder(BATTLE_ID);
+    for (const side of ["ALLY", "ENEMY"] as const) {
+      recorder.record({
+        eventType: "FormationDefeated",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        payload: { side, formationNumber: 1, turnNumber: 1, remainingReserveCount: 1 },
+        stateDelta: { formations: { [side]: { defeatedCount: { before: 0, after: 1 } } } },
+      });
+    }
+    const unitOf = { ALLY: ALLY_2, ENEMY: ENEMY_2 } as const;
+    for (const side of ["ALLY", "ENEMY"] as const) {
+      recorder.record({
+        eventType: "FormationDeployed",
+        category: "FACT",
+        turnNumber: 2,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        payload: { side, formationNumber: 2, turnNumber: 2, battleUnitIds: [unitOf[side]] },
+        stateDelta: {
+          addedUnits: { [unitOf[side]]: unitSnapshot() },
+          formations: { [side]: { activeFormationNumber: { before: 1, after: 2 } } },
+        },
+      });
+    }
+    const result: TotalWarBattleResultSnapshot = {
+      outcome: "DRAW",
+      completionReason: "TURN_LIMIT_REACHED",
+      completedTurn: 2,
+      stages: [
+        { ...RESULT.stages[0]!, defeatedSides: ["ALLY", "ENEMY"] },
+        {
+          stageNumber: 2,
+          allyFormationNumber: 2,
+          enemyFormationNumber: 2,
+          startTurn: 2,
+          endTurn: 2,
+          defeatedSides: [],
+        },
+      ],
+      defeatedFormationCounts: { ally: 1, enemy: 1 },
+    };
+    recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 2,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 2 },
+      stateDelta: { turnNumber: { before: 1, after: 2 } },
+    });
+    recorder.record({
+      eventType: "BattleCompleted",
+      category: "FACT",
+      turnNumber: 2,
+      cycleNumber: 1,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: result,
+      stateDelta: {
+        battleStatus: { before: "RUNNING", after: "COMPLETED" },
+        result: { before: undefined, after: result },
+      },
+    });
+    const formationsAfter = { formationCount: 2, activeFormationNumber: 2, defeatedCount: 1 };
+
+    const assembled = assemble({
+      recorder,
+      result,
+      finalState: {
+        status: "COMPLETED",
+        currentTurn: 2,
+        units: {
+          [ALLY_1]: unitSnapshot(),
+          [ALLY_2]: unitSnapshot(),
+          [ENEMY_1]: unitSnapshot(),
+          [ENEMY_2]: unitSnapshot(),
+        },
+        result,
+        formations: { ALLY: formationsAfter, ENEMY: formationsAfter },
+      },
+    });
+
+    expect(assembled.stages).toEqual(result.stages);
   });
 });
