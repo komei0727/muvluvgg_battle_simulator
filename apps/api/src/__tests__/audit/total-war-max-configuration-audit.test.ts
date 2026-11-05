@@ -30,6 +30,11 @@ import { allProductionUnitIds } from "../../testing/scenario/run-production-batt
 const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 /** `bootstrap/config.ts`の`SIMULATION_TIMEOUT_MS`既定値。 */
 const DEFAULT_SIMULATION_TIMEOUT_MS = 50_000;
+/**
+ * 各テストのタイムアウト。カバレッジ計測下では15ターンの完走だけで数秒かかり、Vitestの
+ * 既定値（5秒）を超えるため、アプリ側の期限にCatalog読み込みなどの準備の余裕を足す。
+ */
+const AUDIT_TEST_TIMEOUT_MS = DEFAULT_SIMULATION_TIMEOUT_MS + 10_000;
 const FORMATIONS_PER_SIDE = 3;
 const UNITS_PER_FORMATION = 5;
 const MEMORIES_PER_FORMATION = 6;
@@ -103,105 +108,119 @@ describe("total war maximum configuration audit", () => {
   const unitIds = allProductionUnitIds(CATALOG_DIR);
   const memoryIds = allProductionMemoryIds();
 
-  it("IT-AUDIT-TWMAX-001 [R-TWR-01, R-TWR-06]: 3 formations x 5 units x 6 memories per side completes within 15 turns under the default execution limits and timeout", () => {
-    expect(unitIds.length).toBeGreaterThanOrEqual(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION * 2);
+  it(
+    "IT-AUDIT-TWMAX-001 [R-TWR-01, R-TWR-06]: 3 formations x 5 units x 6 memories per side completes within 15 turns under the default execution limits and timeout",
+    () => {
+      expect(unitIds.length).toBeGreaterThanOrEqual(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION * 2);
 
-    // 異なる組み合わせで複数回走らせ、早期決着だけでなく長引く対戦も含める。
-    const matchups = [0, 7, 19].map((offset) => ({
-      offset,
-      command: {
-        allyFormations: sideFormations(unitIds, memoryIds, offset),
-        enemyFormations: sideFormations(
-          unitIds,
-          memoryIds,
-          offset + FORMATIONS_PER_SIDE * UNITS_PER_FORMATION,
-        ),
-        logLevel: "DETAILED" as const,
-      },
-    }));
+      // 異なる組み合わせで複数回走らせ、早期決着だけでなく長引く対戦も含める。
+      const matchups = [0, 7, 19].map((offset) => ({
+        offset,
+        command: {
+          allyFormations: sideFormations(unitIds, memoryIds, offset),
+          enemyFormations: sideFormations(
+            unitIds,
+            memoryIds,
+            offset + FORMATIONS_PER_SIDE * UNITS_PER_FORMATION,
+          ),
+          logLevel: "DETAILED" as const,
+        },
+      }));
 
-    for (const { offset, command } of matchups) {
-      const { result, durationMs } = runMaxConfiguration(command, `twmax-${offset}`);
+      for (const { offset, command } of matchups) {
+        const { result, durationMs } = runMaxConfiguration(command, `twmax-${offset}`);
+
+        expect(result.completedTurn).toBeLessThanOrEqual(15);
+        expect(["ALLY_WIN", "ALLY_LOSE", "DRAW"]).toContain(result.outcome);
+        expect(result.unitRoster).toHaveLength(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION * 2);
+        expect(result.events.length).toBeLessThan(
+          DEFAULT_SIMULATION_EXECUTION_LIMITS.maxTotalEvents,
+        );
+        expect(durationMs).toBeLessThan(DEFAULT_SIMULATION_TIMEOUT_MS);
+        console.info(
+          JSON.stringify({
+            testId: "IT-AUDIT-TWMAX-001",
+            offset,
+            outcome: result.outcome,
+            completionReason: result.completionReason,
+            completedTurn: result.completedTurn,
+            stages: result.stages.length,
+            events: result.events.length,
+            durationMs: Math.round(durationMs),
+          }),
+        );
+      }
+    },
+    AUDIT_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "IT-AUDIT-TWMAX-002 [R-TWR-02, R-TWR-06]: the same maximum configuration with every formation reusing the same five units (all later ones reappear) also completes",
+    () => {
+      const sameUnits = (offset: number): readonly FormationInput[] => {
+        const formations = sideFormations(unitIds, memoryIds, offset);
+        return formations.map((formation) => ({ ...formation, slots: formations[0]!.slots }));
+      };
+
+      const { result } = runMaxConfiguration(
+        {
+          allyFormations: sameUnits(0),
+          enemyFormations: sameUnits(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION),
+          logLevel: "DETAILED",
+        },
+        "twmax-reappearance",
+      );
 
       expect(result.completedTurn).toBeLessThanOrEqual(15);
-      expect(["ALLY_WIN", "ALLY_LOSE", "DRAW"]).toContain(result.outcome);
-      expect(result.unitRoster).toHaveLength(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION * 2);
-      expect(result.events.length).toBeLessThan(DEFAULT_SIMULATION_EXECUTION_LIMITS.maxTotalEvents);
+      expect(result.unitRoster.filter((entry) => entry.reappearance)).toHaveLength(
+        (FORMATIONS_PER_SIDE - 1) * UNITS_PER_FORMATION * 2,
+      );
+    },
+    AUDIT_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "IT-AUDIT-TWMAX-003 [R-TWR-01, R-TWR-06] (R-TWR-06 #1): a maximum configuration whose units are made durable enough to survive runs the full 15 turns to the turn limit under the default limits and timeout",
+    () => {
+      // 本番Catalogの編成どうしは攻撃有利で数ターンのうちに決着するため、モジュール補正
+      // （R-ENH-08）でHPだけを大きくし、最も長い経路（15ターン目の時間切れ）を通す。
+      const durable = (formations: readonly FormationInput[]): readonly FormationInput[] =>
+        formations.map((formation) => ({
+          ...formation,
+          // R-ENH-01: ユニットの強化指定は、所属する編成が強化指定を持つときだけ受理される。
+          enhancement: {},
+          slots: formation.slots.map((slot) => ({
+            ...slot,
+            enhancement: { module: { hp: { ratio: DURABLE_HP_RATIO } } },
+          })),
+        }));
+
+      const { result, durationMs } = runMaxConfiguration(
+        {
+          allyFormations: durable(sideFormations(unitIds, memoryIds, 0)),
+          enemyFormations: durable(
+            sideFormations(unitIds, memoryIds, FORMATIONS_PER_SIDE * UNITS_PER_FORMATION),
+          ),
+          logLevel: "DETAILED",
+        },
+        "twmax-durable",
+      );
+
+      expect(result).toMatchObject({
+        outcome: "DRAW",
+        completionReason: "TURN_LIMIT_REACHED",
+        completedTurn: 15,
+      });
       expect(durationMs).toBeLessThan(DEFAULT_SIMULATION_TIMEOUT_MS);
       console.info(
         JSON.stringify({
-          testId: "IT-AUDIT-TWMAX-001",
-          offset,
-          outcome: result.outcome,
-          completionReason: result.completionReason,
-          completedTurn: result.completedTurn,
-          stages: result.stages.length,
+          testId: "IT-AUDIT-TWMAX-003",
           events: result.events.length,
+          stateTransitions: result.stateTransitions.length,
           durationMs: Math.round(durationMs),
         }),
       );
-    }
-  });
-
-  it("IT-AUDIT-TWMAX-002 [R-TWR-02, R-TWR-06]: the same maximum configuration with every formation reusing the same five units (all later ones reappear) also completes", () => {
-    const sameUnits = (offset: number): readonly FormationInput[] => {
-      const formations = sideFormations(unitIds, memoryIds, offset);
-      return formations.map((formation) => ({ ...formation, slots: formations[0]!.slots }));
-    };
-
-    const { result } = runMaxConfiguration(
-      {
-        allyFormations: sameUnits(0),
-        enemyFormations: sameUnits(FORMATIONS_PER_SIDE * UNITS_PER_FORMATION),
-        logLevel: "DETAILED",
-      },
-      "twmax-reappearance",
-    );
-
-    expect(result.completedTurn).toBeLessThanOrEqual(15);
-    expect(result.unitRoster.filter((entry) => entry.reappearance)).toHaveLength(
-      (FORMATIONS_PER_SIDE - 1) * UNITS_PER_FORMATION * 2,
-    );
-  });
-
-  it("IT-AUDIT-TWMAX-003 [R-TWR-01, R-TWR-06] (R-TWR-06 #1): a maximum configuration whose units are made durable enough to survive runs the full 15 turns to the turn limit under the default limits and timeout", () => {
-    // 本番Catalogの編成どうしは攻撃有利で数ターンのうちに決着するため、モジュール補正
-    // （R-ENH-08）でHPだけを大きくし、最も長い経路（15ターン目の時間切れ）を通す。
-    const durable = (formations: readonly FormationInput[]): readonly FormationInput[] =>
-      formations.map((formation) => ({
-        ...formation,
-        // R-ENH-01: ユニットの強化指定は、所属する編成が強化指定を持つときだけ受理される。
-        enhancement: {},
-        slots: formation.slots.map((slot) => ({
-          ...slot,
-          enhancement: { module: { hp: { ratio: DURABLE_HP_RATIO } } },
-        })),
-      }));
-
-    const { result, durationMs } = runMaxConfiguration(
-      {
-        allyFormations: durable(sideFormations(unitIds, memoryIds, 0)),
-        enemyFormations: durable(
-          sideFormations(unitIds, memoryIds, FORMATIONS_PER_SIDE * UNITS_PER_FORMATION),
-        ),
-        logLevel: "DETAILED",
-      },
-      "twmax-durable",
-    );
-
-    expect(result).toMatchObject({
-      outcome: "DRAW",
-      completionReason: "TURN_LIMIT_REACHED",
-      completedTurn: 15,
-    });
-    expect(durationMs).toBeLessThan(DEFAULT_SIMULATION_TIMEOUT_MS);
-    console.info(
-      JSON.stringify({
-        testId: "IT-AUDIT-TWMAX-003",
-        events: result.events.length,
-        stateTransitions: result.stateTransitions.length,
-        durationMs: Math.round(durationMs),
-      }),
-    );
-  });
+    },
+    AUDIT_TEST_TIMEOUT_MS,
+  );
 });
