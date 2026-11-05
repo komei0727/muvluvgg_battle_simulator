@@ -161,6 +161,23 @@ X-Request-Id: ui-<UUID>
 
 6つの配列（`scores`／`breakCounts`／`completedTurns`／`completionReasons`／`allyUnitDamageTotals`／`allyUnitBreakCounts`）は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。集計はこの添字の対応に全面的に依存するため、長さの整合（ユニット別配列の列数が試行間で一致すること、与ダメージ列とブレイク列の列数が一致すること）を§8と同じ`RESPONSE_CONTRACT_MISMATCH`として検証する。候補が1件でない応答も、どの編成の値か決められないため契約違反とする。
 
+### 2.7 総力戦
+
+```http
+POST {VITE_API_BASE_URL}/api/v1/total-war-simulations
+Content-Type: application/json
+Accept: application/json
+X-Request-Id: ui-<UUID>
+```
+
+総力戦モード（`UI-UC-007`）が使う。リクエストは陣営ごとに出撃順の編成配列（`allyFormations`／`enemyFormations`、各1〜3件）と`options`を持ち、`turnLimit`を持たない（規定ターン数は15固定）。配列の各要素は戦闘シミュレーションの`allyFormation`とまったく同じ`FormationRequest`である。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TotalWarRequest」「TotalWarResponse」とする。
+
+- 認証・`cache`・`credentials`・自動retryしないこと・タイムアウトとキャンセルは戦闘シミュレーションと同じ（§2.4、§7）。
+- 成功レスポンスは戦闘シミュレーションと同じ構造を再利用し、`result`だけが総力戦の結果（`outcome`に`DRAW`を含む、`completionReason`、`completedTurn`、`stages[]`、`defeatedFormationCounts`）となる。加えて、全編成の全ユニットの一覧`unitRoster`を常に返す。
+- `initialState`は両陣営の1番目の編成のユニットだけを含む。2番目以降の編成のユニットは`FORMATION_DEPLOYED`イベントの状態差分`addedUnits`で盤面へ加わる。したがって表示用Rosterは`unitRoster`から作る（§10.1）。
+- 再登場ユニットの基礎値補正（R-TWR-02）はサーバーが自動で適用する。UIはリクエストに何も足さず、応答の`unitRoster[].reappearance`を表示にだけ使う。
+- 統計実行（一括評価）にあたるAPIは無い。総力戦は単発の実行だけを扱う。
+
 ## 3. UI入力モデル
 
 ```ts
@@ -276,6 +293,28 @@ function isSlotLevelLinked(
 }
 ```
 
+### 3.2 総力戦の入力モデル
+
+`BattleDraft`は陣営ごとに1編成しか持てず、`slotKey`にも編成番号が入っていない。総力戦はこの型を一般化せず、`BattleDraft`を3組並べて持つ（`UI-ADR-013`）。i番目の組が味方の編成iと敵の編成iを持つ。
+
+```ts
+type FormationIndex = 0 | 1 | 2; // 編成番号 - 1
+type FormationCount = 1 | 2 | 3;
+
+interface TotalWarDraft {
+  /** 常に3組。i番目が味方の編成i+1と敵の編成i+1。使わない組は空のまま持つ。 */
+  readonly formations: readonly [BattleDraft, BattleDraft, BattleDraft];
+  readonly formationCounts: { readonly ally: FormationCount; readonly enemy: FormationCount };
+  readonly logLevel: LogLevel;
+}
+```
+
+- 各組の`BattleDraft`は通常戦闘と同じ形のまま使う。そのため、編成エディタ・選択ダイアログ・ユニット強化ダイアログ・1編成ぶんのリクエスト生成（`buildFormation`）と検証規則を、総力戦を知らないまま再利用できる。
+- 各組の`turnLimit`・`logLevel`・`exerciseExecution`は総力戦では読まない。ログレベルは`TotalWarDraft.logLevel`だけを使う。
+- 陣営の強化入力（`SideEnhancementInput`：強化トグル・学園レベル・レベルリンク）は3組すべてで同じ値に保つ（`01_UI要求・画面設計.md` §5.10）。保つのはreducerの責務で、リクエスト生成は各組の値をそのまま読む。
+- 編成数を超える組（味方が2編成なら3組目の味方側）はリクエスト生成・検証・プレビューの対象外とする。値は保持しない——編成を削除すると後ろの組が前へ詰まり、末尾の組は初期状態へ戻る。
+- `slotKey`は組の間で同じ文字列になる。違反（`UiViolation`）は`formationIndex`を持ち、どの組の枠かを区別する。
+
 ## 4. 座標変換
 
 画面とAPIの対応は次で固定する。
@@ -389,6 +428,57 @@ interface UnitEnhancementRequest {
 7. 規則4（レベル200・ランク5・ギア0件は出力しない）は解決済みレベルへ適用する。**強化入力を一度も開いていない枠（`enhancement === undefined`）もリンク対象**であり、リンクONで解決済みレベルが200以外ならギア0件の`enhancement`を出力する。リンクOFFなら従来どおり出力しない（省略時の既定と同値のため）。
 8. レベルリンクは規則1の後に効く。強化トグルOFFの陣営ではリンクONでも`enhancement`を出力しない。
 
+### 5.2 総力戦のリクエスト生成
+
+```ts
+interface TotalWarRequest {
+  readonly allyFormations: readonly FormationRequest[]; // 1～3件、出撃順
+  readonly enemyFormations: readonly FormationRequest[]; // 1～3件、出撃順
+  readonly options: { readonly logLevel: LogLevel };
+}
+```
+
+変換規則：
+
+1. `allyFormations`は`formations[0..formationCounts.ally-1]`の味方側を、`enemyFormations`は同じく敵側を、編成番号順に並べる。配列の順序がそのまま出撃順になる。
+2. 各要素は1編成ぶんの既存変換（§5の規則1〜6、§5.1の強化指定）で作る。陣営の強化入力は3組で同じ値なので、どの組から作っても同じ`enhancement`になる。
+3. `turnLimit`を出力しない。APIは`turnLimit`を未定義プロパティとして拒否する。
+4. `options.logLevel`は`TotalWarDraft.logLevel`を常に送る。
+5. 再登場の補正指定を出力しない（サーバーが自動で適用する。R-TWR-02）。
+6. 送信配列の`allyFormations[i].units[n]`と元の枠（組iの`slotKey`）、`memoryDefinitionIds[n]`と元のメモリー枠、`gears[m]`と元のギア枠の対応表を、編成ごとに保持する（§13）。
+
+例（味方2編成・敵1編成）：
+
+```json
+{
+  "allyFormations": [
+    {
+      "units": [
+        { "unitDefinitionId": "UNIT_DOROTHEA_GRACE", "position": { "column": 0, "row": "FRONT" } }
+      ],
+      "memoryDefinitionIds": []
+    },
+    {
+      "units": [
+        { "unitDefinitionId": "UNIT_DOROTHEA_GRACE", "position": { "column": 1, "row": "FRONT" } }
+      ],
+      "memoryDefinitionIds": []
+    }
+  ],
+  "enemyFormations": [
+    {
+      "units": [
+        { "unitDefinitionId": "UNIT_EVIE_ECO", "position": { "column": 0, "row": "FRONT" } }
+      ],
+      "memoryDefinitionIds": []
+    }
+  ],
+  "options": { "logLevel": "SUMMARY" }
+}
+```
+
+この例の味方編成2の`UNIT_DOROTHEA_GRACE`は再登場ユニットとなり、サーバーが基礎値に−99%を掛ける。
+
 ## 6. クライアント検証
 
 送信前に全違反を収集し、一度に表示する。
@@ -457,6 +547,23 @@ Issue #565 で次を追加する。違反コードは `GEAR_STAT_COUNT_OVER_LIMI
 - リンク中の枠には`UNIT_LEVEL_INVALID`を出さない。リンク中の枠の`level`は送信に使われないためであり、免除しないと「リンクをONにする前に途中まで打った`""`」がリンクON後も永久に送信を止める。「リンクから外す」を指定した枠は従来どおり検証する。免除はリンクONで除外していないことだけで決め、リンクレベルが妥当かどうかを見ない（§3.1）。
 - `/*/enhancement/levelLink/level`はUI入力モデル上のpathであり、送信DTOには存在しない。サーバーのJSON Pointerがこのpathを指すことはなく、対応づけ（§13）はクライアント違反の表示先を決めるためだけに使う。
 
+総力戦（`UI-AC-057`）では次のとおり検証する。
+
+- 使用する編成（`formationCounts`の範囲）ごとに、上の各表の規則を1編成ぶんとして適用する。ただし`/turnLimit`の規則は適用しない。編成プールは両陣営とも`PLAYABLE`のみとする（R-TWR-01 #6）。
+- 違反の`path`はAPIの総力戦リクエストへ合わせ、`/allyFormation/...`を`/allyFormations/{i}/...`（`{i}`は0始まりの編成index）へ読み替える。違反には`formationIndex`を付ける。サーバーの422も同じ`path`で返るため、同じ入力欄へ対応づけられる。
+- 編成数（1〜3）は検証しない。タブの追加・削除が範囲外を作れない構造にする。
+
+さらに次を追加する。違反コードはいずれもerrorとする。
+
+| Path                                        | 違反コード                      | 規則                                         | UIメッセージ                                                     |
+| ------------------------------------------- | ------------------------------- | -------------------------------------------- | ---------------------------------------------------------------- |
+| `/{side}Formations/{i}/units`               | `DUPLICATE_UNIT_IN_FORMATION`   | 1つの編成に同じ`unitDefinitionId`は1体（#3） | 1つの編成に同じユニットは1体までです。別の編成へ移してください。 |
+| `/{side}Formations/{i}/memoryDefinitionIds` | `DUPLICATE_MEMORY_IN_FORMATION` | 1つの編成に同じメモリーIDは1件（#4）         | 1つの編成に同じメモリーは1件までです。                           |
+
+- 違反は2件目以降の枠に付ける（`slotKey`、メモリーはメモリー枠）。1件目は正当な配置であり、どちらを外すかを利用者が選べるよう1件目には付けない。2件目以降は編成エディタの表示順（前衛column 0〜2、後衛column 0〜2）で決める。
+- 衣装違い（別の`unitDefinitionId`）は同じキャラクターでも違反にしない。キャラクターの同一性をUIで推定しない。
+- 別の編成どうしの重複は違反にしない（再登場。R-TWR-02）。再登場の判定は表示用の派生値であり、検証の結果には含めない。
+
 クライアント検証を通過してもサーバー検証を省略できない。Catalog revision差、UI生成の不具合、直接HTTP呼び出しがあるため、APIの422を通常の入力エラーとして扱う。
 
 ## 7. API client
@@ -479,6 +586,12 @@ interface SimulationApiClient {
     request: FormationStatPreviewRequest,
     options: { readonly signal: AbortSignal; readonly requestId?: string },
   ): Promise<FormationStatPreviewApiResult>;
+
+  // 総力戦（§2.7）。失敗の正規化・アクセスキー・401の通知は simulate と同じ。
+  simulateTotalWar(
+    request: TotalWarRequest,
+    options: { readonly signal: AbortSignal; readonly requestId?: string },
+  ): Promise<TotalWarApiResult>; // simulate の結果型の response を TotalWarResponse にしたもの
 }
 
 type CatalogApiResult =
@@ -601,6 +714,19 @@ type FormationStatPreviewApiResult =
 
 shape検証に加えて、応答の各`units[]`がリクエストへ載せた枠と`side`・`formationPosition`・`unitDefinitionId`で一致することも確かめる。1件でも食い違えば、対応づかない枠だけを落とさずプレビュー全体を失敗扱いにする — どの枠の値が信用できるのか画面から区別できないため。
 
+### 9.2 総力戦レスポンスの検証
+
+§9の項目のうち`result`以外はそのまま適用し、次を加える。`unitSummaries`の対応先は`initialState.units`ではなく`unitRoster`とする（`initialState`は1番目の編成しか含まないため）。
+
+- `result.outcome`が string、`result.completionReason`が string、`result.completedTurn`が1〜15のinteger。列挙値は§9と同じく未知の値を許容する（表示側がコードをそのまま出す）。
+- `result.stages`が1件以上のarrayで、各要素の`stageNumber`・`allyFormationNumber`・`enemyFormationNumber`・`startTurn`・`endTurn`がintegerであり、`defeatedSides`がstringのarrayである。`stageNumber`は1からの連番とする（戦闘履歴の行番号に使うため）。
+- `result.defeatedFormationCounts`が`{ ally, enemy }`の0以上のinteger。
+- `unitRoster`がarrayで、各要素に`battleUnitId`・`unitDefinitionId`・`side`・`formationNumber`（1〜3のinteger）・`formationPosition`・`reappearance`（boolean）・`deployed`（boolean）がある。`battleUnitId`は一意とする。
+- `unitSummaries`が`unitRoster`の各`battleUnitId`をちょうど1行ずつ持つ（件数・一意性・完全一致。§9と同じ3点）。
+- `initialState.units`・`finalState.units`（届いた場合）の各`battleUnitId`が`unitRoster`に含まれ、その要素が`deployed: true`である。
+
+通常戦闘の`validateSimulationResponse`へ総力戦の分岐を足さず、専用の検証関数にする。`result`の形が異なり、Rosterの正本も異なるため、1つの関数で分岐させると通常戦闘の検証を総力戦の都合で緩めることになる。
+
 ## 10. 表示用Roster
 
 同一性は `battleUnitId` を使用する。
@@ -624,6 +750,23 @@ interface RosterEntry {
 4. 最終HP・戦闘状態は`unitSummaries`をbattleUnitIdでindex化して結合する（`finalState`は読まない。`SUMMARY`実行では届かないため）。
 5. `unitSummaries`に存在しないunitは契約不一致とする（§9）。
 6. `finalState`が届いた場合、そこに存在しないunitも契約不一致とする（§9）。詳細タブだけがこの状態を読む。
+
+### 10.1 総力戦の表示用Roster
+
+総力戦は手順1の入力を`initialState.units`から応答の`unitRoster`へ替える。`initialState`は両陣営の1番目の編成しか含まず、途中から出撃したユニットが名前を解決できなくなるためである。
+
+```ts
+interface TotalWarRosterEntry extends RosterEntry {
+  readonly formationNumber: number; // 1～3
+  readonly reappearance: boolean;
+  readonly deployed: boolean;
+}
+```
+
+- 並びは`unitRoster`の順（陣営、編成番号、配置順）を保つ。
+- 手順2〜5は同じとする（`unitSummaries`は出撃しなかったユニットの行も持つ）。
+- 手順6は`deployed: true`のユニットにだけ適用する。出撃しなかったユニットは`finalState`に現れないのが正しい。
+- サマリ・詳細の各タブは、Rosterを`initialState`から自分で作らず、モードのコンテナから受け取る。通常戦闘・戦術演習は従来どおり`initialState`から作ったRosterを、総力戦は`unitRoster`から作ったRosterを渡す。
 
 ## 11. サマリ集計
 
@@ -652,6 +795,7 @@ interface UnitBattleSummary {
 2. `unitSummaries`を`battleUnitId`でindex化する。
 3. Roster1件につき1行を、対応する`unitSummaries`の行から作る。
 4. 陣営の振り分け（ALLY表／ENEMY表）はRoster側の`side`で決める。`unitSummaries[].side`と同じ値だが、行の並びと表の左右はRosterが正本である。
+5. 総力戦は手順1で§10.1のRosterを使い、各陣営の中を`formationNumber`でまとめる。`deployed: false`の行は`combatStatus`の代わりに「未出撃」を出す（`unitSummaries`の`combatStatus`は出撃していないユニットの戦闘状態を表さないため）。
 
 - 対応する行が無いRosterユニットは0埋めし、`combatStatus`を`UNKNOWN`として警告フラグを立てる。この状態は§9の検証が成功レスポンス自体を拒否するため通常は到達しない。0埋め＋警告にしておくのは、検証を通らない経路で欠落行だけが正しい値のように見えるのを防ぐ防御である。
 - 表示時に整数へ勝手に丸めない。集計3項目の現契約はintegerだが、将来の型変更を検出できるよう§9のvalidatorで守る。
@@ -679,13 +823,13 @@ type EventFormatter = (event: BattleLogEvent, roster: RosterIndex) => EventPrese
 
 formatter本体はイベントカテゴリ別のファイルが持ち、それぞれ `Readonly<Record<string, EventFormatter>>` をexportする。
 
-| ファイル                          | 担当するイベント                                   |
-| --------------------------------- | -------------------------------------------------- |
-| `battle-flow-event-formatters.ts` | 戦闘・ターン・行動順・行動・戦闘不能・戦闘終了     |
-| `skill-event-formatters.ts`       | クールタイム・チャージ・パッシブ                   |
-| `resource-event-formatters.ts`    | リソース増減・EXゲージ                             |
-| `effect-event-formatters.ts`      | 回復・効果ライフサイクル・状態異常・命中判定（M7） |
-| `damage-event-formatters.ts`      | ダメージ内訳（M8、§12.1）                          |
+| ファイル                          | 担当するイベント                                                           |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `battle-flow-event-formatters.ts` | 戦闘・ターン・行動順・行動・戦闘不能・戦闘終了・編成の出撃と全滅（総力戦） |
+| `skill-event-formatters.ts`       | クールタイム・チャージ・パッシブ                                           |
+| `resource-event-formatters.ts`    | リソース増減・EXゲージ                                                     |
+| `effect-event-formatters.ts`      | 回復・効果ライフサイクル・状態異常・命中判定（M7）                         |
+| `damage-event-formatters.ts`      | ダメージ内訳（M8、§12.1）                                                  |
 
 `event-formatters.ts` はこれらを合成して `formatEvent` を公開するだけを担う。共通の型・helper（`EventPresentation`／`RosterIndex`／`resolveDisplayName`）は`event-presentation.ts`にあり、formatter群の各ファイル間の循環importを避ける。
 
@@ -740,6 +884,28 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 - `updated`は`before`/`after`を再帰比較し、変わったleafだけを`path before → after`として出す。
 - IDが読めない未知shapeはcompact JSONへ退避する。件数へ黙って畳まないことで、将来のエンティティ種別も可視のまま残る。
 - 差分が公開projectionに現れない`updated`は「表示可能な変更項目なし」と明示する。`EffectStateResponse.value`はDMG-004/005時点で`{ magnitude }`だけを持ち、シールド残量・サブユニット耐久の増減を運ばないため、この文言が実際に出うる。
+- 総力戦の`addedUnits`（`BattleStateDeltaResponse`、`FORMATION_DEPLOYED`が所有）は、出撃したユニットごとに1行（`+ {表示名} 出撃`）を出す。要素は`BattleStateResponse.units`と同じ完全な形なので、全項目を行へ展開せず、ユニットを名指しする1行に留める（詳細はレスポンスJSONで読める）。`formations.<side>.activeFormationNumber`／`defeatedCount`は通常の`ValueChange`として既存の規則で出す。
+
+### 12.3 総力戦のイベント要約
+
+`FORMATION_DEPLOYED`と`FORMATION_DEFEATED`のdetails（[10_API設計.md](../ddd/10_API設計.md)、[08\_ドメインイベント.md](../ddd/08_ドメインイベント.md)「`FormationDeployed`」「`FormationDefeated`」）を次のとおり要約する。detailsが想定のshapeでなければ§12の汎用表示へ落とす。
+
+| type                 | 読むdetails                                                      | 要約                                                   |
+| -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
+| `FORMATION_DEPLOYED` | `side`、`formationNumber`、`turnNumber`、`battleUnitIds`         | `{陣営}の編成{formationNumber}が出撃: {ユニット名, …}` |
+| `FORMATION_DEFEATED` | `side`、`formationNumber`、`turnNumber`、`remainingReserveCount` | `{陣営}の編成{formationNumber}が全滅（控え残り{k}）`   |
+
+ユニット名は§10.1のRosterで解決する。
+
+### 12.4 状態の組み立て直し（総力戦）
+
+効果トレースの実効ステータス復元（`combat-stat-timeline.ts`）と候補比較（`candidate-comparison.ts`）は、`initialState`へ`stateTransitions`の差分を順に当てて各時点の状態を組み立てる。総力戦では次を守る（[08\_ドメインイベント.md](../ddd/08_ドメインイベント.md)「`addedUnits`」）。
+
+1. 1つの状態遷移の中で、`addedUnits`を他のユニット差分より先に適用し、その要素を以後の差分の対象ユニットへ加える。
+2. 加えたユニットの開始状態は`addedUnits`の要素をそのまま使う。Rosterや`unitRoster`から作り直さない（HP・ステータスは要素だけが持つ）。
+3. `addedUnits`を持たない応答（通常戦闘・戦術演習）では何も変わらない。
+
+この規則を守らないと、途中から出撃したユニットに付いた効果・そのユニットを含む候補比較が黙って抜け落ちる。
 
 ## 13. エラー正規化
 
@@ -785,6 +951,13 @@ type UiApiErrorKind =
 - `/options/logLevel`
 
 送信DTOの `units[n]` と元の `slotKey` の対応表をrequest生成時に保持する。sort後の配列indexから画面slotを逆引きし、誤った枠を強調しない。M11のギアも同様に、空枠を除外した送信配列の `gears[m]` から元のギア枠indexへの対応表を保持する。
+
+総力戦（§2.7）のpathは編成indexを含む。
+
+- `/allyFormations/{i}/units/{n}/...`・`/allyFormations/{i}/memoryDefinitionIds/{n}`・`/allyFormations/{i}/enhancement/...`（`/enemyFormations/...`も同様）は、`{i}`番目の編成の対応表で枠へ逆引きし、違反に`formationIndex: i`を付ける。対応表は編成ごとに送信時点のものを実行stateへ保持する（`UI-API-029`と同じ理由）。
+- `/allyFormations`・`/enemyFormations`（編成数の違反）と`/options/logLevel`は枠を持たない違反として設定領域上部にだけ出す。
+- 陣営の強化入力（`/{side}Formations/{i}/enhancement/academyLevels/...`）は3編成で共通の入力なので、どの`{i}`から返っても同じ入力欄へ出す。
+- 通常戦闘の`/allyFormation/...`（編成indexなし）の対応づけは変えない。
 
 ## 14. CORS要件
 
@@ -852,3 +1025,13 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-043`: 統計実行がcontextのキーを送り、401を通知する。
 - `UI-API-044`: 一覧APIが引数のキーを送り、401を世代番号付きで通知し、世代の変化（同じキーの再入力を含む）で取得し直す。
 - `UI-API-045`: 401の通知には、その要求を送ったときの世代番号を添える（応答待ちの間に同じキーが入れ直されても、送信時の世代を報告する）。
+
+総力戦（`UI-UC-007`）。
+
+- `UI-API-046`: 総力戦のリクエストが、陣営ごとに編成数ぶんの`FormationRequest`を出撃順の配列（`allyFormations`／`enemyFormations`）で送り、各要素は1編成ぶんの既存変換（座標・空枠除外・強化指定・解決済みレベル）と同じになる。`turnLimit`と再登場の補正指定を出力せず、`options.logLevel`を常に送る。編成数を超える組は送らない。
+- `UI-API-047`: 総力戦の422のJSON Pointer（`/allyFormations/{i}/units/{n}/...`・`/memoryDefinitionIds/{n}`・`/enhancement/...`）を、送信時点の`{i}`番目の編成の対応表で元の枠・ギア枠へ対応づけ、`formationIndex`を付ける。陣営の強化入力の違反は編成を問わず同じ入力欄へ出す。
+- `UI-API-048`: 総力戦の送信前検証の違反`path`がAPIの総力戦リクエストと同じ`/allyFormations/{i}/...`の形になる。1編成内の同じユニット定義・同じメモリーを`DUPLICATE_UNIT_IN_FORMATION`／`DUPLICATE_MEMORY_IN_FORMATION`として2件目以降の枠へ出し、別の編成どうしの重複は違反にしない。
+- `UI-API-049`: 総力戦の成功レスポンスを§9.2のとおり検証する。`DRAW`を受理し、`unitSummaries`と`unitRoster`の1対1対応、`initialState`／`finalState`のユニットが`unitRoster`の出撃済みユニットであることを確かめ、違反を`RESPONSE_CONTRACT_MISMATCH`とする。
+- `UI-API-050`: 総力戦の表示用Rosterを`unitRoster`から作り、出撃しなかったユニット・2番目以降の編成のユニットを含める。並びは`unitRoster`の順を保つ。
+- `UI-API-051`: 総力戦の状態の組み立て直しが、各状態遷移の`addedUnits`を他のユニット差分より先に適用し、途中から出撃したユニットの開始状態を`addedUnits`の要素から取る。
+- `UI-API-052`: 総力戦の実行がcontextのアクセスキーを送り、401を通知する（`UI-API-041`の拡張）。
