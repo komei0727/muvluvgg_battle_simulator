@@ -6,6 +6,7 @@ import {
   SIMULATION_URL,
   TACTICAL_EXERCISE_EVALUATION_URL,
   TACTICAL_EXERCISE_URL,
+  TOTAL_WAR_URL,
 } from "./constants.js";
 
 export interface MockResponse {
@@ -65,6 +66,18 @@ export async function mockSimulationSequence(
 // 戦術演習POST（`POST /api/v1/tactical-exercises`）を戦闘POSTと同じ方針でmockする。
 export async function mockTacticalExercise(page: Page, response: MockResponse): Promise<void> {
   await page.route(TACTICAL_EXERCISE_URL, async (route) => {
+    await route.fulfill({
+      status: response.status,
+      contentType: "application/json",
+      headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS, ...response.headers },
+      body: JSON.stringify(response.body),
+    });
+  });
+}
+
+// 総力戦POST（`POST /api/v1/total-war-simulations`）を戦闘POSTと同じ方針でmockする。
+export async function mockTotalWar(page: Page, response: MockResponse): Promise<void> {
+  await page.route(TOTAL_WAR_URL, async (route) => {
     await route.fulfill({
       status: response.status,
       contentType: "application/json",
