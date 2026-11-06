@@ -16,6 +16,12 @@ export interface UiViolation {
    * 使えない。`slotKey`と対で、ユニット強化ダイアログの該当selectへ表示する。
    */
   readonly gearIndex?: number;
+  /**
+   * 総力戦の違反が指す編成index（編成番号 - 1。03_API・データ連携設計.md §6・§13）。
+   * `slotKey`は組の間で同じ文字列になるため、どの編成の枠かはこれで区別する。
+   * 通常戦闘・戦術演習の違反は持たない。
+   */
+  readonly formationIndex?: number;
   readonly code: string;
   readonly message: string;
   readonly severity: UiViolationSeverity;
