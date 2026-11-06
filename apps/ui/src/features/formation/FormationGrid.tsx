@@ -7,6 +7,7 @@ import type {
 } from "../../shared/api/api-contract.js";
 
 import { UnitSlot } from "./UnitSlot.js";
+import type { UnitSlotBadge } from "./UnitSlot.js";
 import styles from "./FormationGrid.module.css";
 
 export interface FormationStatPreviewView {
@@ -38,6 +39,8 @@ export interface FormationGridProps {
    */
   readonly onOpenUnitEnhancement?: (slotKey: string) => void;
   readonly enhancementEnabled?: boolean;
+  /** `slotKey`ごとの予告表示。総力戦の再登場など、モード側が決めて渡す。 */
+  readonly slotBadges?: ReadonlyMap<string, UnitSlotBadge>;
 }
 
 const ROWS: readonly UiRow[] = ["FRONT", "REAR"];
@@ -80,6 +83,7 @@ export function FormationGrid({
   onMoveUnit,
   onOpenUnitEnhancement,
   enhancementEnabled,
+  slotBadges,
 }: FormationGridProps) {
   // UI-AC-032: 移動元slotKey。dragとキーボード移動モードで共用する。
   // stateが陣営別のgridインスタンスに閉じているため、反対陣営のslotは
@@ -193,6 +197,10 @@ export function FormationGrid({
                       placeMove(slot.slotKey);
                     }}
                     {...(enhancementEnabled !== undefined ? { enhancementEnabled } : {})}
+                    {...(() => {
+                      const badge = slotBadges?.get(slot.slotKey);
+                      return badge !== undefined ? { badge } : {};
+                    })()}
                     statPreviewStatus={statPreview.status}
                     showBaseStats={showBaseStats}
                     {...(() => {

@@ -9,6 +9,8 @@ import type { BattleMode } from "../entities/battle-mode.js";
 import type {
   TacticalExerciseRequest,
   TacticalExerciseResponse,
+  TotalWarRequest,
+  TotalWarResponse,
 } from "../shared/api/api-contract.js";
 import { ModeTabs } from "../features/exercise/ModeTabs.js";
 import type { SelectionDialogState } from "../features/formation/formation-reducer.js";
@@ -21,6 +23,7 @@ import type { UseExerciseStatisticsRunOptions } from "../features/exercise/use-e
 
 import { NormalBattleMode } from "./NormalBattleMode.js";
 import { TacticalExerciseMode } from "./TacticalExerciseMode.js";
+import { TotalWarMode } from "./TotalWarMode.js";
 
 export interface BattleSimulatorPageProps {
   readonly apiBaseUrl: string;
@@ -31,6 +34,10 @@ export interface BattleSimulatorPageProps {
     TacticalExerciseRequest,
     TacticalExerciseResponse
   >["simulateImpl"];
+  readonly simulateTotalWarImpl?: UseSimulationExecutionOptions<
+    TotalWarRequest,
+    TotalWarResponse
+  >["simulateImpl"];
   readonly previewFormationStatsImpl?: UseFormationStatPreviewOptions["previewImpl"];
   readonly evaluateTacticalExerciseImpl?: UseExerciseStatisticsRunOptions["evaluateImpl"];
 }
@@ -38,9 +45,9 @@ export interface BattleSimulatorPageProps {
 /**
  * モード選択・Catalog取得・味方の共有育成データ（学園レベル・レベルリンク・
  * ユニット強化）だけを持つ（REF-059 / Issue #604）。編成draft・実行状態・
- * 統計実行はモード別コンテナ（`NormalBattleMode`／`TacticalExerciseMode`）が持つ。
+ * 統計実行はモード別コンテナ（`NormalBattleMode`／`TacticalExerciseMode`／`TotalWarMode`）が持つ。
  *
- * 両コンテナは常時マウントしたまま、非活性時は`active=false`でnullを返すだけに
+ * 各コンテナは常時マウントしたまま、非活性時は`active=false`でnullを返すだけに
  * する——実行状態・統計実行はlocalStorageへ永続化されないため、タブ切替でアン
  * マウントすると再訪時に消えてしまう（`UI-CT-032`）。
  */
@@ -50,6 +57,7 @@ export function BattleSimulatorPage({
   getCatalogImpl,
   simulateImpl,
   simulateTacticalExerciseImpl,
+  simulateTotalWarImpl,
   previewFormationStatsImpl,
   evaluateTacticalExerciseImpl,
 }: BattleSimulatorPageProps) {
@@ -141,6 +149,20 @@ export function BattleSimulatorPage({
           {...(simulateTacticalExerciseImpl !== undefined ? { simulateTacticalExerciseImpl } : {})}
           {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
           {...(evaluateTacticalExerciseImpl !== undefined ? { evaluateTacticalExerciseImpl } : {})}
+        />
+        <TotalWarMode
+          active={mode === "totalWar"}
+          apiBaseUrl={apiBaseUrl}
+          catalog={catalog}
+          onReloadCatalog={catalogLoader.reload}
+          showBaseStats={showBaseStats}
+          onShowBaseStatsChange={setShowBaseStats}
+          playerEnhancement={playerEnhancement}
+          selectionDialog={selectionDialog}
+          onRequestSelectionDialog={setSelectionDialog}
+          onCloseSelectionDialog={closeSelectionDialog}
+          {...(simulateTotalWarImpl !== undefined ? { simulateTotalWarImpl } : {})}
+          {...(previewFormationStatsImpl !== undefined ? { previewFormationStatsImpl } : {})}
         />
       </ApiAccessContext.Provider>
     </AppShell>

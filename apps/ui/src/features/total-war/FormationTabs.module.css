@@ -1,0 +1,20 @@
+.formationTabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* タブと追加・削除を1行に並べ、狭い幅では折り返す。 */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

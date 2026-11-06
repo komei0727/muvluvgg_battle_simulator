@@ -9,7 +9,7 @@ import { ERROR_KIND_GUIDANCE } from "./error-guidance.js";
 import type { UiApiError } from "../../shared/api/api-contract.js";
 import styles from "./SubmissionFeedback.module.css";
 
-type AnyExecutionState = ExecutionState<unknown, ExecutionResponseLike>;
+type AnyExecutionState = ExecutionState<unknown, ExecutionResponseLike, unknown>;
 type AnySuccessSnapshot = SuccessfulExecutionSnapshot<unknown, ExecutionResponseLike>;
 
 export interface SubmissionFeedbackProps {

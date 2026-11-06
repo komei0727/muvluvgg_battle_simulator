@@ -478,3 +478,44 @@ describe("UnitSlot — ユニット移動 (UI-CT-050/051)", () => {
     expect(screen.queryByRole("button", { name: /を移動/ })).not.toBeInTheDocument();
   });
 });
+
+describe("UnitSlot — badge", () => {
+  it("shows the badge as text in the slot and its accessible name, and adds the note to the stat preview", async () => {
+    const user = userEvent.setup();
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        unit={unit}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        badge={{ label: "再登場 −99%", previewNote: "再登場による −99% 補正は含みません" }}
+      />,
+    );
+
+    const slot = screen.getByRole("button", { name: "前衛1: アルファを変更、再登場 −99%" });
+    expect(screen.getByText("再登場 −99%")).toBeInTheDocument();
+
+    await user.hover(slot);
+
+    expect(screen.getByText("再登場による −99% 補正は含みません")).toBeInTheDocument();
+  });
+
+  it("does not show the badge on an empty slot", () => {
+    render(
+      <UnitSlot
+        row="FRONT"
+        column={0}
+        aptitudeWarning={false}
+        hasError={false}
+        disabled={false}
+        onOpen={vi.fn()}
+        badge={{ label: "再登場 −99%", previewNote: "再登場による −99% 補正は含みません" }}
+      />,
+    );
+
+    expect(screen.queryByText("再登場 −99%")).not.toBeInTheDocument();
+  });
+});

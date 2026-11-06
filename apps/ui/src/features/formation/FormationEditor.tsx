@@ -9,6 +9,7 @@ import type { BattleSimulationCatalogResponse } from "../../shared/api/api-contr
 import { EnhancementPanel } from "./EnhancementPanel.js";
 import { FormationGrid } from "./FormationGrid.js";
 import type { FormationStatPreviewView } from "./FormationGrid.js";
+import type { UnitSlotBadge } from "./UnitSlot.js";
 import { MemorySlot } from "./MemorySlot.js";
 import { memorySlotKeyOf } from "./types.js";
 import styles from "./FormationEditor.module.css";
@@ -32,6 +33,8 @@ export interface FormationEditorProps {
   readonly statPreview?: FormationStatPreviewView;
   /** UI-AC-034: 補正前ステータスの表示。両陣営で1つの切替を共有する。 */
   readonly showBaseStats?: boolean;
+  /** `slotKey`ごとの予告表示（総力戦の「再登場 −99%」）。検証ではなく送信を止めない。 */
+  readonly slotBadges?: ReadonlyMap<string, UnitSlotBadge>;
   readonly onOpenUnitSelection: (slotKey: string) => void;
   readonly onOpenMemorySelection: (side: Side, index: number) => void;
   readonly onOpenUnitEnhancement: (slotKey: string) => void;
@@ -64,6 +67,7 @@ export function FormationEditor({
   enhancement,
   statPreview = { status: "unavailable" },
   showBaseStats = false,
+  slotBadges,
   onOpenUnitSelection,
   onOpenMemorySelection,
   onOpenUnitEnhancement,
@@ -99,6 +103,7 @@ export function FormationEditor({
         onMoveUnit={onMoveUnit}
         onOpenUnitEnhancement={onOpenUnitEnhancement}
         enhancementEnabled={enhancement.enabled}
+        {...(slotBadges !== undefined ? { slotBadges } : {})}
       />
 
       <div className={styles["memoryArea"]}>

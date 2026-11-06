@@ -9,9 +9,10 @@ export interface ModeTabsProps {
 const MODE_ITEMS: readonly { readonly id: BattleMode; readonly label: string }[] = [
   { id: "battle", label: "通常戦闘" },
   { id: "exercise", label: "戦術演習" },
+  { id: "totalWar", label: "総力戦" },
 ];
 
-// UI-CMP-010 / UI-AC-018: 通常戦闘と戦術演習の表示・入力・結果を切り替える。
+// UI-CMP-010 / UI-AC-018 / UI-AC-055: 通常戦闘・戦術演習・総力戦の表示・入力・結果を切り替える。
 // keyboard操作と`aria-selected`はcomponents/Tabs.tsxのroving tabindex実装が持つ
 // （WAI-ARIA APG「Tabs with Automatic Activation」）。
 export function ModeTabs({ mode, onChange }: ModeTabsProps) {
