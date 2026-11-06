@@ -1,0 +1,18 @@
+{
+  "status": 422,
+  "body": {
+    "schemaVersion": 1,
+    "error": {
+      "code": "INVALID_COMMAND",
+      "message": "The request contains invalid battle conditions.",
+      "violations": [
+        {
+          "message": "duplicates a UnitDefinitionId already placed in this formation: \"UNIT_UI_FIXTURE_ENEMY\"",
+          "path": "/enemyFormations/1/units/1/unitDefinitionId",
+          "definitionId": "UNIT_UI_FIXTURE_ENEMY",
+          "ruleId": "R-TWR-01"
+        }
+      ]
+    }
+  }
+}

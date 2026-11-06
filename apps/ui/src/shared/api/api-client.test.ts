@@ -6,12 +6,14 @@ import {
   previewFormationStats,
   simulate,
   simulateTacticalExercise,
+  simulateTotalWar,
 } from "./api-client.js";
 import type {
   BattleSimulationRequest,
   FormationStatPreviewRequest,
   TacticalExerciseEvaluationRequest,
   TacticalExerciseRequest,
+  TotalWarRequest,
 } from "./api-contract.js";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -327,6 +329,7 @@ describe("access key header", () => {
       "evaluateTacticalExercise",
       (options) => evaluateTacticalExercise({} as TacticalExerciseEvaluationRequest, options),
     ],
+    ["simulateTotalWar", (options) => simulateTotalWar({} as TotalWarRequest, options)],
     [
       "previewFormationStats",
       (options) => previewFormationStats({} as FormationStatPreviewRequest, options),

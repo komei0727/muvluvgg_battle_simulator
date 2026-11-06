@@ -249,6 +249,113 @@ export type SimulationApiResult = ExecutionApiResult<BattleSimulationResponse>;
 
 export type TacticalExerciseApiResult = ExecutionApiResult<TacticalExerciseResponse>;
 
+// docs/ddd/10_API設計.md「TotalWarResponse」/ docs/ui-design/03_API・データ連携設計.md §2.7, §9.2。
+// 戦闘ログ部分は`BattleLogResponse`と同じく手書きの緩いmirrorにする（未知の列挙値・
+// 追加プロパティを落とさない）。生成型との整合は、生成型がこのmirrorへ代入できることを
+// `response-validator.total-war.test.ts`の型検査で固定する。
+
+/** 総力戦の`BattleUnitStateResponse`。所属する編成の番号を持つ。 */
+export interface TotalWarBattleUnitStateResponse extends BattleUnitStateResponse {
+  readonly formationNumber?: number;
+}
+
+/** docs/ddd/10_API設計.md「SideFormationStateResponse」。 */
+export interface SideFormationStateResponse {
+  readonly formationCount: number;
+  readonly activeFormationNumber: number;
+  readonly defeatedCount: number;
+  readonly [key: string]: unknown;
+}
+
+export interface TotalWarBattleStateResponse extends BattleStateResponse {
+  readonly units: readonly TotalWarBattleUnitStateResponse[];
+  readonly formations?: {
+    readonly ally: SideFormationStateResponse;
+    readonly enemy: SideFormationStateResponse;
+  };
+}
+
+/**
+ * docs/ddd/10_API設計.md「BattleStateDeltaResponse」の総力戦だけが持つ2項目。
+ * `addedUnits`は`FORMATION_DEPLOYED`で盤面へ加わったユニットの完全な開始状態、
+ * `formations`は陣営ごとの表示中編成・撃破数の値の変化。
+ */
+export interface TotalWarStateDeltaResponse {
+  readonly addedUnits?: readonly TotalWarBattleUnitStateResponse[];
+  readonly formations?: {
+    readonly ally?: Readonly<Record<string, unknown>>;
+    readonly enemy?: Readonly<Record<string, unknown>>;
+  };
+  readonly [key: string]: unknown;
+}
+
+export interface TotalWarStateTransitionResponse extends StateTransitionResponse {
+  readonly delta?: TotalWarStateDeltaResponse;
+}
+
+/** docs/ddd/10_API設計.md「TotalWarStageResponse」（R-TWR-06 #4）。 */
+export interface TotalWarStageResponse {
+  readonly stageNumber: number;
+  readonly allyFormationNumber: number;
+  readonly enemyFormationNumber: number;
+  readonly startTurn: number;
+  readonly endTurn: number;
+  readonly defeatedSides: readonly string[];
+  readonly [key: string]: unknown;
+}
+
+/**
+ * docs/ddd/10_API設計.md「TotalWarResultResponse」。通常戦闘と違い`outcome`は`DRAW`をとり、
+ * `completionReason`の`SIMULTANEOUS_DEFEAT`・`TURN_LIMIT_REACHED`は引き分けを表す（R-TWR-06 #1）。
+ */
+export interface TotalWarResultResponse {
+  readonly outcome: string;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly stages: readonly TotalWarStageResponse[];
+  readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
+  readonly [key: string]: unknown;
+}
+
+/** docs/ddd/10_API設計.md「TotalWarUnitRosterResponse」。全編成の全ユニットを1行ずつ持つ。 */
+export interface TotalWarUnitRosterResponse {
+  readonly battleUnitId: string;
+  readonly unitDefinitionId: string;
+  readonly side: string;
+  readonly formationNumber: number;
+  readonly formationPosition: {
+    readonly column: number;
+    readonly row: string;
+    readonly [key: string]: unknown;
+  };
+  /** 再登場の基礎値補正（R-TWR-02）を受けたか。UIは表示にだけ使う。 */
+  readonly reappearance: boolean;
+  /** 一度でも盤面へ出たか。控えのまま終わった編成のユニットは`false`。 */
+  readonly deployed: boolean;
+  readonly [key: string]: unknown;
+}
+
+/** 総力戦の`UnitBattleSummaryResponse`。出撃しなかったユニットの行も持つ。 */
+export interface TotalWarUnitBattleSummaryResponse extends UnitBattleSummaryResponse {
+  readonly formationNumber: number;
+  readonly deployed: boolean;
+}
+
+/**
+ * docs/ddd/10_API設計.md「TotalWarResponse」。`initialState`は両陣営の1番目の編成だけを
+ * 含むため、表示用Rosterは`unitRoster`から作る（03_API・データ連携設計.md §10.1）。
+ */
+export interface TotalWarResponse extends BattleLogResponse {
+  readonly result: TotalWarResultResponse;
+  readonly initialState: TotalWarBattleStateResponse;
+  readonly finalState?: TotalWarBattleStateResponse;
+  readonly unitRoster: readonly TotalWarUnitRosterResponse[];
+  readonly unitSummaries: readonly TotalWarUnitBattleSummaryResponse[];
+  readonly stateTransitions: readonly TotalWarStateTransitionResponse[];
+}
+
+export type TotalWarApiResult = ExecutionApiResult<TotalWarResponse>;
+
 // docs/ddd/10_API設計.md「TacticalExerciseCandidateEvaluationResponse」。統計量は
 // 返らない（Q-TEX-16）ため、UIは試行ごとの生値だけを受け取って自分で集計する。
 // 6つの配列は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。
@@ -377,6 +484,16 @@ export interface FormationStatPreviewRequest {
 export interface TacticalExerciseRequest {
   readonly allyFormation: FormationRequest;
   readonly enemyFormation: FormationRequest;
+  readonly options: { readonly logLevel: LogLevel };
+}
+
+/**
+ * docs/ddd/10_API設計.md「TotalWarRequest」/ 03_API・データ連携設計.md §5.2。各陣営の編成を
+ * 出撃順に1〜3件並べる。`turnLimit`は持たない（15固定。APIは未定義プロパティとして拒否する）。
+ */
+export interface TotalWarRequest {
+  readonly allyFormations: readonly FormationRequest[];
+  readonly enemyFormations: readonly FormationRequest[];
   readonly options: { readonly logLevel: LogLevel };
 }
 

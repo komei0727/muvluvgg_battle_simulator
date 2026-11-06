@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import capacityErrorFixture from "../../test/fixtures/error-capacity.json";
 import invalidCommandErrorFixture from "../../test/fixtures/error-invalid-command.json";
+import totalWarInvalidCommandErrorFixture from "../../test/fixtures/total-war-error-invalid-command.json";
 import { normalizeHttpErrorResponse } from "./error-normalizer.js";
 
 /**
@@ -38,5 +39,19 @@ describe("normalizeHttpErrorResponse contract fixtures", () => {
     expect(result.kind).toBe("CAPACITY");
     expect(result.code).toBe("CAPACITY_EXCEEDED");
     expect(result.retryAfterSeconds).toBe(5);
+  });
+
+  // UI-API-047の前提: 総力戦の422は編成の添字を含むpathで届く。
+  it("normalizes total-war-error-invalid-command.json (real HTTP 422) keeping the formation-indexed path", () => {
+    const result = normalizeHttpErrorResponse({
+      status: totalWarInvalidCommandErrorFixture.status,
+      body: totalWarInvalidCommandErrorFixture.body,
+    });
+
+    expect(totalWarInvalidCommandErrorFixture.status).toBe(422);
+    expect(result.kind).toBe("VALIDATION");
+    expect(result.code).toBe("INVALID_COMMAND");
+    expect(result.violations?.[0]?.path).toBe("/enemyFormations/1/units/1/unitDefinitionId");
+    expect(result.violations?.[0]?.ruleId).toBe("R-TWR-01");
   });
 });
