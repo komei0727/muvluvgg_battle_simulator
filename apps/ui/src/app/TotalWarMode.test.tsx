@@ -238,6 +238,38 @@ describe("TotalWarMode — formation tabs", () => {
     expect(within(enemyTabs()).getAllByRole("tab")).toHaveLength(1);
   });
 
+  it.each([
+    ["switching to another formation", "switch"],
+    ["adding a formation", "add"],
+    ["removing the displayed formation", "remove"],
+  ] as const)("does not carry a pending unit move over %s", async (_label, operation) => {
+    const user = userEvent.setup();
+    renderPage();
+    await openTotalWar(user);
+    await placeUnit(user, allySection(), "前衛1にユニットを追加", "アルファ");
+    await user.click(within(allyPanel()).getByRole("button", { name: "編成を追加" }));
+    await placeUnit(user, allySection(), "前衛1にユニットを追加", "ベータ");
+    await user.click(within(allyTabs()).getByRole("tab", { name: /編成1/ }));
+
+    await user.click(within(allySection()).getByRole("button", { name: "前衛1: アルファを移動" }));
+    if (operation === "switch") {
+      await user.click(within(allyTabs()).getByRole("tab", { name: /編成2/ }));
+    } else if (operation === "add") {
+      await user.click(within(allyPanel()).getByRole("button", { name: "編成を追加" }));
+    } else {
+      await user.click(within(allyPanel()).getByRole("button", { name: "この編成を削除" }));
+    }
+
+    const unitBefore = within(allySection()).queryByRole("button", { name: /前衛1: .+を変更/ });
+    await user.click(within(allySection()).getByRole("button", { name: "後衛1にユニットを追加" }));
+
+    expect(screen.getByRole("dialog", { name: "ユニットを選択" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    expect(within(allySection()).queryByRole("button", { name: /前衛1: .+を変更/ })).toBe(
+      unitBefore,
+    );
+  });
+
   it("UI-CT-166: adds an empty formation tab up to 3 and removes the displayed formation, shifting later ones forward", async () => {
     const user = userEvent.setup();
     renderPage();

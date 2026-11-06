@@ -285,7 +285,11 @@ export function TotalWarMode({
           dispatch({ type: "formationRemoved", side });
         }}
       >
+        {/* 移動元など編成グリッドのlocal stateは表示中の編成に属する。表示対象が変わったら
+            作り直し、別の編成の枠へ移動が持ち越されないようにする。削除では表示中のindexが
+            変わらないまま中身が入れ替わるため、編成数も鍵に含める。 */}
         <FormationEditor
+          key={`${side}-${String(activeFormation[side])}-${String(effectiveDraft.formationCounts[side])}`}
           side={side}
           slots={slotsForSide(displayedDraft, side)}
           memoryDefinitionIds={memorySlotsForSide(displayedDraft, side)}
