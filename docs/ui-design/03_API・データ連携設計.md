@@ -312,6 +312,7 @@ interface TotalWarDraft {
 - 各組の`BattleDraft`は通常戦闘と同じ形のまま使う。そのため、編成エディタ・選択ダイアログ・ユニット強化ダイアログ・1編成ぶんのリクエスト生成（`buildFormation`）と検証規則を、総力戦を知らないまま再利用できる。
 - 各組の`turnLimit`・`logLevel`・`exerciseExecution`は総力戦では読まない。ログレベルは`TotalWarDraft.logLevel`だけを使う。
 - 陣営の強化入力（`SideEnhancementInput`：強化トグル・学園レベル・レベルリンク）は3組すべてで同じ値に保つ（`01_UI要求・画面設計.md` §5.10）。保つのはreducerの責務で、リクエスト生成は各組の値をそのまま読む。
+- 味方枠のユニット強化（`FormationSlotInput.enhancement`）は他モードと同じく3組とも既定値のまま持たない。リクエスト生成・検証・プレビューは、各組へ`withPlayerEnhancement`で手持ちデータ（ユニット定義ID単位）を重ねた結果を読む。したがって同じユニット定義の味方枠は、編成を問わず同じ`enhancement`で送られる。敵枠の`enhancement`は各組が枠ごとに持つ。
 - 編成数を超える組（味方が2編成なら3組目の味方側）はリクエスト生成・検証・プレビューの対象外とする。値は保持しない——編成を削除すると後ろの組が前へ詰まり、末尾の組は初期状態へ戻る。
 - `slotKey`は組の間で同じ文字列になる。違反（`UiViolation`）は`formationIndex`を持ち、どの組の枠かを区別する。
 
