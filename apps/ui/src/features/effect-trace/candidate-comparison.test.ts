@@ -214,3 +214,51 @@ describe("compareRankCandidates", () => {
     expect(comparison?.gapToRunnerUp).toBeUndefined();
   });
 });
+
+// UI-UT-TWR-019 / UI-CMP-041: 途中から出撃したユニットを候補に含め、出撃前の解決では含めない。
+describe("compareRankCandidates with total war addedUnits (UI-UT-TWR-019)", () => {
+  const totalWarResponse: BattleLogResponse = {
+    ...RESPONSE,
+    stateTransitions: [
+      ...RESPONSE.stateTransitions,
+      {
+        causedBySequence: 30,
+        stateVersionBefore: 30,
+        stateVersionAfter: 31,
+        delta: { addedUnits: [unit("ally:4", 2000)] },
+      },
+    ],
+  };
+  const sides: ReadonlyMap<string, string> = new Map([...SIDE_BY_UNIT_ID, ["ally:4", "ALLY"]]);
+
+  function compareAt(resolutionStartSequence: number) {
+    return compareRankCandidates({
+      instance: instance({ resolutionStartSequence, holderUnitId: "ally:4" }),
+      timeline: buildCombatStatTimeline(totalWarResponse),
+      sideByUnitId: sides,
+    });
+  }
+
+  it("includes a unit that joined before the resolution, starting from its addedUnits value", () => {
+    const comparison = compareAt(50);
+
+    expect(comparison?.candidates.map((c) => [c.battleUnitId, c.value])).toEqual([
+      ["ally:4", 2000],
+      ["ally:1", 1500],
+      ["ally:2", 1200],
+      ["ally:3", 800],
+    ]);
+    expect(comparison?.hasUnreadableCandidate).toBe(false);
+  });
+
+  it("leaves out a unit that had not joined yet instead of counting it as unreadable", () => {
+    const comparison = compareAt(20);
+
+    expect(comparison?.candidates.map((c) => c.battleUnitId)).toEqual([
+      "ally:1",
+      "ally:2",
+      "ally:3",
+    ]);
+    expect(comparison?.hasUnreadableCandidate).toBe(false);
+  });
+});

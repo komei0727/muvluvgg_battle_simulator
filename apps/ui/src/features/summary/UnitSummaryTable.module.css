@@ -101,3 +101,27 @@
   padding: var(--space-3);
   color: var(--color-text-muted);
 }
+
+/* 総力戦（01_UI要求・画面設計.md §7.5）: 陣営の中を編成番号ごとの見出しで区切る。 */
+.table .formationHeading th {
+  padding-top: var(--space-3);
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-align: left;
+}
+
+.badge {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  color: var(--color-warning);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.statusUndeployed {
+  color: var(--color-text-muted);
+}

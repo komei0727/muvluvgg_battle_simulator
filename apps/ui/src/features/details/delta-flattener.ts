@@ -162,7 +162,31 @@ function updatedLines(prefix: string, entries: readonly unknown[]): readonly Del
   });
 }
 
-export function flattenDelta(delta: unknown, prefix = ""): readonly DeltaLine[] {
+export interface FlattenDeltaOptions {
+  /** `addedUnits`の行に出すユニット名。省略時は`battleUnitId`のまま出す。 */
+  readonly resolveUnitName?: (battleUnitId: string) => string;
+}
+
+/**
+ * 総力戦の`addedUnits`（`FORMATION_DEPLOYED`が所有）。要素は`BattleStateResponse.units`と
+ * 同じ完全な形なので、全項目を行へ展開せず、ユニットを名指しする1行に留める。
+ */
+function addedUnitLines(
+  entries: readonly unknown[],
+  resolveUnitName: (battleUnitId: string) => string,
+): readonly DeltaLine[] {
+  return entries.map((entry, index) => {
+    const battleUnitId = firstString(entry, ["battleUnitId"]);
+    const label = battleUnitId !== undefined ? resolveUnitName(battleUnitId) : formatValue(entry);
+    return { path: `addedUnits[${String(index)}]`, text: `+ ${label} 出撃` };
+  });
+}
+
+function flattenAt(
+  delta: unknown,
+  prefix: string,
+  resolveUnitName: (battleUnitId: string) => string,
+): readonly DeltaLine[] {
   if (!isRecord(delta)) {
     return [];
   }
@@ -180,7 +204,17 @@ export function flattenDelta(delta: unknown, prefix = ""): readonly DeltaLine[] 
       ...presenceLines(prefix, "removed", delta.removed),
     ];
   }
-  return Object.entries(delta).flatMap(([key, value]) =>
-    flattenDelta(value, prefix ? `${prefix}.${key}` : key),
-  );
+  return Object.entries(delta).flatMap(([key, value]) => {
+    if (prefix === "" && key === "addedUnits" && Array.isArray(value)) {
+      return addedUnitLines(value, resolveUnitName);
+    }
+    return flattenAt(value, prefix ? `${prefix}.${key}` : key, resolveUnitName);
+  });
+}
+
+export function flattenDelta(
+  delta: unknown,
+  options: FlattenDeltaOptions = {},
+): readonly DeltaLine[] {
+  return flattenAt(delta, "", options.resolveUnitName ?? ((battleUnitId) => battleUnitId));
 }

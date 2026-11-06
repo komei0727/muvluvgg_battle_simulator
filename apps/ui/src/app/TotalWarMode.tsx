@@ -34,9 +34,12 @@ import {
 import { SubmissionFeedback } from "../features/simulation/SubmissionFeedback.js";
 import type { UseSimulationExecutionOptions } from "../features/simulation/use-simulation-execution.js";
 import { useSimulationExecution } from "../features/simulation/use-simulation-execution.js";
+import { BattleDetailsSection } from "../features/details/BattleDetailsSection.js";
 import { FormationTabs } from "../features/total-war/FormationTabs.js";
 import { reappearanceSlotId, selectReappearanceSlots } from "../features/total-war/reappearance.js";
 import { usedFormationIndices } from "../features/total-war/total-war-draft.js";
+import { selectTotalWarRoster } from "../features/total-war/total-war-result-projector.js";
+import { TotalWarSummarySection } from "../features/total-war/TotalWarSummarySection.js";
 import type { TotalWarDraft } from "../features/total-war/total-war-draft.js";
 import { validateTotalWarDraft } from "../features/total-war/total-war-draft-validation.js";
 import { totalWarReducer } from "../features/total-war/total-war-reducer.js";
@@ -97,6 +100,13 @@ export interface TotalWarModeProps {
 }
 
 const NO_VIOLATIONS: readonly UiViolation[] = [];
+
+const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
+  schemaVersion: 1,
+  catalogRevision: "",
+  units: [],
+  memories: [],
+};
 
 function validateWhenReady(
   draft: TotalWarDraft,
@@ -213,6 +223,16 @@ export function TotalWarMode({
   const catalogRevisionMismatch = selectIsCatalogRevisionMismatch(
     displayedSuccess,
     catalog.status === "ready" ? catalog.response.catalogRevision : undefined,
+  );
+  const readyCatalog = catalog.status === "ready" ? catalog.response : undefined;
+  // サマリと詳細の両方が同じRosterを使う。`initialState`は1番目の編成しか含まないため、
+  // 途中から出撃したユニットも名前で出るよう`unitRoster`から作る（UI-CMP-040）。
+  const resultRoster = useMemo(
+    () =>
+      displayedSuccess === undefined
+        ? undefined
+        : selectTotalWarRoster(displayedSuccess.response, readyCatalog ?? EMPTY_CATALOG),
+    [displayedSuccess, readyCatalog],
   );
 
   const openSelection = useCallback(
@@ -415,6 +435,30 @@ export function TotalWarMode({
           catalogRevisionMismatch={catalogRevisionMismatch}
           onReloadCatalog={onReloadCatalog}
         />
+
+        {displayedSuccess !== undefined &&
+        resultRoster !== undefined &&
+        !catalogRevisionMismatch ? (
+          <>
+            <Panel step="02" title="総力戦サマリ" meta="OUTCOME / HISTORY / ROSTER">
+              <TotalWarSummarySection
+                response={displayedSuccess.response}
+                request={displayedSuccess.request}
+                roster={resultRoster}
+                {...(readyCatalog !== undefined ? { catalog: readyCatalog } : {})}
+                imageMap={unitImageMap}
+              />
+            </Panel>
+            <Panel step="03" title="戦闘詳細データ" meta="AUDIT TRAIL / RAW RESPONSE">
+              <BattleDetailsSection
+                response={displayedSuccess.response}
+                logLevel={displayedSuccess.request.options.logLevel}
+                roster={resultRoster}
+                {...(readyCatalog !== undefined ? { catalog: readyCatalog } : {})}
+              />
+            </Panel>
+          </>
+        ) : null}
       </div>
 
       {catalog.status === "ready" ? (

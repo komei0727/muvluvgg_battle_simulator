@@ -49,8 +49,9 @@ export interface SummaryProjection {
 export function selectBattleSummary(
   response: BattleLogResponse,
   catalog: BattleSimulationCatalogResponse,
+  // 総力戦は`unitRoster`由来のRosterを渡す（`initialState`は1番目の編成しか含まない）。
+  roster: readonly RosterEntry[] = selectRoster(response, catalog),
 ): SummaryProjection {
-  const roster = selectRoster(response, catalog);
   const summaryByUnitId = new Map(
     response.unitSummaries.map((summary) => [summary.battleUnitId, summary] as const),
   );
@@ -73,7 +74,7 @@ export function selectBattleSummary(
       maximumHp: served?.maximumHp ?? 0,
     };
     const row: SummaryRow = { roster: entry, summary };
-    // 陣営は表示用Roster（`initialState`）が正本。`unitSummaries[].side`と
+    // 陣営は表示用Rosterが正本。`unitSummaries[].side`と
     // 二重に持つが、行の並びと表の左右はRoster側の`side`で決まる。
     if (entry.side === "ENEMY") {
       enemyRows.push(row);

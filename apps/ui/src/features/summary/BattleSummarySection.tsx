@@ -5,6 +5,7 @@ import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
 } from "../../shared/api/api-contract.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import { UnitSummaryTable } from "./UnitSummaryTable.js";
 import styles from "./BattleSummarySection.module.css";
 
@@ -18,6 +19,11 @@ export interface BattleSummarySectionProps {
    */
   readonly header: ReactNode;
   readonly imageMap?: Readonly<Record<string, string>>;
+  /**
+   * 表示用Roster。省略時は`initialState`から作る（通常戦闘・戦術演習）。総力戦は
+   * `unitRoster`由来のRosterを渡す（03_API・データ連携設計.md §10.1）。
+   */
+  readonly roster?: readonly RosterEntry[];
 }
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -36,10 +42,11 @@ export function BattleSummarySection({
   catalog,
   header,
   imageMap,
+  roster,
 }: BattleSummarySectionProps) {
   const projection = useMemo(
-    () => selectBattleSummary(response, catalog ?? EMPTY_CATALOG),
-    [response, catalog],
+    () => selectBattleSummary(response, catalog ?? EMPTY_CATALOG, roster),
+    [response, catalog, roster],
   );
 
   return (

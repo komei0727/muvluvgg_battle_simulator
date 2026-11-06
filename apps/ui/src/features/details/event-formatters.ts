@@ -17,6 +17,7 @@ import {
 } from "./event-presentation.js";
 import { resourceEventFormatters } from "./resource-event-formatters.js";
 import { skillEventFormatters } from "./skill-event-formatters.js";
+import { totalWarEventFormatters } from "./total-war-event-formatters.js";
 import type { EventPresentation, EventSeverity, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
@@ -40,6 +41,8 @@ const eventFormatters = mergeDisjointFormatters({
   damage: damageEventFormatters,
   // TEX-008（Issue #434）: 戦術演習専用イベント。
   exercise: exerciseEventFormatters,
+  // TW-010e（Issue #790）: 総力戦の編成の出撃・全滅。
+  totalWar: totalWarEventFormatters,
 });
 
 function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {

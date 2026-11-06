@@ -3,11 +3,15 @@ import { Button } from "../../components/Button.js";
 import { flattenDelta } from "./delta-flattener.js";
 import type { StateTransitionResponse } from "../../shared/api/api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
+import { resolveDisplayName } from "./event-presentation.js";
+import type { RosterIndex } from "./event-presentation.js";
 import styles from "./StateTransitionTable.module.css";
 
 export interface StateTransitionTableProps {
   readonly transitions: readonly StateTransitionResponse[];
   readonly highlightedIndex?: number;
+  /** 総力戦の`addedUnits`の行にユニット名を出すために使う。 */
+  readonly roster?: RosterIndex;
 }
 
 function targetOf(delta: unknown): string {
@@ -31,7 +35,13 @@ function targetOf(delta: unknown): string {
 // docs/ui-design/01_UI要求・画面設計.md §8.2: stateTransitionsの配列順のまま
 // version before/after、causedBySequence、対象、deltaを表示する。deltaはツ
 // リー表示とJSON表示を行単位で切り替えられる。
-export function StateTransitionTable({ transitions, highlightedIndex }: StateTransitionTableProps) {
+export function StateTransitionTable({
+  transitions,
+  highlightedIndex,
+  roster,
+}: StateTransitionTableProps) {
+  const resolveUnitName = (battleUnitId: string) =>
+    roster !== undefined ? resolveDisplayName(roster, battleUnitId) : battleUnitId;
   const [jsonModeIndices, setJsonModeIndices] = useState<ReadonlySet<number>>(new Set());
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
 
@@ -100,7 +110,7 @@ export function StateTransitionTable({ transitions, highlightedIndex }: StateTra
                     <pre>{JSON.stringify(delta, null, 2)}</pre>
                   ) : (
                     <ul>
-                      {flattenDelta(delta).map((line) => (
+                      {flattenDelta(delta, { resolveUnitName }).map((line) => (
                         <li key={line.path} className={styles["deltaLine"]}>
                           {line.path}: {line.text}
                         </li>

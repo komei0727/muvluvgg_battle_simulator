@@ -42,8 +42,13 @@ export interface CombatStatTimeline {
    * 初期値が読めない、または系列が信頼できない場合は`undefined`。
    */
   valueBefore(battleUnitId: string, field: CombatStatField, sequence: number): number | undefined;
-  /** 開始時（`initialState`）の値。 */
+  /** 開始時（`initialState`、途中から出撃したユニットは`addedUnits`の要素）の値。 */
   initialValue(battleUnitId: string, field: CombatStatField): number | undefined;
+  /**
+   * 総力戦で`addedUnits`により`sequence`以降に盤面へ加わったユニットか。開始時に居ない
+   * だけのユニット（値が読めない候補）とは区別し、こちらは候補の母集団から外す。
+   */
+  isAbsentBefore(battleUnitId: string, sequence: number): boolean;
   /** 開始時からその時点までの内訳。打ち消しあって0になった効果は含めない。 */
   contributionsBefore(
     battleUnitId: string,
@@ -165,41 +170,63 @@ function readDeltaEntries(transition: unknown): readonly DeltaEntry[] {
   return entries;
 }
 
-function readInitialSeries(response: BattleLogResponse): Map<string, Series> {
-  const series = new Map<string, Series>();
-  for (const unit of response.initialState.units) {
-    const battleUnitId = stringOf(unit["battleUnitId"]);
-    if (battleUnitId === undefined) {
-      continue;
-    }
-    const combatStats = unit["combatStats"];
-    if (isRecord(combatStats)) {
-      for (const [field, value] of Object.entries(combatStats)) {
-        const initialValue = numberOf(value);
-        if (initialValue !== undefined) {
-          series.set(seriesKey(battleUnitId, field as CombatStatField), {
-            initialValue,
-            changes: [],
-          });
-        }
-      }
-    }
-    const hp = unit["hp"];
-    if (isRecord(hp)) {
-      const maximum = numberOf(hp["maximum"]);
-      if (maximum !== undefined) {
-        series.set(seriesKey(battleUnitId, HP_MAXIMUM_FIELD), {
-          initialValue: maximum,
-          changes: [],
-        });
+/** ユニットの状態スナップショット（`BattleUnitStateResponse`の形）から系列の開始値を置く。 */
+function seedUnitSeries(
+  series: Map<string, Series>,
+  running: Map<string, number>,
+  unit: unknown,
+): string | undefined {
+  if (!isRecord(unit)) {
+    return undefined;
+  }
+  const battleUnitId = stringOf(unit["battleUnitId"]);
+  if (battleUnitId === undefined) {
+    return undefined;
+  }
+  const seed = (key: string, initialValue: number) => {
+    series.set(key, { initialValue, changes: [] });
+    running.set(key, initialValue);
+  };
+  const combatStats = unit["combatStats"];
+  if (isRecord(combatStats)) {
+    for (const [field, value] of Object.entries(combatStats)) {
+      const initialValue = numberOf(value);
+      if (initialValue !== undefined) {
+        seed(seriesKey(battleUnitId, field as CombatStatField), initialValue);
       }
     }
   }
-  return series;
+  const hp = unit["hp"];
+  if (isRecord(hp)) {
+    const maximum = numberOf(hp["maximum"]);
+    if (maximum !== undefined) {
+      seed(seriesKey(battleUnitId, HP_MAXIMUM_FIELD), maximum);
+    }
+  }
+  return battleUnitId;
+}
+
+function readAddedUnits(transition: unknown): readonly unknown[] {
+  if (!isRecord(transition)) {
+    return [];
+  }
+  const delta = transition["delta"];
+  if (!isRecord(delta)) {
+    return [];
+  }
+  const addedUnits = delta["addedUnits"];
+  return Array.isArray(addedUnits) ? addedUnits : [];
 }
 
 export function buildCombatStatTimeline(response: BattleLogResponse): CombatStatTimeline {
-  const series = readInitialSeries(response);
+  const series = new Map<string, Series>();
+  // 手元の折り畳み値。`before`との突き合わせに使う。
+  const running = new Map<string, number>();
+  for (const unit of response.initialState.units) {
+    seedUnitSeries(series, running, unit);
+  }
+  // 総力戦で途中から盤面へ加わったユニットと、加わった状態遷移の`causedBySequence`。
+  const joinedAtSequence = new Map<string, number>();
 
   const eventBySequence = new Map<number, BattleLogEventResponse>();
   for (const event of response.events) {
@@ -213,18 +240,18 @@ export function buildCombatStatTimeline(response: BattleLogResponse): CombatStat
     (a, b) => (numberOf(a["causedBySequence"]) ?? 0) - (numberOf(b["causedBySequence"]) ?? 0),
   );
 
-  // 手元の折り畳み値。`before`との突き合わせに使う。
-  const running = new Map<string, number>();
-  for (const [key, entry] of series) {
-    if (entry.initialValue !== undefined) {
-      running.set(key, entry.initialValue);
-    }
-  }
-
   for (const transition of sortedTransitions) {
     const causedBySequence = numberOf(transition["causedBySequence"]);
     if (causedBySequence === undefined) {
       continue;
+    }
+    // 08_ドメインイベント.md「addedUnits」: 出撃は同じ状態遷移の他の差分より先に適用する。
+    // 開始値はRosterから作り直さず要素から取る（HP・ステータスは要素だけが持つ）。
+    for (const added of readAddedUnits(transition)) {
+      const battleUnitId = seedUnitSeries(series, running, added);
+      if (battleUnitId !== undefined) {
+        joinedAtSequence.set(battleUnitId, causedBySequence);
+      }
     }
     const causingEvent = eventBySequence.get(causedBySequence);
     for (const entry of readDeltaEntries(transition)) {
@@ -263,6 +290,11 @@ export function buildCombatStatTimeline(response: BattleLogResponse): CombatStat
     if (found === undefined || found.initialValue === undefined) {
       return undefined;
     }
+    // 盤面へ加わる前の時点には値が無い。
+    const joinedAt = joinedAtSequence.get(battleUnitId);
+    if (joinedAt !== undefined && sequence <= joinedAt) {
+      return undefined;
+    }
     // 不整合を跨いだ時点より後は、値も内訳も出さない。
     if (found.brokenFromSequence !== undefined && sequence > found.brokenFromSequence) {
       return undefined;
@@ -282,6 +314,10 @@ export function buildCombatStatTimeline(response: BattleLogResponse): CombatStat
     },
     initialValue(battleUnitId, field) {
       return series.get(seriesKey(battleUnitId, field))?.initialValue;
+    },
+    isAbsentBefore(battleUnitId, sequence) {
+      const joinedAt = joinedAtSequence.get(battleUnitId);
+      return joinedAt !== undefined && sequence <= joinedAt;
     },
     contributionsBefore(battleUnitId, field, sequence) {
       const found = readableSeries(battleUnitId, field, sequence);

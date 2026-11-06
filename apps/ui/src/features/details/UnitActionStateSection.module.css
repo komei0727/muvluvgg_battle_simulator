@@ -122,3 +122,10 @@
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
+
+/* 総力戦（01_UI要求・画面設計.md §8.9）: 全編成の全ユニットを編成ごとに出す。 */
+.formationHeading {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}

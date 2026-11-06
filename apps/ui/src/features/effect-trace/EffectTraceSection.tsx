@@ -8,6 +8,7 @@ import type { EffectTraceInstance, EffectTraceOutcome } from "./effect-trace-pro
 import { FOCUSED_EFFECT_ACTION_DEFINITION_IDS } from "./focused-effects.js";
 import { resolveDisplayName } from "../details/event-presentation.js";
 import type { RosterIndex } from "../details/event-presentation.js";
+import { isTotalWarRosterEntry } from "../../entities/roster.js";
 import type { BattleLogResponse } from "../../shared/api/api-contract.js";
 import styles from "./EffectTraceSection.module.css";
 
@@ -158,8 +159,14 @@ export function EffectTraceSection({ response, roster }: EffectTraceSectionProps
   const trace = useMemo(() => projectEffectTrace(response.events), [response]);
   const timeline = useMemo(() => buildCombatStatTimeline(response), [response]);
   // 候補の母集団を付与先と同じ陣営に限るために要る（`candidate-comparison.ts`）。
+  // 総力戦で一度も出撃しなかったユニットは盤面に居たことがないので、母集団から外す。
   const sideByUnitId = useMemo(
-    () => new Map([...roster].map(([battleUnitId, entry]) => [battleUnitId, entry.side] as const)),
+    () =>
+      new Map(
+        [...roster]
+          .filter(([, entry]) => !isTotalWarRosterEntry(entry) || entry.deployed)
+          .map(([battleUnitId, entry]) => [battleUnitId, entry.side] as const),
+      ),
     [roster],
   );
   const [expandedInstanceIds, setExpandedInstanceIds] = useState<ReadonlySet<string>>(new Set());

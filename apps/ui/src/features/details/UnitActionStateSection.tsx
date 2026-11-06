@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { selectUnitActionStates } from "./action-state-projector.js";
 import type { LogLevel } from "../../entities/battle-draft.js";
-import { selectRoster } from "../../entities/roster.js";
+import { formationHeadingAt, isTotalWarRosterEntry, selectRoster } from "../../entities/roster.js";
 import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
@@ -15,6 +15,8 @@ export interface UnitActionStateSectionProps {
   readonly response: BattleLogResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
   readonly logLevel: LogLevel;
+  /** 表示用Roster。省略時は`initialState`から作る。総力戦は`unitRoster`由来を渡す。 */
+  readonly roster?: readonly RosterEntry[];
 }
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -95,73 +97,101 @@ function UnitActionStateGroup({
         <p className={styles["empty"]}>ユニットがいません。</p>
       ) : (
         <ul className={styles["list"]}>
-          {rows.map(({ roster, actionState }) => (
-            <li key={roster.battleUnitId} className={styles["unit"]}>
-              <div className={styles["unitHeader"]}>
-                <span className={styles["name"]}>{roster.displayName}</span>
-                <span className={styles["resources"]}>
-                  <span>AP {resourceText(actionState.ap)}</span>
-                  <span>PP {resourceText(actionState.pp)}</span>
-                  <span>EX {resourceText(actionState.extraGauge)}</span>
-                </span>
-              </div>
-              {!actionState.cooldownChargeKnown ? (
-                <p className={styles["muted"]}>クールタイム/チャージ: SUMMARYログのため不明</p>
-              ) : actionState.cooldowns.length === 0 ? (
-                <p className={styles["muted"]}>クールタイムなし</p>
-              ) : (
-                <ul className={styles["cooldownList"]}>
-                  {actionState.cooldowns.map((cooldown) => (
-                    <li key={cooldown.skillDefinitionId}>
-                      {cooldown.skillDefinitionId}: 残り{cooldown.remaining}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {actionState.cooldownChargeKnown && actionState.charge !== undefined ? (
-                <p className={styles["charge"]}>
-                  チャージ中: {actionState.charge.skillDefinitionId}
-                </p>
-              ) : null}
-              {/*
+          {rows.map(({ roster, actionState }, index) => {
+            const formationHeading = formationHeadingAt(
+              rows.map((row) => row.roster),
+              index,
+            );
+            const heading =
+              formationHeading !== undefined ? (
+                <li className={styles["formationHeading"]}>{`編成${String(formationHeading)}`}</li>
+              ) : null;
+            // 01_UI要求・画面設計.md §8.9: 出撃しなかったユニットは`finalState`に現れないのが
+            // 正しい。状態を「不明」とは出さず、未出撃と示す。
+            if (isTotalWarRosterEntry(roster) && !roster.deployed) {
+              return (
+                <Fragment key={roster.battleUnitId}>
+                  {heading}
+                  <li className={styles["unit"]}>
+                    <div className={styles["unitHeader"]}>
+                      <span className={styles["name"]}>{roster.displayName}</span>
+                      <span className={styles["muted"]}>未出撃</span>
+                    </div>
+                  </li>
+                </Fragment>
+              );
+            }
+            return (
+              <Fragment key={roster.battleUnitId}>
+                {heading}
+                <li className={styles["unit"]}>
+                  <div className={styles["unitHeader"]}>
+                    <span className={styles["name"]}>{roster.displayName}</span>
+                    <span className={styles["resources"]}>
+                      <span>AP {resourceText(actionState.ap)}</span>
+                      <span>PP {resourceText(actionState.pp)}</span>
+                      <span>EX {resourceText(actionState.extraGauge)}</span>
+                    </span>
+                  </div>
+                  {!actionState.cooldownChargeKnown ? (
+                    <p className={styles["muted"]}>クールタイム/チャージ: SUMMARYログのため不明</p>
+                  ) : actionState.cooldowns.length === 0 ? (
+                    <p className={styles["muted"]}>クールタイムなし</p>
+                  ) : (
+                    <ul className={styles["cooldownList"]}>
+                      {actionState.cooldowns.map((cooldown) => (
+                        <li key={cooldown.skillDefinitionId}>
+                          {cooldown.skillDefinitionId}: 残り{cooldown.remaining}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {actionState.cooldownChargeKnown && actionState.charge !== undefined ? (
+                    <p className={styles["charge"]}>
+                      チャージ中: {actionState.charge.skillDefinitionId}
+                    </p>
+                  ) : null}
+                  {/*
                 シールドとサブユニットは別々の契約
                 （DMG-004 / DMG-005）で追加されたため、片方だけを持つレスポンスが
                 存在しうる。まとめて1つの不明メッセージにすると欠落側が黙って
                 消えるので、それぞれ独立に「不明」／「なし」／実値を出す。
               */}
-              {actionState.shields === undefined ? (
-                <p className={styles["muted"]}>シールド: このレスポンスに含まれず不明</p>
-              ) : actionState.shields.physical === 0 &&
-                actionState.shields.energy === 0 &&
-                actionState.shields.untyped === 0 ? (
-                <p className={styles["muted"]}>シールドなし</p>
-              ) : (
-                <p className={styles["shields"]}>{shieldLabel(actionState.shields)}</p>
-              )}
-              {!actionState.subUnitsKnown ? (
-                <p className={styles["muted"]}>サブユニット: このレスポンスに含まれず不明</p>
-              ) : actionState.subUnits.length === 0 ? (
-                <p className={styles["muted"]}>サブユニットなし</p>
-              ) : (
-                <ul className={styles["subUnitList"]}>
-                  {actionState.subUnits.map((subUnit) => (
-                    <li key={subUnit.subUnitInstanceId}>{subUnitLabel(subUnit)}</li>
-                  ))}
-                </ul>
-              )}
-              {!actionState.effectsKnown ? (
-                <p className={styles["muted"]}>効果・状態異常: このレスポンスに含まれず不明</p>
-              ) : actionState.effects.length === 0 ? (
-                <p className={styles["muted"]}>効果なし</p>
-              ) : (
-                <ul className={styles["effectList"]}>
-                  {actionState.effects.map((effect) => (
-                    <li key={effect.effectInstanceId}>{effectLabel(effect)}</li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+                  {actionState.shields === undefined ? (
+                    <p className={styles["muted"]}>シールド: このレスポンスに含まれず不明</p>
+                  ) : actionState.shields.physical === 0 &&
+                    actionState.shields.energy === 0 &&
+                    actionState.shields.untyped === 0 ? (
+                    <p className={styles["muted"]}>シールドなし</p>
+                  ) : (
+                    <p className={styles["shields"]}>{shieldLabel(actionState.shields)}</p>
+                  )}
+                  {!actionState.subUnitsKnown ? (
+                    <p className={styles["muted"]}>サブユニット: このレスポンスに含まれず不明</p>
+                  ) : actionState.subUnits.length === 0 ? (
+                    <p className={styles["muted"]}>サブユニットなし</p>
+                  ) : (
+                    <ul className={styles["subUnitList"]}>
+                      {actionState.subUnits.map((subUnit) => (
+                        <li key={subUnit.subUnitInstanceId}>{subUnitLabel(subUnit)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {!actionState.effectsKnown ? (
+                    <p className={styles["muted"]}>効果・状態異常: このレスポンスに含まれず不明</p>
+                  ) : actionState.effects.length === 0 ? (
+                    <p className={styles["muted"]}>効果なし</p>
+                  ) : (
+                    <ul className={styles["effectList"]}>
+                      {actionState.effects.map((effect) => (
+                        <li key={effect.effectInstanceId}>{effectLabel(effect)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              </Fragment>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -172,10 +202,11 @@ export function UnitActionStateSection({
   response,
   catalog,
   logLevel,
+  roster: suppliedRoster,
 }: UnitActionStateSectionProps) {
   const roster = useMemo(
-    () => selectRoster(response, catalog ?? EMPTY_CATALOG),
-    [response, catalog],
+    () => suppliedRoster ?? selectRoster(response, catalog ?? EMPTY_CATALOG),
+    [suppliedRoster, response, catalog],
   );
   const actionStates = useMemo(
     () => selectUnitActionStates(response, roster, logLevel),
