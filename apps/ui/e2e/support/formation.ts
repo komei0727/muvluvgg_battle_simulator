@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 /**
@@ -33,4 +34,31 @@ export async function fillMinimalFormation(
  */
 export async function selectDetailedLogLevel(page: Page): Promise<void> {
   await page.getByLabel("ログレベル").selectOption("DETAILED");
+}
+
+/** 総力戦タブを開き、Catalogの読込を待つ。 */
+export async function openTotalWarMode(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "総力戦" }).click();
+  await expect(page.getByRole("heading", { name: /ALLY FORMATION/ })).toBeVisible();
+}
+
+/**
+ * 両陣営に2編成ずつ組む。編成2は編成1と同じユニットにして、再登場（R-TWR-02 #1）の
+ * 枠を作る。終了時は両陣営とも編成2を表示している。
+ */
+export async function fillTotalWarFormations(page: Page): Promise<void> {
+  for (const [side, region, displayName] of [
+    ["ally", /ALLY FORMATION/, "アライアルファ"],
+    ["enemy", /ENEMY FORMATION/, "エネミーアルファ"],
+  ] as const) {
+    const section = page.getByRole("region", { name: region });
+    await section.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+    await page.getByRole("button", { name: `${displayName}を選択` }).click();
+    await page
+      .locator(`[data-formation-side='${side}']`)
+      .getByRole("button", { name: "編成を追加" })
+      .click();
+    await section.getByRole("button", { name: "前衛1にユニットを追加" }).click();
+    await page.getByRole("button", { name: `${displayName}を選択` }).click();
+  }
 }

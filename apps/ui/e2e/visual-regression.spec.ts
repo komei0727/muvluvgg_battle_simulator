@@ -1,16 +1,20 @@
 import { expect, test } from "@playwright/test";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
+import { totalWarSuccessFixture } from "./fixtures/total-war-success.js";
 import type { EvaluationRequestRecord } from "./support/mock-api.js";
 import {
   fillMinimalFormation,
+  fillTotalWarFormations,
   openBattleMode,
+  openTotalWarMode,
   selectDetailedLogLevel,
 } from "./support/formation.js";
 import {
   mockCatalog,
   mockSimulationSequence,
   mockTacticalExerciseEvaluation,
+  mockTotalWar,
 } from "./support/mock-api.js";
 
 // docs/ui-design/06_UIテスト戦略.md §7 (Visual regression): 1440×900と
@@ -112,6 +116,43 @@ test("desktop (1440x900) statistics result screen matches the visual baseline @v
   await expect(page.getByRole("heading", { name: /キャラ別統計/ })).toBeVisible();
 
   await expect(page).toHaveScreenshot("desktop-1440x900-statistics.png", {
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
+// 総力戦（UI-UC-007）の編成画面と結果画面。既存4枚には写らない。編成画面は両陣営とも
+// 編成2（再登場バッジ付き）を表示した状態で撮る。Battle IDはfixtureで固定している。
+test("desktop (1440x900) total war formation screen matches the visual baseline @visual", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./");
+  await openTotalWarMode(page);
+  await fillTotalWarFormations(page);
+  await expect(page.getByText("再登場 −99%").first()).toBeVisible();
+  // 選択ダイアログは閉じると枠へフォーカスを戻し、枠はフォーカス中に開始時ステータスの
+  // ツールチップを出す。撮影の対象外なのでフォーカスを外す。
+  await page.locator(":focus").blur();
+
+  await expect(page).toHaveScreenshot("desktop-1440x900-total-war-formation.png", {
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
+test("desktop (1440x900) total war result screen matches the visual baseline @visual", async ({
+  page,
+}) => {
+  await mockTotalWar(page, { status: 200, body: totalWarSuccessFixture });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./");
+  await openTotalWarMode(page);
+  await fillTotalWarFormations(page);
+  await page.getByRole("button", { name: "総力戦を開始" }).click();
+  await expect(page.getByRole("table", { name: "戦闘履歴" })).toBeVisible();
+
+  await expect(page).toHaveScreenshot("desktop-1440x900-total-war-result.png", {
     fullPage: true,
     animations: "disabled",
   });
