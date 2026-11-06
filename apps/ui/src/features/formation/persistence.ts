@@ -331,32 +331,10 @@ export function toStoredDraft(draft: BattleDraft, catalogRevision?: string): unk
   };
 }
 
-/** 1項目でも契約から外れれば保存データ全体を破棄する（`undefined`を返す）。 */
-export function parseStoredDraft(value: unknown): BattleDraft | undefined {
+/** 契約違反を`undefined`へ畳む。部分的に信じた値を返さないため、throwは外へ漏らさない。 */
+function orUndefined<T>(parse: () => T): T | undefined {
   try {
-    const stored = envelopeOf(value)["draft"];
-    if (!isRecord(stored)) {
-      return fail();
-    }
-    const skeleton = createInitialDraft();
-    const logLevel = logLevelOf(stored["logLevel"]);
-    return {
-      allySlots: slotsOf(skeleton.allySlots, stored["allySlots"]),
-      enemySlots: slotsOf(skeleton.enemySlots, stored["enemySlots"]),
-      allyMemoryDefinitionIds: memoryIdsOf(
-        stored["allyMemoryDefinitionIds"],
-        skeleton.allyMemoryDefinitionIds.length,
-      ),
-      enemyMemoryDefinitionIds: memoryIdsOf(
-        stored["enemyMemoryDefinitionIds"],
-        skeleton.enemyMemoryDefinitionIds.length,
-      ),
-      turnLimit: levelOf(stored["turnLimit"]),
-      logLevel,
-      exerciseExecution: exerciseExecutionOf(stored["exerciseExecution"]),
-      allyEnhancement: sideEnhancementOf(stored["allyEnhancement"]),
-      enemyEnhancement: sideEnhancementOf(stored["enemyEnhancement"]),
-    };
+    return parse();
   } catch (error) {
     if (error instanceof StoredDataMismatch) {
       return undefined;
@@ -365,12 +343,56 @@ export function parseStoredDraft(value: unknown): BattleDraft | undefined {
   }
 }
 
+function draftBodyOf(stored: unknown): BattleDraft {
+  if (!isRecord(stored)) {
+    return fail();
+  }
+  const skeleton = createInitialDraft();
+  const logLevel = logLevelOf(stored["logLevel"]);
+  return {
+    allySlots: slotsOf(skeleton.allySlots, stored["allySlots"]),
+    enemySlots: slotsOf(skeleton.enemySlots, stored["enemySlots"]),
+    allyMemoryDefinitionIds: memoryIdsOf(
+      stored["allyMemoryDefinitionIds"],
+      skeleton.allyMemoryDefinitionIds.length,
+    ),
+    enemyMemoryDefinitionIds: memoryIdsOf(
+      stored["enemyMemoryDefinitionIds"],
+      skeleton.enemyMemoryDefinitionIds.length,
+    ),
+    turnLimit: levelOf(stored["turnLimit"]),
+    logLevel,
+    exerciseExecution: exerciseExecutionOf(stored["exerciseExecution"]),
+    allyEnhancement: sideEnhancementOf(stored["allyEnhancement"]),
+    enemyEnhancement: sideEnhancementOf(stored["enemyEnhancement"]),
+  };
+}
+
+/** 1項目でも契約から外れれば保存データ全体を破棄する（`undefined`を返す）。 */
+export function parseStoredDraft(value: unknown): BattleDraft | undefined {
+  return orUndefined(() => draftBodyOf(envelopeOf(value)["draft"]));
+}
+
+/**
+ * 封筒（`schemaVersion`）を剥がした後のdraft本体1件を読む。総力戦の保存データ
+ * （`total-war-persistence.ts`）が3組それぞれに使う——任意項目の既定値読みを
+ * 2か所で持つと、片方だけ新項目に追随し損ねる。
+ */
+export function parseStoredDraftBody(value: unknown): BattleDraft | undefined {
+  return orUndefined(() => draftBodyOf(value));
+}
+
+/** 保存されたログレベル。旧`DIAGNOSTIC`は`DETAILED`へ読み替える（`logLevelOf`）。 */
+export function parseStoredLogLevel(value: unknown): LogLevel | undefined {
+  return orUndefined(() => logLevelOf(value));
+}
+
 export function toStoredPlayerData(data: StoredPlayerData): unknown {
   return { schemaVersion: PERSISTENCE_SCHEMA_VERSION, ...data };
 }
 
 export function parsePlayerData(value: unknown): StoredPlayerData | undefined {
-  try {
+  return orUndefined(() => {
     const stored = envelopeOf(value);
     const units = stored["units"];
     if (!isRecord(units)) {
@@ -383,12 +405,7 @@ export function parsePlayerData(value: unknown): StoredPlayerData | undefined {
         Object.entries(units).map(([id, enhancement]) => [id, unitEnhancementOf(enhancement)]),
       ),
     };
-  } catch (error) {
-    if (error instanceof StoredDataMismatch) {
-      return undefined;
-    }
-    throw error;
-  }
+  });
 }
 
 export function createEmptyPlayerData(): StoredPlayerData {
