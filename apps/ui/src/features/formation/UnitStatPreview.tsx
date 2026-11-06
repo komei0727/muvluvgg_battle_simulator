@@ -10,6 +10,8 @@ export interface UnitStatPreviewProps {
    * 全枠で一括切替するため、状態は枠ではなくページが持つ。
    */
   readonly showBase?: boolean;
+  /** 表示中の値に反映されない補正の注記（総力戦の再登場など）。 */
+  readonly note?: string;
 }
 
 // docs/ui-design/01_UI要求・画面設計.md §5.8: 表示項目と単位。割合値は
@@ -51,7 +53,13 @@ function statusMessage(status: UnitStatPreviewProps["status"]): string {
  * 取得失敗は`role="alert"`にしない ——戦闘実行は妨げられておらず、緊急でない
  * API失敗にalertを使わない（05_非機能・アクセシビリティ設計.md §6）。
  */
-export function UnitStatPreview({ id, status, unit, showBase = false }: UnitStatPreviewProps) {
+export function UnitStatPreview({
+  id,
+  status,
+  unit,
+  showBase = false,
+  note,
+}: UnitStatPreviewProps) {
   // 表示する組を先に決める。補正前が選ばれているのに`enhancedBaseStats`が無い場合
   // （本フィールドより前のAPIが応答した場合）は`undefined`のままにして、補正後の値
   // へ黙って落とさない —— 別の意味の数値を同じ見出しの下に出すことになるため。
@@ -62,6 +70,7 @@ export function UnitStatPreview({ id, status, unit, showBase = false }: UnitStat
     <div id={id} className={styles["preview"]}>
       <p className={styles["heading"]}>{showBase ? "補正前ステータス" : "開始時ステータス"}</p>
       {showBase ? <p className={styles["note"]}>編成ボーナス・配置適性の補正なし</p> : null}
+      {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
       {status === "ready" && stats !== undefined && maximumHp !== undefined ? (
         <dl className={styles["list"]}>
           <div className={styles["row"]}>

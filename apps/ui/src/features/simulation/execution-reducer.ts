@@ -25,9 +25,15 @@ export interface SuccessfulExecutionSnapshot<
   readonly completedAt: number;
 }
 
+/**
+ * `TSlotContext`はモード固有の送信時点の対応表。総力戦は編成ごとの対応表を要し、
+ * 1編成ぶんの`*SlotKeys`では422の`/allyFormations/{i}/...`を逆引きできないため、
+ * 形はモード側が決める。通常戦闘・戦術演習は使わない（`undefined`のまま）。
+ */
 export type ExecutionState<
   TRequest = BattleSimulationRequest,
   TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+  TSlotContext = undefined,
 > =
   | { readonly status: "idle" }
   | {
@@ -45,6 +51,7 @@ export type ExecutionState<
       readonly enemyMemorySlotKeys: readonly string[];
       readonly allyGearSlotIndices: readonly (readonly number[])[];
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
+      readonly slotContext?: TSlotContext;
       readonly previousSuccess?: SuccessfulExecutionSnapshot<TRequest, TResponse>;
     }
   | {
@@ -66,6 +73,7 @@ export type ExecutionState<
       readonly enemyMemorySlotKeys: readonly string[];
       readonly allyGearSlotIndices: readonly (readonly number[])[];
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
+      readonly slotContext?: TSlotContext;
       readonly previousSuccess?: SuccessfulExecutionSnapshot<TRequest, TResponse>;
     }
   | {
@@ -77,6 +85,7 @@ export type ExecutionState<
 export type ExecutionAction<
   TRequest = BattleSimulationRequest,
   TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+  TSlotContext = undefined,
 > =
   | {
       readonly type: "submissionStarted";
@@ -89,6 +98,7 @@ export type ExecutionAction<
       readonly enemyMemorySlotKeys: readonly string[];
       readonly allyGearSlotIndices: readonly (readonly number[])[];
       readonly enemyGearSlotIndices: readonly (readonly number[])[];
+      readonly slotContext?: TSlotContext;
     }
   | {
       readonly type: "submissionSucceeded";
@@ -108,14 +118,15 @@ export type ExecutionAction<
 export function createInitialExecutionState<
   TRequest,
   TResponse extends ExecutionResponseLike,
->(): ExecutionState<TRequest, TResponse> {
+  TSlotContext = undefined,
+>(): ExecutionState<TRequest, TResponse, TSlotContext> {
   return { status: "idle" };
 }
 
 // The snapshot currently on screen: a fresh success, or one carried forward
 // through a rerun that is submitting/failed/cancelled (UI-UC-005, UI-CMP-003).
-function currentSuccessSnapshot<TRequest, TResponse extends ExecutionResponseLike>(
-  state: ExecutionState<TRequest, TResponse>,
+function currentSuccessSnapshot<TRequest, TResponse extends ExecutionResponseLike, TSlotContext>(
+  state: ExecutionState<TRequest, TResponse, TSlotContext>,
 ): SuccessfulExecutionSnapshot<TRequest, TResponse> | undefined {
   switch (state.status) {
     case "succeeded":
@@ -135,10 +146,14 @@ function currentSuccessSnapshot<TRequest, TResponse extends ExecutionResponseLik
   }
 }
 
-export function executionReducer<TRequest, TResponse extends ExecutionResponseLike>(
-  state: ExecutionState<TRequest, TResponse>,
-  action: ExecutionAction<TRequest, TResponse>,
-): ExecutionState<TRequest, TResponse> {
+export function executionReducer<
+  TRequest,
+  TResponse extends ExecutionResponseLike,
+  TSlotContext = undefined,
+>(
+  state: ExecutionState<TRequest, TResponse, TSlotContext>,
+  action: ExecutionAction<TRequest, TResponse, TSlotContext>,
+): ExecutionState<TRequest, TResponse, TSlotContext> {
   switch (action.type) {
     case "submissionStarted": {
       const previousSuccess = currentSuccessSnapshot(state);
@@ -153,6 +168,7 @@ export function executionReducer<TRequest, TResponse extends ExecutionResponseLi
         enemyMemorySlotKeys: action.enemyMemorySlotKeys,
         allyGearSlotIndices: action.allyGearSlotIndices,
         enemyGearSlotIndices: action.enemyGearSlotIndices,
+        ...(action.slotContext !== undefined ? { slotContext: action.slotContext } : {}),
         ...(previousSuccess !== undefined ? { previousSuccess } : {}),
       };
     }
@@ -183,6 +199,7 @@ export function executionReducer<TRequest, TResponse extends ExecutionResponseLi
         enemyMemorySlotKeys: state.enemyMemorySlotKeys,
         allyGearSlotIndices: state.allyGearSlotIndices,
         enemyGearSlotIndices: state.enemyGearSlotIndices,
+        ...(state.slotContext !== undefined ? { slotContext: state.slotContext } : {}),
         ...(action.requestId !== undefined ? { requestId: action.requestId } : {}),
         ...(state.previousSuccess !== undefined ? { previousSuccess: state.previousSuccess } : {}),
       };
@@ -200,8 +217,12 @@ export function executionReducer<TRequest, TResponse extends ExecutionResponseLi
   }
 }
 
-export function selectDisplayedSuccess<TRequest, TResponse extends ExecutionResponseLike>(
-  state: ExecutionState<TRequest, TResponse>,
+export function selectDisplayedSuccess<
+  TRequest,
+  TResponse extends ExecutionResponseLike,
+  TSlotContext = undefined,
+>(
+  state: ExecutionState<TRequest, TResponse, TSlotContext>,
 ): SuccessfulExecutionSnapshot<TRequest, TResponse> | undefined {
   return currentSuccessSnapshot(state);
 }

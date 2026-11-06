@@ -455,3 +455,43 @@ describe("selectIsCatalogRevisionMismatch (Issue #96 P1)", () => {
     expect(selectIsCatalogRevisionMismatch(snapshot(), "rev-2")).toBe(true);
   });
 });
+
+describe("executionReducer — mode-specific slot context", () => {
+  it("UI-UT-TWR-020: carries the submission-time slot context from submitting to failed, and drops it on success", () => {
+    type SlotContext = { readonly ally: readonly string[][] };
+    const slotContext: SlotContext = { ally: [["ally:FRONT:0"], ["ally:REAR:1"]] };
+    const started = executionReducer<
+      BattleSimulationRequest,
+      BattleSimulationResponse,
+      SlotContext
+    >(createInitialExecutionState(), {
+      type: "submissionStarted",
+      executionId: "exec-1",
+      request: request(),
+      startedAt: 1000,
+      allyUnitSlotKeys: [],
+      enemyUnitSlotKeys: [],
+      allyMemorySlotKeys: [],
+      enemyMemorySlotKeys: [],
+      allyGearSlotIndices: [],
+      enemyGearSlotIndices: [],
+      slotContext,
+    });
+    expect(started.status === "submitting" ? started.slotContext : undefined).toBe(slotContext);
+
+    const failed = executionReducer(started, {
+      type: "submissionFailed",
+      executionId: "exec-1",
+      error: { kind: "VALIDATION", code: "INVALID_COMMAND", message: "invalid" },
+    });
+    expect(failed.status === "failed" ? failed.slotContext : undefined).toBe(slotContext);
+
+    const succeeded = executionReducer(started, {
+      type: "submissionSucceeded",
+      executionId: "exec-1",
+      response: response(),
+      completedAt: 2000,
+    });
+    expect(succeeded).not.toHaveProperty("slotContext");
+  });
+});

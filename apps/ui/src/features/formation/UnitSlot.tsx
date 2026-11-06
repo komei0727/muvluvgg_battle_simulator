@@ -8,6 +8,16 @@ import type {
 import { UnitStatPreview } from "./UnitStatPreview.js";
 import styles from "./UnitSlot.module.css";
 
+/**
+ * 枠へ添える予告表示（総力戦の「再登場 −99%」など）。検証ではないため枠の
+ * エラー表示とは別に持ち、送信を止めない。
+ */
+export interface UnitSlotBadge {
+  readonly label: string;
+  /** その枠のステータスプレビューに添える注記。プレビューに反映されない補正を示す。 */
+  readonly previewNote: string;
+}
+
 export interface UnitSlotProps {
   readonly row: UiRow;
   readonly column: UiColumn;
@@ -33,6 +43,7 @@ export interface UnitSlotProps {
   readonly onMoveStart?: () => void;
   readonly onMoveCancel?: () => void;
   readonly onMovePlace?: () => void;
+  readonly badge?: UnitSlotBadge;
 }
 
 function rowLabelJa(row: UiRow): string {
@@ -60,6 +71,7 @@ export function UnitSlot({
   onMoveStart,
   onMoveCancel,
   onMovePlace,
+  badge,
 }: UnitSlotProps) {
   const previewId = useId();
   // UI-CMP-017: 表示のON/OFFだけをlocal stateで持つ（値はpropsで受け取る）。
@@ -73,7 +85,9 @@ export function UnitSlot({
     unit === undefined
       ? `${positionLabel}にユニットを追加`
       : `${positionLabel}: ${unit.displayName}を変更`;
-  const accessibleName = hasError ? `${baseName}、入力エラーがあります` : baseName;
+  const shownBadge = unit === undefined ? undefined : badge;
+  const badgedName = shownBadge === undefined ? baseName : `${baseName}、${shownBadge.label}`;
+  const accessibleName = hasError ? `${badgedName}、入力エラーがあります` : badgedName;
 
   // 空き枠は配置先にだけなれる（drag元にならない）。実行中はdrag不可。
   // Escapeによる中止はフォーカス位置に依存させないため、FormationGridが
@@ -174,6 +188,11 @@ export function UnitSlot({
                   適性外
                 </span>
               ) : null}
+              {shownBadge !== undefined ? (
+                <span className={`${styles["tag"] ?? ""} ${styles["badgeTag"] ?? ""}`}>
+                  {shownBadge.label}
+                </span>
+              ) : null}
             </span>
           </span>
         </>
@@ -192,6 +211,7 @@ export function UnitSlot({
       status={statPreviewStatus}
       showBase={showBaseStats}
       {...(statPreview !== undefined ? { unit: statPreview } : {})}
+      {...(shownBadge !== undefined ? { note: shownBadge.previewNote } : {})}
     />
   ) : null;
 

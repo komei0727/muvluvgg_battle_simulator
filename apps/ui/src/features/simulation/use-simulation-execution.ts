@@ -49,7 +49,7 @@ export interface UseSimulationExecutionOptions<
   readonly timeoutMs?: number;
 }
 
-export interface SubmitInput<TRequest = BattleSimulationRequest> {
+export interface SubmitInput<TRequest = BattleSimulationRequest, TSlotContext = undefined> {
   readonly request: TRequest;
   // 送信時点のslot対応表。422 violationsのJSON Pointerを、送信後に編集され
   // 得る現在のdraftではなく、この送信自体が使ったslotへ対応づけるために保持
@@ -60,36 +60,40 @@ export interface SubmitInput<TRequest = BattleSimulationRequest> {
   readonly enemyMemorySlotKeys: readonly string[];
   readonly allyGearSlotIndices: readonly (readonly number[])[];
   readonly enemyGearSlotIndices: readonly (readonly number[])[];
+  /** モード固有の送信時点の対応表（`ExecutionState`の`TSlotContext`）。 */
+  readonly slotContext?: TSlotContext;
 }
 
 export interface UseSimulationExecutionResult<
   TRequest = BattleSimulationRequest,
   TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+  TSlotContext = undefined,
 > {
-  readonly state: ExecutionState<TRequest, TResponse>;
-  readonly submit: (input: SubmitInput<TRequest>) => void;
+  readonly state: ExecutionState<TRequest, TResponse, TSlotContext>;
+  readonly submit: (input: SubmitInput<TRequest, TSlotContext>) => void;
   readonly cancel: () => void;
 }
 
 export function useSimulationExecution<
   TRequest = BattleSimulationRequest,
   TResponse extends ExecutionResponseLike = BattleSimulationResponse,
+  TSlotContext = undefined,
 >(
   baseUrl: string,
   options: UseSimulationExecutionOptions<TRequest, TResponse> = {},
-): UseSimulationExecutionResult<TRequest, TResponse> {
+): UseSimulationExecutionResult<TRequest, TResponse, TSlotContext> {
   const simulateImpl =
     options.simulateImpl ?? (defaultSimulate as unknown as ExecuteFn<TRequest, TResponse>);
   const [state, dispatch] = useReducer(
-    executionReducer<TRequest, TResponse>,
+    executionReducer<TRequest, TResponse, TSlotContext>,
     undefined,
-    createInitialExecutionState<TRequest, TResponse>,
+    createInitialExecutionState<TRequest, TResponse, TSlotContext>,
   );
   const asyncRequest = useAbortableRequest<string>();
   const { accessKey, generation, onUnauthorized } = useApiAccess();
 
   const submit = useCallback(
-    (input: SubmitInput<TRequest>) => {
+    (input: SubmitInput<TRequest, TSlotContext>) => {
       const executionId = generateExecutionId();
       const signal = asyncRequest.start(executionId);
       const startedAt = Date.now();
@@ -105,6 +109,7 @@ export function useSimulationExecution<
         enemyMemorySlotKeys: input.enemyMemorySlotKeys,
         allyGearSlotIndices: input.allyGearSlotIndices,
         enemyGearSlotIndices: input.enemyGearSlotIndices,
+        ...(input.slotContext !== undefined ? { slotContext: input.slotContext } : {}),
       });
 
       const requestId = generateRequestId();
