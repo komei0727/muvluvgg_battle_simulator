@@ -1,6 +1,7 @@
 import type {
   BattleSimulationRequest,
   CatalogApiResult,
+  ExecutionApiResult,
   FormationStatPreviewApiResult,
   FormationStatPreviewRequest,
   SimulationApiResult,
@@ -8,6 +9,8 @@ import type {
   TacticalExerciseEvaluationApiResult,
   TacticalExerciseEvaluationRequest,
   TacticalExerciseRequest,
+  TotalWarApiResult,
+  TotalWarRequest,
   UiApiError,
 } from "./api-contract.js";
 import {
@@ -21,6 +24,7 @@ import {
   validateSimulationResponse,
   validateTacticalExerciseEvaluationResponse,
   validateTacticalExerciseResponse,
+  validateTotalWarResponse,
 } from "./response-validator.js";
 
 const CATALOG_PATH = "/api/v1/battle-simulation-catalog";
@@ -34,6 +38,7 @@ const SIMULATION_PATH = "/api/v1/battle-simulations";
 const SIMULATION_DEFAULT_TIMEOUT_MS = 55_000;
 const TACTICAL_EXERCISE_PATH = "/api/v1/tactical-exercises";
 const TACTICAL_EXERCISE_EVALUATION_PATH = "/api/v1/tactical-exercise-evaluations";
+const TOTAL_WAR_PATH = "/api/v1/total-war-simulations";
 const PREVIEW_PATH = "/api/v1/formation-stat-previews";
 // docs/ui-design/03_API・データ連携設計.md §2.5: プレビューは戦闘を実行せず
 // 同期的に返るため、戦闘POSTの55秒ではなく一覧GETと同じ待機上限で十分。
@@ -256,16 +261,22 @@ function simulationRequestHeaders(options: SimulateOptions): Headers {
   return headers;
 }
 
-// docs/ui-design/03_API・データ連携設計.md §2.3, §7: 戦闘POSTは cache:
-// "no-store"、credentials: "omit" とし、自動retryしない(このcallerはfetchを
-// 一度だけ呼ぶ。呼び出し側のretryも別issueで扱う)。
-export async function simulate(
-  request: BattleSimulationRequest,
+// docs/ui-design/03_API・データ連携設計.md §2.3, §7: 戦闘POST系（戦闘・演習・一括評価・
+// 総力戦）は cache: "no-store"、credentials: "omit"、55秒の待機上限とし、自動retryしない
+// (fetchを一度だけ呼ぶ)。エンドポイントごとに異なるのは成功レスポンスの検証だけである。
+async function postExecution<TResponse>(
+  path: string,
+  request: unknown,
   options: SimulateOptions,
-): Promise<SimulationApiResult> {
-  return requestJson<SimulationApiResult>(
+  validate: (
+    body: unknown,
+  ) =>
+    | { readonly ok: true; readonly response: TResponse }
+    | { readonly ok: false; readonly error: UiApiError },
+): Promise<ExecutionApiResult<TResponse>> {
+  return requestJson<ExecutionApiResult<TResponse>>(
     {
-      url: `${options.baseUrl}${SIMULATION_PATH}`,
+      url: `${options.baseUrl}${path}`,
       method: "POST",
       headers: simulationRequestHeaders(options),
       cache: "no-store",
@@ -278,7 +289,7 @@ export async function simulate(
       const body = await readBody();
 
       if (response.status === 200) {
-        const validation = validateSimulationResponse(body);
+        const validation = validate(body);
         if (!validation.ok) {
           return { ok: false, status: 200, ...requestIdField, error: validation.error };
         }
@@ -300,6 +311,14 @@ export async function simulate(
   );
 }
 
+// docs/ui-design/03_API・データ連携設計.md §2.3: 通常戦闘POST。
+export async function simulate(
+  request: BattleSimulationRequest,
+  options: SimulateOptions,
+): Promise<SimulationApiResult> {
+  return postExecution(SIMULATION_PATH, request, options, validateSimulationResponse);
+}
+
 // docs/ui-design/03_API・データ連携設計.md §2.3: 演習POSTは戦闘POSTと同じ
 // cache/credentials/待機上限の方針を使い、レスポンスだけを演習の契約
 // (`validateTacticalExerciseResponse`) で検証する。
@@ -307,41 +326,7 @@ export async function simulateTacticalExercise(
   request: TacticalExerciseRequest,
   options: SimulateOptions,
 ): Promise<TacticalExerciseApiResult> {
-  return requestJson<TacticalExerciseApiResult>(
-    {
-      url: `${options.baseUrl}${TACTICAL_EXERCISE_PATH}`,
-      method: "POST",
-      headers: simulationRequestHeaders(options),
-      cache: "no-store",
-      body: JSON.stringify(request),
-      signal: options.signal,
-      timeoutMs: options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS,
-      fetchImpl: options.fetchImpl ?? fetch,
-    },
-    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
-      const body = await readBody();
-
-      if (response.status === 200) {
-        const validation = validateTacticalExerciseResponse(body);
-        if (!validation.ok) {
-          return { ok: false, status: 200, ...requestIdField, error: validation.error };
-        }
-        return { ok: true, response: validation.response, ...requestIdField };
-      }
-
-      return {
-        ok: false,
-        status: response.status,
-        ...requestIdField,
-        error: normalizeHttpErrorResponse({
-          status: response.status,
-          body,
-          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-        }),
-        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-      };
-    },
-  );
+  return postExecution(TACTICAL_EXERCISE_PATH, request, options, validateTacticalExerciseResponse);
 }
 
 // docs/ui-design/03_API・データ連携設計.md §2.6: 統計実行の一括評価POST。戦闘POSTと
@@ -352,41 +337,22 @@ export async function evaluateTacticalExercise(
   request: TacticalExerciseEvaluationRequest,
   options: SimulateOptions,
 ): Promise<TacticalExerciseEvaluationApiResult> {
-  return requestJson<TacticalExerciseEvaluationApiResult>(
-    {
-      url: `${options.baseUrl}${TACTICAL_EXERCISE_EVALUATION_PATH}`,
-      method: "POST",
-      headers: simulationRequestHeaders(options),
-      cache: "no-store",
-      body: JSON.stringify(request),
-      signal: options.signal,
-      timeoutMs: options.timeoutMs ?? SIMULATION_DEFAULT_TIMEOUT_MS,
-      fetchImpl: options.fetchImpl ?? fetch,
-    },
-    async ({ response, requestIdField, readBody, retryAfterSeconds }) => {
-      const body = await readBody();
-
-      if (response.status === 200) {
-        const validation = validateTacticalExerciseEvaluationResponse(body);
-        if (!validation.ok) {
-          return { ok: false, status: 200, ...requestIdField, error: validation.error };
-        }
-        return { ok: true, response: validation.response, ...requestIdField };
-      }
-
-      return {
-        ok: false,
-        status: response.status,
-        ...requestIdField,
-        error: normalizeHttpErrorResponse({
-          status: response.status,
-          body,
-          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-        }),
-        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-      };
-    },
+  return postExecution(
+    TACTICAL_EXERCISE_EVALUATION_PATH,
+    request,
+    options,
+    validateTacticalExerciseEvaluationResponse,
   );
+}
+
+// docs/ui-design/03_API・データ連携設計.md §2.7: 総力戦POST。認証・cache・credentials・
+// 待機上限・中断の扱いは戦闘POSTと同じで、レスポンスだけを総力戦の契約
+// (`validateTotalWarResponse`) で検証する。
+export async function simulateTotalWar(
+  request: TotalWarRequest,
+  options: SimulateOptions,
+): Promise<TotalWarApiResult> {
+  return postExecution(TOTAL_WAR_PATH, request, options, validateTotalWarResponse);
 }
 
 // docs/ui-design/03_API・データ連携設計.md §2.5: プレビューPOSTは戦闘POSTと

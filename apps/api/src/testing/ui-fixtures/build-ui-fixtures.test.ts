@@ -10,7 +10,7 @@ import { buildUiFixtures, UI_FIXTURE_FILENAMES } from "./build-ui-fixtures.js";
  * 成功レスポンスを元に決定的な改変を加える — その改変内容もここで固定する。
  */
 describe("buildUiFixtures", () => {
-  it("produces exactly the seven fixtures named by 06_UIテスト戦略.md §5", async () => {
+  it("produces exactly the nine fixtures named by 06_UIテスト戦略.md §5", async () => {
     const fixtures = await buildUiFixtures();
 
     expect(Object.keys(fixtures).sort()).toEqual([...UI_FIXTURE_FILENAMES].sort());
@@ -106,5 +106,48 @@ describe("buildUiFixtures", () => {
     expect(malformed["schemaVersion"]).toBe(1);
     expect(malformed["battleId"]).toBe(base["battleId"]);
     expect("unitSummaries" in malformed).toBe(false);
+  });
+
+  it("total-war-success.json is a genuine total war with two formations per side, a mid-battle deployment, a reappearance and a formation that never deployed", async () => {
+    const fixtures = await buildUiFixtures();
+    const body = fixtures["total-war-success.json"] as Record<string, unknown>;
+
+    expect(body["schemaVersion"]).toBe(1);
+    const result = body["result"] as Record<string, unknown>;
+    expect(result["outcome"]).toBe("ALLY_WIN");
+    expect((result["stages"] as unknown[]).length).toBeGreaterThanOrEqual(2);
+    const roster = body["unitRoster"] as Array<Record<string, unknown>>;
+    for (const side of ["ALLY", "ENEMY"]) {
+      const formationNumbers = roster
+        .filter((entry) => entry["side"] === side)
+        .map((entry) => entry["formationNumber"]);
+      expect(new Set(formationNumbers).size, side).toBeGreaterThanOrEqual(2);
+    }
+    expect(
+      roster.some((entry) => entry["reappearance"] === true && entry["deployed"] === true),
+    ).toBe(true);
+    expect(roster.some((entry) => entry["deployed"] === false)).toBe(true);
+    const transitions = body["stateTransitions"] as Array<{ delta: Record<string, unknown> }>;
+    expect(transitions.some((transition) => transition.delta["addedUnits"] !== undefined)).toBe(
+      true,
+    );
+    const events = body["events"] as Array<Record<string, unknown>>;
+    expect(events.some((event) => event["type"] === "FORMATION_DEPLOYED")).toBe(true);
+    expect(body["unitSummaries"]).toHaveLength(roster.length);
+  });
+
+  it("total-war-error-invalid-command.json carries the real HTTP 422 for a unit repeated within one formation, with the formation index in the path", async () => {
+    const fixtures = await buildUiFixtures();
+    const fixture = fixtures["total-war-error-invalid-command.json"] as {
+      status: number;
+      body: Record<string, unknown>;
+    };
+
+    expect(fixture.status).toBe(422);
+    const error = fixture.body["error"] as Record<string, unknown>;
+    expect(error["code"]).toBe("INVALID_COMMAND");
+    const violations = error["violations"] as Array<Record<string, unknown>>;
+    expect(violations.length).toBeGreaterThan(0);
+    expect(violations[0]!["path"]).toMatch(/^\/enemyFormations\/1\/units\/1\//);
   });
 });

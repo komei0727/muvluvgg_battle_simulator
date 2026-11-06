@@ -1,6 +1,6 @@
 /**
  * `apps/ui/src/test/fixtures/*.json`を再生成する（REF-053、Issue #598）。
- * `docs/ui-design/06_UIテスト戦略.md`§5が定める7ファイルは実サーバーから生成された
+ * `docs/ui-design/06_UIテスト戦略.md`§5が定める9ファイルは実サーバーから生成された
  * contract fixtureであり、API側のレスポンス形が変わればここを再生成しないかぎり
  * `check-ui-fixtures-cli.ts`（`mise run check-ui-fixtures`）がdriftとして検出する。
  *

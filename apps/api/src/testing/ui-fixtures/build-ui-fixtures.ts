@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   buildServer,
   type SimulateBattleUseCasePort,
+  type SimulateTotalWarUseCasePort,
 } from "../../presentation/http/build-server.js";
 import {
   buildGearEffects,
@@ -10,6 +11,8 @@ import {
 import type { BattleSimulationCatalogResult } from "../../application/catalog/get-battle-simulation-catalog-use-case.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
+import { toSimulateTotalWarCommand } from "../../application/simulation/simulate-total-war-request-mapper.js";
+import { SimulateTotalWarUseCase } from "../../application/simulation/simulate-total-war-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
@@ -24,7 +27,7 @@ import {
 } from "../scenario/definition-builders.js";
 
 /**
- * `docs/ui-design/06_UIテスト戦略.md`§5が名指す7ファイル。生成器の出力キーは
+ * `docs/ui-design/06_UIテスト戦略.md`§5が名指す9ファイル。生成器の出力キーは
  * 常にこの一覧と一致する（`build-ui-fixtures.test.ts`が突き合わせる）。
  */
 export const UI_FIXTURE_FILENAMES = [
@@ -35,6 +38,8 @@ export const UI_FIXTURE_FILENAMES = [
   "error-invalid-command.json",
   "error-capacity.json",
   "malformed-success.json",
+  "total-war-success.json",
+  "total-war-error-invalid-command.json",
 ] as const;
 
 export type UiFixtureFilename = (typeof UI_FIXTURE_FILENAMES)[number];
@@ -268,6 +273,89 @@ const UNUSED_BATTLE_USE_CASE: SimulateBattleUseCasePort = {
   },
 };
 
+const TOTAL_WAR_PATH = "/api/v1/total-war-simulations";
+
+/**
+ * 総力戦も戦闘POSTと同じ最小Catalogを使う。1編成1体の総力戦では乱数を行動順だけでなく
+ * 編成ごとに消費するため、戦闘POSTより多い定数バッファを積む。
+ */
+function buildTotalWarFixtureUseCase(battleId: string): SimulateTotalWarUseCasePort {
+  const useCase = new SimulateTotalWarUseCase({
+    battleCatalog: buildFixtureCatalog(),
+    battleIdGenerator: new FixedBattleIdGenerator([battleId]),
+    randomSourceFactory: new SequenceRandomSourceFactory(Array.from({ length: 200 }, () => 0.99)),
+    clock: new ManualClock(0),
+  });
+  return {
+    executeTotalWar: (request, context: SimulationExecutionContext) =>
+      Promise.resolve(useCase.execute(toSimulateTotalWarCommand(request), context)),
+  };
+}
+
+function singleUnitFormation(unitDefinitionId: string) {
+  return { units: [unitSlot(unitDefinitionId, 0)], memoryDefinitionIds: [] };
+}
+
+/**
+ * 味方の編成1が敵の編成1を倒し、途中出撃した敵の編成2（編成1と同じユニットなので
+ * 再登場補正を受ける。R-TWR-02）も倒して勝つ。味方の編成2は控えのまま終わり、
+ * `deployed: false`の行として`unitRoster`・`unitSummaries`にだけ現れる。
+ */
+async function buildTotalWarSuccessFixture(): Promise<Record<string, unknown>> {
+  const app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+    totalWarUseCase: buildTotalWarFixtureUseCase("B_UI_FIXTURE_TOTAL_WAR"),
+  });
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: TOTAL_WAR_PATH,
+      payload: {
+        allyFormations: [
+          singleUnitFormation("UNIT_UI_FIXTURE_ALLY"),
+          singleUnitFormation("UNIT_UI_FIXTURE_ALLY"),
+        ],
+        enemyFormations: [
+          singleUnitFormation("UNIT_UI_FIXTURE_ENEMY"),
+          singleUnitFormation("UNIT_UI_FIXTURE_ENEMY"),
+        ],
+        // 途中出撃の`addedUnits`・`FORMATION_DEPLOYED`を含む完全な形が要るためDETAILEDにする。
+        options: { logLevel: "DETAILED" },
+      },
+    });
+    requireStatus(response, 200);
+    return response.json<Record<string, unknown>>();
+  } finally {
+    await app.close();
+  }
+}
+
+/** R-TWR-01 #3: 1編成内の同じユニット定義は、編成の添字を含むpathで422になる。 */
+async function buildTotalWarInvalidCommandErrorFixture(): Promise<HttpFixture> {
+  const app = await buildServer(UNUSED_BATTLE_USE_CASE, {
+    totalWarUseCase: buildTotalWarFixtureUseCase("B_UI_FIXTURE_UNUSED"),
+  });
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: TOTAL_WAR_PATH,
+      payload: {
+        allyFormations: [singleUnitFormation("UNIT_UI_FIXTURE_ALLY")],
+        enemyFormations: [
+          singleUnitFormation("UNIT_UI_FIXTURE_ENEMY"),
+          {
+            units: [unitSlot("UNIT_UI_FIXTURE_ENEMY", 0), unitSlot("UNIT_UI_FIXTURE_ENEMY", 1)],
+            memoryDefinitionIds: [],
+          },
+        ],
+        options: { logLevel: "SUMMARY" },
+      },
+    });
+    return { status: requireStatus(response, 422), body: response.json<Record<string, unknown>>() };
+  } finally {
+    await app.close();
+  }
+}
+
 function buildCatalogResult(): BattleSimulationCatalogResult {
   const gearEffects = buildGearEffects();
   const catalogRevision = "ui-fixture-catalog-rev-1";
@@ -347,5 +435,7 @@ export async function buildUiFixtures(): Promise<Record<UiFixtureFilename, unkno
     "error-invalid-command.json": await buildInvalidCommandErrorFixture(),
     "error-capacity.json": await buildCapacityErrorFixture(),
     "malformed-success.json": dropUnitSummaries(minimalSuccess),
+    "total-war-success.json": await buildTotalWarSuccessFixture(),
+    "total-war-error-invalid-command.json": await buildTotalWarInvalidCommandErrorFixture(),
   };
 }

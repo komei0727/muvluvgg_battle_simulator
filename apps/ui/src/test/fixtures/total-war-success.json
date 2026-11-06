@@ -1,0 +1,2289 @@
+{
+  "schemaVersion": 1,
+  "battleId": "B_UI_FIXTURE_TOTAL_WAR",
+  "catalogRevision": "test-rev-1",
+  "result": {
+    "outcome": "ALLY_WIN",
+    "completionReason": "ENEMY_DEFEATED",
+    "completedTurn": 2,
+    "stages": [
+      {
+        "stageNumber": 1,
+        "allyFormationNumber": 1,
+        "enemyFormationNumber": 1,
+        "startTurn": 1,
+        "endTurn": 1,
+        "defeatedSides": ["ENEMY"]
+      },
+      {
+        "stageNumber": 2,
+        "allyFormationNumber": 1,
+        "enemyFormationNumber": 2,
+        "startTurn": 2,
+        "endTurn": 2,
+        "defeatedSides": ["ENEMY"]
+      }
+    ],
+    "defeatedFormationCounts": {
+      "ally": 0,
+      "enemy": 2
+    }
+  },
+  "initialState": {
+    "stateVersion": 0,
+    "battleStatus": "READY",
+    "turnNumber": 0,
+    "cycleNumber": 0,
+    "units": [
+      {
+        "battleUnitId": "ally:1",
+        "unitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+        "side": "ALLY",
+        "formationPosition": {
+          "column": 0,
+          "row": "FRONT"
+        },
+        "coordinate": {
+          "x": 0,
+          "y": 2
+        },
+        "combatStatus": "ACTIVE",
+        "hp": {
+          "current": 100,
+          "maximum": 100
+        },
+        "resources": {
+          "ap": {
+            "current": 0,
+            "maximum": 3
+          },
+          "pp": {
+            "current": 0,
+            "maximum": 3
+          },
+          "extraGauge": {
+            "current": 0,
+            "maximum": 100
+          }
+        },
+        "combatStats": {
+          "attack": 1000,
+          "defense": 10,
+          "criticalRate": 10,
+          "actionSpeed": 10,
+          "affinityBonus": 25,
+          "criticalDamageBonus": 50
+        },
+        "shields": {
+          "physical": 0,
+          "energy": 0,
+          "untyped": 0
+        },
+        "subUnits": [],
+        "effects": [],
+        "cooldowns": [],
+        "markers": [],
+        "formationNumber": 1
+      },
+      {
+        "battleUnitId": "enemy:1",
+        "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+        "side": "ENEMY",
+        "formationPosition": {
+          "column": 0,
+          "row": "FRONT"
+        },
+        "coordinate": {
+          "x": 0,
+          "y": 1
+        },
+        "combatStatus": "ACTIVE",
+        "hp": {
+          "current": 100,
+          "maximum": 100
+        },
+        "resources": {
+          "ap": {
+            "current": 0,
+            "maximum": 3
+          },
+          "pp": {
+            "current": 0,
+            "maximum": 3
+          },
+          "extraGauge": {
+            "current": 0,
+            "maximum": 100
+          }
+        },
+        "combatStats": {
+          "attack": 10,
+          "defense": 10,
+          "criticalRate": 10,
+          "actionSpeed": 10,
+          "affinityBonus": 25,
+          "criticalDamageBonus": 50
+        },
+        "shields": {
+          "physical": 0,
+          "energy": 0,
+          "untyped": 0
+        },
+        "subUnits": [],
+        "effects": [],
+        "cooldowns": [],
+        "markers": [],
+        "formationNumber": 1
+      }
+    ],
+    "actionQueue": [],
+    "formations": {
+      "ally": {
+        "formationCount": 2,
+        "activeFormationNumber": 1,
+        "defeatedCount": 0
+      },
+      "enemy": {
+        "formationCount": 2,
+        "activeFormationNumber": 1,
+        "defeatedCount": 0
+      }
+    }
+  },
+  "unitRoster": [
+    {
+      "battleUnitId": "ally:1",
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+      "side": "ALLY",
+      "formationNumber": 1,
+      "formationPosition": {
+        "column": 0,
+        "row": "FRONT"
+      },
+      "coordinate": {
+        "x": 0,
+        "y": 2
+      },
+      "reappearance": false,
+      "deployed": true
+    },
+    {
+      "battleUnitId": "ally:2",
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+      "side": "ALLY",
+      "formationNumber": 2,
+      "formationPosition": {
+        "column": 0,
+        "row": "FRONT"
+      },
+      "coordinate": {
+        "x": 0,
+        "y": 2
+      },
+      "reappearance": true,
+      "deployed": false
+    },
+    {
+      "battleUnitId": "enemy:1",
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+      "side": "ENEMY",
+      "formationNumber": 1,
+      "formationPosition": {
+        "column": 0,
+        "row": "FRONT"
+      },
+      "coordinate": {
+        "x": 0,
+        "y": 1
+      },
+      "reappearance": false,
+      "deployed": true
+    },
+    {
+      "battleUnitId": "enemy:2",
+      "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+      "side": "ENEMY",
+      "formationNumber": 2,
+      "formationPosition": {
+        "column": 0,
+        "row": "FRONT"
+      },
+      "coordinate": {
+        "x": 0,
+        "y": 1
+      },
+      "reappearance": true,
+      "deployed": true
+    }
+  ],
+  "unitSummaries": [
+    {
+      "battleUnitId": "ally:1",
+      "side": "ALLY",
+      "damageDealt": 1989,
+      "damageTaken": 0,
+      "healingDone": 0,
+      "finalHp": 100,
+      "maximumHp": 100,
+      "combatStatus": "ACTIVE",
+      "formationNumber": 1,
+      "deployed": true
+    },
+    {
+      "battleUnitId": "ally:2",
+      "side": "ALLY",
+      "damageDealt": 0,
+      "damageTaken": 0,
+      "healingDone": 0,
+      "finalHp": 1,
+      "maximumHp": 1,
+      "combatStatus": "ACTIVE",
+      "formationNumber": 2,
+      "deployed": false
+    },
+    {
+      "battleUnitId": "enemy:1",
+      "side": "ENEMY",
+      "damageDealt": 0,
+      "damageTaken": 990,
+      "healingDone": 0,
+      "finalHp": 0,
+      "maximumHp": 100,
+      "combatStatus": "DEFEATED",
+      "formationNumber": 1,
+      "deployed": true
+    },
+    {
+      "battleUnitId": "enemy:2",
+      "side": "ENEMY",
+      "damageDealt": 0,
+      "damageTaken": 999,
+      "healingDone": 0,
+      "finalHp": 0,
+      "maximumHp": 1,
+      "combatStatus": "DEFEATED",
+      "formationNumber": 2,
+      "deployed": true
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "type": "BATTLE_STARTED",
+      "category": "FACT",
+      "turnNumber": 0,
+      "cycleNumber": 0,
+      "rootSequence": 1,
+      "targetUnitIds": [],
+      "details": {
+        "turnLimit": 15,
+        "allySlotCount": 1,
+        "enemySlotCount": 1
+      },
+      "stateVersionBefore": 0,
+      "stateVersionAfter": 1,
+      "stateTransitionIndex": 0
+    },
+    {
+      "sequence": 2,
+      "type": "TURN_STARTED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "turnNumber": 1
+      },
+      "stateVersionBefore": 1,
+      "stateVersionAfter": 2,
+      "stateTransitionIndex": 1
+    },
+    {
+      "sequence": 3,
+      "type": "RESOURCES_RECOVERED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "units": [
+          {
+            "battleUnitId": "ally:1",
+            "apBefore": 0,
+            "apAfter": 3,
+            "ppBefore": 0,
+            "ppAfter": 3
+          },
+          {
+            "battleUnitId": "enemy:1",
+            "apBefore": 0,
+            "apAfter": 3,
+            "ppBefore": 0,
+            "ppAfter": 3
+          }
+        ]
+      },
+      "stateVersionBefore": 2,
+      "stateVersionAfter": 2,
+      "parentSequence": 2
+    },
+    {
+      "sequence": 4,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "AP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:3"
+      },
+      "stateVersionBefore": 2,
+      "stateVersionAfter": 3,
+      "parentSequence": 3,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 2
+    },
+    {
+      "sequence": 5,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "PP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:3"
+      },
+      "stateVersionBefore": 3,
+      "stateVersionAfter": 4,
+      "parentSequence": 4,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 3
+    },
+    {
+      "sequence": 6,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:1",
+        "resource": "AP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:3"
+      },
+      "stateVersionBefore": 4,
+      "stateVersionAfter": 5,
+      "parentSequence": 5,
+      "sourceUnitId": "enemy:1",
+      "stateTransitionIndex": 4
+    },
+    {
+      "sequence": 7,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:1",
+        "resource": "PP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:3"
+      },
+      "stateVersionBefore": 5,
+      "stateVersionAfter": 6,
+      "parentSequence": 6,
+      "sourceUnitId": "enemy:1",
+      "stateTransitionIndex": 5
+    },
+    {
+      "sequence": 8,
+      "type": "ACTION_QUEUE_CREATED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 2,
+      "targetUnitIds": [],
+      "details": {
+        "cycleNumber": 1,
+        "reservations": [
+          {
+            "battleUnitId": "ally:1",
+            "reservedActionKind": "AS",
+            "actionSpeed": 10
+          },
+          {
+            "battleUnitId": "enemy:1",
+            "reservedActionKind": "AS",
+            "actionSpeed": 10
+          }
+        ]
+      },
+      "stateVersionBefore": 6,
+      "stateVersionAfter": 6,
+      "parentSequence": 3
+    },
+    {
+      "sequence": 9,
+      "type": "ACTION_STARTED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "reservedActionType": "AS",
+        "effectiveActionType": "AS",
+        "apBefore": 3,
+        "apAfter": 2,
+        "exBefore": 0,
+        "exAfter": 1
+      },
+      "stateVersionBefore": 6,
+      "stateVersionAfter": 6,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 10,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "AP",
+        "before": 3,
+        "after": 2,
+        "delta": -1,
+        "baseDelta": -1,
+        "reason": "SKILL_COST",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:9"
+      },
+      "stateVersionBefore": 6,
+      "stateVersionAfter": 7,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "parentSequence": 9,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 6
+    },
+    {
+      "sequence": 11,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "EX_GAUGE",
+        "before": 0,
+        "after": 1,
+        "delta": 1,
+        "baseDelta": 1,
+        "reason": "EX_GAIN",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:9"
+      },
+      "stateVersionBefore": 7,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "parentSequence": 10,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 7
+    },
+    {
+      "sequence": 12,
+      "type": "TARGETS_SELECTED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "bindings": [
+          {
+            "targetBindingId": "TGT_1",
+            "selectedTargetUnitIds": ["enemy:1"]
+          }
+        ]
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 11,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 13,
+      "type": "SKILL_USE_STARTING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "skillType": "AS",
+        "isAttack": true,
+        "actorUnitId": "ally:1",
+        "targetUnitIds": ["enemy:1"],
+        "costResource": "AP",
+        "costAmount": 1
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 12,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 14,
+      "type": "SKILL_USE_STARTED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "costResource": "AP",
+        "costAmount": 1
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 13,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 15,
+      "type": "UNIT_BEING_ATTACKED",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "targetUnitId": "enemy:1",
+        "skillType": "AS",
+        "damageTypes": ["PHYSICAL"]
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 14,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 16,
+      "type": "EFFECT_STEP_STARTING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "stepIndex": 0,
+        "stepKind": "ACTION",
+        "conditionKind": "TRUE"
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 15,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 17,
+      "type": "EFFECT_ACTION_STARTING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "kind": "DAMAGE",
+        "targetUnitIds": ["enemy:1"]
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 16,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 18,
+      "type": "HIT_CONFIRMED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:1"
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 17,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 19,
+      "type": "CRITICAL_CHECK_RESOLVED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "mode": "PREVENTED",
+        "baseCriticalRate": 0.1,
+        "effectiveCriticalRate": 0.1,
+        "result": false
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 18,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 20,
+      "type": "DAMAGE_WILL_BE_APPLIED",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:1",
+        "damageType": "PHYSICAL",
+        "isCritical": false,
+        "criticalMultiplier": 1,
+        "defenseIgnoreRate": 0,
+        "shieldIgnoreRate": 0,
+        "damageReductionIgnoreRate": 0,
+        "outgoingDamageMultiplier": 1,
+        "incomingDamageMultiplier": 1
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 19,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 21,
+      "type": "DAMAGE_CALCULATED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:1",
+        "attackerAttack": 1000,
+        "defenderDefense": 10,
+        "effectiveDefense": 10,
+        "defenseIgnoreRate": 0,
+        "shieldIgnoreRate": 0,
+        "damageReductionIgnoreRate": 0,
+        "baseDamage": 990,
+        "skillPower": 1,
+        "skillPowerFormulaKind": "SKILL_POWER",
+        "attributeMultiplier": 1,
+        "attackerAttribute": "AGGRESSIVE",
+        "defenderAttribute": "AGGRESSIVE",
+        "isFavorableAttribute": false,
+        "isSubAttributeFavorable": false,
+        "attackerAffinityBonus": 0.25,
+        "criticalMultiplier": 1,
+        "outgoingDamageMultiplier": 1,
+        "incomingDamageMultiplier": 1,
+        "actionDamageMultiplier": 1,
+        "confusionDamageMultiplier": 1,
+        "rawPreTruncationDamage": 990,
+        "preTruncationDamage": 990,
+        "freezeMultiplier": 1,
+        "guardRate": 0,
+        "thresholdReductionMultiplier": 1,
+        "damageImmunityNullified": false,
+        "finalDamage": 990,
+        "damageType": "PHYSICAL"
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 8,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 20,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 22,
+      "type": "HIT_POINT_REDUCED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:1",
+        "hitPointDamage": 100,
+        "hpBefore": 100,
+        "hpAfter": 0
+      },
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 21,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 8
+    },
+    {
+      "sequence": 23,
+      "type": "DAMAGE_APPLIED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:1",
+        "skillType": "AS",
+        "calculatedDamage": 990,
+        "hpDirectDamage": 0,
+        "typedShieldAbsorbed": 0,
+        "untypedShieldAbsorbed": 0,
+        "subUnitAbsorbed": 0,
+        "discardedDamage": 890,
+        "hitPointDamage": 100,
+        "hpBefore": 100,
+        "hpAfter": 0,
+        "defeated": true
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 22,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 24,
+      "type": "UNIT_DEFEATED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "unitId": "enemy:1",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:23"
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 23,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 25,
+      "type": "EFFECT_ACTION_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "effectActionKind": "DAMAGE",
+        "targetUnitIds": ["enemy:1"],
+        "resultKind": "APPLIED"
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 24,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 26,
+      "type": "EFFECT_STEP_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "stepIndex": 0,
+        "resolvedActionCount": 1
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 25,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 27,
+      "type": "SKILL_USE_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "skillType": "AS",
+        "resolvedStepCount": 1,
+        "targetUnitIds": ["enemy:1"]
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:1",
+      "parentSequence": 14,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 28,
+      "type": "ACTION_COMPLETING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "effectiveActionType": "AS"
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "parentSequence": 27,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 29,
+      "type": "ACTION_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "effectiveActionType": "AS"
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:1",
+      "parentSequence": 28,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 30,
+      "type": "ACTION_RESERVATION_REMOVED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:1",
+        "reason": "DEFEATED"
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 9,
+      "parentSequence": 29,
+      "sourceUnitId": "enemy:1"
+    },
+    {
+      "sequence": 31,
+      "type": "FORMATION_DEFEATED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 9,
+      "targetUnitIds": [],
+      "details": {
+        "side": "ENEMY",
+        "formationNumber": 1,
+        "turnNumber": 1,
+        "remainingReserveCount": 1
+      },
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 10,
+      "parentSequence": 29,
+      "stateTransitionIndex": 9
+    },
+    {
+      "sequence": 32,
+      "type": "TURN_COMPLETING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 32,
+      "targetUnitIds": [],
+      "details": {
+        "turnNumber": 1
+      },
+      "stateVersionBefore": 10,
+      "stateVersionAfter": 10
+    },
+    {
+      "sequence": 33,
+      "type": "TURN_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 1,
+      "cycleNumber": 0,
+      "rootSequence": 32,
+      "targetUnitIds": [],
+      "details": {
+        "turnNumber": 1
+      },
+      "stateVersionBefore": 10,
+      "stateVersionAfter": 10,
+      "parentSequence": 32
+    },
+    {
+      "sequence": 34,
+      "type": "FORMATION_DEPLOYED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 34,
+      "targetUnitIds": [],
+      "details": {
+        "side": "ENEMY",
+        "formationNumber": 2,
+        "turnNumber": 2,
+        "battleUnitIds": ["enemy:2"]
+      },
+      "stateVersionBefore": 10,
+      "stateVersionAfter": 11,
+      "stateTransitionIndex": 10
+    },
+    {
+      "sequence": 35,
+      "type": "TURN_STARTED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "turnNumber": 2
+      },
+      "stateVersionBefore": 11,
+      "stateVersionAfter": 12,
+      "stateTransitionIndex": 11
+    },
+    {
+      "sequence": 36,
+      "type": "RESOURCES_RECOVERED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "units": [
+          {
+            "battleUnitId": "ally:1",
+            "apBefore": 2,
+            "apAfter": 3,
+            "ppBefore": 3,
+            "ppAfter": 3
+          },
+          {
+            "battleUnitId": "enemy:2",
+            "apBefore": 0,
+            "apAfter": 3,
+            "ppBefore": 0,
+            "ppAfter": 3
+          }
+        ]
+      },
+      "stateVersionBefore": 12,
+      "stateVersionAfter": 12,
+      "parentSequence": 35
+    },
+    {
+      "sequence": 37,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "AP",
+        "before": 2,
+        "after": 3,
+        "delta": 1,
+        "baseDelta": 1,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:36"
+      },
+      "stateVersionBefore": 12,
+      "stateVersionAfter": 13,
+      "parentSequence": 36,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 12
+    },
+    {
+      "sequence": 38,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:2",
+        "resource": "AP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:36"
+      },
+      "stateVersionBefore": 13,
+      "stateVersionAfter": 14,
+      "parentSequence": 37,
+      "sourceUnitId": "enemy:2",
+      "stateTransitionIndex": 13
+    },
+    {
+      "sequence": 39,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:2",
+        "resource": "PP",
+        "before": 0,
+        "after": 3,
+        "delta": 3,
+        "baseDelta": 3,
+        "reason": "TURN_RECOVERY",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:36"
+      },
+      "stateVersionBefore": 14,
+      "stateVersionAfter": 15,
+      "parentSequence": 38,
+      "sourceUnitId": "enemy:2",
+      "stateTransitionIndex": 14
+    },
+    {
+      "sequence": 40,
+      "type": "ACTION_QUEUE_CREATED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 35,
+      "targetUnitIds": [],
+      "details": {
+        "cycleNumber": 1,
+        "reservations": [
+          {
+            "battleUnitId": "ally:1",
+            "reservedActionKind": "AS",
+            "actionSpeed": 10
+          },
+          {
+            "battleUnitId": "enemy:2",
+            "reservedActionKind": "AS",
+            "actionSpeed": 10
+          }
+        ]
+      },
+      "stateVersionBefore": 15,
+      "stateVersionAfter": 15,
+      "parentSequence": 36
+    },
+    {
+      "sequence": 41,
+      "type": "ACTION_STARTED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "reservedActionType": "AS",
+        "effectiveActionType": "AS",
+        "apBefore": 3,
+        "apAfter": 2,
+        "exBefore": 1,
+        "exAfter": 2
+      },
+      "stateVersionBefore": 15,
+      "stateVersionAfter": 15,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 42,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "AP",
+        "before": 3,
+        "after": 2,
+        "delta": -1,
+        "baseDelta": -1,
+        "reason": "SKILL_COST",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:41"
+      },
+      "stateVersionBefore": 15,
+      "stateVersionAfter": 16,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "parentSequence": 41,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 15
+    },
+    {
+      "sequence": 43,
+      "type": "RESOURCE_CHANGED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "ally:1",
+        "resource": "EX_GAUGE",
+        "before": 1,
+        "after": 2,
+        "delta": 1,
+        "baseDelta": 1,
+        "reason": "EX_GAIN",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:41"
+      },
+      "stateVersionBefore": 16,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "parentSequence": 42,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 16
+    },
+    {
+      "sequence": 44,
+      "type": "TARGETS_SELECTED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "bindings": [
+          {
+            "targetBindingId": "TGT_1",
+            "selectedTargetUnitIds": ["enemy:2"]
+          }
+        ]
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 43,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 45,
+      "type": "SKILL_USE_STARTING",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "skillType": "AS",
+        "isAttack": true,
+        "actorUnitId": "ally:1",
+        "targetUnitIds": ["enemy:2"],
+        "costResource": "AP",
+        "costAmount": 1
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 44,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 46,
+      "type": "SKILL_USE_STARTED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "costResource": "AP",
+        "costAmount": 1
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 45,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 47,
+      "type": "UNIT_BEING_ATTACKED",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "targetUnitId": "enemy:2",
+        "skillType": "AS",
+        "damageTypes": ["PHYSICAL"]
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 46,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 48,
+      "type": "EFFECT_STEP_STARTING",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "stepIndex": 0,
+        "stepKind": "ACTION",
+        "conditionKind": "TRUE"
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 47,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 49,
+      "type": "EFFECT_ACTION_STARTING",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "kind": "DAMAGE",
+        "targetUnitIds": ["enemy:2"]
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 48,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 50,
+      "type": "HIT_CONFIRMED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:2"
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 49,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 51,
+      "type": "CRITICAL_CHECK_RESOLVED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "mode": "PREVENTED",
+        "baseCriticalRate": 0.1,
+        "effectiveCriticalRate": 0.1,
+        "result": false
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 50,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 52,
+      "type": "DAMAGE_WILL_BE_APPLIED",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:2",
+        "damageType": "PHYSICAL",
+        "isCritical": false,
+        "criticalMultiplier": 1,
+        "defenseIgnoreRate": 0,
+        "shieldIgnoreRate": 0,
+        "damageReductionIgnoreRate": 0,
+        "outgoingDamageMultiplier": 1,
+        "incomingDamageMultiplier": 1
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 51,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 53,
+      "type": "DAMAGE_CALCULATED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:2",
+        "attackerAttack": 1000,
+        "defenderDefense": 0.1,
+        "effectiveDefense": 0.1,
+        "defenseIgnoreRate": 0,
+        "shieldIgnoreRate": 0,
+        "damageReductionIgnoreRate": 0,
+        "baseDamage": 999.9,
+        "skillPower": 1,
+        "skillPowerFormulaKind": "SKILL_POWER",
+        "attributeMultiplier": 1,
+        "attackerAttribute": "AGGRESSIVE",
+        "defenderAttribute": "AGGRESSIVE",
+        "isFavorableAttribute": false,
+        "isSubAttributeFavorable": false,
+        "attackerAffinityBonus": 0.25,
+        "criticalMultiplier": 1,
+        "outgoingDamageMultiplier": 1,
+        "incomingDamageMultiplier": 1,
+        "actionDamageMultiplier": 1,
+        "confusionDamageMultiplier": 1,
+        "rawPreTruncationDamage": 999.9,
+        "preTruncationDamage": 999.9,
+        "freezeMultiplier": 1,
+        "guardRate": 0,
+        "thresholdReductionMultiplier": 1,
+        "damageImmunityNullified": false,
+        "finalDamage": 999,
+        "damageType": "PHYSICAL"
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 17,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 52,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 54,
+      "type": "HIT_POINT_REDUCED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:2",
+        "hitPointDamage": 1,
+        "hpBefore": 1,
+        "hpAfter": 0
+      },
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 53,
+      "sourceUnitId": "ally:1",
+      "stateTransitionIndex": 17
+    },
+    {
+      "sequence": 55,
+      "type": "DAMAGE_APPLIED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "hitIndex": 1,
+        "targetUnitId": "enemy:2",
+        "skillType": "AS",
+        "calculatedDamage": 999,
+        "hpDirectDamage": 0,
+        "typedShieldAbsorbed": 0,
+        "untypedShieldAbsorbed": 0,
+        "subUnitAbsorbed": 0,
+        "discardedDamage": 998,
+        "hitPointDamage": 1,
+        "hpBefore": 1,
+        "hpAfter": 0,
+        "defeated": true
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 54,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 56,
+      "type": "UNIT_DEFEATED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "unitId": "enemy:2",
+        "causeEventId": "B_UI_FIXTURE_TOTAL_WAR:55"
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 55,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 57,
+      "type": "EFFECT_ACTION_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+        "effectActionKind": "DAMAGE",
+        "targetUnitIds": ["enemy:2"],
+        "resultKind": "APPLIED"
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 56,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 58,
+      "type": "EFFECT_STEP_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "stepIndex": 0,
+        "resolvedActionCount": 1
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 57,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 59,
+      "type": "SKILL_USE_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": ["enemy:2"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "skillType": "AS",
+        "resolvedStepCount": 1,
+        "targetUnitIds": ["enemy:2"]
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "skillUseId": "B_UI_FIXTURE_TOTAL_WAR:skill-use:2",
+      "parentSequence": 46,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 60,
+      "type": "ACTION_COMPLETING",
+      "category": "TIMING",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "effectiveActionType": "AS"
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "parentSequence": 59,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 61,
+      "type": "ACTION_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "actorUnitId": "ally:1",
+        "effectiveActionType": "AS"
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "actionId": "B_UI_FIXTURE_TOTAL_WAR:action:2",
+      "parentSequence": 60,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 62,
+      "type": "ACTION_RESERVATION_REMOVED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "battleUnitId": "enemy:2",
+        "reason": "DEFEATED"
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 18,
+      "parentSequence": 61,
+      "sourceUnitId": "enemy:2"
+    },
+    {
+      "sequence": 63,
+      "type": "FORMATION_DEFEATED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 1,
+      "rootSequence": 41,
+      "targetUnitIds": [],
+      "details": {
+        "side": "ENEMY",
+        "formationNumber": 2,
+        "turnNumber": 2,
+        "remainingReserveCount": 0
+      },
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 19,
+      "parentSequence": 61,
+      "stateTransitionIndex": 18
+    },
+    {
+      "sequence": 64,
+      "type": "BATTLE_COMPLETED",
+      "category": "FACT",
+      "turnNumber": 2,
+      "cycleNumber": 0,
+      "rootSequence": 64,
+      "targetUnitIds": [],
+      "details": {
+        "outcome": "ALLY_WIN",
+        "completionReason": "ENEMY_DEFEATED",
+        "completedTurn": 2,
+        "stages": [
+          {
+            "stageNumber": 1,
+            "allyFormationNumber": 1,
+            "enemyFormationNumber": 1,
+            "startTurn": 1,
+            "defeatedSides": ["ENEMY"],
+            "endTurn": 1
+          },
+          {
+            "stageNumber": 2,
+            "allyFormationNumber": 1,
+            "enemyFormationNumber": 2,
+            "startTurn": 2,
+            "defeatedSides": ["ENEMY"],
+            "endTurn": 2
+          }
+        ],
+        "defeatedFormationCounts": {
+          "ally": 0,
+          "enemy": 2
+        }
+      },
+      "stateVersionBefore": 19,
+      "stateVersionAfter": 20,
+      "stateTransitionIndex": 19
+    }
+  ],
+  "stateTransitions": [
+    {
+      "causedBySequence": 1,
+      "stateVersionBefore": 0,
+      "stateVersionAfter": 1,
+      "delta": {
+        "battle": {
+          "battleStatus": {
+            "before": "READY",
+            "after": "RUNNING"
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 2,
+      "stateVersionBefore": 1,
+      "stateVersionAfter": 2,
+      "delta": {
+        "battle": {
+          "turnNumber": {
+            "before": 0,
+            "after": 1
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 4,
+      "stateVersionBefore": 2,
+      "stateVersionAfter": 3,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "ap": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 5,
+      "stateVersionBefore": 3,
+      "stateVersionAfter": 4,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "pp": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 6,
+      "stateVersionBefore": 4,
+      "stateVersionAfter": 5,
+      "delta": {
+        "units": {
+          "enemy:1": {
+            "resources": {
+              "ap": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 7,
+      "stateVersionBefore": 5,
+      "stateVersionAfter": 6,
+      "delta": {
+        "units": {
+          "enemy:1": {
+            "resources": {
+              "pp": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 10,
+      "stateVersionBefore": 6,
+      "stateVersionAfter": 7,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "ap": {
+                "before": 3,
+                "after": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 11,
+      "stateVersionBefore": 7,
+      "stateVersionAfter": 8,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "extraGauge": {
+                "before": 0,
+                "after": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 22,
+      "stateVersionBefore": 8,
+      "stateVersionAfter": 9,
+      "delta": {
+        "units": {
+          "enemy:1": {
+            "combatStatus": {
+              "before": "ACTIVE",
+              "after": "DEFEATED"
+            },
+            "hp": {
+              "before": 100,
+              "after": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 31,
+      "stateVersionBefore": 9,
+      "stateVersionAfter": 10,
+      "delta": {
+        "formations": {
+          "enemy": {
+            "defeatedCount": {
+              "before": 0,
+              "after": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 34,
+      "stateVersionBefore": 10,
+      "stateVersionAfter": 11,
+      "delta": {
+        "addedUnits": [
+          {
+            "battleUnitId": "enemy:2",
+            "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+            "side": "ENEMY",
+            "formationPosition": {
+              "column": 0,
+              "row": "FRONT"
+            },
+            "coordinate": {
+              "x": 0,
+              "y": 1
+            },
+            "combatStatus": "ACTIVE",
+            "hp": {
+              "current": 1,
+              "maximum": 1
+            },
+            "resources": {
+              "ap": {
+                "current": 0,
+                "maximum": 3
+              },
+              "pp": {
+                "current": 0,
+                "maximum": 3
+              },
+              "extraGauge": {
+                "current": 0,
+                "maximum": 100
+              }
+            },
+            "combatStats": {
+              "attack": 0.1,
+              "defense": 0.1,
+              "criticalRate": 10,
+              "actionSpeed": 10,
+              "affinityBonus": 25,
+              "criticalDamageBonus": 50
+            },
+            "shields": {
+              "physical": 0,
+              "energy": 0,
+              "untyped": 0
+            },
+            "subUnits": [],
+            "effects": [],
+            "cooldowns": [],
+            "markers": [],
+            "formationNumber": 2
+          }
+        ],
+        "formations": {
+          "enemy": {
+            "activeFormationNumber": {
+              "before": 1,
+              "after": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 35,
+      "stateVersionBefore": 11,
+      "stateVersionAfter": 12,
+      "delta": {
+        "battle": {
+          "turnNumber": {
+            "before": 1,
+            "after": 2
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 37,
+      "stateVersionBefore": 12,
+      "stateVersionAfter": 13,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "ap": {
+                "before": 2,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 38,
+      "stateVersionBefore": 13,
+      "stateVersionAfter": 14,
+      "delta": {
+        "units": {
+          "enemy:2": {
+            "resources": {
+              "ap": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 39,
+      "stateVersionBefore": 14,
+      "stateVersionAfter": 15,
+      "delta": {
+        "units": {
+          "enemy:2": {
+            "resources": {
+              "pp": {
+                "before": 0,
+                "after": 3
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 42,
+      "stateVersionBefore": 15,
+      "stateVersionAfter": 16,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "ap": {
+                "before": 3,
+                "after": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 43,
+      "stateVersionBefore": 16,
+      "stateVersionAfter": 17,
+      "delta": {
+        "units": {
+          "ally:1": {
+            "resources": {
+              "extraGauge": {
+                "before": 1,
+                "after": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 54,
+      "stateVersionBefore": 17,
+      "stateVersionAfter": 18,
+      "delta": {
+        "units": {
+          "enemy:2": {
+            "combatStatus": {
+              "before": "ACTIVE",
+              "after": "DEFEATED"
+            },
+            "hp": {
+              "before": 1,
+              "after": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 63,
+      "stateVersionBefore": 18,
+      "stateVersionAfter": 19,
+      "delta": {
+        "formations": {
+          "enemy": {
+            "defeatedCount": {
+              "before": 1,
+              "after": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "causedBySequence": 64,
+      "stateVersionBefore": 19,
+      "stateVersionAfter": 20,
+      "delta": {
+        "battle": {
+          "battleStatus": {
+            "before": "RUNNING",
+            "after": "COMPLETED"
+          }
+        }
+      }
+    }
+  ],
+  "finalState": {
+    "stateVersion": 20,
+    "battleStatus": "COMPLETED",
+    "turnNumber": 2,
+    "cycleNumber": 0,
+    "units": [
+      {
+        "battleUnitId": "ally:1",
+        "unitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+        "side": "ALLY",
+        "formationPosition": {
+          "column": 0,
+          "row": "FRONT"
+        },
+        "coordinate": {
+          "x": 0,
+          "y": 2
+        },
+        "combatStatus": "ACTIVE",
+        "hp": {
+          "current": 100,
+          "maximum": 100
+        },
+        "resources": {
+          "ap": {
+            "current": 2,
+            "maximum": 3
+          },
+          "pp": {
+            "current": 3,
+            "maximum": 3
+          },
+          "extraGauge": {
+            "current": 2,
+            "maximum": 100
+          }
+        },
+        "combatStats": {
+          "attack": 1000,
+          "defense": 10,
+          "criticalRate": 10,
+          "actionSpeed": 10,
+          "affinityBonus": 25,
+          "criticalDamageBonus": 50
+        },
+        "shields": {
+          "physical": 0,
+          "energy": 0,
+          "untyped": 0
+        },
+        "subUnits": [],
+        "effects": [],
+        "cooldowns": [],
+        "markers": [],
+        "formationNumber": 1
+      },
+      {
+        "battleUnitId": "enemy:1",
+        "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+        "side": "ENEMY",
+        "formationPosition": {
+          "column": 0,
+          "row": "FRONT"
+        },
+        "coordinate": {
+          "x": 0,
+          "y": 1
+        },
+        "combatStatus": "DEFEATED",
+        "hp": {
+          "current": 0,
+          "maximum": 100
+        },
+        "resources": {
+          "ap": {
+            "current": 3,
+            "maximum": 3
+          },
+          "pp": {
+            "current": 3,
+            "maximum": 3
+          },
+          "extraGauge": {
+            "current": 0,
+            "maximum": 100
+          }
+        },
+        "combatStats": {
+          "attack": 10,
+          "defense": 10,
+          "criticalRate": 10,
+          "actionSpeed": 10,
+          "affinityBonus": 25,
+          "criticalDamageBonus": 50
+        },
+        "shields": {
+          "physical": 0,
+          "energy": 0,
+          "untyped": 0
+        },
+        "subUnits": [],
+        "effects": [],
+        "cooldowns": [],
+        "markers": [],
+        "formationNumber": 1
+      },
+      {
+        "battleUnitId": "enemy:2",
+        "unitDefinitionId": "UNIT_UI_FIXTURE_ENEMY",
+        "side": "ENEMY",
+        "formationPosition": {
+          "column": 0,
+          "row": "FRONT"
+        },
+        "coordinate": {
+          "x": 0,
+          "y": 1
+        },
+        "combatStatus": "DEFEATED",
+        "hp": {
+          "current": 0,
+          "maximum": 1
+        },
+        "resources": {
+          "ap": {
+            "current": 3,
+            "maximum": 3
+          },
+          "pp": {
+            "current": 3,
+            "maximum": 3
+          },
+          "extraGauge": {
+            "current": 0,
+            "maximum": 100
+          }
+        },
+        "combatStats": {
+          "attack": 0.1,
+          "defense": 0.1,
+          "criticalRate": 10,
+          "actionSpeed": 10,
+          "affinityBonus": 25,
+          "criticalDamageBonus": 50
+        },
+        "shields": {
+          "physical": 0,
+          "energy": 0,
+          "untyped": 0
+        },
+        "subUnits": [],
+        "effects": [],
+        "cooldowns": [],
+        "markers": [],
+        "formationNumber": 2
+      }
+    ],
+    "actionQueue": [],
+    "formations": {
+      "ally": {
+        "formationCount": 2,
+        "activeFormationNumber": 1,
+        "defeatedCount": 0
+      },
+      "enemy": {
+        "formationCount": 2,
+        "activeFormationNumber": 2,
+        "defeatedCount": 2
+      }
+    }
+  }
+}

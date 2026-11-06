@@ -3,8 +3,13 @@ import catalogFixture from "../../test/fixtures/m4.5-catalog.json";
 import duplicateDefinitionSuccessFixture from "../../test/fixtures/m4-success-duplicate-definition.json";
 import malformedSuccessFixture from "../../test/fixtures/malformed-success.json";
 import minimalSuccessFixture from "../../test/fixtures/m4-success-minimal.json";
+import totalWarSuccessFixture from "../../test/fixtures/total-war-success.json";
 import unknownEventSuccessFixture from "../../test/fixtures/success-unknown-event.json";
-import { validateCatalogResponse, validateSimulationResponse } from "./response-validator.js";
+import {
+  validateCatalogResponse,
+  validateSimulationResponse,
+  validateTotalWarResponse,
+} from "./response-validator.js";
 
 /**
  * Contract fixture tests (`docs/ui-design/06_UIテスト戦略.md`§5、REF-053・Issue #598)。
@@ -52,5 +57,26 @@ describe("response-validator contract fixtures", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.kind).toBe("RESPONSE_CONTRACT_MISMATCH");
+  });
+
+  // UI-API-049: 実サーバーの総力戦（2編成・途中出撃・再登場・未出撃）を受理する。
+  it("accepts total-war-success.json, the real engine-produced total war", () => {
+    const result = validateTotalWarResponse(totalWarSuccessFixture);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { unitRoster, initialState } = result.response;
+    expect(unitRoster.length).toBeGreaterThan(initialState.units.length);
+    expect(unitRoster.some((entry) => !entry.deployed)).toBe(true);
+    expect(unitRoster.some((entry) => entry.reappearance && entry.deployed)).toBe(true);
+  });
+
+  // 総力戦の結果は通常戦闘の契約では受理できない`initialState`とRosterの関係を持つ。
+  it("rejects total-war-success.json as a regular battle response, whose roster is initialState", () => {
+    expect(validateSimulationResponse(totalWarSuccessFixture).ok).toBe(false);
+  });
+
+  it("rejects a regular battle response as a total war response (no unitRoster)", () => {
+    expect(validateTotalWarResponse(minimalSuccessFixture).ok).toBe(false);
   });
 });

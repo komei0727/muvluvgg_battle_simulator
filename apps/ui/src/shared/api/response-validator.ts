@@ -1,6 +1,7 @@
 // 腐敗防止層（Anti-Corruption Layer）。サーバーのレスポンスをTypeScript型だけで
 // 信頼せず、契約違反ならUI表示より前に RESPONSE_CONTRACT_MISMATCH として落とす。
 import { EXERCISE_TURN_LIMIT } from "../../entities/tactical-exercise.js";
+import { TOTAL_WAR_MAX_FORMATIONS, TOTAL_WAR_TURN_LIMIT } from "../../entities/total-war.js";
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
@@ -9,6 +10,8 @@ import type {
   FormationStatPreviewResponse,
   TacticalExerciseEvaluationResponse,
   TacticalExerciseResponse,
+  TotalWarResponse,
+  TotalWarUnitRosterResponse,
   UiApiError,
 } from "./api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
@@ -305,6 +308,17 @@ function matchesRosterExactlyOnce(
   if (!Array.isArray(initialUnits)) {
     return false;
   }
+  return summariesMatchRosterExactlyOnce(initialUnits, unitSummaries);
+}
+
+/**
+ * `matchesRosterExactlyOnce`の本体。Rosterの正本はモードで異なる（通常戦闘・戦術演習は
+ * `initialState.units`、総力戦は`unitRoster`）ため、Roster行の配列を受け取る。
+ */
+function summariesMatchRosterExactlyOnce(
+  rosterUnits: readonly unknown[],
+  unitSummaries: readonly unknown[],
+): boolean {
   const summarizedIds = unitSummaries
     .map(battleUnitIdOf)
     .filter((id): id is string => id !== undefined);
@@ -315,8 +329,8 @@ function matchesRosterExactlyOnce(
   if (uniqueSummarizedIds.size !== summarizedIds.length) {
     return false;
   }
-  const rosterIds = initialUnits.map(battleUnitIdOf).filter((id): id is string => id !== undefined);
-  if (rosterIds.length !== initialUnits.length) {
+  const rosterIds = rosterUnits.map(battleUnitIdOf).filter((id): id is string => id !== undefined);
+  if (rosterIds.length !== rosterUnits.length) {
     return false;
   }
   // Rosterは同じ`battleUnitId`を持たない（戦闘内で一意）。件数一致と包含の
@@ -337,50 +351,68 @@ function structuralMismatch(message: string): BattleLogStructuralResult {
   return { ok: false, message };
 }
 
+/**
+ * 3モードの成功レスポンスに共通し、Rosterの正本に依存しない検証。違反があれば
+ * メッセージを、無ければ`undefined`を返す。
+ */
+function battleLogEnvelopeViolation(
+  body: Record<string, unknown>,
+  label: string,
+): string | undefined {
+  if (typeof body["schemaVersion"] !== "number") {
+    return `${label} response schemaVersion is not a number.`;
+  }
+  if (!isNonEmptyString(body["battleId"])) {
+    return `${label} response battleId is missing or empty.`;
+  }
+  if (!isNonEmptyString(body["catalogRevision"])) {
+    return `${label} response catalogRevision is missing or empty.`;
+  }
+  if (!isValidBattleState(body["initialState"])) {
+    return `${label} response initialState.units is malformed.`;
+  }
+  if (body["finalState"] !== undefined && !isValidBattleState(body["finalState"])) {
+    return `${label} response finalState.units is malformed.`;
+  }
+  const unitSummaries = body["unitSummaries"];
+  if (!Array.isArray(unitSummaries) || !unitSummaries.every(isValidUnitSummary)) {
+    return `${label} response unitSummaries is missing or malformed.`;
+  }
+  if (!Array.isArray(body["events"])) {
+    return `${label} response events is not an array.`;
+  }
+  if (!Array.isArray(body["stateTransitions"])) {
+    return `${label} response stateTransitions is not an array.`;
+  }
+  return undefined;
+}
+
 function validateBattleLogResponse(body: unknown, label: string): BattleLogStructuralResult {
   if (!isRecord(body)) {
     return structuralMismatch(`${label} response body is not a JSON object.`);
   }
 
-  if (typeof body["schemaVersion"] !== "number") {
-    return structuralMismatch(`${label} response schemaVersion is not a number.`);
-  }
-  if (!isNonEmptyString(body["battleId"])) {
-    return structuralMismatch(`${label} response battleId is missing or empty.`);
-  }
-  if (!isNonEmptyString(body["catalogRevision"])) {
-    return structuralMismatch(`${label} response catalogRevision is missing or empty.`);
-  }
-  if (!isValidBattleState(body["initialState"])) {
-    return structuralMismatch(`${label} response initialState.units is malformed.`);
+  const envelopeViolation = battleLogEnvelopeViolation(body, label);
+  if (envelopeViolation !== undefined) {
+    return structuralMismatch(envelopeViolation);
   }
   // ログ方針刷新3/3でサーバーは`SUMMARY`実行の`finalState`を省略する。不在は
   // 受理し、届いた場合だけ従来どおりshapeとroster対応を検証する——存在するのに
   // 壊れているのは、表示層まで通してはいけない契約違反のままである。
-  if (body["finalState"] !== undefined) {
-    if (!isValidBattleState(body["finalState"])) {
-      return structuralMismatch(`${label} response finalState.units is malformed.`);
-    }
-    if (!hasMatchingFinalStateUnits(body["initialState"], body["finalState"])) {
-      return structuralMismatch(
-        `${label} response finalState is missing a battleUnitId present in initialState.`,
-      );
-    }
+  if (
+    body["finalState"] !== undefined &&
+    !hasMatchingFinalStateUnits(body["initialState"], body["finalState"])
+  ) {
+    return structuralMismatch(
+      `${label} response finalState is missing a battleUnitId present in initialState.`,
+    );
   }
-  const unitSummaries = body["unitSummaries"];
-  if (!Array.isArray(unitSummaries) || !unitSummaries.every(isValidUnitSummary)) {
-    return structuralMismatch(`${label} response unitSummaries is missing or malformed.`);
-  }
+  // 形は`battleLogEnvelopeViolation`で検証済み。
+  const unitSummaries = body["unitSummaries"] as readonly unknown[];
   if (!matchesRosterExactlyOnce(body["initialState"], unitSummaries)) {
     return structuralMismatch(
       `${label} response unitSummaries does not contain exactly one entry per initialState battleUnitId.`,
     );
-  }
-  if (!Array.isArray(body["events"])) {
-    return structuralMismatch(`${label} response events is not an array.`);
-  }
-  if (!Array.isArray(body["stateTransitions"])) {
-    return structuralMismatch(`${label} response stateTransitions is not an array.`);
   }
   return { ok: true, result: body["result"] };
 }
@@ -463,6 +495,151 @@ export function validateTacticalExerciseResponse(body: unknown): TacticalExercis
     ok: true,
     response: body as TacticalExerciseResponse,
   };
+}
+
+// docs/ui-design/03_API・データ連携設計.md §9.2 / UI-API-049: 総力戦の成功レスポンス。
+// `result`の形とRosterの正本（`initialState`ではなく`unitRoster`）が通常戦闘と異なるため、
+// `validateSimulationResponse`へ分岐を足さず専用の関数にする——1つの関数で分岐させると、
+// 通常戦闘の検証を総力戦の都合で緩めることになる。
+//
+// 値域はサーバーのschema（apps/api/.../simulation/total-war-schema.ts）を写す。列挙値
+// （`outcome`・`completionReason`・`side`）は§9と同じく未知の値を許容する。
+
+export type TotalWarValidationResult =
+  | { readonly ok: true; readonly response: TotalWarResponse }
+  | { readonly ok: false; readonly error: UiApiError };
+
+function totalWarMismatch(message: string): TotalWarValidationResult {
+  return { ok: false, error: { kind: "RESPONSE_CONTRACT_MISMATCH", message } };
+}
+
+function isFormationNumber(value: unknown): value is number {
+  return isIntegerInRange(value, 1, TOTAL_WAR_MAX_FORMATIONS);
+}
+
+function isValidStage(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const defeatedSides = value["defeatedSides"];
+  return (
+    isFormationNumber(value["allyFormationNumber"]) &&
+    isFormationNumber(value["enemyFormationNumber"]) &&
+    isIntegerInRange(value["startTurn"], 1, TOTAL_WAR_TURN_LIMIT) &&
+    isIntegerInRange(value["endTurn"], 1, TOTAL_WAR_TURN_LIMIT) &&
+    Array.isArray(defeatedSides) &&
+    defeatedSides.every(isNonEmptyString)
+  );
+}
+
+/** 戦闘履歴の行番号に使うため、`stageNumber`は1からの連番でなければならない。 */
+function hasSequentialStageNumbers(stages: readonly unknown[]): boolean {
+  return stages.every((stage, index) => isRecord(stage) && stage["stageNumber"] === index + 1);
+}
+
+function isValidDefeatedFormationCounts(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isIntegerInRange(value["ally"], 0, TOTAL_WAR_MAX_FORMATIONS) &&
+    isIntegerInRange(value["enemy"], 0, TOTAL_WAR_MAX_FORMATIONS)
+  );
+}
+
+function isValidTotalWarResult(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const stages = value["stages"];
+  return (
+    isNonEmptyString(value["outcome"]) &&
+    isNonEmptyString(value["completionReason"]) &&
+    isIntegerInRange(value["completedTurn"], 1, TOTAL_WAR_TURN_LIMIT) &&
+    Array.isArray(stages) &&
+    stages.length > 0 &&
+    stages.every(isValidStage) &&
+    hasSequentialStageNumbers(stages) &&
+    isValidDefeatedFormationCounts(value["defeatedFormationCounts"])
+  );
+}
+
+function isValidRosterEntry(value: unknown): value is TotalWarUnitRosterResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["battleUnitId"]) &&
+    isNonEmptyString(value["unitDefinitionId"]) &&
+    isNonEmptyString(value["side"]) &&
+    isFormationNumber(value["formationNumber"]) &&
+    isValidPreviewPosition(value["formationPosition"]) &&
+    typeof value["reappearance"] === "boolean" &&
+    typeof value["deployed"] === "boolean"
+  );
+}
+
+function stateUnitIds(state: unknown): readonly string[] {
+  const units = isRecord(state) ? state["units"] : undefined;
+  return Array.isArray(units)
+    ? units.map(battleUnitIdOf).filter((id): id is string => id !== undefined)
+    : [];
+}
+
+/**
+ * `initialState`は両陣営の1番目の編成だけ、`finalState`は出撃したことのある全ユニットを
+ * 含む（10_API設計.md「TotalWarResponse」）。どちらに現れるユニットも`unitRoster`の
+ * 出撃済みの行でなければならず、`finalState`は出撃済みの行をすべて含む。出撃しなかった
+ * ユニットは`finalState`に現れないのが正しい（§10.1）。
+ */
+function statesHoldOnlyDeployedRosterUnits(
+  body: Record<string, unknown>,
+  roster: readonly TotalWarUnitRosterResponse[],
+): boolean {
+  const deployedIds = new Set(
+    roster.filter((entry) => entry.deployed).map((entry) => entry.battleUnitId),
+  );
+  if (!stateUnitIds(body["initialState"]).every((id) => deployedIds.has(id))) {
+    return false;
+  }
+  if (body["finalState"] === undefined) {
+    return true;
+  }
+  const finalIds = stateUnitIds(body["finalState"]);
+  return finalIds.every((id) => deployedIds.has(id)) && new Set(finalIds).size === deployedIds.size;
+}
+
+export function validateTotalWarResponse(body: unknown): TotalWarValidationResult {
+  if (!isRecord(body)) {
+    return totalWarMismatch("Total war response body is not a JSON object.");
+  }
+  const envelopeViolation = battleLogEnvelopeViolation(body, "Total war");
+  if (envelopeViolation !== undefined) {
+    return totalWarMismatch(envelopeViolation);
+  }
+
+  const roster = body["unitRoster"];
+  if (!Array.isArray(roster) || !roster.every(isValidRosterEntry)) {
+    return totalWarMismatch("Total war response unitRoster is missing or malformed.");
+  }
+  if (hasDuplicateIds(roster.map((entry) => entry.battleUnitId))) {
+    return totalWarMismatch(
+      "Total war response unitRoster contains duplicate battleUnitId values.",
+    );
+  }
+  if (!summariesMatchRosterExactlyOnce(roster, body["unitSummaries"] as readonly unknown[])) {
+    return totalWarMismatch(
+      "Total war response unitSummaries does not contain exactly one entry per unitRoster battleUnitId.",
+    );
+  }
+  if (!statesHoldOnlyDeployedRosterUnits(body, roster)) {
+    return totalWarMismatch(
+      "Total war response battle states do not match the deployed units of unitRoster.",
+    );
+  }
+  if (!isValidTotalWarResult(body["result"])) {
+    return totalWarMismatch("Total war response result is malformed.");
+  }
+
+  return { ok: true, response: body as unknown as TotalWarResponse };
 }
 
 // docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」: 統計実行の一括評価。
