@@ -10,6 +10,7 @@ import { EffectTraceSection } from "../effect-trace/EffectTraceSection.js";
 import { SkillTimelineSection } from "../skill-timeline/SkillTimelineSection.js";
 import type { LogLevel } from "../../entities/battle-draft.js";
 import { selectRoster } from "../../entities/roster.js";
+import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
   BattleSimulationCatalogResponse,
@@ -21,6 +22,11 @@ export interface BattleDetailsSectionProps {
   readonly response: BattleLogResponse;
   readonly catalog?: BattleSimulationCatalogResponse;
   readonly logLevel: LogLevel;
+  /**
+   * 表示用Roster。省略時は`initialState`から作る（通常戦闘・戦術演習）。総力戦は
+   * `unitRoster`由来を渡し、途中から出撃したユニットも全タブで名前を解決する（§8.9）。
+   */
+  readonly roster?: readonly RosterEntry[];
 }
 
 type DetailsTab =
@@ -57,16 +63,22 @@ const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
 // §2 BattleDetailsSection: イベント・状態遷移・JSONを1ページ内のtabで切り替
 // える(UI-AC-010)。stateTransitionIndexを持つイベントから対応する状態遷移
 // へ移動できる(§8.1)。
-export function BattleDetailsSection({ response, catalog, logLevel }: BattleDetailsSectionProps) {
+export function BattleDetailsSection({
+  response,
+  catalog,
+  logLevel,
+  roster: suppliedRoster,
+}: BattleDetailsSectionProps) {
   const [activeTab, setActiveTab] = useState<DetailsTab>("events");
   const [highlightedTransitionIndex, setHighlightedTransitionIndex] = useState<number | undefined>(
     undefined,
   );
 
-  const roster = useMemo(
-    () => buildRosterIndex(selectRoster(response, catalog ?? EMPTY_CATALOG)),
-    [response, catalog],
+  const rosterEntries = useMemo(
+    () => suppliedRoster ?? selectRoster(response, catalog ?? EMPTY_CATALOG),
+    [suppliedRoster, response, catalog],
   );
+  const roster = useMemo(() => buildRosterIndex(rosterEntries), [rosterEntries]);
 
   function jumpToTransition(index: number) {
     setHighlightedTransitionIndex(index);
@@ -109,6 +121,7 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
         <div role="tabpanel" id="tabpanel-transitions" aria-labelledby="tab-transitions">
           <StateTransitionTable
             transitions={response.stateTransitions}
+            roster={roster}
             {...(highlightedTransitionIndex !== undefined
               ? { highlightedIndex: highlightedTransitionIndex }
               : {})}
@@ -125,6 +138,7 @@ export function BattleDetailsSection({ response, catalog, logLevel }: BattleDeta
           <UnitActionStateSection
             response={response}
             logLevel={logLevel}
+            roster={rosterEntries}
             {...(catalog !== undefined ? { catalog } : {})}
           />
         </div>

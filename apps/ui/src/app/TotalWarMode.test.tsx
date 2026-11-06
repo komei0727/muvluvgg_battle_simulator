@@ -12,6 +12,7 @@ import type {
   TotalWarRequest,
   TotalWarResponse,
 } from "../shared/api/api-contract.js";
+import totalWarSuccessFixture from "../test/fixtures/total-war-success.json";
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
 
 vi.mock("../features/catalog-selection/definition-image-map.js", () => ({
@@ -545,6 +546,82 @@ describe("TotalWarMode — execution", () => {
       expect(request.allyFormation.units.map((u) => u.unitDefinitionId)).toEqual(["UNIT_A"]);
       expect(request.enemyFormation.units.map((u) => u.unitDefinitionId)).toEqual(["UNIT_B"]);
     });
+  });
+});
+
+describe("TotalWarMode — result (UI-AC-061〜064)", () => {
+  // 生成fixture（TW-010b）: 敵の編成2が途中から出撃し（再登場）、味方の編成2は再登場のまま
+  // 未出撃。引き分けの表示を確かめるため、結果だけを15ターン経過の引き分けへ差し替える。
+  function drawFixture(): TotalWarResponse {
+    const fixture = totalWarSuccessFixture as TotalWarResponse;
+    return {
+      ...fixture,
+      catalogRevision: "rev-1",
+      result: {
+        ...fixture.result,
+        outcome: "DRAW",
+        completionReason: "TURN_LIMIT_REACHED",
+        completedTurn: 15,
+      },
+    };
+  }
+
+  async function runWithTwoFormations(user: UserEvent) {
+    renderPage(
+      vi.fn<SimulateTotalWarFn>(() => Promise.resolve({ ok: true, response: drawFixture() })),
+    );
+    await openTotalWar(user);
+    await fillDisplayedFormations(user);
+    await user.click(within(allyPanel()).getByRole("button", { name: "編成を追加" }));
+    await placeUnit(user, allySection(), "前衛1にユニットを追加", "ベータ");
+    await user.click(within(enemyPanel()).getByRole("button", { name: "編成を追加" }));
+    await placeUnit(user, enemySection(), "前衛1にユニットを追加", "ベータ");
+    await user.selectOptions(screen.getByLabelText("ログレベル"), "DETAILED");
+    await user.click(submitButton());
+    await waitFor(() => {
+      expect(screen.getByText(/総力戦が完了しました/)).toBeInTheDocument();
+    });
+  }
+
+  it("UI-CT-172: shows a draw with the turn out of 15, defeated formations and the battle history", async () => {
+    const user = userEvent.setup();
+    await runWithTwoFormations(user);
+
+    expect(screen.getByText("DRAW / 引き分け")).toBeInTheDocument();
+    expect(screen.getByText("15ターン経過（引き分け）")).toBeInTheDocument();
+    expect(screen.getByText("15 / 15")).toBeInTheDocument();
+    expect(screen.getByLabelText("味方 撃破された編成")).toHaveTextContent("0 / 2");
+    expect(screen.getByLabelText("敵 撃破された編成")).toHaveTextContent("2 / 2");
+    const history = screen.getByRole("table", { name: "戦闘履歴" });
+    expect(within(history).getAllByRole("row")).toHaveLength(3);
+    expect(within(history).getByText("味方 編成1 vs 敵 編成2")).toBeInTheDocument();
+  });
+
+  it("UI-CT-173: groups the unit summary by formation with reappearance badges and undeployed units", async () => {
+    const user = userEvent.setup();
+    await runWithTwoFormations(user);
+
+    const allyTable = screen.getByText("ALLY UNIT SUMMARY").closest("section");
+    expect(allyTable).not.toBeNull();
+    const rows = within(allyTable!)
+      .getAllByRole("row")
+      .filter((row) => within(row).queryAllByRole("cell").length > 0);
+    expect(rows).toHaveLength(2);
+    expect(within(allyTable!).getByText("編成2")).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent("再登場 −99%");
+    expect(rows[1]).toHaveTextContent("未出撃");
+  });
+
+  it("UI-CT-174: summarizes formation events and marks undeployed units in the details", async () => {
+    const user = userEvent.setup();
+    await runWithTwoFormations(user);
+
+    expect(screen.getByText("敵の編成2が出撃: UNIT_UI_FIXTURE_ENEMY")).toBeInTheDocument();
+    expect(screen.getByText("敵の編成1が全滅（控え残り1）")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "ユニット状態" }));
+    const panel = screen.getByRole("tabpanel", { name: "ユニット状態" });
+    expect(within(panel).getByText("未出撃")).toBeInTheDocument();
   });
 });
 

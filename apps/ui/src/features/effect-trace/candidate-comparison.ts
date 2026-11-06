@@ -77,7 +77,8 @@ export function compareRankCandidates({
   const resolvedBeforeSequence = instance.resolutionStartSequence;
   const candidates: RankCandidate[] = [];
   for (const [battleUnitId, unitSide] of sideByUnitId) {
-    if (unitSide !== side) {
+    // 総力戦で解決より後に出撃したユニットは、その時点の盤面に居ない。
+    if (unitSide !== side || timeline.isAbsentBefore(battleUnitId, resolvedBeforeSequence)) {
       continue;
     }
     const value = timeline.valueBefore(battleUnitId, spec.field, resolvedBeforeSequence);

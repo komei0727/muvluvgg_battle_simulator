@@ -262,3 +262,54 @@ describe("buildCombatStatTimeline", () => {
     ]);
   });
 });
+
+// UI-UT-TWR-019 / UI-CMP-041（03_API・データ連携設計.md §12.4）。
+describe("buildCombatStatTimeline with total war addedUnits (UI-UT-TWR-019)", () => {
+  // 同じ状態遷移の中で、出撃（addedUnits）と出撃直後のステータス変化が一緒に届く。
+  const deployment: StateTransitionResponse = {
+    causedBySequence: 40,
+    stateVersionBefore: 40,
+    stateVersionAfter: 41,
+    delta: {
+      units: { "enemy:2": { combatStats: { attack: { before: 300, after: 450 } } } },
+      addedUnits: [unit("enemy:2", 300, { hp: { current: 10, maximum: 10 } })],
+    },
+  };
+
+  it("starts a unit that joins mid-battle from its addedUnits element and folds later deltas", () => {
+    const timeline = buildCombatStatTimeline(
+      response({
+        stateTransitions: [
+          deployment,
+          transition({ causedBySequence: 50, battleUnitId: "enemy:2", before: 450, after: 500 }),
+        ],
+      }),
+    );
+
+    expect(timeline.initialValue("enemy:2", "attack")).toBe(300);
+    expect(timeline.initialValue("enemy:2", "maximumHp")).toBe(10);
+    expect(timeline.valueBefore("enemy:2", "attack", 41)).toBe(450);
+    expect(timeline.valueBefore("enemy:2", "attack", 51)).toBe(500);
+  });
+
+  it("reports no value and absence before the unit joins", () => {
+    const timeline = buildCombatStatTimeline(response({ stateTransitions: [deployment] }));
+
+    expect(timeline.valueBefore("enemy:2", "attack", 40)).toBeUndefined();
+    expect(timeline.isAbsentBefore("enemy:2", 40)).toBe(true);
+    expect(timeline.isAbsentBefore("enemy:2", 41)).toBe(false);
+    expect(timeline.isAbsentBefore("ally:1", 1)).toBe(false);
+  });
+
+  it("keeps the same result for a response without addedUnits", () => {
+    const transitions = [
+      transition({ causedBySequence: 11, battleUnitId: "ally:1", before: 1000, after: 1350 }),
+    ];
+    const timeline = buildCombatStatTimeline(response({ stateTransitions: transitions }));
+
+    expect(timeline.valueBefore("ally:1", "attack", 12)).toBe(1350);
+    expect(timeline.isAbsentBefore("ally:1", 12)).toBe(false);
+    // 開始時に居ないユニットは「読めない」のままで、不在とは扱わない。
+    expect(timeline.isAbsentBefore("ally:9", 12)).toBe(false);
+  });
+});

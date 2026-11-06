@@ -192,3 +192,38 @@ describe("flattenDelta entity collection entries (DMG-010)", () => {
     });
   });
 });
+
+// UI-UT-TWR-018（03_API・データ連携設計.md §12.2）。
+describe("flattenDelta total war deltas (UI-UT-TWR-018)", () => {
+  const delta = {
+    addedUnits: [
+      { battleUnitId: "enemy:2", unitDefinitionId: "UNIT_E", hp: { current: 1, maximum: 1 } },
+      { battleUnitId: "enemy:3", unitDefinitionId: "UNIT_F", hp: { current: 1, maximum: 1 } },
+    ],
+    formations: { enemy: { activeFormationNumber: { before: 1, after: 2 } } },
+  };
+
+  it("emits one deploy line per added unit, named by the resolver, and formations as value changes", () => {
+    const names: Readonly<Record<string, string>> = { "enemy:2": "エネミー" };
+    const lines = flattenDelta(delta, { resolveUnitName: (id) => names[id] ?? id });
+
+    expect(lines).toEqual([
+      { path: "addedUnits[0]", text: "+ エネミー 出撃" },
+      { path: "addedUnits[1]", text: "+ enemy:3 出撃" },
+      { path: "formations.enemy.activeFormationNumber", text: "1 → 2" },
+    ]);
+  });
+
+  it("names added units by battleUnitId without a resolver", () => {
+    expect(flattenDelta({ addedUnits: delta.addedUnits })).toEqual([
+      { path: "addedUnits[0]", text: "+ enemy:2 出撃" },
+      { path: "addedUnits[1]", text: "+ enemy:3 出撃" },
+    ]);
+  });
+
+  it("falls back to compact JSON for an added unit without a battleUnitId", () => {
+    expect(flattenDelta({ addedUnits: [{ side: "ENEMY" }] })).toEqual([
+      { path: "addedUnits[0]", text: '+ {"side":"ENEMY"} 出撃' },
+    ]);
+  });
+});
