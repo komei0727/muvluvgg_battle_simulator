@@ -965,7 +965,14 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 | システム     | `BATTLE_STARTED`・`TURN_STARTED`・`RESOURCES_RECOVERED`・`ACTION_QUEUE_CREATED`・`TURN_COMPLETED`・`FORMATION_DEPLOYED`・`FORMATION_DEFEATED`・`BATTLE_COMPLETED` |
 
 - 表に無いtypeは直前のステップの「その他」になる。表の漏れは表示の粒度が粗くなるだけで、イベントの欠落にはならない。
-- **ヒットの適用中の処理**: ヒットの起点から、同じヒットの`DAMAGE_APPLIED`までの間に現れる「効果」「回復」の起点は新しいステップを始めず、ヒットのステップへ含める。シールド・サブユニットが枯渇するヒットでは`DAMAGE_CALCULATED → SHIELD_CONSUMED → EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`の順に届く（枯渇した吸収源の失効は、`DAMAGE_APPLIED`に反応するPSが残量0の吸収源を観測しないよう、HPの減少より前に記録される）ため、`EFFECT_EXPIRED`で分けるとヒットの行に計算値だけが残り、適用結果が失効の行へ離れる。この間は、「効果」「回復」以外の起点（次のヒット・発動など）が現れたとき、または区間が終わったときにも終わる（`DAMAGE_APPLIED`が出ないMISS・回避・無効のヒット）。`DAMAGE_APPLIED`より後の効果（ヒット時付与・ヒット数による持続の消費など）は従来どおり別のステップにする。
+- **ヒットの適用中の処理**: ヒットの起点から、同じヒットの`DAMAGE_APPLIED`までの間に現れる「効果」「回復」の起点は新しいステップを始めず、ヒットのステップへ含める。シールド・サブユニットが枯渇するヒットでは`DAMAGE_CALCULATED → SHIELD_CONSUMED → EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`の順に届く（枯渇した吸収源の失効は、`DAMAGE_APPLIED`に反応するPSが残量0の吸収源を観測しないよう、HPの減少より前に記録される）ため、`EFFECT_EXPIRED`で分けるとヒットの行に計算値だけが残り、適用結果が失効の行へ離れる。取り込みは`HIT_CONFIRMED`を起点とするヒットだけが持ち、次のいずれかで閉じる。閉じた後の効果・回復の起点は通常どおり新しいステップを始める。
+  1. 同じヒットの`DAMAGE_APPLIED`（そのステップに含めて閉じる）。
+  2. `DAMAGE_CONVERTED_TO_HEAL`（幻惑などでダメージが回復へ変わったヒットの結果。回復の起点としてではなく、ヒットのステップに含めて閉じる）。
+  3. `EFFECT_ACTION_COMPLETED`・`EFFECT_ACTION_STARTING`・`EFFECT_STEP_COMPLETED`・`EFFECT_STEP_STARTING`（EffectActionの境界。ダメージが無効化されて`DAMAGE_APPLIED`が出ないヒットもここで閉じる。境界のイベント自身は起点ではないので、従来どおり直前のステップへ含まれる）。
+  4. 「効果」「回復」以外の起点（次のヒット・発動など）、または区間の終わり。
+
+  `EVASION_ACTIVATED`・`SKILL_MISSED`を起点とするヒットは適用を持たないので取り込みを持たない —— 回避の後に別のEffectActionで自身へバフを付けると`EVASION_ACTIVATED → EFFECT_ACTION_COMPLETED → EFFECT_STEP_COMPLETED → EFFECT_STEP_STARTING → EFFECT_ACTION_STARTING → EFFECT_APPLIED`と続き、取り込みを開いたままにすると、通常の命中なら別になるバフの付与が回避のステップへ入る。`DAMAGE_APPLIED`より後の効果（ヒット時付与・ヒット数による持続の消費など）も従来どおり別のステップにする。
+
 - 同じ`parentSequence`を持つ「効果」「回復」の起点が連続する場合（1つのEffectActionが複数の対象へ付与・回復した場合）は1ステップに束ねる。ヒットは束ねず、対象ごと・ヒットごとに1ステップとする。
 - 各ステップは、構成イベント、起点の種類、発動者（起点の`sourceUnitId`。メモリー発動は無し）、対象（構成イベントの`targetUnitIds`の和）、ステップの後の版（構成イベントの`stateVersionAfter`の最大）、`sequence`の範囲、割り込みの深さを持つ。
 - **見出しと要約**: 起点イベントを既存の`formatEvent`（§12）に通した結果を使う。行動トレースのために要約を別に実装しない。
@@ -1110,6 +1117,6 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 
 - `UI-API-053`: 状態の組み立て直しが`ValueChange`・`EntityCollectionDelta`・`addedUnits`を§12.5のとおり適用し、全UI fixture（総力戦を含む）で最後まで適用した結果が`finalState`と一致する。途中の版では、その版以下の遷移だけが適用されている。
 - `UI-API-054`: 区間の切り分けで全イベントがちょうど1つの区間に属する。同じ`actionId`のイベントと、`parentSequence`の祖先が行動区間に属する`actionId`の無いイベントが同じ行動区間になり、それ以外の連続したイベントがシステム区間になる。システム区間は`turnNumber`が変わる位置でも分かれる。
-- `UI-API-055`: 処理ステップの分解で全イベントがちょうど1つのステップに属する。起点typeの表に無いイベントは直前のステップへ含まれ、同じ親を持つ連続した効果・回復の起点は1ステップに束ねられ、ヒットは対象ごと・ヒットごとに分かれる。ヒットの起点からその`DAMAGE_APPLIED`までに現れる効果・回復の起点はヒットのステップに含まれる。
+- `UI-API-055`: 処理ステップの分解で全イベントがちょうど1つのステップに属する。起点typeの表に無いイベントは直前のステップへ含まれ、同じ親を持つ連続した効果・回復の起点は1ステップに束ねられ、ヒットは対象ごと・ヒットごとに分かれる。`HIT_CONFIRMED`からその`DAMAGE_APPLIED`・`DAMAGE_CONVERTED_TO_HEAL`・EffectActionの境界までに現れる効果・回復の起点はヒットのステップに含まれ、回避・MISSの後と境界の後の効果・回復は別のステップになる。
 - `UI-API-056`: 行動本体と異なるスキル解決のPS・メモリー発動に属するステップが、`parentSequence`の連鎖に応じた深さの割り込みになる。システム区間の契機となったPSは深さ0になる。
 - `UI-API-057`: ヒットの内訳と回復量をpayloadからそのまま読み、payloadが持たない項目を0として出さない。
