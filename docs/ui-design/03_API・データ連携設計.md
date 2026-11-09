@@ -908,6 +908,74 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 
 この規則を守らないと、途中から出撃したユニットに付いた効果・そのユニットを含む候補比較が黙って抜け落ちる。
 
+### 12.5 行動トレースの投影（[01_UI要求・画面設計.md](./01_UI要求・画面設計.md) §8.10）
+
+行動トレースは、①任意の時点の戦闘状態、②イベント列の区間への切り分け、③区間の処理ステップへの分解、の3つの純関数の投影から描く。componentはこれらの結果だけを描画する（`UI-CMP-005`）。
+
+#### 状態の組み立て直し
+
+`initialState`へ`stateTransitions`を`stateVersionAfter`の昇順に適用し、任意の`stateVersion`の時点の状態（`BattleStateResponse`と同じ形）を返す（[10_API設計.md](../ddd/10_API設計.md)「差分の適用」）。版`v`の状態は、`stateVersionAfter`が`v`以下の遷移をすべて適用した状態である。
+
+- `ValueChange`は`after`で置き換える。`after: null`はその値が無くなったことを表す。
+- `EntityCollectionDelta`（`effects`・`subUnits`・`markers`・`cooldowns`）は§12.2と同じID項目で要素を識別し、`added`を加え、`updated`をその`after`で置き換え、`removed`を取り除く。配列の位置には依存しない。
+- 1つの遷移の中の適用順は§12.4に従う（`addedUnits`を先に適用する）。
+- 未知のキーは無視し、落ちない。
+- 区間（下記）の先頭ごとに完全な状態を1つ保持し、区間の中の版はその区間の先頭の状態から必要な遷移だけを適用して求める。全ての版の完全な状態を保持しない —— 長い戦闘では遷移が数万件に達し、版ごとの複製はメモリを使い切る。
+- 最後まで適用した結果は`finalState`と一致しなければならない。これを全UI fixture（総力戦を含む）で検証する。
+
+既存の`combat-stat-timeline.ts`・`candidate-comparison.ts`の部分的な適用は、この投影へは置き換えない（別の作業とする）。
+
+#### 区間
+
+イベントを`sequence`昇順に走査し、区間の配列へ分ける。全イベントがちょうど1つの区間に属する。
+
+- **行動区間**: 同じ`actionId`を持つイベント。`actionId`を持たないイベントでも、`parentSequence`の祖先が行動区間に属するものはその区間に含める。
+- **システム区間**: 上のどちらにも当たらない、連続したイベント。間に行動区間が挟まれば別の区間になる。
+- **行動者**: `ACTION_STARTED.details.actorUnitId`。無ければ区間で最初の`sourceUnitId`。陣営は行動者の陣営とする。
+- **行動本体のスキル解決**: 区間内で最初に現れる`skillUseId`のうち、そのイベント群に`PASSIVE_ACTIVATED`・`MEMORY_TRIGGERED`を含まないもの（AS・EX・チャージ解放）。スキル定義IDはそのイベント群で最初に見つかった`skillDefinitionId`とする（§8.8のスキル時系列と同じく、起点typeで分岐しない）。
+- **システム区間の見出し**: 区間内で最初に見つかった次のtypeから決める。どれも無ければ「システム処理」とする。
+
+| type                                | 見出し                         |
+| ----------------------------------- | ------------------------------ |
+| `BATTLE_STARTED`                    | 戦闘開始                       |
+| `TURN_STARTED`                      | ターン {n} 開始                |
+| `TURN_COMPLETING`・`TURN_COMPLETED` | ターン {n} 終了                |
+| `FORMATION_DEPLOYED`                | {陣営}の編成{n}が出撃（§12.3） |
+| `BATTLE_COMPLETED`                  | 戦闘終了                       |
+
+- 各区間は、ターン番号（先頭のイベントの`turnNumber`）、`sequence`の範囲、区間の前の版（先頭のイベントの`stateVersionBefore`）、区間の後の版（区間内の`stateVersionAfter`の最大）、撃破（`UNIT_DEFEATED`）を含むかを持つ。
+
+#### 処理ステップ
+
+区間のイベントを`sequence`昇順に走査し、次の表の起点typeに当たるたびに新しいステップを始める。起点でないイベントは直前のステップへ含める。区間の先頭が起点でない場合は、そこから最初の起点の直前までを1ステップとする。全イベントがちょうど1つのステップに属する。
+
+| 種類         | 起点type                                                                                                                                                          |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 行動開始     | `ACTION_STARTED`                                                                                                                                                  |
+| スキル使用   | `SKILL_USE_STARTED`                                                                                                                                               |
+| 対象選択     | `TARGETS_SELECTED`                                                                                                                                                |
+| 発動         | `PASSIVE_ACTIVATED`・`MEMORY_TRIGGERED`                                                                                                                           |
+| ヒット       | `HIT_CONFIRMED`・`EVASION_ACTIVATED`・`SKILL_MISSED`                                                                                                              |
+| 特殊ダメージ | `CONTINUOUS_DAMAGE_APPLIED`・`REFLECTED_DAMAGE_GENERATED`・`LINKED_DAMAGE_GENERATED`                                                                              |
+| 回復         | `HEAL_APPLIED`・`DAMAGE_CONVERTED_TO_HEAL`・`HEALING_TRANSFERRED`                                                                                                 |
+| 効果         | `EFFECT_APPLIED`・`EFFECT_REMOVED`・`EFFECT_EXPIRED`・`MARKER_APPLIED`・`MARKER_REMOVED`                                                                          |
+| チャージ     | `CHARGE_STARTED`・`CHARGE_RELEASED`・`CHARGE_CANCELLED`                                                                                                           |
+| 戦闘不能     | `UNIT_DEFEATED`・`LETHAL_DAMAGE_SURVIVED`・`UNIT_BROKEN`・`UNIT_REVIVED`                                                                                          |
+| 行動完了     | `ACTION_COMPLETED`                                                                                                                                                |
+| システム     | `BATTLE_STARTED`・`TURN_STARTED`・`RESOURCES_RECOVERED`・`ACTION_QUEUE_CREATED`・`TURN_COMPLETED`・`FORMATION_DEPLOYED`・`FORMATION_DEFEATED`・`BATTLE_COMPLETED` |
+
+- 表に無いtypeは直前のステップの「その他」になる。表の漏れは表示の粒度が粗くなるだけで、イベントの欠落にはならない。
+- 同じ`parentSequence`を持つ「効果」「回復」の起点が連続する場合（1つのEffectActionが複数の対象へ付与・回復した場合）は1ステップに束ねる。ヒットは束ねず、対象ごと・ヒットごとに1ステップとする。
+- 各ステップは、構成イベント、起点の種類、発動者（起点の`sourceUnitId`。メモリー発動は無し）、対象（構成イベントの`targetUnitIds`の和）、ステップの後の版（構成イベントの`stateVersionAfter`の最大）、`sequence`の範囲、割り込みの深さを持つ。
+- **見出しと要約**: 起点イベントを既存の`formatEvent`（§12）に通した結果を使う。行動トレースのために要約を別に実装しない。
+- **割り込みの深さ**: ステップの`skillUseId`（起点のもの。無ければ構成イベントで最初のもの）が行動本体のスキル解決と異なり、そのイベント群に`PASSIVE_ACTIVATED`・`MEMORY_TRIGGERED`を含む場合、そのステップは割り込みに属する。深さは、その発動から`parentSequence`を遡って出会う、行動本体以外の発動の`skillUseId`の数に1を足した値とする。システム区間では、この値から1を引く（契機となったPSは字下げせず、PSの連鎖だけを字下げする）。
+- **ヒットの内訳**: ステップ内の`DAMAGE_CALCULATED`の計算項目（§12.1.1と同じ並び・表記）と`DAMAGE_APPLIED`の内訳（`typedShieldAbsorbed`・`untypedShieldAbsorbed`・`subUnitAbsorbed`・`hitPointDamage`・`defeated`）、`CRITICAL_CHECK_RESOLVED`の判定をそのまま読む。UIで再計算・按分しない。payloadが持たない項目は0と断定せず出さない（§12.1と同じ）。
+- **回復量**: `HEAL_APPLIED`の実回復量（`appliedAmount`。§11のHEAL列と同じ値）を使う。
+
+#### 現在の範囲と状態遷移tabへの移動
+
+[01_UI要求・画面設計.md](./01_UI要求・画面設計.md) §8.10「現在の範囲」の「前」「後」は、それぞれ上の区間・ステップの版である。変化の表から開く状態遷移は、`stateVersionAfter`が範囲の前の版より大きい最初の遷移とする。範囲内に遷移が無ければ移動の操作を出さない。
+
 ## 13. エラー正規化
 
 ```ts
@@ -1036,3 +1104,11 @@ APIはHTTPSで公開する。HTTPSのGitHub PagesからHTTP APIを呼ぶmixed co
 - `UI-API-050`: 総力戦の表示用Rosterを`unitRoster`から作り、出撃しなかったユニット・2番目以降の編成のユニットを含める。並びは`unitRoster`の順を保つ。
 - `UI-API-051`: 総力戦の状態の組み立て直しが、各状態遷移の`addedUnits`を他のユニット差分より先に適用し、途中から出撃したユニットの開始状態を`addedUnits`の要素から取る。
 - `UI-API-052`: 総力戦の実行がcontextのアクセスキーを送り、401を通知する（`UI-API-041`の拡張）。
+
+行動トレース（[01_UI要求・画面設計.md](./01_UI要求・画面設計.md) §8.10、§12.5）。
+
+- `UI-API-053`: 状態の組み立て直しが`ValueChange`・`EntityCollectionDelta`・`addedUnits`を§12.5のとおり適用し、全UI fixture（総力戦を含む）で最後まで適用した結果が`finalState`と一致する。途中の版では、その版以下の遷移だけが適用されている。
+- `UI-API-054`: 区間の切り分けで全イベントがちょうど1つの区間に属する。同じ`actionId`のイベントと、`parentSequence`の祖先が行動区間に属する`actionId`の無いイベントが同じ行動区間になり、それ以外の連続したイベントがシステム区間になる。
+- `UI-API-055`: 処理ステップの分解で全イベントがちょうど1つのステップに属する。起点typeの表に無いイベントは直前のステップへ含まれ、同じ親を持つ連続した効果・回復の起点は1ステップに束ねられ、ヒットは対象ごと・ヒットごとに分かれる。
+- `UI-API-056`: 行動本体と異なるスキル解決のPS・メモリー発動に属するステップが、`parentSequence`の連鎖に応じた深さの割り込みになる。システム区間の契機となったPSは深さ0になる。
+- `UI-API-057`: ヒットの内訳と回復量をpayloadからそのまま読み、payloadが持たない項目を0として出さない。
