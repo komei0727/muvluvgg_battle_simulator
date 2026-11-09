@@ -920,6 +920,7 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 - `EntityCollectionDelta`（`effects`・`subUnits`・`markers`・`cooldowns`）は§12.2と同じID項目で要素を識別し、`added`を加え、`updated`をその`after`で置き換え、`removed`を取り除く。配列の位置には依存しない。
 - 1つの遷移の中の適用順は§12.4に従う（`addedUnits`を先に適用する）。
 - 未知のキーは無視し、落ちない。
+- 戦術演習だけの`exercise`（`totalScore`・`breakCount`）と`units.<id>.baseCombatStats`は`BattleStateResponse`に適用先を持たない（[10_API設計.md](../ddd/10_API設計.md)「UnitStateDeltaResponse」）。状態へ混ぜると`finalState`と一致しなくなるため、状態とは別に版ごとの値を返す。初期値は各項目が最初に現れる差分の`before`とし、`baseCombatStats`は差分と同じく比率のまま返す。
 - 区間（下記）の先頭ごとに完全な状態を1つ保持し、区間の中の版はその区間の先頭の状態から必要な遷移だけを適用して求める。全ての版の完全な状態を保持しない —— 長い戦闘では遷移が数万件に達し、版ごとの複製はメモリを使い切る。
 - 最後まで適用した結果は`finalState`と一致しなければならない。これを全UI fixture（総力戦を含む）で検証する。
 
