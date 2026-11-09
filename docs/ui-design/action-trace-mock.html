@@ -1,0 +1,2591 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Action Trace — UI Mock</title>
+    <style>
+      /* Layout: 上部に再生コントロールとタイムライン、左に盤面（敵上・味方下）、右に「この行動の処理」パネル */
+      :root {
+        color-scheme: dark;
+        --bg: #07101d;
+        --surface: #0d1929;
+        --raised: #111f31;
+        --strong: #17273a;
+        --border: #263a50;
+        --border-strong: #36536d;
+        --text: #edf6ff;
+        --muted: #8fa6ba;
+        --faint: #5d7488;
+        --ally: #45c8ff;
+        --ally-soft: rgba(69, 200, 255, 0.13);
+        --enemy: #ff6b9a;
+        --enemy-soft: rgba(255, 107, 154, 0.13);
+        --success: #55e6ae;
+        --success-soft: rgba(85, 230, 174, 0.14);
+        --warning: #ffc861;
+        --warning-soft: rgba(255, 200, 97, 0.14);
+        --danger: #ff7285;
+        --danger-soft: rgba(255, 114, 133, 0.14);
+        --shield: #9fb8ff;
+        --system: #a99bff;
+        --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --r-sm: 6px;
+        --r-md: 10px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        background: var(--bg);
+      }
+      body {
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 14px;
+        line-height: 1.5;
+        background:
+          linear-gradient(rgba(43, 87, 122, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(43, 87, 122, 0.06) 1px, transparent 1px), var(--bg);
+        background-size:
+          32px 32px,
+          32px 32px,
+          auto;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0 0 auto;
+        height: env(safe-area-inset-top, 0px);
+        z-index: 10;
+        background: var(--bg);
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--ally);
+        outline-offset: 2px;
+      }
+      .mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .shell {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+        padding-block: 20px 56px;
+        display: grid;
+        gap: 16px;
+      }
+
+      /* ---------- header ---------- */
+      .head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 24px;
+        align-items: end;
+      }
+      .eyebrow {
+        margin: 0;
+        font: 500 11px/1.2 var(--font-mono);
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 4px 0 0;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-wrap: balance;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .pill b {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .pill.win {
+        border-color: rgba(85, 230, 174, 0.45);
+        color: var(--success);
+      }
+      .tabs {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--border);
+      }
+      .tab {
+        padding: 8px 14px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        cursor: default;
+      }
+      .tab[aria-selected="true"] {
+        color: var(--text);
+        border-bottom-color: var(--ally);
+        font-weight: 500;
+      }
+      .tab .new {
+        margin-left: 6px;
+        padding: 0 5px;
+        border-radius: 4px;
+        background: var(--ally-soft);
+        color: var(--ally);
+        font: 600 10px/16px var(--font-mono);
+      }
+
+      /* ---------- controls ---------- */
+      .controls {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 5;
+        display: grid;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: rgba(13, 25, 41, 0.94);
+        backdrop-filter: blur(10px);
+      }
+      .ctl-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+      }
+      .transport {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tbtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 38px;
+        height: 34px;
+        padding: 0 9px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-sm);
+        background: var(--raised);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .tbtn:hover {
+        background: var(--strong);
+        border-color: var(--ally);
+      }
+      .tbtn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        border-color: var(--border);
+        background: var(--raised);
+      }
+      .tbtn.play {
+        min-width: 48px;
+        background: var(--ally-soft);
+        border-color: var(--ally);
+        color: var(--ally);
+      }
+      .tbtn .n {
+        font: 600 11px var(--font-mono);
+      }
+      .tbtn svg {
+        width: 14px;
+        height: 14px;
+        fill: currentColor;
+      }
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-sm);
+        overflow: hidden;
+      }
+      .seg button {
+        padding: 5px 11px;
+        border: 0;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .seg button + button {
+        border-left: 1px solid var(--border-strong);
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--ally-soft);
+        color: var(--ally);
+        font-weight: 500;
+      }
+      select {
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-sm);
+        background: var(--raised);
+        font-size: 12px;
+      }
+      .position {
+        margin-left: auto;
+        display: flex;
+        gap: 6px 14px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .position b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .kbd {
+        font: 500 10px var(--font-mono);
+        padding: 1px 5px;
+        border: 1px solid var(--border-strong);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        color: var(--muted);
+      }
+
+      /* timeline */
+      .timeline-wrap {
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .timeline {
+        display: flex;
+        gap: 10px;
+        min-width: 640px;
+      }
+      .tl-turn {
+        display: grid;
+        gap: 4px;
+        flex: var(--n) 1 0;
+      }
+      .tl-turn-label {
+        font: 500 10px var(--font-mono);
+        color: var(--muted);
+        letter-spacing: 0.1em;
+      }
+      .tl-ticks {
+        display: flex;
+        gap: 3px;
+      }
+      .tick {
+        flex: 1 1 0;
+        height: 26px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background: var(--strong);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+      .tick::before {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 4px;
+        background: var(--c);
+        opacity: 0.9;
+      }
+      .tick.ally {
+        --c: var(--ally);
+      }
+      .tick.enemy {
+        --c: var(--enemy);
+      }
+      .tick.system {
+        --c: var(--system);
+      }
+      .tick.done {
+        background: color-mix(in srgb, var(--c) 18%, var(--strong));
+      }
+      .tick.current {
+        border-color: var(--text);
+        background: color-mix(in srgb, var(--c) 34%, var(--strong));
+      }
+      .tick.dim {
+        opacity: 0.3;
+      }
+      .tick .k {
+        position: absolute;
+        top: 3px;
+        left: 0;
+        right: 0;
+        font: 600 10px/1 var(--font-mono);
+        color: var(--muted);
+        text-align: center;
+      }
+      .tick.current .k {
+        color: var(--text);
+      }
+      .tick .defeat-dot {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--danger);
+      }
+      .tick .progress {
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 4px;
+        background: var(--text);
+        width: 0;
+      }
+
+      /* ---------- main grid ---------- */
+      .main {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        align-items: start;
+      }
+      @media (max-width: 1040px) {
+        .main {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--surface);
+        min-width: 0;
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .card-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .card-body {
+        padding: 14px;
+      }
+
+      /* board */
+      .board {
+        position: relative;
+        display: grid;
+        gap: 10px;
+      }
+      .side-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 500 11px var(--font-mono);
+        letter-spacing: 0.12em;
+      }
+      .side-label.enemy {
+        color: var(--enemy);
+      }
+      .side-label.ally {
+        color: var(--ally);
+      }
+      .side-label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.25;
+      }
+      .rows {
+        display: grid;
+        gap: 8px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 52px repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        align-items: stretch;
+      }
+      .row-label {
+        align-self: center;
+        font-size: 11px;
+        color: var(--faint);
+      }
+      @media (max-width: 560px) {
+        .row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .row-label {
+          display: none;
+        }
+      }
+      .frontline {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--faint);
+        font: 500 10px var(--font-mono);
+        letter-spacing: 0.3em;
+      }
+      .frontline::before,
+      .frontline::after {
+        content: "";
+        flex: 1;
+        border-top: 1px dashed var(--border-strong);
+      }
+      .arrows {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 3;
+      }
+
+      .unit {
+        position: relative;
+        display: grid;
+        gap: 6px;
+        align-content: start;
+        min-height: 132px;
+        padding: 8px 9px 9px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--raised);
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s,
+          opacity 0.2s;
+      }
+      .unit.empty {
+        background: transparent;
+        border-style: dashed;
+        border-color: var(--border);
+      }
+      .unit.ally {
+        --side: var(--ally);
+        --side-soft: var(--ally-soft);
+      }
+      .unit.enemy {
+        --side: var(--enemy);
+        --side-soft: var(--enemy-soft);
+      }
+      .unit.actor {
+        border-color: var(--side);
+        box-shadow:
+          0 0 0 1px var(--side),
+          0 0 22px -4px var(--side);
+        background: color-mix(in srgb, var(--side) 9%, var(--raised));
+      }
+      .unit.target {
+        border-color: var(--warning);
+        border-style: dashed;
+      }
+      .unit.touched:not(.actor):not(.target) {
+        border-color: var(--border-strong);
+      }
+      .unit.defeated {
+        opacity: 0.42;
+      }
+      .unit.defeated .u-name {
+        text-decoration: line-through;
+      }
+      .unit .tag {
+        position: absolute;
+        top: -9px;
+        left: 8px;
+        padding: 0 6px;
+        border-radius: 4px;
+        font: 600 10px/17px var(--font-mono);
+        letter-spacing: 0.06em;
+      }
+      .unit.actor .tag {
+        background: var(--side);
+        color: var(--bg);
+      }
+      .unit.target .tag {
+        background: var(--warning);
+        color: var(--bg);
+      }
+      .u-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 4px;
+        min-width: 0;
+      }
+      .u-name {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .u-order {
+        flex: none;
+        font: 500 10px var(--font-mono);
+        color: var(--faint);
+      }
+      .u-role {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: -4px;
+      }
+      .hp {
+        display: grid;
+        gap: 2px;
+      }
+      .bar {
+        position: relative;
+        height: 8px;
+        border-radius: 3px;
+        background: #0a1422;
+        overflow: hidden;
+      }
+      .bar > span {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        border-radius: 3px;
+        transition: width 0.35s ease;
+      }
+      .bar .ghost-dmg {
+        background: var(--danger);
+        opacity: 0.85;
+      }
+      .bar .ghost-heal {
+        background: var(--success);
+        opacity: 0.55;
+      }
+      .bar .fill {
+        background: var(--side);
+      }
+      .bar .fill.low {
+        background: var(--warning);
+      }
+      .bar .shield-fill {
+        background: repeating-linear-gradient(135deg, var(--shield) 0 3px, transparent 3px 5px);
+        opacity: 0.9;
+      }
+      .hp-text {
+        display: flex;
+        justify-content: space-between;
+        gap: 4px;
+        font: 500 10px var(--font-mono);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .hp-text b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .hp-text .sh {
+        color: var(--shield);
+      }
+      .res {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font: 500 9px var(--font-mono);
+        color: var(--faint);
+      }
+      .pips {
+        display: inline-flex;
+        gap: 2px;
+        margin-left: 3px;
+        vertical-align: middle;
+      }
+      .pip {
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        border: 1px solid var(--border-strong);
+      }
+      .pip.on {
+        background: var(--muted);
+        border-color: var(--muted);
+      }
+      .pip.spent {
+        background: var(--danger);
+        border-color: var(--danger);
+      }
+      .pip.gain {
+        background: var(--success);
+        border-color: var(--success);
+      }
+      .ex {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        min-width: 0;
+      }
+      .ex .bar {
+        flex: 1;
+        height: 4px;
+      }
+      .ex .bar .fill {
+        background: var(--warning);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+      }
+      .chip {
+        padding: 0 5px;
+        border-radius: 4px;
+        font-size: 10px;
+        line-height: 16px;
+        white-space: nowrap;
+        border: 1px solid transparent;
+      }
+      .chip.buff {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+      .chip.debuff {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .chip.status {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+      .chip .rm {
+        opacity: 0.7;
+        margin-left: 3px;
+        font-family: var(--font-mono);
+      }
+      .chip.added {
+        border-color: currentColor;
+      }
+      .chip.removed {
+        text-decoration: line-through;
+        opacity: 0.5;
+        background: transparent;
+        border: 1px dashed currentColor;
+      }
+      .delta {
+        position: absolute;
+        z-index: 4;
+        right: 6px;
+        top: 22px;
+        display: grid;
+        justify-items: end;
+        gap: 1px;
+        pointer-events: none;
+        animation: pop 0.35s ease-out;
+      }
+      .delta .v {
+        font: 700 15px/1 var(--font-mono);
+        padding: 3px 6px;
+        border-radius: 5px;
+        background: var(--bg);
+        border: 1px solid currentColor;
+        white-space: nowrap;
+      }
+      .delta.dmg {
+        color: var(--danger);
+      }
+      .delta.heal {
+        color: var(--success);
+      }
+      .delta .sub {
+        font: 600 9px/1.3 var(--font-mono);
+        padding: 0 4px;
+        border-radius: 3px;
+        background: var(--bg);
+      }
+      .delta .crit {
+        color: var(--warning);
+      }
+      .delta .shd {
+        color: var(--shield);
+      }
+      .ko {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .ko span {
+        transform: rotate(-8deg);
+        padding: 2px 10px;
+        border: 2px solid var(--danger);
+        border-radius: 4px;
+        color: var(--danger);
+        font: 700 14px var(--font-mono);
+        letter-spacing: 0.2em;
+        background: rgba(7, 16, 29, 0.75);
+      }
+      @keyframes pop {
+        from {
+          transform: translateY(6px) scale(0.9);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+
+      /* queue */
+      .queue {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        overflow-x: auto;
+        padding: 2px 0 4px;
+      }
+      .queue-label {
+        flex: none;
+        font-size: 11px;
+        color: var(--muted);
+        margin-right: 4px;
+      }
+      .q {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 9px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--raised);
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .q::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--c);
+      }
+      .q.ally {
+        --c: var(--ally);
+      }
+      .q.enemy {
+        --c: var(--enemy);
+      }
+      .q.done {
+        color: var(--faint);
+      }
+      .q.done::before {
+        opacity: 0.35;
+      }
+      .q.current {
+        border-color: var(--c);
+        background: color-mix(in srgb, var(--c) 14%, var(--raised));
+        font-weight: 700;
+      }
+      .q-arrow {
+        color: var(--faint);
+        font-size: 10px;
+        flex: none;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: 5px;
+        vertical-align: -1px;
+      }
+
+      /* ---------- process panel ---------- */
+      .act-head {
+        display: grid;
+        gap: 4px;
+      }
+      .act-kicker {
+        font: 500 11px var(--font-mono);
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+      .act-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        margin: 0;
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .act-title .who.ally {
+        color: var(--ally);
+      }
+      .act-title .who.enemy {
+        color: var(--enemy);
+      }
+      .act-title .who.system {
+        color: var(--system);
+      }
+      .act-title .skill {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .steps {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+        display: grid;
+      }
+      .step {
+        position: relative;
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        gap: 0 10px;
+        padding: 7px 14px 7px 12px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+      }
+      .step:hover {
+        background: var(--raised);
+      }
+      .step::before {
+        content: "";
+        position: absolute;
+        left: 25px;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--border);
+      }
+      .step:first-child::before {
+        top: 18px;
+      }
+      .step:last-child::before {
+        bottom: calc(100% - 18px);
+      }
+      .step.depth1 {
+        padding-left: 32px;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+      }
+      .step.depth1::before {
+        left: 45px;
+      }
+      .step.depth1::after {
+        content: "";
+        position: absolute;
+        left: 22px;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        border-left: 1px dashed var(--system);
+      }
+      .ico {
+        position: relative;
+        z-index: 1;
+        width: 28px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 5px;
+        font: 600 10px var(--font-mono);
+        background: var(--strong);
+        color: var(--muted);
+        border: 1px solid var(--border-strong);
+      }
+      .ico.k-hit {
+        background: var(--danger-soft);
+        color: var(--danger);
+        border-color: rgba(255, 114, 133, 0.4);
+      }
+      .ico.k-heal {
+        background: var(--success-soft);
+        color: var(--success);
+        border-color: rgba(85, 230, 174, 0.4);
+      }
+      .ico.k-ps {
+        background: rgba(169, 155, 255, 0.14);
+        color: var(--system);
+        border-color: rgba(169, 155, 255, 0.45);
+      }
+      .ico.k-effect {
+        background: var(--warning-soft);
+        color: var(--warning);
+        border-color: rgba(255, 200, 97, 0.4);
+      }
+      .ico.k-defeat {
+        background: var(--danger);
+        color: var(--bg);
+        border-color: var(--danger);
+      }
+      .ico.k-cost,
+      .ico.k-target {
+        color: var(--ally);
+      }
+      .s-main {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .s-title {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .s-title .int {
+        margin-right: 6px;
+        padding: 0 5px;
+        border-radius: 3px;
+        background: rgba(169, 155, 255, 0.16);
+        color: var(--system);
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .s-detail {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .s-seq {
+        font: 500 10px var(--font-mono);
+        color: var(--faint);
+        padding-top: 3px;
+        white-space: nowrap;
+      }
+      .step.upcoming {
+        opacity: 0.38;
+      }
+      .step.current {
+        background: color-mix(in srgb, var(--ally) 9%, transparent);
+        border-left-color: var(--ally);
+      }
+      .step.current .s-title {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .calc {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px 4px;
+        margin-top: 4px;
+        font: 500 11px var(--font-mono);
+        color: var(--muted);
+      }
+      .calc .t {
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      .calc .t small {
+        color: var(--faint);
+        font-size: 9px;
+        margin-right: 3px;
+        font-family: var(--font-body);
+      }
+      .calc .t.crit {
+        color: var(--warning);
+        border-color: rgba(255, 200, 97, 0.4);
+      }
+      .calc .t.res {
+        color: var(--danger);
+        border-color: rgba(255, 114, 133, 0.45);
+        font-weight: 600;
+      }
+      .calc .t.res.heal {
+        color: var(--success);
+        border-color: rgba(85, 230, 174, 0.45);
+      }
+      .calc .op {
+        color: var(--faint);
+      }
+      .applied {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+        font: 500 11px var(--font-mono);
+      }
+      .applied span {
+        padding: 0 5px;
+        border-radius: 3px;
+        background: var(--bg);
+      }
+      .applied .shd {
+        color: var(--shield);
+      }
+      .applied .hpl {
+        color: var(--danger);
+      }
+      .applied .hl {
+        color: var(--success);
+      }
+
+      .diff {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .diff th,
+      .diff td {
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      .diff th {
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .diff td.num {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .diff .neg {
+        color: var(--danger);
+      }
+      .diff .pos {
+        color: var(--success);
+      }
+      .diff .nm.ally {
+        color: var(--ally);
+      }
+      .diff .nm.enemy {
+        color: var(--enemy);
+      }
+      .diff tr:last-child td {
+        border-bottom: 0;
+      }
+      .diff-wrap {
+        overflow-x: auto;
+      }
+      .panel-tools {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .linkbtn {
+        padding: 3px 9px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-sm);
+        background: none;
+        font-size: 11px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .linkbtn:hover {
+        color: var(--text);
+        border-color: var(--ally);
+      }
+
+      .notes {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+      .note {
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--surface);
+      }
+      .note h3 {
+        margin: 0 0 6px;
+        font-size: 13px;
+      }
+      .note p,
+      .note li {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .note ul {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 3px;
+      }
+      .note code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text);
+      }
+      .sample {
+        color: var(--warning);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .delta {
+          animation: none;
+        }
+        .bar > span {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="head">
+        <div>
+          <p class="eyebrow">
+            Battle Details · Action Trace <span class="sample">(サンプルデータ)</span>
+          </p>
+          <h1>行動トレース</h1>
+        </div>
+        <div class="meta">
+          <span class="pill">battleId <b class="mono">B_20261109_0412</b></span>
+          <span class="pill">seed <b class="mono">8812</b></span>
+          <span class="pill">ログレベル <b>DETAILED</b></span>
+          <span class="pill win">進行中のログを再生</span>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="戦闘詳細タブ">
+        <button class="tab" type="button">時系列イベント</button>
+        <button class="tab" type="button">状態遷移</button>
+        <button class="tab" type="button">ユニット状態</button>
+        <button class="tab" type="button">因果ツリー</button>
+        <button class="tab" type="button">効果トレース</button>
+        <button class="tab" type="button">スキル時系列</button>
+        <button class="tab" type="button" aria-selected="true">
+          行動トレース<span class="new">NEW</span>
+        </button>
+        <button class="tab" type="button">レスポンスJSON</button>
+      </nav>
+
+      <section class="controls" aria-label="再生コントロール">
+        <div class="ctl-row">
+          <div class="transport">
+            <button class="tbtn" id="btn-first" type="button" title="先頭へ (Home)">
+              <svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z" /></svg>
+            </button>
+            <button class="tbtn" id="btn-backn" type="button" title="N単位戻る (Shift+←)">
+              <svg viewBox="0 0 16 16"><path d="M8 2v12L1 8zM15 2v12L8 8z" /></svg
+              ><span class="n" id="lbl-backn">5</span>
+            </button>
+            <button class="tbtn" id="btn-back" type="button" title="1単位戻る (←)">
+              <svg viewBox="0 0 16 16"><path d="M12 2v12L4 8z" /></svg>
+            </button>
+            <button class="tbtn play" id="btn-play" type="button" title="再生 / 停止 (Space)">
+              <svg viewBox="0 0 16 16" id="ico-play"><path d="M4 2l10 6-10 6z" /></svg>
+            </button>
+            <button class="tbtn" id="btn-fwd" type="button" title="1単位進む (→)">
+              <svg viewBox="0 0 16 16"><path d="M4 2v12l8-6z" /></svg>
+            </button>
+            <button class="tbtn" id="btn-fwdn" type="button" title="N単位進む (Shift+→)">
+              <span class="n" id="lbl-fwdn">5</span
+              ><svg viewBox="0 0 16 16"><path d="M1 2v12l7-6zM8 2v12l7-6z" /></svg>
+            </button>
+            <button class="tbtn" id="btn-last" type="button" title="末尾へ (End)">
+              <svg viewBox="0 0 16 16"><path d="M2 2v12l8-6zM11 2h2v12h-2z" /></svg>
+            </button>
+          </div>
+          <div class="field">
+            <span>進む単位</span>
+            <div class="seg" role="group" aria-label="進む単位">
+              <button type="button" data-unit="step" aria-pressed="false">処理</button>
+              <button type="button" data-unit="action" aria-pressed="true">行動</button>
+              <button type="button" data-unit="turn" aria-pressed="false">ターン</button>
+            </div>
+          </div>
+          <label class="field" for="sel-n"
+            >N =
+            <select id="sel-n">
+              <option>3</option>
+              <option selected>5</option>
+              <option>10</option>
+              <option>20</option>
+            </select>
+          </label>
+          <label class="field" for="sel-follow"
+            >追跡
+            <select id="sel-follow">
+              <option value="all">すべての行動</option>
+              <option value="ALLY">味方の行動のみ</option>
+              <option value="ENEMY">敵の行動のみ</option>
+            </select>
+          </label>
+          <label class="field" for="sel-speed"
+            >速度
+            <select id="sel-speed">
+              <option value="1600">0.5×</option>
+              <option value="900" selected>1×</option>
+              <option value="450">2×</option>
+            </select>
+          </label>
+          <div class="position" id="position" aria-live="polite"></div>
+        </div>
+        <div class="timeline-wrap"><div class="timeline" id="timeline"></div></div>
+      </section>
+
+      <div class="main">
+        <section class="card" aria-label="盤面">
+          <div class="card-head">
+            <h2 class="card-title">盤面</h2>
+            <div class="legend">
+              <span><i style="background: var(--danger)"></i>この範囲の被ダメージ</span>
+              <span><i style="background: var(--success); opacity: 0.6"></i>回復</span>
+              <span
+                ><i
+                  style="
+                    background: repeating-linear-gradient(
+                      135deg,
+                      var(--shield) 0 3px,
+                      transparent 3px 5px
+                    );
+                  "
+                ></i
+                >シールド</span
+              >
+            </div>
+          </div>
+          <div class="card-body" style="display: grid; gap: 14px">
+            <div class="board" id="board"></div>
+            <div class="queue" id="queue"></div>
+          </div>
+        </section>
+
+        <section class="card" aria-label="この行動の処理">
+          <div class="card-head">
+            <div class="act-head" id="act-head"></div>
+          </div>
+          <ol class="steps" id="steps"></ol>
+          <div class="card-head" style="border-top: 1px solid var(--border)">
+            <h2 class="card-title" id="diff-title">この行動での変化</h2>
+            <div class="panel-tools">
+              <button class="linkbtn" type="button">時系列イベントで開く</button>
+              <button class="linkbtn" type="button">因果ツリーで開く</button>
+            </div>
+          </div>
+          <div class="card-body diff-wrap" id="diff"></div>
+        </section>
+      </div>
+
+      <section class="notes" aria-label="モックの前提">
+        <div class="note">
+          <h3>「1行動」の切り出し</h3>
+          <ul>
+            <li><code>ACTION_STARTED</code>〜<code>ACTION_COMPLETED</code> を1行動とする</li>
+            <li>ターン開始・終了の処理（回復、継続効果の経過）はシステム行動として1つにまとめる</li>
+            <li>
+              処理ステップは <code>SKILL_USE_*</code>・<code>TARGETS_SELECTED</code>・<code
+                >DAMAGE_*</code
+              >
+              などを意味単位に束ねたもの。右端の <code>#</code> が元イベントの sequence
+            </li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3>割り込みPSの表現</h3>
+          <ul>
+            <li>
+              <code>parentSequence</code>
+              が行動内の別イベントを指すPS発動は、紫の破線で1段字下げして表示
+            </li>
+            <li>PS所持者から対象へ紫の矢印を引き、誰の効果かを盤面上で区別する</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3>操作</h3>
+          <ul>
+            <li>
+              <span class="kbd">←</span> <span class="kbd">→</span> 1単位、<span class="kbd"
+                >Shift</span
+              >＋矢印でN単位、<span class="kbd">Space</span> 再生、<span class="kbd">Home</span>
+              <span class="kbd">End</span>
+            </li>
+            <li>単位を「処理」にすると行動内を1ステップずつ進め、盤面もその時点の状態になる</li>
+            <li>
+              「追跡」で味方／敵の行動だけを飛ばし読みできる。タイムラインと右パネルの行もクリックで移動できる
+            </li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (() => {
+        const UNITS = [
+          {
+            id: "e3",
+            name: "戦術機兵",
+            side: "ENEMY",
+            row: "REAR",
+            col: 2,
+            role: "雑兵 · 物理",
+            hp: 90000,
+            def: 8000,
+          },
+          {
+            id: "e2",
+            name: "小花",
+            side: "ENEMY",
+            row: "FRONT",
+            col: 0,
+            role: "アタッカー · EN",
+            hp: 420000,
+            def: 11000,
+          },
+          {
+            id: "e1",
+            name: "アニス",
+            side: "ENEMY",
+            row: "FRONT",
+            col: 1,
+            role: "ボス · 物理",
+            hp: 1250000,
+            def: 14000,
+          },
+          {
+            id: "a2",
+            name: "コトハ",
+            side: "ALLY",
+            row: "FRONT",
+            col: 0,
+            role: "デバッファー · EN",
+            hp: 61200,
+            def: 9500,
+          },
+          {
+            id: "a1",
+            name: "崔亦菲",
+            side: "ALLY",
+            row: "FRONT",
+            col: 1,
+            role: "アタッカー · 物理",
+            hp: 68400,
+            def: 9800,
+          },
+          {
+            id: "a3",
+            name: "桃園める",
+            side: "ALLY",
+            row: "FRONT",
+            col: 2,
+            role: "タンク · 物理",
+            hp: 92500,
+            def: 18000,
+          },
+          {
+            id: "a4",
+            name: "ロージー",
+            side: "ALLY",
+            row: "REAR",
+            col: 0,
+            role: "ヒーラー · EN",
+            hp: 58000,
+            def: 8500,
+          },
+          {
+            id: "a5",
+            name: "レイラ",
+            side: "ALLY",
+            row: "REAR",
+            col: 2,
+            role: "アタッカー · EN",
+            hp: 63000,
+            def: 9000,
+          },
+        ];
+        const U = Object.fromEntries(UNITS.map((u) => [u.id, u]));
+        const ALL_ALLY = ["a1", "a2", "a3", "a4", "a5"];
+        const ALL = UNITS.map((u) => u.id);
+
+        const dmg = (b) =>
+          Math.round(
+            (b.atk - b.def) * b.power * (1 + (b.aff || 0)) * (b.crit ? 1.5 : 1) * (1 + (b.up || 0)),
+          );
+        const fmt = (n) => Math.round(n).toLocaleString("ja-JP");
+        const pct = (x) => `${Math.round(x * 100)}%`;
+
+        // 1段の処理ステップ。kind: start/cost/target/ps/hit/heal/effect/defeat/end/system
+        const st = (kind, title, detail, changes = [], o = {}) => ({
+          kind,
+          title,
+          detail,
+          changes,
+          ...o,
+        });
+        const hit = (src, tgt, b, extra = []) =>
+          st("hit", `ヒット → ${U[tgt].name}`, b.note || "", [{ u: tgt, dmg: dmg(b) }, ...extra], {
+            src,
+            targets: [tgt],
+            calc: b,
+          });
+
+        const ENTRIES = [
+          {
+            turn: 1,
+            actor: null,
+            title: "ターン 1 開始",
+            skill: "",
+            steps: [
+              st("system", "ターン開始", "ターン 1 / 上限 15"),
+              st(
+                "cost",
+                "AP・PP 回復",
+                "全ユニット AP 0 → 3、PP 0 → 1",
+                ALL.flatMap((u) => [
+                  { u, ap: 3 },
+                  { u, pp: 1 },
+                ]),
+                { targets: ALL },
+              ),
+              st(
+                "system",
+                "行動順の確定",
+                "行動速度順: 崔亦菲 → アニス → コトハ → 桃園める → 小花 → ロージー → 戦術機兵 → レイラ",
+              ),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "a1",
+            title: "崔亦菲",
+            skill: "AS1 ストームブレイク",
+            steps: [
+              st("start", "行動開始", "崔亦菲 が行動権を得る"),
+              st("cost", "スキル使用: AS1 ストームブレイク", "AP 3 → 1（消費 2）", [
+                { u: "a1", ap: -2 },
+              ]),
+              st("target", "対象選択: アニス", "選択規則: 会心率が最も高い敵", [], {
+                targets: ["e1"],
+              }),
+              st(
+                "ps",
+                "PS発動: 疾風の構え（崔亦菲）",
+                "契機: 攻撃する前 ／ 攻撃力 +20%（この攻撃のみ）",
+                [
+                  { u: "a1", pp: -1 },
+                  {
+                    u: "a1",
+                    add: { id: "atk20", name: "攻撃力+20%", kind: "buff", remain: "攻撃中" },
+                  },
+                ],
+                { depth: 1, src: "a1", targets: ["a1"] },
+              ),
+              hit(
+                "a1",
+                "e1",
+                {
+                  atk: 62400,
+                  def: 14000,
+                  power: 2.2,
+                  aff: 0.25,
+                  crit: true,
+                  labels: { atk: "攻撃力 52,000 ×1.2" },
+                },
+                [
+                  { u: "a1", ex: 15 },
+                  { u: "e1", ex: 5 },
+                ],
+              ),
+              st(
+                "ps",
+                "PS発動: 鉄壁の誓い（アニス）",
+                "契機: 攻撃を受けた後 ／ 防御力 +15%（2ターン）",
+                [
+                  { u: "e1", pp: -1 },
+                  { u: "e1", add: { id: "def15", name: "防御力+15%", kind: "buff", remain: "2T" } },
+                ],
+                { depth: 1, src: "e1", targets: ["e1"] },
+              ),
+              st(
+                "effect",
+                "効果消費: 攻撃力+20%",
+                "「この攻撃のみ」のため攻撃完了で解除",
+                [{ u: "a1", remove: "atk20" }],
+                { targets: ["a1"] },
+              ),
+              st("end", "行動完了", "EX +15（崔亦菲）／ EX +5（アニス）"),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "e1",
+            title: "アニス",
+            skill: "AS1 スウィープ",
+            steps: [
+              st("start", "行動開始", "アニス が行動権を得る"),
+              st("cost", "スキル使用: AS1 スウィープ", "AP 3 → 1（消費 2）", [{ u: "e1", ap: -2 }]),
+              st("target", "対象選択: 前衛横一列", "コトハ・崔亦菲・桃園める", [], {
+                targets: ["a2", "a1", "a3"],
+              }),
+              st(
+                "ps",
+                "PS発動: 守護の盾（桃園める）",
+                "契機: 味方が攻撃対象になった時 ／ 対象全員にシールド 15,000（1ターン）",
+                [
+                  { u: "a3", pp: -1 },
+                  { u: "a1", shield: 15000 },
+                  { u: "a2", shield: 15000 },
+                  { u: "a3", shield: 15000 },
+                ],
+                { depth: 1, src: "a3", targets: ["a1", "a2", "a3"] },
+              ),
+              hit("e1", "a2", { atk: 46000, def: 9500, power: 1.4 }, [{ u: "a2", ex: 5 }]),
+              hit("e1", "a1", { atk: 46000, def: 9800, power: 1.4, crit: true }, [
+                { u: "a1", ex: 5 },
+              ]),
+              hit("e1", "a3", { atk: 46000, def: 18000, power: 1.4 }, [{ u: "a3", ex: 5 }]),
+              st("end", "行動完了", "EX +20（アニス）", [{ u: "e1", ex: 20 }]),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "a2",
+            title: "コトハ",
+            skill: "AS2 崩しの調べ",
+            steps: [
+              st("start", "行動開始", "コトハ が行動権を得る"),
+              st("cost", "スキル使用: AS2 崩しの調べ", "AP 3 → 0（消費 3）", [{ u: "a2", ap: -3 }]),
+              st("target", "対象選択: 敵全体", "アニス・小花・戦術機兵", [], {
+                targets: ["e1", "e2", "e3"],
+              }),
+              st(
+                "effect",
+                "デバフ付与: 攻撃力 −20%（2ターン）",
+                "3体に付与。解除可",
+                ["e1", "e2", "e3"].map((u) => ({
+                  u,
+                  add: { id: "atkdown", name: "攻撃力−20%", kind: "debuff", remain: "2T" },
+                })),
+                { targets: ["e1", "e2", "e3"] },
+              ),
+              st(
+                "effect",
+                "EXゲージ減少 −20",
+                "対象ごとに 20 減少（下限 0）",
+                ["e1", "e2", "e3"].map((u) => ({ u, ex: -20 })),
+                { targets: ["e1", "e2", "e3"] },
+              ),
+              st("end", "行動完了", "EX +10（コトハ）", [{ u: "a2", ex: 10 }]),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "a3",
+            title: "桃園める",
+            skill: "AS1 シールドバッシュ",
+            steps: [
+              st("start", "行動開始", "桃園める が行動権を得る"),
+              st("cost", "スキル使用: AS1 シールドバッシュ", "AP 3 → 1（消費 2）", [
+                { u: "a3", ap: -2 },
+              ]),
+              st("target", "対象選択: 小花", "選択規則: 正面の敵", [], { targets: ["e2"] }),
+              hit("a3", "e2", { atk: 30000, def: 11000, power: 1.6 }, [{ u: "e2", ex: 5 }]),
+              st(
+                "effect",
+                "状態付与: 挑発（1ターン）",
+                "桃園める自身",
+                [{ u: "a3", add: { id: "taunt", name: "挑発", kind: "status", remain: "1T" } }],
+                { targets: ["a3"] },
+              ),
+              st("end", "行動完了", "EX +10（桃園める）", [{ u: "a3", ex: 10 }]),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "e2",
+            title: "小花",
+            skill: "AS1 ピンポイント",
+            steps: [
+              st("start", "行動開始", "小花 が行動権を得る"),
+              st("cost", "スキル使用: AS1 ピンポイント", "AP 3 → 1（消費 2）", [
+                { u: "e2", ap: -2 },
+              ]),
+              st(
+                "target",
+                "対象選択: ロージー",
+                "選択規則: HPが最も低い味方（挑発は単体選択規則に優先されない）",
+                [],
+                { targets: ["a4"] },
+              ),
+              hit(
+                "e2",
+                "a4",
+                {
+                  atk: 31200,
+                  def: 8500,
+                  power: 1.8,
+                  labels: { atk: "攻撃力 39,000 ×0.8" },
+                  note: "攻撃力−20% 適用中",
+                },
+                [{ u: "a4", ex: 5 }],
+              ),
+              st("end", "行動完了", "EX +10（小花）", [{ u: "e2", ex: 10 }]),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "a4",
+            title: "ロージー",
+            skill: "AS1 ナースコール",
+            steps: [
+              st("start", "行動開始", "ロージー が行動権を得る"),
+              st("cost", "スキル使用: AS1 ナースコール", "AP 3 → 1（消費 2）", [
+                { u: "a4", ap: -2 },
+              ]),
+              st("target", "対象選択: 味方全体", "5体", [], { targets: ALL_ALLY }),
+              st(
+                "heal",
+                "回復: 攻撃力の 35%",
+                "回復量 13,300 × 5体（最大HP超過分は切り捨て）",
+                ALL_ALLY.map((u) => ({ u, heal: 13300 })),
+                { targets: ALL_ALLY, calc: { heal: true, atk: 38000, power: 0.35 } },
+              ),
+              st(
+                "effect",
+                "効果付与: 継続回復 5,000（2ターン）",
+                "ターン開始時に回復",
+                ALL_ALLY.map((u) => ({
+                  u,
+                  add: { id: "hot", name: "継続回復", kind: "buff", remain: "2T" },
+                })),
+                { targets: ALL_ALLY },
+              ),
+              st("end", "行動完了", "EX +10（ロージー）", [{ u: "a4", ex: 10 }]),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "e3",
+            title: "戦術機兵",
+            skill: "AS1 掃射",
+            steps: [
+              st("start", "行動開始", "戦術機兵 が行動権を得る"),
+              st("cost", "スキル使用: AS1 掃射", "AP 3 → 1（消費 2）", [{ u: "e3", ap: -2 }]),
+              st("target", "対象選択: レイラ", "選択規則: 後衛ランダム（seed 由来）", [], {
+                targets: ["a5"],
+              }),
+              hit(
+                "e3",
+                "a5",
+                {
+                  atk: 24000,
+                  def: 9000,
+                  power: 1.5,
+                  labels: { atk: "攻撃力 30,000 ×0.8" },
+                  note: "攻撃力−20% 適用中",
+                },
+                [{ u: "a5", ex: 5 }],
+              ),
+              st("end", "行動完了", ""),
+            ],
+          },
+          {
+            turn: 1,
+            actor: "a5",
+            title: "レイラ",
+            skill: "AS2 フルバースト",
+            steps: [
+              st("start", "行動開始", "レイラ が行動権を得る"),
+              st("cost", "スキル使用: AS2 フルバースト", "AP 3 → 0（消費 3）", [
+                { u: "a5", ap: -3 },
+              ]),
+              st("target", "対象選択: 敵全体", "アニス・小花・戦術機兵", [], {
+                targets: ["e1", "e2", "e3"],
+              }),
+              hit("a5", "e1", {
+                atk: 49000,
+                def: 16100,
+                power: 1.5,
+                labels: { def: "防御力 14,000 ×1.15" },
+              }),
+              hit("a5", "e2", { atk: 49000, def: 11000, power: 1.5, aff: 0.25 }),
+              hit("a5", "e3", { atk: 49000, def: 8000, power: 1.5, crit: true }),
+              st(
+                "defeat",
+                "撃破: 戦術機兵",
+                "HP 0 到達。行動予約を削除",
+                [{ u: "e3", defeat: true }],
+                { targets: ["e3"] },
+              ),
+              st("end", "行動完了", "EX +15（レイラ）", [{ u: "a5", ex: 15 }]),
+            ],
+          },
+          {
+            turn: 2,
+            actor: null,
+            title: "ターン 2 開始",
+            skill: "",
+            steps: [
+              st("system", "ターン 1 終了 → ターン 2 開始", "ターン 2 / 上限 15"),
+              st(
+                "effect",
+                "継続効果の経過",
+                "残りターン −1。挑発・シールド（1ターン）が終了",
+                [
+                  { u: "e1", dur: { id: "def15", remain: "1T" } },
+                  ...["e1", "e2"].map((u) => ({ u, dur: { id: "atkdown", remain: "1T" } })),
+                  ...ALL_ALLY.map((u) => ({ u, dur: { id: "hot", remain: "1T" } })),
+                  { u: "a3", remove: "taunt" },
+                  ...["a1", "a2", "a3"].map((u) => ({ u, shieldSet: 0 })),
+                ],
+                { targets: ["e1", "e2", "a1", "a2", "a3", "a4", "a5"] },
+              ),
+              st(
+                "heal",
+                "継続回復（ロージー）",
+                "5,000 × 5体",
+                ALL_ALLY.map((u) => ({ u, heal: 5000 })),
+                { targets: ALL_ALLY, src: "a4" },
+              ),
+              st(
+                "cost",
+                "AP・PP 回復",
+                "AP 全回復、PP +1",
+                ["a1", "a2", "a3", "a4", "a5", "e1", "e2"].flatMap((u) => [
+                  { u, apSet: 3 },
+                  { u, pp: 1 },
+                ]),
+                { targets: ["a1", "a2", "a3", "a4", "a5", "e1", "e2"] },
+              ),
+              st(
+                "system",
+                "行動順の確定",
+                "崔亦菲 → アニス → コトハ → 桃園める → 小花 → ロージー → レイラ",
+              ),
+            ],
+          },
+          {
+            turn: 2,
+            actor: "a1",
+            title: "崔亦菲",
+            skill: "AS2 暴風乱舞",
+            steps: [
+              st("start", "行動開始", "崔亦菲 が行動権を得る"),
+              st("cost", "スキル使用: AS2 暴風乱舞", "AP 3 → 0（消費 3）", [{ u: "a1", ap: -3 }]),
+              st("target", "対象選択: アニス", "3ヒット", [], { targets: ["e1"] }),
+              hit("a1", "e1", { atk: 52000, def: 16100, power: 0.9, aff: 0.25 }),
+              hit("a1", "e1", { atk: 52000, def: 16100, power: 0.9, aff: 0.25 }),
+              hit("a1", "e1", { atk: 52000, def: 16100, power: 0.9, aff: 0.25, crit: true }),
+              st("end", "行動完了", "EX +20（崔亦菲）／ EX +15（アニス）", [
+                { u: "a1", ex: 20 },
+                { u: "e1", ex: 15 },
+              ]),
+            ],
+          },
+          {
+            turn: 2,
+            actor: "e1",
+            title: "アニス",
+            skill: "AS2 裁きの光",
+            steps: [
+              st("start", "行動開始", "アニス が行動権を得る"),
+              st("cost", "スキル使用: AS2 裁きの光", "AP 3 → 0（消費 3）", [{ u: "e1", ap: -3 }]),
+              st("target", "対象選択: 味方全体", "5体", [], { targets: ALL_ALLY }),
+              hit("e1", "a1", {
+                atk: 36800,
+                def: 9800,
+                power: 1.0,
+                labels: { atk: "攻撃力 46,000 ×0.8" },
+              }),
+              hit("e1", "a2", {
+                atk: 36800,
+                def: 9500,
+                power: 1.0,
+                labels: { atk: "攻撃力 46,000 ×0.8" },
+              }),
+              hit("e1", "a3", {
+                atk: 36800,
+                def: 18000,
+                power: 1.0,
+                labels: { atk: "攻撃力 46,000 ×0.8" },
+              }),
+              hit("e1", "a4", {
+                atk: 36800,
+                def: 8500,
+                power: 1.0,
+                labels: { atk: "攻撃力 46,000 ×0.8" },
+              }),
+              hit("e1", "a5", {
+                atk: 36800,
+                def: 9000,
+                power: 1.0,
+                labels: { atk: "攻撃力 46,000 ×0.8" },
+              }),
+              st(
+                "defeat",
+                "撃破: 崔亦菲",
+                "HP 0 到達。今ターンの行動予約は消化済み",
+                [{ u: "a1", defeat: true }],
+                { targets: ["a1"] },
+              ),
+              st(
+                "ps",
+                "PS発動: 遺志を継ぐ（コトハ）",
+                "契機: 味方が撃破された時 ／ 攻撃力 +30%（2ターン）",
+                [
+                  { u: "a2", pp: -1 },
+                  { u: "a2", add: { id: "atk30", name: "攻撃力+30%", kind: "buff", remain: "2T" } },
+                ],
+                { depth: 1, src: "a2", targets: ["a2"] },
+              ),
+              st("end", "行動完了", "EX +25（アニス）", [{ u: "e1", ex: 25 }]),
+            ],
+          },
+          {
+            turn: 2,
+            actor: "a2",
+            title: "コトハ",
+            skill: "AS1 追想の旋律",
+            steps: [
+              st("start", "行動開始", "コトハ が行動権を得る"),
+              st("cost", "スキル使用: AS1 追想の旋律", "AP 3 → 1（消費 2）", [{ u: "a2", ap: -2 }]),
+              st("target", "対象選択: アニス", "選択規則: HPが最も高い敵", [], { targets: ["e1"] }),
+              hit("a2", "e1", {
+                atk: 53300,
+                def: 16100,
+                power: 1.8,
+                aff: 0.25,
+                labels: { atk: "攻撃力 41,000 ×1.3" },
+              }),
+              st("end", "行動完了", "EX +10（コトハ）", [{ u: "a2", ex: 10 }]),
+            ],
+          },
+        ];
+
+        // ---------- 状態の畳み込み ----------
+        const initState = () =>
+          Object.fromEntries(
+            UNITS.map((u) => [
+              u.id,
+              {
+                hp: u.hp,
+                hpMax: u.hp,
+                shield: 0,
+                ap: 0,
+                apMax: 3,
+                pp: 0,
+                ppMax: 3,
+                ex: 0,
+                effects: [],
+                defeated: false,
+              },
+            ]),
+          );
+        const clone = (s) => JSON.parse(JSON.stringify(s));
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        function apply(s, c, step) {
+          const u = s[c.u];
+          step.applied = step.applied || [];
+          if (c.dmg != null) {
+            const absorbed = Math.min(u.shield, c.dmg);
+            const hpLoss = Math.min(u.hp, c.dmg - absorbed);
+            u.shield -= absorbed;
+            u.hp -= hpLoss;
+            step.applied.push({ u: c.u, dmg: c.dmg, absorbed, hpLoss });
+          }
+          if (c.heal != null) {
+            const actual = Math.min(u.hpMax - u.hp, c.heal);
+            u.hp += actual;
+            step.applied.push({ u: c.u, heal: actual, over: c.heal - actual });
+          }
+          if (c.shield != null) u.shield = Math.max(0, u.shield + c.shield);
+          if (c.shieldSet != null) u.shield = c.shieldSet;
+          if (c.ap != null) u.ap = clamp(u.ap + c.ap, 0, u.apMax);
+          if (c.apSet != null) u.ap = c.apSet;
+          if (c.pp != null) u.pp = clamp(u.pp + c.pp, 0, u.ppMax);
+          if (c.ex != null) u.ex = clamp(u.ex + c.ex, 0, 100);
+          if (c.add) u.effects = u.effects.filter((e) => e.id !== c.add.id).concat([{ ...c.add }]);
+          if (c.remove) u.effects = u.effects.filter((e) => e.id !== c.remove);
+          if (c.dur) {
+            const e = u.effects.find((x) => x.id === c.dur.id);
+            if (e) e.remain = c.dur.remain;
+          }
+          if (c.defeat) u.defeated = true;
+        }
+        {
+          let s = initState();
+          let seq = 1;
+          ENTRIES.forEach((e, ei) => {
+            e.index = ei;
+            e.side = e.actor ? U[e.actor].side : "SYSTEM";
+            e.before = clone(s);
+            e.snaps = [];
+            e.steps.forEach((step) => {
+              step.applied = [];
+              step.changes.forEach((c) => apply(s, c, step));
+              const n =
+                {
+                  hit: 5,
+                  heal: 2,
+                  ps: 3,
+                  effect: 2,
+                  cost: 2,
+                  target: 1,
+                  start: 1,
+                  end: 3,
+                  defeat: 2,
+                  system: 1,
+                }[step.kind] || 1;
+              step.seq = n > 1 ? `#${seq}–${seq + n - 1}` : `#${seq}`;
+              seq += n;
+              e.snaps.push(clone(s));
+            });
+            e.hasDefeat = e.steps.some((x) => x.kind === "defeat");
+          });
+        }
+        const turns = [...new Set(ENTRIES.map((e) => e.turn))];
+
+        // ---------- 状態 ----------
+        const view = {
+          e: 1,
+          s: ENTRIES[1].steps.length - 1,
+          unit: "action",
+          n: 5,
+          follow: "all",
+          playing: null,
+        };
+        const lastStep = (e) => ENTRIES[e].steps.length - 1;
+        const matches = (e) => view.follow === "all" || ENTRIES[e].side === view.follow;
+
+        function move(dir, times = 1) {
+          for (let i = 0; i < times; i++) {
+            if (!moveOnce(dir)) return false;
+          }
+          return true;
+        }
+        function moveOnce(dir) {
+          if (view.unit === "step") {
+            if (dir > 0) {
+              if (view.s < lastStep(view.e)) {
+                view.s++;
+                return true;
+              }
+              if (view.e < ENTRIES.length - 1) {
+                view.e++;
+                view.s = 0;
+                return true;
+              }
+              return false;
+            }
+            if (view.s > 0) {
+              view.s--;
+              return true;
+            }
+            if (view.e > 0) {
+              view.e--;
+              view.s = lastStep(view.e);
+              return true;
+            }
+            return false;
+          }
+          if (view.unit === "turn") {
+            const t = ENTRIES[view.e].turn;
+            let idx;
+            if (dir > 0) idx = ENTRIES.findIndex((e) => e.turn > t);
+            else {
+              const firstOfCur = ENTRIES.findIndex((e) => e.turn === t);
+              idx = view.e > firstOfCur ? firstOfCur : ENTRIES.findIndex((e) => e.turn === t - 1);
+            }
+            if (idx < 0) return false;
+            view.e = idx;
+            view.s = lastStep(idx);
+            return true;
+          }
+          let i = view.e + dir;
+          while (i >= 0 && i < ENTRIES.length && !matches(i)) i += dir;
+          if (i < 0 || i >= ENTRIES.length) return false;
+          view.e = i;
+          view.s = lastStep(i);
+          return true;
+        }
+        function jump(e, s) {
+          view.e = e;
+          view.s = s == null ? lastStep(e) : s;
+          render();
+        }
+
+        // ---------- 描画 ----------
+        const $ = (id) => document.getElementById(id);
+        const esc = (t) =>
+          String(t).replace(
+            /[&<>"]/g,
+            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+          );
+
+        function frame() {
+          const entry = ENTRIES[view.e];
+          const stepMode = view.unit === "step";
+          const after = entry.snaps[stepMode ? view.s : lastStep(view.e)];
+          const before = stepMode
+            ? view.s > 0
+              ? entry.snaps[view.s - 1]
+              : entry.before
+            : entry.before;
+          const scope = stepMode ? [entry.steps[view.s]] : entry.steps;
+          const targets = new Set();
+          scope.forEach((x) => (x.targets || []).forEach((t) => targets.add(t)));
+          if (!stepMode)
+            entry.steps.forEach(
+              (x) => x.kind === "target" && x.targets.forEach((t) => targets.add(t)),
+            );
+          const arrows = [];
+          scope.forEach((x) => {
+            const src = x.src || entry.actor;
+            if (!src || !x.targets) return;
+            const color =
+              x.kind === "ps"
+                ? "var(--system)"
+                : x.kind === "heal"
+                  ? "var(--success)"
+                  : x.kind === "hit" || x.kind === "target"
+                    ? U[src].side === "ALLY"
+                      ? "var(--ally)"
+                      : "var(--enemy)"
+                    : null;
+            if (!color) return;
+            x.targets.forEach((t) => {
+              if (t !== src && !arrows.some((a) => a.from === src && a.to === t))
+                arrows.push({
+                  from: src,
+                  to: t,
+                  color,
+                  dashed: x.kind === "target" || x.kind === "ps",
+                });
+            });
+          });
+          if (!stepMode) {
+            // 行動単位では「対象選択」の矢印だけ残し、ヒットごとの重複を避ける
+            for (let i = arrows.length - 1; i >= 0; i--) {
+              const a = arrows[i];
+              if (
+                a.from === entry.actor &&
+                arrows.some((b, j) => j !== i && b.from === a.from && b.to === a.to)
+              )
+                arrows.splice(i, 1);
+            }
+          }
+          return { entry, stepMode, after, before, scope, targets, arrows };
+        }
+
+        function unitDelta(f, id) {
+          let dmgSum = 0,
+            absorbed = 0,
+            heal = 0,
+            hits = 0,
+            crit = false;
+          f.scope.forEach((x) =>
+            (x.applied || []).forEach((a) => {
+              if (a.u !== id) return;
+              if (a.dmg != null) {
+                dmgSum += a.dmg;
+                absorbed += a.absorbed;
+                hits++;
+                if (x.calc && x.calc.crit) crit = true;
+              }
+              if (a.heal != null) heal += a.heal;
+            }),
+          );
+          return { dmgSum, absorbed, heal, hits, crit };
+        }
+
+        function pips(cur, max, prev) {
+          let h = "";
+          for (let i = 0; i < max; i++) {
+            let cls = "pip";
+            if (i < cur) cls += i >= prev ? " on gain" : " on";
+            else if (i < prev) cls += " spent";
+            h += `<span class="${cls}"></span>`;
+          }
+          return `<span class="pips">${h}</span>`;
+        }
+
+        function orderInTurn(turn) {
+          return ENTRIES.filter((e) => e.turn === turn && e.actor);
+        }
+
+        function unitCard(f, u) {
+          if (!u) return `<div class="unit empty" aria-hidden="true"></div>`;
+          const a = f.after[u.id],
+            b = f.before[u.id];
+          const isActor = f.entry.actor === u.id || (f.stepMode && f.scope[0].src === u.id);
+          const isTarget = !isActor && f.targets.has(u.id);
+          const touched = f.scope.some((x) => x.changes.some((c) => c.u === u.id));
+          const d = unitDelta(f, u.id);
+          const cls = [
+            "unit",
+            u.side.toLowerCase(),
+            isActor && "actor",
+            isTarget && "target",
+            touched && "touched",
+            a.defeated && "defeated",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const w = (v) => `${(v / a.hpMax) * 100}%`;
+          const lo = Math.min(a.hp, b.hp),
+            hi = Math.max(a.hp, b.hp);
+          const ghost =
+            a.hp < b.hp
+              ? `<span class="ghost-dmg" style="width:${w(hi)}"></span>`
+              : a.hp > b.hp
+                ? `<span class="ghost-heal" style="width:${w(hi)}"></span>`
+                : "";
+          const fill = `<span class="fill${a.hp / a.hpMax < 0.3 ? " low" : ""}" style="width:${w(lo === hi ? a.hp : lo)}"></span>`;
+          const shieldBar =
+            a.shield > 0
+              ? `<span class="shield-fill" style="left:${w(a.hp)};width:${w(Math.min(a.shield, a.hpMax - a.hp) || a.hpMax * 0.04)}"></span>`
+              : "";
+          const ord = orderInTurn(f.entry.turn).findIndex((e) => e.actor === u.id);
+          const prevIds = new Set(b.effects.map((e) => e.id));
+          const curIds = new Set(a.effects.map((e) => e.id));
+          const chips = a.effects
+            .map(
+              (e) =>
+                `<span class="chip ${e.kind}${prevIds.has(e.id) ? "" : " added"}">${esc(e.name)}<span class="rm">${esc(e.remain)}</span></span>`,
+            )
+            .concat(
+              b.effects
+                .filter((e) => !curIds.has(e.id))
+                .map((e) => `<span class="chip ${e.kind} removed">${esc(e.name)}</span>`),
+            )
+            .join("");
+          let delta = "";
+          if (d.hits) {
+            delta = `<div class="delta dmg"><span class="v">−${fmt(d.dmgSum)}</span>${d.hits > 1 ? `<span class="sub">${d.hits} HIT</span>` : ""}${d.crit ? `<span class="sub crit">会心</span>` : ""}${d.absorbed ? `<span class="sub shd">盾 −${fmt(d.absorbed)}</span>` : ""}</div>`;
+          } else if (d.heal || f.scope.some((x) => x.kind === "heal" && x.targets.includes(u.id))) {
+            delta = `<div class="delta heal"><span class="v">+${fmt(d.heal)}</span>${d.heal === 0 ? `<span class="sub">HP満タン</span>` : ""}</div>`;
+          }
+          const tag = isActor
+            ? `<span class="tag">${f.stepMode && f.scope[0].kind === "ps" ? "PS発動" : "行動中"}</span>`
+            : isTarget
+              ? `<span class="tag">対象</span>`
+              : "";
+          const ko = a.defeated ? `<div class="ko"><span>撃破</span></div>` : "";
+          return `<div class="${cls}" data-unit="${u.id}">
+      ${tag}${delta}${ko}
+      <div class="u-top"><span class="u-name">${esc(u.name)}</span><span class="u-order">${ord >= 0 ? `順${ord + 1}` : ""}</span></div>
+      <div class="u-role">${esc(u.role)}</div>
+      <div class="hp">
+        <div class="bar">${ghost}${fill}${shieldBar}</div>
+        <div class="hp-text"><span><b>${fmt(a.hp)}</b> / ${fmt(a.hpMax)}</span>${a.shield ? `<span class="sh">盾 ${fmt(a.shield)}</span>` : ""}</div>
+      </div>
+      <div class="res">
+        <span>AP${pips(a.ap, a.apMax, b.ap)}</span>
+        <span>PP${pips(a.pp, a.ppMax, b.pp)}</span>
+        <span class="ex">EX<span class="bar"><span class="fill" style="width:${a.ex}%"></span></span>${a.ex}</span>
+      </div>
+      <div class="chips">${chips}</div>
+    </div>`;
+        }
+
+        function sideRows(f, side, rows) {
+          const labels = { FRONT: "前衛", REAR: "後衛" };
+          return rows
+            .map((row) => {
+              const cells = [0, 1, 2]
+                .map((c) =>
+                  unitCard(
+                    f,
+                    UNITS.find((u) => u.side === side && u.row === row && u.col === c),
+                  ),
+                )
+                .join("");
+              return `<div class="row"><span class="row-label">${labels[row]}</span>${cells}</div>`;
+            })
+            .join("");
+        }
+
+        function renderBoard(f) {
+          $("board").innerHTML = `
+      <div class="side-label enemy">ENEMY</div>
+      <div class="rows">${sideRows(f, "ENEMY", ["REAR", "FRONT"])}</div>
+      <div class="frontline">FRONT LINE</div>
+      <div class="rows">${sideRows(f, "ALLY", ["FRONT", "REAR"])}</div>
+      <div class="side-label ally">ALLY</div>
+      <svg class="arrows" id="arrows"></svg>`;
+          drawArrows(f.arrows);
+        }
+
+        function drawArrows(arrows) {
+          const svg = $("arrows"),
+            board = $("board");
+          if (!svg) return;
+          const br = board.getBoundingClientRect();
+          svg.setAttribute("viewBox", `0 0 ${br.width} ${br.height}`);
+          svg.setAttribute("width", br.width);
+          svg.setAttribute("height", br.height);
+          const center = (id) => {
+            const el = board.querySelector(`[data-unit="${id}"]`);
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return {
+              x: r.left - br.left + r.width / 2,
+              y: r.top - br.top + r.height / 2,
+              h: r.height / 2,
+              w: r.width / 2,
+            };
+          };
+          let defs = "",
+            paths = "";
+          arrows.forEach((a, i) => {
+            const p = center(a.from),
+              q = center(a.to);
+            if (!p || !q) return;
+            const dx = q.x - p.x,
+              dy = q.y - p.y,
+              len = Math.hypot(dx, dy) || 1;
+            const ux = dx / len,
+              uy = dy / len;
+            const inset = (c) =>
+              Math.min(
+                Math.abs(ux) > 0.01 ? c.w / Math.abs(ux) : 1e9,
+                Math.abs(uy) > 0.01 ? c.h / Math.abs(uy) : 1e9,
+              ) * 0.55;
+            const x1 = p.x + ux * inset(p),
+              y1 = p.y + uy * inset(p);
+            const x2 = q.x - ux * (inset(q) + 4),
+              y2 = q.y - uy * (inset(q) + 4);
+            const mx = (x1 + x2) / 2 - uy * 18,
+              my = (y1 + y2) / 2 + ux * 18;
+            defs += `<marker id="m${i}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${a.color}"/></marker>`;
+            paths += `<path d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" fill="none" stroke="${a.color}" stroke-width="2" ${a.dashed ? 'stroke-dasharray="5 4"' : ""} stroke-linecap="round" opacity=".9" marker-end="url(#m${i})"/>`;
+          });
+          svg.innerHTML = `<defs>${defs}</defs>${paths}`;
+        }
+
+        function renderQueue(f) {
+          const list = orderInTurn(f.entry.turn);
+          const items = list.map((e) => {
+            const state = e.index < view.e ? "done" : e.index === view.e ? "current" : "";
+            return `<button type="button" class="q ${U[e.actor].side.toLowerCase()} ${state}" data-jump="${e.index}">${esc(U[e.actor].name)}${state === "done" ? " ✓" : ""}</button>`;
+          });
+          $("queue").innerHTML =
+            `<span class="queue-label">T${f.entry.turn} 行動順</span>` +
+            items.join('<span class="q-arrow">›</span>');
+        }
+
+        function calcHtml(c, applied) {
+          if (c.heal) {
+            return `<div class="calc"><span class="t"><small>攻撃力</small>${fmt(c.atk)}</span><span class="op">×</span><span class="t"><small>倍率</small>${pct(c.power)}</span><span class="op">=</span><span class="t res heal">+${fmt(c.atk * c.power)}</span></div>`;
+          }
+          const L = c.labels || {};
+          const parts = [
+            `<span class="t"><small>${L.atk ? esc(L.atk) : "攻撃力"}</small>${fmt(c.atk)}</span>`,
+            `<span class="op">−</span>`,
+            `<span class="t"><small>${L.def ? esc(L.def) : "防御力"}</small>${fmt(c.def)}</span>`,
+            `<span class="op">×</span>`,
+            `<span class="t"><small>威力</small>${pct(c.power)}</span>`,
+          ];
+          if (c.aff)
+            parts.push(
+              `<span class="op">×</span><span class="t"><small>属性有利</small>${(1 + c.aff).toFixed(2)}</span>`,
+            );
+          if (c.crit)
+            parts.push(
+              `<span class="op">×</span><span class="t crit"><small>会心</small>1.50</span>`,
+            );
+          parts.push(`<span class="op">=</span><span class="t res">${fmt(dmg(c))}</span>`);
+          const a = applied && applied[0];
+          const ap = a
+            ? `<div class="applied">${a.absorbed ? `<span class="shd">シールド吸収 ${fmt(a.absorbed)}</span>` : ""}<span class="hpl">HP −${fmt(a.hpLoss)}</span>${a.hpLoss < a.dmg - a.absorbed ? "" : ""}</div>`
+            : "";
+          return `<div class="calc">${parts.join("")}</div>${ap}`;
+        }
+
+        const ICON = {
+          start: "▶",
+          cost: "AP",
+          target: "◎",
+          ps: "PS",
+          hit: "DMG",
+          heal: "HP",
+          effect: "FX",
+          defeat: "KO",
+          end: "■",
+          system: "SYS",
+        };
+
+        function renderPanel(f) {
+          const e = f.entry;
+          const sideCls = e.side.toLowerCase();
+          const idxInTurn = orderInTurn(e.turn).findIndex((x) => x.index === e.index);
+          const kicker = e.actor
+            ? `ターン ${e.turn} · 行動 ${idxInTurn + 1} / ${orderInTurn(e.turn).length}`
+            : `ターン ${e.turn} · システム処理`;
+          $("act-head").innerHTML = `<span class="act-kicker">${kicker}</span>
+      <h2 class="act-title"><span class="who ${sideCls}">${esc(e.title)}</span>${e.skill ? `<span class="skill">${esc(e.skill)}</span>` : ""}</h2>`;
+          $("steps").innerHTML = e.steps
+            .map((x, i) => {
+              let state = "";
+              if (f.stepMode) state = i < view.s ? "done" : i === view.s ? "current" : "upcoming";
+              const showCalc = x.calc && (!f.stepMode || i <= view.s);
+              return `<li class="step depth${x.depth || 0} ${state}" data-step="${i}" tabindex="0">
+        <span class="ico k-${x.kind}">${ICON[x.kind]}</span>
+        <div class="s-main">
+          <span class="s-title">${x.depth ? '<span class="int">割り込み</span>' : ""}${esc(x.title)}</span>
+          ${x.detail ? `<span class="s-detail">${esc(x.detail)}</span>` : ""}
+          ${showCalc ? calcHtml(x.calc, x.applied) : ""}
+          ${x.kind === "heal" && !x.calc && (!f.stepMode || i <= view.s) ? `<div class="applied">${x.applied.map((a) => `<span class="hl">${esc(U[a.u].name)} +${fmt(a.heal)}</span>`).join("")}</div>` : ""}
+          ${x.kind === "heal" && x.calc && (!f.stepMode || i <= view.s) ? `<div class="applied">${x.applied.map((a) => `<span class="hl">${esc(U[a.u].name)} +${fmt(a.heal)}</span>`).join("")}</div>` : ""}
+        </div>
+        <span class="s-seq">${x.seq}</span>
+      </li>`;
+            })
+            .join("");
+          renderDiff(f);
+        }
+
+        function renderDiff(f) {
+          $("diff-title").textContent = f.stepMode ? "この処理での変化" : "この行動での変化";
+          const rows = UNITS.map((u) => {
+            const a = f.after[u.id],
+              b = f.before[u.id];
+            const cells = [];
+            const hp = a.hp - b.hp;
+            const added = a.effects
+              .filter((e) => !b.effects.some((x) => x.id === e.id))
+              .map((e) => `+${e.name}`);
+            const removed = b.effects
+              .filter((e) => !a.effects.some((x) => x.id === e.id))
+              .map((e) => `−${e.name}`);
+            const durs = a.effects
+              .filter((e) => {
+                const p = b.effects.find((x) => x.id === e.id);
+                return p && p.remain !== e.remain;
+              })
+              .map((e) => `${e.name} ${b.effects.find((x) => x.id === e.id).remain}→${e.remain}`);
+            const res = [];
+            if (a.ap !== b.ap) res.push(`AP ${b.ap}→${a.ap}`);
+            if (a.pp !== b.pp) res.push(`PP ${b.pp}→${a.pp}`);
+            if (a.ex !== b.ex) res.push(`EX ${b.ex}→${a.ex}`);
+            if (a.shield !== b.shield) res.push(`盾 ${fmt(b.shield)}→${fmt(a.shield)}`);
+            if (a.defeated && !b.defeated) res.push("撃破");
+            if (!hp && !res.length && !added.length && !removed.length && !durs.length) return "";
+            cells.push(`<td class="nm ${u.side.toLowerCase()}">${esc(u.name)}</td>`);
+            cells.push(
+              `<td class="num">${hp ? `${fmt(b.hp)} → ${fmt(a.hp)} <span class="${hp < 0 ? "neg" : "pos"}">(${hp > 0 ? "+" : "−"}${fmt(Math.abs(hp))})</span>` : `<span style="color:var(--faint)">—</span>`}</td>`,
+            );
+            cells.push(
+              `<td class="num">${esc(res.join(" · ")) || '<span style="color:var(--faint)">—</span>'}</td>`,
+            );
+            cells.push(
+              `<td>${esc([...added, ...removed, ...durs].join("、")) || '<span style="color:var(--faint)">—</span>'}</td>`,
+            );
+            return `<tr>${cells.join("")}</tr>`;
+          }).filter(Boolean);
+          $("diff").innerHTML = rows.length
+            ? `<table class="diff"><thead><tr><th>ユニット</th><th>HP</th><th>リソース</th><th>効果</th></tr></thead><tbody>${rows.join("")}</tbody></table>`
+            : `<p style="margin:0;color:var(--muted);font-size:12px">この処理では状態が変化しません。</p>`;
+        }
+
+        function renderTimeline(f) {
+          $("timeline").innerHTML = turns
+            .map((t) => {
+              const list = ENTRIES.filter((e) => e.turn === t);
+              const ticks = list
+                .map((e) => {
+                  const side = e.side.toLowerCase();
+                  const state = e.index < view.e ? "done" : e.index === view.e ? "current" : "";
+                  const dim = view.follow !== "all" && e.side !== view.follow ? "dim" : "";
+                  const label = e.actor ? U[e.actor].name.slice(0, 2) : "T" + e.turn;
+                  const prog =
+                    e.index === view.e && view.unit === "step"
+                      ? `<span class="progress" style="width:${((view.s + 1) / e.steps.length) * 100}%"></span>`
+                      : "";
+                  return `<button type="button" class="tick ${side} ${state} ${dim}" data-jump="${e.index}" title="${esc(e.title + " " + e.skill)}" aria-label="${esc(`ターン${t} ${e.title} ${e.skill}`)}"><span class="k">${esc(label)}</span>${e.hasDefeat ? '<span class="defeat-dot"></span>' : ""}${prog}</button>`;
+                })
+                .join("");
+              return `<div class="tl-turn" style="--n:${list.length}"><span class="tl-turn-label">TURN ${t}</span><div class="tl-ticks">${ticks}</div></div>`;
+            })
+            .join("");
+        }
+
+        function renderPosition(f) {
+          const e = f.entry;
+          const totalActs = ENTRIES.length;
+          $("position").innerHTML =
+            `<span>ターン <b>${e.turn}</b></span><span>行動 <b>${e.index + 1}</b> / ${totalActs}</span>${f.stepMode ? `<span>処理 <b>${view.s + 1}</b> / ${e.steps.length}</span>` : ""}<span class="mono">event ${esc(e.steps[f.stepMode ? view.s : lastStep(view.e)].seq)}</span>`;
+          const atStart = view.e === 0 && (view.unit !== "step" || view.s === 0);
+          const atEnd = view.e === ENTRIES.length - 1 && view.s === lastStep(view.e);
+          ["btn-first", "btn-backn", "btn-back"].forEach((id) => ($(id).disabled = atStart));
+          ["btn-last", "btn-fwdn", "btn-fwd"].forEach(
+            (id) => ($(id).disabled = atEnd && !view.playing),
+          );
+        }
+
+        function render() {
+          const f = frame();
+          renderBoard(f);
+          renderQueue(f);
+          renderPanel(f);
+          renderTimeline(f);
+          renderPosition(f);
+          document
+            .querySelectorAll(".seg button")
+            .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.unit === view.unit)));
+          $("lbl-backn").textContent = $("lbl-fwdn").textContent = view.n;
+          $("ico-play").innerHTML = view.playing
+            ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>'
+            : '<path d="M4 2l10 6-10 6z"/>';
+        }
+
+        // ---------- 操作 ----------
+        const stop = () => {
+          clearInterval(view.playing);
+          view.playing = null;
+        };
+        const go = (dir, n) => {
+          stop();
+          move(dir, n);
+          render();
+        };
+        $("btn-back").onclick = () => go(-1, 1);
+        $("btn-fwd").onclick = () => go(1, 1);
+        $("btn-backn").onclick = () => go(-1, view.n);
+        $("btn-fwdn").onclick = () => go(1, view.n);
+        $("btn-first").onclick = () => {
+          stop();
+          view.e = 0;
+          view.s = view.unit === "step" ? 0 : lastStep(0);
+          render();
+        };
+        $("btn-last").onclick = () => {
+          stop();
+          view.e = ENTRIES.length - 1;
+          view.s = lastStep(view.e);
+          render();
+        };
+        function togglePlay() {
+          if (view.playing) {
+            stop();
+            render();
+            return;
+          }
+          if (view.e === ENTRIES.length - 1 && view.s === lastStep(view.e)) {
+            view.e = 0;
+            view.s = view.unit === "step" ? 0 : lastStep(0);
+          }
+          view.playing = setInterval(
+            () => {
+              if (!move(1, 1)) stop();
+              render();
+            },
+            Number($("sel-speed").value) / (view.unit === "step" ? 1.6 : 1),
+          );
+          render();
+        }
+        $("btn-play").onclick = togglePlay;
+        document.querySelectorAll(".seg button").forEach(
+          (b) =>
+            (b.onclick = () => {
+              view.unit = b.dataset.unit;
+              if (view.unit !== "step") view.s = lastStep(view.e);
+              if (view.playing) {
+                stop();
+                togglePlay();
+              } else render();
+            }),
+        );
+        $("sel-n").onchange = (ev) => {
+          view.n = Number(ev.target.value);
+          render();
+        };
+        $("sel-follow").onchange = (ev) => {
+          view.follow = ev.target.value;
+          render();
+        };
+        $("sel-speed").onchange = () => {
+          if (view.playing) {
+            stop();
+            togglePlay();
+          }
+        };
+        document.addEventListener("click", (ev) => {
+          const j = ev.target.closest("[data-jump]");
+          if (j) {
+            stop();
+            jump(Number(j.dataset.jump));
+            return;
+          }
+          const s = ev.target.closest("[data-step]");
+          if (s) {
+            stop();
+            view.unit = "step";
+            jump(view.e, Number(s.dataset.step));
+          }
+        });
+        document.addEventListener("keydown", (ev) => {
+          if (ev.target.closest("select")) return;
+          if (ev.key === "ArrowRight") {
+            ev.preventDefault();
+            go(1, ev.shiftKey ? view.n : 1);
+          } else if (ev.key === "ArrowLeft") {
+            ev.preventDefault();
+            go(-1, ev.shiftKey ? view.n : 1);
+          } else if (ev.key === " " && !ev.target.closest("button")) {
+            ev.preventDefault();
+            togglePlay();
+          } else if (ev.key === "Home") {
+            ev.preventDefault();
+            $("btn-first").click();
+          } else if (ev.key === "End") {
+            ev.preventDefault();
+            $("btn-last").click();
+          } else if (ev.key === "Enter" && ev.target.closest("[data-step]")) {
+            ev.target.click();
+          }
+        });
+        let rz;
+        window.addEventListener("resize", () => {
+          clearTimeout(rz);
+          rz = setTimeout(() => drawArrows(frame().arrows), 80);
+        });
+        render();
+        if (document.fonts && document.fonts.ready)
+          document.fonts.ready.then(() => drawArrows(frame().arrows));
+      })();
+    </script>
+  </body>
+</html>
