@@ -67,12 +67,22 @@ interface OrderedTransition {
   readonly delta: unknown;
 }
 
-/** `10_API設計.md`「EntityCollectionDelta」の対象と、`added`の要素を識別するID項目。 */
-const ENTITY_COLLECTION_ID_FIELDS: Readonly<Record<string, string>> = {
-  effects: "effectInstanceId",
-  subUnits: "subUnitInstanceId",
-  markers: "markerInstanceId",
-  cooldowns: "skillDefinitionId",
+/**
+ * `10_API設計.md`「EntityCollectionDelta」の対象。`idField`は`added`の要素を識別するID項目。
+ * `scalarField`は`updated.after`が要素全体ではなくその項目の値だけで届くときの適用先 ——
+ * APIはクールタイムの更新を残数の数値だけで返す（`{ id, before: 2, after: 1 }`）ため、
+ * 要素を置き換えずに`remaining`だけを書き換え、ID項目と設定スコープを残す。
+ */
+interface EntityCollectionSpec {
+  readonly idField: string;
+  readonly scalarField?: string;
+}
+
+const ENTITY_COLLECTIONS: Readonly<Record<string, EntityCollectionSpec>> = {
+  effects: { idField: "effectInstanceId" },
+  subUnits: { idField: "subUnitInstanceId" },
+  markers: { idField: "markerInstanceId" },
+  cooldowns: { idField: "skillDefinitionId", scalarField: "remaining" },
 };
 
 const RESOURCE_KEYS: readonly string[] = ["ap", "pp", "extraGauge"];
@@ -150,12 +160,13 @@ function applyResourceChanges(
 
 /**
  * `EntityCollectionDelta`を配列の位置ではなくID項目で適用する。`removed`を除き、
- * `updated`をその場で`after`へ置き換え、`added`を末尾へ加える。
+ * `updated`をその場で`after`へ置き換え（`scalarField`を持つ集合で`after`が数値なら、
+ * その項目だけを書き換え）、`added`を末尾へ加える。
  */
 function applyEntityCollection(
   unit: MutableRecord,
   key: string,
-  idField: string,
+  { idField, scalarField }: EntityCollectionSpec,
   delta: unknown,
 ): void {
   if (!isRecord(delta)) {
@@ -182,12 +193,19 @@ function applyEntityCollection(
   }
   if (Array.isArray(delta["updated"])) {
     for (const entry of delta["updated"]) {
-      if (!isRecord(entry) || typeof entry["id"] !== "string" || !isRecord(entry["after"])) {
+      if (!isRecord(entry) || typeof entry["id"] !== "string") {
         continue;
       }
       const index = elements.findIndex((element) => idOf(element) === entry["id"]);
-      if (index >= 0) {
-        elements[index] = structuredClone(entry["after"]);
+      if (index < 0) {
+        continue;
+      }
+      const after = entry["after"];
+      const current = elements[index];
+      if (isRecord(after)) {
+        elements[index] = structuredClone(after);
+      } else if (scalarField !== undefined && typeof after === "number" && isRecord(current)) {
+        elements[index] = { ...current, [scalarField]: after };
       }
     }
   }
@@ -215,8 +233,8 @@ function applyUnitDelta(unit: MutableRecord, delta: MutableRecord): void {
   applyValueChangeMap(unit, "combatStats", delta["combatStats"]);
   applyValueChangeMap(unit, "shields", delta["shields"]);
   applyValueChange(unit, "charge", delta["charge"]);
-  for (const [key, idField] of Object.entries(ENTITY_COLLECTION_ID_FIELDS)) {
-    applyEntityCollection(unit, key, idField, delta[key]);
+  for (const [key, spec] of Object.entries(ENTITY_COLLECTIONS)) {
+    applyEntityCollection(unit, key, spec, delta[key]);
   }
 }
 

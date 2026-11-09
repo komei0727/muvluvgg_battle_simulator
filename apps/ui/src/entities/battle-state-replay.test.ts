@@ -315,6 +315,45 @@ describe("createBattleStateReplay applies EntityCollectionDelta by ID (UI-UT-ATR
     expect(atTwo?.subUnits).toEqual([]);
   });
 
+  // APIはクールタイムの更新を残数の数値だけで返す（`updated: [{ id, before: 2, after: 1 }]`）。
+  it("applies a numeric cooldown update to remaining while keeping the ID and set scope", () => {
+    const replay = createBattleStateReplay(
+      state([
+        unit("ally:1", {
+          cooldowns: [
+            { skillDefinitionId: "SKL_B", unit: "ACTION", remaining: 2, setAtActionId: "a1" },
+          ],
+        }),
+      ]),
+      [
+        transition(1, {
+          units: {
+            "ally:1": {
+              cooldowns: {
+                added: [],
+                updated: [{ id: "SKL_B", before: 2, after: 1 }],
+                removed: [],
+              },
+            },
+          },
+        }),
+        transition(2, {
+          units: {
+            "ally:1": {
+              cooldowns: { added: [], updated: [], removed: [{ id: "SKL_B", before: 1 }] },
+            },
+          },
+        }),
+      ],
+      [],
+    );
+
+    expect(unitAt(replay.stateAt(1), "ally:1")?.cooldowns).toEqual([
+      { skillDefinitionId: "SKL_B", unit: "ACTION", remaining: 1, setAtActionId: "a1" },
+    ]);
+    expect(unitAt(replay.stateAt(2), "ally:1")?.cooldowns).toEqual([]);
+  });
+
   it("copies delta elements so a returned state cannot alter the transitions", () => {
     const replay = createBattleStateReplay(initialState, transitions, []);
 
