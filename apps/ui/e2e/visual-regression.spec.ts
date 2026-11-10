@@ -179,6 +179,11 @@ test("desktop (1440x900) action trace tab matches the visual baseline @visual", 
   await trace.getByRole("button", { name: "1単位進む" }).click();
   await expect(trace.getByRole("status", { name: "現在位置" })).toContainText("行動 3 / 8");
   await page.locator(":focus").blur();
+  // ボタンを押すとページがスクロールし、stickyなtopbarがその位置に写る。スクロール量は
+  // 実行ごとに揺れるため、他のbaselineと同じく先頭へ戻してから撮る
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
 
   await expect(page).toHaveScreenshot("desktop-1440x900-action-trace.png", {
     fullPage: true,
