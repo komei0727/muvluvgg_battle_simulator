@@ -73,6 +73,13 @@ export interface EffectTraceInstance {
    * 付与自身の`sequence`になる。
    */
   readonly resolutionStartSequence: number;
+  /**
+   * 付与したスキル・Memory解決の実行時ID。表示名の付与元スキルはここから引く
+   * （効果IDからの逆引きは、複数スキルが同じ効果定義を共有するため使えない）。
+   */
+  readonly skillUseId?: string;
+  /** 付与時点で評価された効果量（`EffectApplied.magnitude`）。表示名の実量に使う。 */
+  readonly magnitude?: number;
   /** `DurationDefinition.consumption.maxCount`。消費条件を持つ付与だけが持つ。残量ロスの分母。 */
   readonly consumptionMaxCount?: number;
   readonly consumptions: readonly EffectTraceConsumption[];
@@ -101,6 +108,8 @@ interface MutableInstance {
   readonly appliedSequence: number;
   readonly appliedTurnNumber: number;
   readonly resolutionStartSequence: number;
+  readonly skillUseId?: string;
+  readonly magnitude?: number;
   /**
    * 消費条件（`DurationDefinition.consumption`）を宣言した付与かどうか。「未消費で失効」を
    * 「そもそも消費条件を持たない効果の自然な終わり」と区別するために要る。
@@ -304,6 +313,8 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
       }
       const originUnitId = stringOf(details["sourceUnitId"]) ?? stringOf(event["sourceUnitId"]);
       const originSide = stringOf(details["sourceSide"]) ?? stringOf(event["sourceSide"]);
+      const skillUseId = stringOf(event["skillUseId"]);
+      const magnitude = numberOf(details["magnitude"]);
       instances.set(effectInstanceId, {
         effectInstanceId,
         effectActionDefinitionId,
@@ -313,6 +324,8 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
         appliedSequence: sequenceOf(event),
         appliedTurnNumber: turnNumberOf(event),
         resolutionStartSequence: resolutionStartSequenceOf(event, eventsBySkillUseId),
+        ...(skillUseId !== undefined ? { skillUseId } : {}),
+        ...(magnitude !== undefined ? { magnitude } : {}),
         hasConsumptionCondition: stringOf(details["consumptionKind"]) !== undefined,
         ...(numberOf(details["consumptionMaxCount"]) !== undefined
           ? { consumptionMaxCount: numberOf(details["consumptionMaxCount"])! }
@@ -377,6 +390,8 @@ export function projectEffectTrace(events: readonly BattleLogEventResponse[]): E
       appliedSequence: instance.appliedSequence,
       appliedTurnNumber: instance.appliedTurnNumber,
       resolutionStartSequence: instance.resolutionStartSequence,
+      ...(instance.skillUseId !== undefined ? { skillUseId: instance.skillUseId } : {}),
+      ...(instance.magnitude !== undefined ? { magnitude: instance.magnitude } : {}),
       ...(instance.consumptionMaxCount !== undefined
         ? { consumptionMaxCount: instance.consumptionMaxCount }
         : {}),

@@ -9,6 +9,8 @@ import { FOCUSED_EFFECT_ACTION_DEFINITION_IDS } from "./focused-effects.js";
 import { resolveDisplayName } from "../details/event-presentation.js";
 import type { RosterIndex } from "../details/event-presentation.js";
 import { isTotalWarRosterEntry } from "../../entities/roster.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
+import type { EffectLabelCatalog } from "../../lib/effect-display-label.js";
 import type { BattleLogResponse } from "../../shared/api/api-contract.js";
 import styles from "./EffectTraceSection.module.css";
 
@@ -20,6 +22,11 @@ export interface EffectTraceSectionProps {
    */
   readonly response: BattleLogResponse;
   readonly roster: RosterIndex;
+  /**
+   * 効果の表示名（§8.6「効果の表示名」）の解決に使う。不在や要約を持たない旧APIでは、
+   * 解決できた部分だけで表し、効果内容の位置に論理名を出す。
+   */
+  readonly catalog?: EffectLabelCatalog;
 }
 
 const NO_VALUE_PLACEHOLDER = "-";
@@ -147,17 +154,32 @@ function barSpanOf(
   return { lead, span, trail: turnNumbers.length - lead - span };
 }
 
+/** 本文は表示名だけにし、論理名はホバーで読めるようツールチップへ回す。 */
+function EffectName({
+  label,
+  effectActionDefinitionId,
+}: {
+  label: string;
+  effectActionDefinitionId: string;
+}) {
+  return <span title={effectActionDefinitionId}>{label}</span>;
+}
+
 // docs/ui-design/01_UI要求・画面設計.md §8.6（`UI-AC-045`）/ 04_コンポーネント・状態管理設計.md
 // `UI-CMP-027`: 効果インスタンスの一生をスイムレーンと明細表で並べる。行は**保持ユニット**
 // である（デバフは敵が保持し、消費者は味方なので、消費者はバーの中と明細表へ出す）。
 //
 // スイムレーンはCSS Modulesと`colSpan`だけで組む。`index.html`のCSPが`style-src 'self'`
 // であり、inline styleを持つ図はブラウザで描画されないため（統計チャートと同じ制約）。
-export function EffectTraceSection({ response, roster }: EffectTraceSectionProps) {
+export function EffectTraceSection({ response, roster, catalog }: EffectTraceSectionProps) {
   const headingId = useId();
   const selectionHintId = useId();
   const trace = useMemo(() => projectEffectTrace(response.events), [response]);
   const timeline = useMemo(() => buildCombatStatTimeline(response), [response]);
+  const labeler = useMemo(
+    () => createEffectLabeler(catalog, roster, response.events),
+    [catalog, roster, response],
+  );
   // 候補の母集団を付与先と同じ陣営に限るために要る（`candidate-comparison.ts`）。
   // 総力戦で一度も出撃しなかったユニットは盤面に居たことがないので、母集団から外す。
   const sideByUnitId = useMemo(
@@ -236,7 +258,16 @@ export function EffectTraceSection({ response, roster }: EffectTraceSectionProps
                         toggle(effectActionDefinitionId);
                       }}
                     />
-                    <span className={styles["mono"]}>{effectActionDefinitionId}</span>
+                    <EffectName
+                      label={labeler.definitionLabel(
+                        effectActionDefinitionId,
+                        trace.instances.filter(
+                          (instance) =>
+                            instance.effectActionDefinitionId === effectActionDefinitionId,
+                        ),
+                      )}
+                      effectActionDefinitionId={effectActionDefinitionId}
+                    />
                   </label>
                 </li>
               ))}
@@ -280,7 +311,12 @@ export function EffectTraceSection({ response, roster }: EffectTraceSectionProps
                               {resolveDisplayName(roster, instance.holderUnitId)}
                             </th>
                           ) : null}
-                          <td className={styles["mono"]}>{instance.effectActionDefinitionId}</td>
+                          <td>
+                            <EffectName
+                              label={labeler.grantLabel(instance)}
+                              effectActionDefinitionId={instance.effectActionDefinitionId}
+                            />
+                          </td>
                           {lead > 0 ? <td colSpan={lead} /> : null}
                           <td colSpan={span} className={styles["barCell"]}>
                             <span
@@ -333,7 +369,12 @@ export function EffectTraceSection({ response, roster }: EffectTraceSectionProps
                                 ? `T${instance.appliedTurnNumber.toString()} → T${instance.endedTurnNumber.toString()}`
                                 : `T${instance.appliedTurnNumber.toString()} →`}
                             </td>
-                            <td className={styles["mono"]}>{instance.effectActionDefinitionId}</td>
+                            <td>
+                              <EffectName
+                                label={labeler.grantLabel(instance)}
+                                effectActionDefinitionId={instance.effectActionDefinitionId}
+                              />
+                            </td>
                             <td>{resolveDisplayName(roster, instance.holderUnitId)}</td>
                             <td>{originLabelOf(instance, roster)}</td>
                             <td>{endLabelOf(instance)}</td>

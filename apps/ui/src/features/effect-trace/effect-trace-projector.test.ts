@@ -495,4 +495,29 @@ describe("projectEffectTrace resolution start", () => {
     expect(byId.get("ei-later")?.resolutionStartSequence).toBe(10);
     expect(byId.get("ei-standalone")?.resolutionStartSequence).toBe(30);
   });
+  it("UI-UT-TRC-012: carries the skillUseId and the evaluated magnitude of the grant so the display name can name the granting skill and the actual amount", () => {
+    const events = [
+      event({
+        sequence: 10,
+        type: "EFFECT_APPLIED",
+        skillUseId: "su-elena",
+        sourceUnitId: BUFF_HOLDER,
+        details: applied({ effectInstanceId: "ei-skill", magnitude: 0.08 }),
+      }),
+      // 付与時点の量を持たない古い形の付与でも、インスタンスは落とさない。
+      event({
+        sequence: 11,
+        type: "EFFECT_APPLIED",
+        details: applied({ effectInstanceId: "ei-bare", magnitude: undefined }),
+      }),
+    ];
+
+    const byId = new Map(
+      projectEffectTrace(events).instances.map((instance) => [instance.effectInstanceId, instance]),
+    );
+
+    expect(byId.get("ei-skill")).toMatchObject({ skillUseId: "su-elena", magnitude: 0.08 });
+    expect(byId.get("ei-bare")).not.toHaveProperty("skillUseId");
+    expect(byId.get("ei-bare")).not.toHaveProperty("magnitude");
+  });
 });

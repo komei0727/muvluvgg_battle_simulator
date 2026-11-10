@@ -203,6 +203,16 @@ function responseOf(
   };
 }
 
+/** Catalog要約を渡さない描画では、表示名が「付与元-論理名」へ縮退する。 */
+function nameContaining(effectActionDefinitionId: string): RegExp {
+  return new RegExp(`(^|-)${effectActionDefinitionId}$`);
+}
+
+function swimlaneRows(): readonly HTMLElement[] {
+  const table = screen.getByRole("table", { name: /効果トレース スイムレーン/ });
+  return within(table).getAllByRole("row").slice(1);
+}
+
 function detailRows(): readonly HTMLElement[] {
   const table = screen.getByRole("table", { name: /効果トレース明細/ });
   return within(table).getAllByRole("row").slice(1);
@@ -238,9 +248,9 @@ describe("EffectTraceSection", () => {
     render(<EffectTraceSection response={responseOf(events)} roster={roster} />);
 
     for (const focused of [SUIRAN_DEBUFF, ELENA_BUFF, ELENA_LOW_BUFF, MERU_BUFF]) {
-      expect(screen.getByRole("checkbox", { name: focused })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: nameContaining(focused) })).toBeChecked();
     }
-    expect(screen.getByRole("checkbox", { name: OTHER_EFFECT })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: nameContaining(OTHER_EFFECT) })).not.toBeChecked();
 
     const rows = detailRows();
     expect(rows).toHaveLength(4);
@@ -250,6 +260,62 @@ describe("EffectTraceSection", () => {
       expect.stringContaining(ELENA_LOW_BUFF),
       expect.stringContaining(MERU_BUFF),
     ]);
+  });
+
+  // UI-AC-045: 効果を論理名ではなく「キャラ正式名-スキル種別番号-効果内容」で表し、論理名は
+  // ツールチップにだけ残す。一覧は定義上の固定値、スイムレーン・明細は付与時点の実量を出す。
+  it("UI-CT-196: names effects by origin unit, skill slot and content, keeping the logical name only in the tooltip", () => {
+    const catalog = {
+      skills: [{ skillDefinitionId: "SKL_SUIRAN_AS1", slotLabel: "AS1" }],
+      effects: [
+        {
+          effectActionDefinitionId: SUIRAN_DEBUFF,
+          kind: "APPLY_DAMAGE_MOD",
+          direction: "INCOMING",
+          constantMagnitude: 0.7,
+        },
+        {
+          effectActionDefinitionId: ELENA_BUFF,
+          kind: "APPLY_STAT_MOD",
+          stat: "ATTACK",
+          valueType: "RATIO",
+        },
+      ],
+    };
+    const events = EVENTS.map((original) =>
+      original["sequence"] === 10
+        ? { ...original, details: { skillDefinitionId: "SKL_SUIRAN_AS1" } }
+        : original["sequence"] === 11
+          ? { ...original, details: { ...(original["details"] as object), magnitude: 0.7 } }
+          : original["sequence"] === 12
+            ? { ...original, details: { ...(original["details"] as object), magnitude: 0.12 } }
+            : original,
+    );
+
+    render(<EffectTraceSection response={responseOf(events)} roster={roster} catalog={catalog} />);
+
+    const suiranCheckbox = screen.getByRole("checkbox", { name: "翠蘭-AS1-被ダメージ+70%" });
+    expect(suiranCheckbox).toBeChecked();
+    // 定義上の固定値を持たない効果は、一覧では量を出さない。
+    expect(screen.getByRole("checkbox", { name: "エレーナ-攻撃力" })).toBeChecked();
+    expect(suiranCheckbox.closest("label")?.querySelector("[title]")).toHaveAttribute(
+      "title",
+      SUIRAN_DEBUFF,
+    );
+
+    const [debuffLane, buffLane] = swimlaneRows();
+    expect(debuffLane).toHaveTextContent("翠蘭-AS1-被ダメージ+70%");
+    expect(buffLane).toHaveTextContent("エレーナ-攻撃力+12%");
+
+    const [debuffRow, buffRow] = detailRows();
+    expect(debuffRow).toHaveTextContent("翠蘭-AS1-被ダメージ+70%");
+    expect(buffRow).toHaveTextContent("エレーナ-攻撃力+12%");
+
+    const trace = screen.getByRole("region", { name: /効果トレース/ });
+    expect(trace.textContent).not.toContain(SUIRAN_DEBUFF);
+    expect(trace.textContent).not.toContain(ELENA_BUFF);
+    // 一覧・スイムレーン・明細の3箇所でホバーすると論理名が読める。
+    expect(screen.getAllByTitle(SUIRAN_DEBUFF, { exact: true })).toHaveLength(3);
   });
 
   // UI-AC-045: 消費者と付与先を何ターン目のものか読める。
@@ -392,10 +458,10 @@ describe("EffectTraceSection", () => {
     const user = userEvent.setup();
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
-    await user.click(screen.getByRole("checkbox", { name: OTHER_EFFECT }));
+    await user.click(screen.getByRole("checkbox", { name: nameContaining(OTHER_EFFECT) }));
     expect(detailRows()).toHaveLength(3);
 
-    await user.click(screen.getByRole("checkbox", { name: SUIRAN_DEBUFF }));
+    await user.click(screen.getByRole("checkbox", { name: nameContaining(SUIRAN_DEBUFF) }));
     const remaining = detailRows().map((row) => row.textContent ?? "");
     expect(remaining).toHaveLength(2);
     expect(remaining.some((text) => text.includes(SUIRAN_DEBUFF))).toBe(false);
@@ -406,8 +472,8 @@ describe("EffectTraceSection", () => {
     const user = userEvent.setup();
     render(<EffectTraceSection response={responseOf(EVENTS)} roster={roster} />);
 
-    await user.click(screen.getByRole("checkbox", { name: SUIRAN_DEBUFF }));
-    await user.click(screen.getByRole("checkbox", { name: ELENA_BUFF }));
+    await user.click(screen.getByRole("checkbox", { name: nameContaining(SUIRAN_DEBUFF) }));
+    await user.click(screen.getByRole("checkbox", { name: nameContaining(ELENA_BUFF) }));
 
     expect(screen.getByText("選択した効果は付与されませんでした。")).toBeVisible();
     expect(screen.queryByRole("table", { name: /効果トレース明細/ })).toBeNull();
