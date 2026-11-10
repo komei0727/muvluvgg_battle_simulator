@@ -571,7 +571,7 @@ describe("total war scenarios (production catalog)", () => {
       const result = runTotalWar(
         [formation([slot("UNIT_TARISA_TROUBLEMAKER", 1, "FRONT", UNBREAKABLE)])],
         [
-          single("UNIT_TATIANA_SAGE", { module: { hp: { fixed: 2_200_000, ratio: 0 } } }),
+          single("UNIT_TATIANA_SAGE", { module: { hp: { fixed: 2_290_000, ratio: 0 } } }),
           single("UNIT_SIENA_OFFSTAGE"),
         ],
       );
