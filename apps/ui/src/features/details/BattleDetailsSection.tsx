@@ -153,7 +153,11 @@ export function BattleDetailsSection({
       ) : null}
       {activeTab === "effectTrace" ? (
         <div role="tabpanel" id="tabpanel-effectTrace" aria-labelledby="tab-effectTrace">
-          <EffectTraceSection response={response} roster={roster} />
+          <EffectTraceSection
+            response={response}
+            roster={roster}
+            {...(catalog !== undefined ? { catalog } : {})}
+          />
         </div>
       ) : null}
       {activeTab === "skillTimeline" ? (
