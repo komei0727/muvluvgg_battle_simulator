@@ -9,6 +9,7 @@ import { isRecord, numberOf, stringOf } from "../../lib/unknown-narrowing.js";
 import { splitDisplayName } from "../../components/display-name.js";
 import type { BattleStateResponse } from "../../shared/api/api-contract.js";
 import type { RosterIndex } from "../details/event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import type { ActionSegment } from "./action-segment-projector.js";
 import type {
   TraceArrowKind,
@@ -34,6 +35,8 @@ export interface TraceBoardInput {
   readonly roster: RosterIndex;
   /** ユニットごとのそのターンの行動順（`selectActionOrders`）。 */
   readonly actionOrders: ReadonlyMap<string, number>;
+  /** 効果・チャージの印を表示名で表すための解決器。省略時は定義IDのまま出す。 */
+  readonly labeler?: EffectLabeler;
 }
 
 type UnitRecord = Readonly<Record<string, unknown>>;
@@ -134,6 +137,8 @@ function isOnBoard(state: BattleStateResponse, unit: UnitRecord, side: TraceBoar
 export interface ChipSource {
   readonly key: string;
   readonly label: string;
+  /** `label`を表示名にしたときの論理名（ツールチップ用）。 */
+  readonly logicalName?: string;
   readonly kind: TraceChipKind;
   readonly remaining?: string;
   readonly ineffective: boolean;
@@ -151,7 +156,32 @@ function durationText(duration: unknown): string | undefined {
   return `${remaining.toString()}${DURATION_SUFFIX[unit] ?? unit}`;
 }
 
-export function chipSourcesOf(unit: UnitRecord): readonly ChipSource[] {
+/**
+ * 効果の印の名前。表示名の解決器があれば01_UI要求・画面設計.md §8.6「効果の表示名」で表し、
+ * 定義IDは`logicalName`へ回す。
+ */
+function effectChipName(
+  effect: Readonly<Record<string, unknown>>,
+  effectInstanceId: string,
+  effectDefinitionId: string,
+  labeler: EffectLabeler | undefined,
+): Pick<ChipSource, "label" | "logicalName"> {
+  if (labeler === undefined) {
+    return { label: effectDefinitionId };
+  }
+  const sourceUnitId = stringOf(effect["sourceUnitId"]);
+  const sourceSide = stringOf(effect["sourceSide"]);
+  return {
+    label: labeler.instanceLabel(effectInstanceId, {
+      effectActionDefinitionId: effectDefinitionId,
+      ...(sourceUnitId !== undefined ? { originUnitId: sourceUnitId } : {}),
+      ...(sourceUnitId === undefined && sourceSide !== undefined ? { originSide: sourceSide } : {}),
+    }),
+    logicalName: effectDefinitionId,
+  };
+}
+
+export function chipSourcesOf(unit: UnitRecord, labeler?: EffectLabeler): readonly ChipSource[] {
   const chips: ChipSource[] = [];
   const effects = unit["effects"];
   for (const effect of Array.isArray(effects) ? effects : []) {
@@ -159,15 +189,15 @@ export function chipSourcesOf(unit: UnitRecord): readonly ChipSource[] {
       continue;
     }
     const id = stringOf(effect["effectInstanceId"]);
-    const label = stringOf(effect["effectDefinitionId"]);
-    if (id === undefined || label === undefined) {
+    const definitionId = stringOf(effect["effectDefinitionId"]);
+    if (id === undefined || definitionId === undefined) {
       continue;
     }
     const category = stringOf(effect["category"]) as TraceChipKind | undefined;
     const remaining = durationText(effect["duration"]);
     chips.push({
       key: `effect:${id}`,
-      label,
+      ...effectChipName(effect, id, definitionId, labeler),
       kind: category !== undefined && EFFECT_CATEGORIES.has(category) ? category : "OTHER",
       ...(remaining !== undefined ? { remaining } : {}),
       ineffective: effect["isEffective"] === false,
@@ -195,16 +225,30 @@ export function chipSourcesOf(unit: UnitRecord): readonly ChipSource[] {
   const charge = unit["charge"];
   const chargeSkill = isRecord(charge) ? stringOf(charge["skillDefinitionId"]) : undefined;
   if (chargeSkill !== undefined) {
-    chips.push({ key: "charge", label: chargeSkill, kind: "CHARGE", ineffective: false });
+    chips.push({
+      key: "charge",
+      ...(labeler !== undefined
+        ? {
+            label: labeler.skillLabel(stringOf(unit["battleUnitId"]), chargeSkill),
+            logicalName: chargeSkill,
+          }
+        : { label: chargeSkill }),
+      kind: "CHARGE",
+      ineffective: false,
+    });
   }
   return chips;
 }
 
 /** 範囲の後の印（付いた・続いている）の後に、範囲の中で外れた印を並べる。 */
-function chipsOf(after: UnitRecord, before: UnitRecord | undefined): readonly TraceChipView[] {
-  const afterChips = chipSourcesOf(after);
+function chipsOf(
+  after: UnitRecord,
+  before: UnitRecord | undefined,
+  labeler: EffectLabeler | undefined,
+): readonly TraceChipView[] {
+  const afterChips = chipSourcesOf(after, labeler);
   // 範囲の中で出撃したユニットは、範囲の前に付いていた印を持たない
-  const beforeChips = before === undefined ? afterChips : chipSourcesOf(before);
+  const beforeChips = before === undefined ? afterChips : chipSourcesOf(before, labeler);
   const beforeKeys = new Set(beforeChips.map((chip) => chip.key));
   const afterKeys = new Set(afterChips.map((chip) => chip.key));
   return [
@@ -416,7 +460,7 @@ export function selectActionOrders(
 }
 
 export function projectTraceBoard(input: TraceBoardInput): TraceBoardView {
-  const { before, after, segment, steps, roster, actionOrders } = input;
+  const { before, after, segment, steps, roster, actionOrders, labeler } = input;
   const beforeById = new Map<string, UnitRecord>(
     before.units.map((unit) => [unit.battleUnitId, unit]),
   );
@@ -469,7 +513,7 @@ export function projectTraceBoard(input: TraceBoardInput): TraceBoardView {
       ...(ap !== undefined ? { ap } : {}),
       ...(pp !== undefined ? { pp } : {}),
       ...(extraGauge !== undefined ? { extraGauge } : {}),
-      chips: chipsOf(unit, previous),
+      chips: chipsOf(unit, previous, labeler),
       ...(unitDamage !== undefined ? { damage: unitDamage } : {}),
       ...(unitHeal !== undefined ? { heal: unitHeal } : {}),
       roles: {

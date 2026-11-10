@@ -8,6 +8,9 @@ import type {
   BattleSimulationCatalogResponse,
 } from "../../shared/api/api-contract.js";
 import type { UnitActionState } from "./action-state-projector.js";
+import { buildRosterIndex } from "./event-presentation.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 
 import styles from "./UnitActionStateSection.module.css";
 
@@ -44,7 +47,8 @@ interface Row {
 // （`statusKind`はSTEALTH等の有利な状態にも設定されるため、
 // 有無だけで状態異常と決めない。分類の正本はDomainの
 // `effect-category-classifier.ts`であり、UIはその結果を受け取るだけにする）。
-// 効果の名前は`effectDefinitionId`をそのまま見せ、命名規則を解析しない。
+// 効果の名前は01_UI要求・画面設計.md §8.6「効果の表示名」で表し、論理名
+// （`effectDefinitionId`）はツールチップへ回す。命名規則は解析しない。
 // `effectKindKey`（R-STA-03の同種グループ鍵、Issue #519）は複数の定義が
 // 共有し得るため、どの定義由来の効果なのかを表せず名前には使わない。
 // DMG-010（Issue #191）: 「shield吸収、HP damage内訳」
@@ -61,7 +65,7 @@ function subUnitLabel(subUnit: UnitActionState["subUnits"][number]): string {
   return `${subUnit.subUnitDefinitionId}: 耐久 ${subUnit.durability.current} / ${subUnit.durability.maximum}`;
 }
 
-function effectLabel(effect: UnitActionState["effects"][number]): string {
+function effectLabel(effect: UnitActionState["effects"][number], labeler: EffectLabeler): string {
   const head =
     effect.statusKind !== undefined
       ? `${effect.statusKind}（${effect.category}）`
@@ -71,7 +75,14 @@ function effectLabel(effect: UnitActionState["effects"][number]): string {
       ? `残り ${effect.duration.unit} ${effect.duration.remaining}`
       : "永続";
   const effectiveText = effect.isEffective ? "" : "、次点（未採用）";
-  return `${head}: ${effect.effectDefinitionId}（${durationText}${effectiveText}）`;
+  const name = labeler.instanceLabel(effect.effectInstanceId, {
+    effectActionDefinitionId: effect.effectDefinitionId,
+    ...(effect.sourceUnitId !== undefined ? { originUnitId: effect.sourceUnitId } : {}),
+    ...(effect.sourceUnitId === undefined && effect.sourceSide !== undefined
+      ? { originSide: effect.sourceSide }
+      : {}),
+  });
+  return `${head}: ${name}（${durationText}${effectiveText}）`;
 }
 
 // M5 行動ライフサイクル拡張の完了条件: M5追加eventを意味のある
@@ -82,9 +93,11 @@ function effectLabel(effect: UnitActionState["effects"][number]): string {
 function UnitActionStateGroup({
   side,
   rows,
+  labeler,
 }: {
   readonly side: "ally" | "enemy";
   readonly rows: readonly Row[];
+  readonly labeler: EffectLabeler;
 }) {
   const label = side === "ally" ? "ALLY ACTION STATE" : "ENEMY ACTION STATE";
   const labelClassName = styles[side === "ally" ? "allyText" : "enemyText"];
@@ -140,15 +153,15 @@ function UnitActionStateGroup({
                   ) : (
                     <ul className={styles["cooldownList"]}>
                       {actionState.cooldowns.map((cooldown) => (
-                        <li key={cooldown.skillDefinitionId}>
-                          {cooldown.skillDefinitionId}: 残り{cooldown.remaining}
+                        <li key={cooldown.skillDefinitionId} title={cooldown.skillDefinitionId}>
+                          {`${labeler.skillLabel(roster.battleUnitId, cooldown.skillDefinitionId)}: 残り${String(cooldown.remaining)}`}
                         </li>
                       ))}
                     </ul>
                   )}
                   {actionState.cooldownChargeKnown && actionState.charge !== undefined ? (
-                    <p className={styles["charge"]}>
-                      チャージ中: {actionState.charge.skillDefinitionId}
+                    <p className={styles["charge"]} title={actionState.charge.skillDefinitionId}>
+                      {`チャージ中: ${labeler.skillLabel(roster.battleUnitId, actionState.charge.skillDefinitionId)}`}
                     </p>
                   ) : null}
                   {/*
@@ -184,7 +197,9 @@ function UnitActionStateGroup({
                   ) : (
                     <ul className={styles["effectList"]}>
                       {actionState.effects.map((effect) => (
-                        <li key={effect.effectInstanceId}>{effectLabel(effect)}</li>
+                        <li key={effect.effectInstanceId} title={effect.effectDefinitionId}>
+                          {effectLabel(effect, labeler)}
+                        </li>
                       ))}
                     </ul>
                   )}
@@ -207,6 +222,10 @@ export function UnitActionStateSection({
   const roster = useMemo(
     () => suppliedRoster ?? selectRoster(response, catalog ?? EMPTY_CATALOG),
     [suppliedRoster, response, catalog],
+  );
+  const labeler = useMemo(
+    () => createEffectLabeler(catalog, buildRosterIndex(roster), response.events),
+    [catalog, roster, response],
   );
   const actionStates = useMemo(
     () => selectUnitActionStates(response, roster, logLevel),
@@ -236,8 +255,8 @@ export function UnitActionStateSection({
 
   return (
     <div className={styles["grid"]}>
-      <UnitActionStateGroup side="ally" rows={allyRows} />
-      <UnitActionStateGroup side="enemy" rows={enemyRows} />
+      <UnitActionStateGroup side="ally" rows={allyRows} labeler={labeler} />
+      <UnitActionStateGroup side="enemy" rows={enemyRows} labeler={labeler} />
     </div>
   );
 }

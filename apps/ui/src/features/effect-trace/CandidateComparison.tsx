@@ -8,7 +8,17 @@ import styles from "./CandidateComparison.module.css";
 export interface CandidateComparisonProps {
   readonly comparison: RankCandidateComparison;
   readonly roster: RosterIndex;
+  /**
+   * 内訳の効果の表示名（01_UI要求・画面設計.md §8.6「効果の表示名」）。省略時は論理名のまま
+   * 出す。論理名はどちらの場合もツールチップに残す。
+   */
+  readonly effectLabelOf?: (holderUnitId: string, effectActionDefinitionId: string) => string;
 }
+
+type EffectLabelOf = NonNullable<CandidateComparisonProps["effectLabelOf"]>;
+
+const LOGICAL_NAME_LABEL: EffectLabelOf = (_holderUnitId, effectActionDefinitionId) =>
+  effectActionDefinitionId;
 
 const NO_VALUE_PLACEHOLDER = "-";
 
@@ -32,10 +42,14 @@ function formatSigned(amount: number): string {
   return `${rounded >= 0 ? "+" : ""}${rounded.toLocaleString()}`;
 }
 
-function contributionLabel(contribution: CombatStatContribution): string {
+function contributionLabel(
+  contribution: CombatStatContribution,
+  holderUnitId: string,
+  effectLabelOf: EffectLabelOf,
+): string {
   const name =
     "effectActionDefinitionId" in contribution
-      ? contribution.effectActionDefinitionId
+      ? effectLabelOf(holderUnitId, contribution.effectActionDefinitionId)
       : contribution.reason;
   return `${name} ${formatSigned(contribution.amount)}`;
 }
@@ -44,10 +58,12 @@ function CandidateRow({
   candidate,
   rank,
   roster,
+  effectLabelOf,
 }: {
   readonly candidate: RankCandidate;
   readonly rank: number | undefined;
   readonly roster: RosterIndex;
+  readonly effectLabelOf: EffectLabelOf;
 }) {
   return (
     <tr className={candidate.isChosen ? styles["chosenRow"] : undefined}>
@@ -69,8 +85,13 @@ function CandidateRow({
                     : contribution.reason
                 }
                 className={styles["contribution"]}
+                title={
+                  "effectActionDefinitionId" in contribution
+                    ? contribution.effectActionDefinitionId
+                    : undefined
+                }
               >
-                {contributionLabel(contribution)}
+                {contributionLabel(contribution, candidate.battleUnitId, effectLabelOf)}
               </span>
             ))}
       </td>
@@ -81,7 +102,11 @@ function CandidateRow({
 // docs/ui-design/01_UI要求・画面設計.md §8.7（`UI-AC-046`）: 順位セレクタが対象を決めた時点の
 // 候補を、解決時点の実効値で並べる。開始時ステータスの順位では代用できない —— 割合バフ1つが
 // ギア数十枚分を動かすため、解決時点の順位は開始時と別の順位になる。
-export function CandidateComparison({ comparison, roster }: CandidateComparisonProps) {
+export function CandidateComparison({
+  comparison,
+  roster,
+  effectLabelOf = LOGICAL_NAME_LABEL,
+}: CandidateComparisonProps) {
   const headingId = useId();
   const chosen = comparison.candidates.find((candidate) => candidate.isChosen);
   const gap = comparison.gapToRunnerUp;
@@ -120,6 +145,7 @@ export function CandidateComparison({ comparison, roster }: CandidateComparisonP
                 candidate={candidate}
                 rank={candidate.value === undefined ? undefined : index + 1}
                 roster={roster}
+                effectLabelOf={effectLabelOf}
               />
             ))}
           </tbody>

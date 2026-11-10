@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flattenDelta } from "./delta-flattener.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 
 describe("flattenDelta", () => {
   it("returns nothing for a non-object delta", () => {
@@ -225,5 +226,203 @@ describe("flattenDelta total war deltas (UI-UT-TWR-018)", () => {
     expect(flattenDelta({ addedUnits: [{ side: "ENEMY" }] })).toEqual([
       { path: "addedUnits[0]", text: '+ {"side":"ENEMY"} 出撃' },
     ]);
+  });
+});
+
+// docs/ui-design/01_UI要求・画面設計.md §8.2: 状態遷移のツリー表示もスキル・効果を表示名で表し、
+// 論理名は行のツールチップ（`logicalNames`）へ回す。
+describe("flattenDelta display labels", () => {
+  const labeler = createEffectLabeler(
+    {
+      skills: [{ skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" }],
+      effects: [
+        {
+          effectActionDefinitionId: "ACT_POISON",
+          kind: "APPLY_CONTINUOUS_DAMAGE",
+        },
+      ],
+    },
+    new Map([
+      ["ally:1", { displayName: "エー" }],
+      ["enemy:1", { displayName: "ビー" }],
+    ]),
+    [],
+  );
+
+  it("UI-UT-LBL-036: 効果エントリを表示名とインスタンスIDで表し、論理名をlogicalNamesへ回す", () => {
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [
+                {
+                  effectInstanceId: "battle-1:effect:3",
+                  effectDefinitionId: "ACT_POISON",
+                  sourceUnitId: "ally:1",
+                  category: "STATUS_ABNORMALITY",
+                },
+              ],
+              updated: [],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler },
+    );
+
+    expect(lines[1]).toEqual({
+      path: "units.enemy:1.effects.added[0]",
+      text: "+ エー-継続ダメージ（battle-1:effect:3）",
+      logicalNames: ["ACT_POISON"],
+    });
+  });
+
+  it("UI-UT-LBL-037: クールタイムとチャージのスキルを、そのユニットのキャラ名-スキル種別番号で表す", () => {
+    const lines = flattenDelta(
+      {
+        units: {
+          "ally:1": {
+            cooldowns: {
+              added: [{ skillDefinitionId: "SKL_A_AS1", unit: "TURN", remaining: 2 }],
+              // 実応答の更新・削除は、ラッパーの`id`がスキル定義IDで、値は残り回数だけを持つ。
+              updated: [{ id: "SKL_A_AS1", before: 2, after: 1 }],
+              removed: [{ id: "SKL_A_AS1", before: 1 }],
+            },
+            charge: { before: null, after: { skillDefinitionId: "SKL_A_AS1" } },
+          },
+        },
+      },
+      { labeler },
+    );
+
+    expect(lines).toEqual([
+      { path: "units.ally:1.cooldowns", text: "+1 / ~1 / -1" },
+      {
+        path: "units.ally:1.cooldowns.added[0]",
+        text: "+ エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.cooldowns.updated[0]",
+        text: "~ エー-AS1: 2 → 1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.cooldowns.removed[0]",
+        text: "- エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.charge",
+        text: "null → エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+    ]);
+  });
+
+  it("UI-UT-LBL-046: 効果の更新で定義が変わったら、変更前後を表示名で表し論理名をlogicalNamesへ回す", () => {
+    const local = createEffectLabeler(
+      {
+        effects: [
+          { effectActionDefinitionId: "ACT_POISON_A", kind: "APPLY_CONTINUOUS_DAMAGE" },
+          { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+        ],
+      },
+      new Map([
+        ["ally:1", { displayName: "エー" }],
+        ["ally:2", { displayName: "ビー" }],
+      ]),
+      [],
+    );
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [],
+              updated: [
+                {
+                  id: "ei-p",
+                  before: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_A",
+                    sourceUnitId: "ally:1",
+                  },
+                  after: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_B",
+                    sourceUnitId: "ally:2",
+                  },
+                },
+              ],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler: local },
+    );
+
+    expect(lines[1]).toEqual({
+      path: "units.enemy:1.effects.updated[0]",
+      text: "~ ビー-継続ダメージ（ei-p）: effectDefinitionId エー-継続ダメージ → ビー-継続ダメージ、sourceUnitId ally:1 → ally:2",
+      logicalNames: ["ACT_POISON_B", "ACT_POISON_A"],
+    });
+  });
+
+  it("UI-UT-LBL-047: 効果の更新で同種グループ鍵が変わっても、鍵の値を本文に出さずlogicalNamesへ回す", () => {
+    const local = createEffectLabeler(
+      {
+        effects: [
+          { effectActionDefinitionId: "ACT_POISON_A", kind: "APPLY_CONTINUOUS_DAMAGE" },
+          { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+        ],
+      },
+      new Map([
+        ["ally:1", { displayName: "エー" }],
+        ["ally:2", { displayName: "ビー" }],
+      ]),
+      [],
+    );
+    // 実応答の`EffectStateResponse`は`effectKindKey`を持ち、`kindKey`未宣言の効果では
+    // 効果定義IDと同じ値になる。
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [],
+              updated: [
+                {
+                  id: "ei-p",
+                  before: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_A",
+                    effectKindKey: "ACT_POISON_A",
+                    sourceUnitId: "ally:1",
+                  },
+                  after: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_B",
+                    effectKindKey: "ACT_POISON_B",
+                    sourceUnitId: "ally:2",
+                  },
+                },
+              ],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler: local },
+    );
+
+    expect(lines[1]?.text).toBe(
+      "~ ビー-継続ダメージ（ei-p）: effectDefinitionId エー-継続ダメージ → ビー-継続ダメージ、effectKindKey 変更、sourceUnitId ally:1 → ally:2",
+    );
+    expect(lines[1]?.text).not.toMatch(/ACT_POISON/);
+    expect(lines[1]?.logicalNames).toEqual(["ACT_POISON_B", "ACT_POISON_A"]);
   });
 });

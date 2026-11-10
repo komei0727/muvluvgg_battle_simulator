@@ -429,6 +429,7 @@ describe("selectUnitActionStates", () => {
       {
         effectInstanceId: "battle-1:effect:1",
         effectDefinitionId: "ACT_ATTACK_UP",
+        sourceUnitId: "ally:1",
         category: "BUFF",
         isEffective: true,
         duration: { unit: "TURN", remaining: 2 },
@@ -436,6 +437,7 @@ describe("selectUnitActionStates", () => {
       {
         effectInstanceId: "battle-1:effect:2",
         effectDefinitionId: "ACT_STUN_1",
+        sourceUnitId: "enemy:1",
         category: "STATUS_ABNORMALITY",
         statusKind: "STUN",
         isEffective: true,

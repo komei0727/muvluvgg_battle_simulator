@@ -64,6 +64,29 @@ export interface EffectLabeler {
     effectActionDefinitionId: string,
     grants: readonly EffectGrantLabelInput[],
   ): string;
+  /**
+   * 効果インスタンスの表示名。同じ`effectInstanceId`の付与（`EFFECT_APPLIED`と、採用元を
+   * 入れ替えた`EFFECT_MERGED`）の履歴から引き、無ければ`fallback`（状態スナップショットが
+   * 持つ付与元等）と定義上の固定値で表す。どちらも無ければインスタンスIDを返す。
+   *
+   * `atSequence`を渡すとその時点までの履歴だけを見る（イベントの文言用）。`fallback`が
+   * 定義を持てば、それと定義・付与元が一致する最新の付与を使う（スナップショット用。
+   * 統合で採用元が入れ替わる前の状態でも、その状態の付与元で表す）。
+   */
+  instanceLabel(
+    effectInstanceId: string,
+    fallback?: EffectGrantLabelInput,
+    atSequence?: number,
+  ): string;
+  /** 付与履歴から引いたインスタンスの論理名。ツールチップへ回すために使う。 */
+  instanceDefinitionId(effectInstanceId: string, atSequence?: number): string | undefined;
+  /**
+   * スキルの表示名`キャラ正式名-スキル種別番号`。種別番号が引けなければその位置に論理名を出す
+   * （効果内容が引けない場合と同じ縮退）。使用者が分からなければ種別番号だけで表す。
+   */
+  skillLabel(actorUnitId: string | undefined, skillDefinitionId: string): string;
+  /** スキル定義単位の表示名。キャラ名は、使用者が全員同じ表示名のときだけ出す。 */
+  skillDefinitionLabel(skillDefinitionId: string, actorUnitIds: readonly string[]): string;
 }
 
 const SEPARATOR = "-";
@@ -259,6 +282,110 @@ function indexSkillUseOrigins(
   return origins;
 }
 
+function detailNumber(event: EffectLabelEvent, key: string): number | undefined {
+  const details = event["details"];
+  if (typeof details !== "object" || details === null) {
+    return undefined;
+  }
+  const value = (details as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function envelopeString(event: EffectLabelEvent, key: string): string | undefined {
+  const value = event[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+interface GrantRecord {
+  readonly sequence: number;
+  readonly grant: EffectGrantLabelInput;
+}
+
+function sequenceOf(event: EffectLabelEvent): number {
+  return typeof event["sequence"] === "number" ? event["sequence"] : 0;
+}
+
+/** 付与元の読み方は`effect-trace-projector.ts`と同じ（detailsを優先し、無ければエンベロープ）。 */
+function grantFrom(
+  event: EffectLabelEvent,
+  effectActionDefinitionId: string,
+  magnitude: number | undefined,
+): EffectGrantLabelInput {
+  const originUnitId = detailString(event, "sourceUnitId") ?? envelopeString(event, "sourceUnitId");
+  const originSide = detailString(event, "sourceSide") ?? envelopeString(event, "sourceSide");
+  const skillUseId = envelopeString(event, "skillUseId");
+  return {
+    effectActionDefinitionId,
+    ...(originUnitId !== undefined ? { originUnitId } : {}),
+    ...(originUnitId === undefined && originSide !== undefined ? { originSide } : {}),
+    ...(skillUseId !== undefined ? { skillUseId } : {}),
+    ...(magnitude !== undefined ? { magnitude } : {}),
+  };
+}
+
+/**
+ * R-DOT-04の毒の統合で、新しい付与の効果量が採られたか。採られた場合だけDomainは定義・付与者を
+ * 新しい付与のものへ入れ替える（`continuous-damage-service.ts`）。採否は統合時点で評価した
+ * 毒ダメージの比較（新しい付与が厳密に大きいときだけ採る）なので、`tickDamageAfter`が
+ * `tickDamageBefore`を上回ることと同値になる。比較値を持たないログでは定義の変化で判断する。
+ */
+function mergeAdoptsIncoming(event: EffectLabelEvent, current: EffectGrantLabelInput): boolean {
+  const before = detailNumber(event, "tickDamageBefore");
+  const after = detailNumber(event, "tickDamageAfter");
+  if (before !== undefined && after !== undefined) {
+    return after > before;
+  }
+  return detailString(event, "effectActionDefinitionId") !== current.effectActionDefinitionId;
+}
+
+/**
+ * `effectInstanceId`ごとの付与の履歴（`sequence`昇順）。`EFFECT_APPLIED`で始まり、毒の統合
+ * （`EFFECT_MERGED`）で採用元が入れ替わるたびに1件積む。インスタンスIDは統合でも変わらない。
+ */
+function indexGrantHistory(
+  events: readonly EffectLabelEvent[],
+): ReadonlyMap<string, readonly GrantRecord[]> {
+  const sorted = [...events].sort((a, b) => sequenceOf(a) - sequenceOf(b));
+  const history = new Map<string, GrantRecord[]>();
+  for (const event of sorted) {
+    const effectInstanceId = detailString(event, "effectInstanceId");
+    const effectActionDefinitionId = detailString(event, "effectActionDefinitionId");
+    if (effectInstanceId === undefined || effectActionDefinitionId === undefined) {
+      continue;
+    }
+    const records = history.get(effectInstanceId);
+    if (event["type"] === "EFFECT_APPLIED") {
+      const record = {
+        sequence: sequenceOf(event),
+        grant: grantFrom(event, effectActionDefinitionId, detailNumber(event, "magnitude")),
+      };
+      history.set(effectInstanceId, [...(records ?? []), record]);
+      continue;
+    }
+    const current = records?.at(-1);
+    if (event["type"] === "EFFECT_MERGED" && records !== undefined && current !== undefined) {
+      if (mergeAdoptsIncoming(event, current.grant)) {
+        records.push({
+          sequence: sequenceOf(event),
+          grant: grantFrom(event, effectActionDefinitionId, detailNumber(event, "magnitudeAfter")),
+        });
+      }
+    }
+  }
+  return history;
+}
+
+/** スナップショットの定義・付与元と食い違わない付与か。付与元を持たない代替は定義だけで比べる。 */
+function matchesFallback(grant: EffectGrantLabelInput, fallback: EffectGrantLabelInput): boolean {
+  if (grant.effectActionDefinitionId !== fallback.effectActionDefinitionId) {
+    return false;
+  }
+  if (fallback.originUnitId === undefined && fallback.originSide === undefined) {
+    return true;
+  }
+  return grant.originUnitId === fallback.originUnitId && grant.originSide === fallback.originSide;
+}
+
 function joinParts(parts: readonly (string | undefined)[]): string {
   return parts.filter((part): part is string => part !== undefined && part !== "").join(SEPARATOR);
 }
@@ -280,6 +407,23 @@ export function createEffectLabeler(
     ),
   );
   const skillUseOrigins = indexSkillUseOrigins(events);
+  const grantHistory = indexGrantHistory(events);
+
+  /** その時点までの履歴のうち、代替と食い違わない最新の付与。代替が無ければ最新の付与。 */
+  function grantOf(
+    effectInstanceId: string,
+    fallback: EffectGrantLabelInput | undefined,
+    atSequence: number | undefined,
+  ): EffectGrantLabelInput | undefined {
+    const records = (grantHistory.get(effectInstanceId) ?? []).filter(
+      (record) => atSequence === undefined || record.sequence <= atSequence,
+    );
+    const candidates =
+      fallback === undefined
+        ? records
+        : records.filter((record) => matchesFallback(record.grant, fallback));
+    return candidates.at(-1)?.grant;
+  }
 
   /** 付与元（キャラ名-スキル種別番号、メモリー名、または陣営）。何も分からなければ空文字。 */
   function originPrefixOf(grant: EffectGrantLabelInput): string {
@@ -309,12 +453,47 @@ export function createEffectLabeler(
     );
   }
 
+  function grantLabel(grant: EffectGrantLabelInput): string {
+    return joinParts([
+      originPrefixOf(grant),
+      contentOf(grant.effectActionDefinitionId, grant.magnitude),
+    ]);
+  }
+
+  function slotOf(skillDefinitionId: string): string {
+    return slotBySkillId.get(skillDefinitionId) ?? skillDefinitionId;
+  }
+
   return {
-    grantLabel(grant) {
-      return joinParts([
-        originPrefixOf(grant),
-        contentOf(grant.effectActionDefinitionId, grant.magnitude),
-      ]);
+    grantLabel,
+    instanceLabel(effectInstanceId, fallback, atSequence) {
+      const grant = grantOf(effectInstanceId, fallback, atSequence);
+      if (grant !== undefined) {
+        return grantLabel(grant);
+      }
+      if (fallback === undefined) {
+        return effectInstanceId;
+      }
+      const magnitude =
+        fallback.magnitude ?? effectById.get(fallback.effectActionDefinitionId)?.constantMagnitude;
+      return grantLabel({ ...fallback, ...(magnitude !== undefined ? { magnitude } : {}) });
+    },
+    instanceDefinitionId(effectInstanceId, atSequence) {
+      return grantOf(effectInstanceId, undefined, atSequence)?.effectActionDefinitionId;
+    },
+    skillLabel(actorUnitId, skillDefinitionId) {
+      const unitName =
+        actorUnitId !== undefined
+          ? (units.get(actorUnitId)?.displayName ?? actorUnitId)
+          : undefined;
+      return joinParts([unitName, slotOf(skillDefinitionId)]);
+    },
+    skillDefinitionLabel(skillDefinitionId, actorUnitIds) {
+      const names = new Set(
+        actorUnitIds.map((actorUnitId) => units.get(actorUnitId)?.displayName ?? actorUnitId),
+      );
+      const unitName = names.size === 1 ? [...names][0] : undefined;
+      return joinParts([unitName, slotOf(skillDefinitionId)]);
     },
     definitionLabel(effectActionDefinitionId, grants) {
       const prefixes = new Set(grants.map(originPrefixOf));

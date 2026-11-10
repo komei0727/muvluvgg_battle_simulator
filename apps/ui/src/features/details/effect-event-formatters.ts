@@ -1,10 +1,11 @@
 // M7-009（Issue #182）: 「M7 効果・状態異常・
 // 回復拡張」。回復・効果ライフサイクル・状態異常・命中判定のイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
-import { resolveDisplayName } from "./event-presentation.js";
+import { eventSequenceOf, labelerFor, resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
+import type { EffectGrantLabelInput, EffectLabeler } from "../../lib/effect-display-label.js";
 
 // 付与元はユニット(sourceUnitId)か陣営(sourceSide、R-MEM-04のMemory由来)の
 // どちらかであり、どちらも無いイベントは詳細側で"-"表示にする。
@@ -19,6 +20,30 @@ function resolveOrigin(
   }
   const sourceSide = details["sourceSide"] ?? event["sourceSide"];
   return typeof sourceSide === "string" ? `${sourceSide}陣営のMemory` : "-";
+}
+
+/**
+ * 付与・付与拒否の付与元。読み方は`resolveOrigin`と同じで、付与元スキルはエンベロープの
+ * `skillUseId`から引く（効果IDから逆引きしない）。
+ */
+function grantOf(
+  event: BattleLogEventResponse,
+  details: Record<string, unknown>,
+  effectActionDefinitionId: string,
+): EffectGrantLabelInput {
+  const sourceUnitId = details["sourceUnitId"] ?? event["sourceUnitId"];
+  const sourceSide = details["sourceSide"] ?? event["sourceSide"];
+  const skillUseId = event["skillUseId"];
+  const magnitude = details["magnitude"];
+  return {
+    effectActionDefinitionId,
+    ...(typeof sourceUnitId === "string" ? { originUnitId: sourceUnitId } : {}),
+    ...(typeof sourceUnitId !== "string" && typeof sourceSide === "string"
+      ? { originSide: sourceSide }
+      : {}),
+    ...(typeof skillUseId === "string" ? { skillUseId } : {}),
+    ...(typeof magnitude === "number" ? { magnitude } : {}),
+  };
 }
 
 /** `EffectApplied.details.durationUnit`/`initialRemaining`（両方持つ場合だけ期間を表示する）。 */
@@ -106,12 +131,12 @@ function formatHealingTransferred(
   };
 }
 
-// R-EFF-01/05（EFF-001〜002）: 付与。`statusKind`を持つ付与（`APPLY_STATUS`由来）は
-// 種別をそのまま表示し、定義IDの命名規則から推測しない。
+// R-EFF-01/05（EFF-001〜002）: 付与。
 //
-// 効果そのものの名前は`effectActionDefinitionId`で表す。`kindKey`（R-STA-03の同種
+// 効果の名前は01_UI要求・画面設計.md §8.6「効果の表示名」で表し、論理名
+// （`effectActionDefinitionId`）は`logicalNames`へ回す。`kindKey`（R-STA-03の同種
 // グループ鍵）はCatalog宣言由来であり複数の定義が共有し得るため、どの定義から
-// 付与されたのかを表せない。
+// 付与されたのかを表せない。`APPLY_STATUS`由来の状態名は表示名の効果内容が表す。
 //
 // `statusKind`は気絶・凍結・暗闇（`STATUS_AILMENT_KINDS`）だけでなくSTEALTH・
 // EVASION・DAMAGE_IMMUNITY等の有利な状態にも設定される。R-STS-01のどちらに当たるかは
@@ -123,6 +148,7 @@ function formatHealingTransferred(
 function formatEffectApplied(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -133,14 +159,16 @@ function formatEffectApplied(
   ) {
     return undefined;
   }
-  const statusKind = details["statusKind"];
-  const statusText = typeof statusKind === "string" ? `状態 ${statusKind}（` : "効果「";
-  const statusTextEnd = typeof statusKind === "string" ? "）" : "」";
+  const effectActionDefinitionId = details["effectActionDefinitionId"];
+  const label = labelerFor(roster, labeler).grantLabel(
+    grantOf(event, details, effectActionDefinitionId),
+  );
   const duplicateText = details["duplicate"] ? "、重複あり" : "";
   return {
     title: event.type,
-    summary: `${resolveOrigin(event, details, roster)} → ${resolveDisplayName(roster, details["targetUnitId"])}へ${statusText}${details["effectActionDefinitionId"]}${statusTextEnd}を付与しました${durationText(details)}${duplicateText}。`,
+    summary: `${resolveOrigin(event, details, roster)} → ${resolveDisplayName(roster, details["targetUnitId"])}へ効果「${label}」を付与しました${durationText(details)}${duplicateText}。`,
     details,
+    logicalNames: [effectActionDefinitionId],
     severity: "neutral",
   };
 }
@@ -149,6 +177,7 @@ function formatEffectApplied(
 function formatEffectApplicationRejected(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -160,23 +189,34 @@ function formatEffectApplicationRejected(
   ) {
     return undefined;
   }
-  // `formatEffectApplied`と同じ理由で、状態異常かどうかをUI側で判定せず種別だけを添える。
-  const statusKind = details["statusKind"];
-  const statusText = typeof statusKind === "string" ? `（状態 ${statusKind}）` : "";
+  const effectActionDefinitionId = details["effectActionDefinitionId"];
+  const resolved = labelerFor(roster, labeler);
+  const label = resolved.grantLabel(grantOf(event, details, effectActionDefinitionId));
+  const sequence = eventSequenceOf(event);
+  const blockingInstanceId = details["blockingEffectInstanceId"];
+  const blocking = resolved.instanceLabel(blockingInstanceId, undefined, sequence);
+  const blockingDefinitionId = resolved.instanceDefinitionId(blockingInstanceId, sequence);
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["battleUnitId"])}への効果「${details["effectActionDefinitionId"]}」${statusText}の付与が拒否されました（理由: ${details["reason"]}、拒否した効果: ${details["blockingEffectInstanceId"]}）。`,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}への効果「${label}」の付与が拒否されました（理由: ${details["reason"]}、拒否した効果: ${blocking}）。`,
     details,
+    // 拒否した免疫効果も本文では表示名にしているため、その論理名もツールチップで読めるようにする
+    logicalNames: [
+      ...new Set([
+        effectActionDefinitionId,
+        ...(blockingDefinitionId !== undefined ? [blockingDefinitionId] : []),
+      ]),
+    ],
     severity: "neutral",
   };
 }
 
 /**
  * `EffectExpired`（失効、R-EFF-04/06/07/08/09）と`EffectRemoved`（解除、R-EFF-02/09）は同じ形。
- * `formatEffectApplied`と同じ理由で、効果の名前は`effectActionDefinitionId`で表す。
+ * 効果の名前は`formatEffectApplied`と同じ表示名で、同じインスタンスの付与から付与元を引く。
  */
 function effectLifecycleEndFormatter(verb: string): EventFormatter {
-  return (event, roster) => {
+  return (event, roster, labeler) => {
     const details = event["details"];
     if (
       !isRecord(details) ||
@@ -187,11 +227,23 @@ function effectLifecycleEndFormatter(verb: string): EventFormatter {
     ) {
       return undefined;
     }
+    const effectActionDefinitionId = details["effectActionDefinitionId"];
+    const resolved = labelerFor(roster, labeler);
+    const effectInstanceId = details["effectInstanceId"];
+    const label =
+      typeof effectInstanceId === "string"
+        ? resolved.instanceLabel(
+            effectInstanceId,
+            { effectActionDefinitionId },
+            eventSequenceOf(event),
+          )
+        : resolved.grantLabel({ effectActionDefinitionId });
     const cascadedText = details["cascaded"] ? "、連動グループの連鎖" : "";
     return {
       title: event.type,
-      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${details["effectActionDefinitionId"]}」が${verb}しました（理由: ${details["reason"]}${cascadedText}）。`,
+      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${label}」が${verb}しました（理由: ${details["reason"]}${cascadedText}）。`,
       details,
+      logicalNames: [effectActionDefinitionId],
       severity: "neutral",
     };
   };
@@ -199,7 +251,7 @@ function effectLifecycleEndFormatter(verb: string): EventFormatter {
 
 /** `EffectDurationReduced`（R-EFF-04/06）と`EffectConsumptionChanged`（R-EFF-07）の残り回数変化。 */
 function effectRemainingChangeFormatter(label: string, unitKey: string): EventFormatter {
-  return (event, roster) => {
+  return (event, roster, labeler) => {
     const details = event["details"];
     if (
       !isRecord(details) ||
@@ -211,10 +263,19 @@ function effectRemainingChangeFormatter(label: string, unitKey: string): EventFo
     ) {
       return undefined;
     }
+    const resolved = labelerFor(roster, labeler);
+    const sequence = eventSequenceOf(event);
+    const effectActionDefinitionId = resolved.instanceDefinitionId(
+      details["effectInstanceId"],
+      sequence,
+    );
     return {
       title: event.type,
-      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${details["effectInstanceId"]}」の${label}（${String(details[unitKey])}）が${details["before"]} → ${details["after"]}になりました。`,
+      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${resolved.instanceLabel(details["effectInstanceId"], undefined, sequence)}」の${label}（${String(details[unitKey])}）が${details["before"]} → ${details["after"]}になりました。`,
       details,
+      ...(effectActionDefinitionId !== undefined
+        ? { logicalNames: [effectActionDefinitionId] }
+        : {}),
       severity: "neutral",
     };
   };
@@ -223,11 +284,13 @@ function effectRemainingChangeFormatter(label: string, unitKey: string): EventFo
 // R-EFF-05: 同種グループで採用中のインスタンスが入れ替わった。before/afterは
 // グループに1件も採用中が無い場合だけ欠ける（その場合は「なし」と表示する）。
 //
-// これはグループ単位のイベントであり単一の定義IDを名指しできないため、他の効果
-// イベントと違い`kindKey`（R-STA-03の同種グループ鍵）をそのまま表示するのが正しい。
+// これはグループ単位のイベントであり単一の定義IDを名指しできない。前後のインスタンスを
+// 表示名で表し、`kindKey`（R-STA-03の同種グループ鍵。定義IDと同じ値を取り得る）は本文に
+// 出さず前後の定義IDとともにツールチップへ回す。
 function formatEffectiveEffectChanged(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -237,12 +300,25 @@ function formatEffectiveEffectChanged(
   ) {
     return undefined;
   }
-  const before = typeof details["before"] === "string" ? details["before"] : "なし";
-  const after = typeof details["after"] === "string" ? details["after"] : "なし";
+  const resolved = labelerFor(roster, labeler);
+  const instanceIds = [details["before"], details["after"]].filter(
+    (id): id is string => typeof id === "string",
+  );
+  const sequence = eventSequenceOf(event);
+  const labelOf = (id: unknown) =>
+    typeof id === "string" ? resolved.instanceLabel(id, undefined, sequence) : "なし";
+  const definitionIds = instanceIds
+    .map((id) => resolved.instanceDefinitionId(id, sequence))
+    .filter((id): id is string => id !== undefined);
+  // 前後どちらの付与も引けなければインスタンスIDしか出せず、どのグループか読めなくなる。
+  // その場合だけ縮退として同種グループ鍵を本文に出す。
+  const groupText = definitionIds.length > 0 ? "同種効果" : `効果種別「${details["kindKey"]}」`;
+  const logicalNames = [details["kindKey"], ...definitionIds];
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果種別「${details["kindKey"]}」で採用中の効果が${before} → ${after}になりました。`,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の${groupText}で採用中の効果が${labelOf(details["before"])} → ${labelOf(details["after"])}になりました。`,
     details,
+    logicalNames: [...new Set(logicalNames)],
     severity: "neutral",
   };
 }
@@ -343,6 +419,7 @@ function formatBlindnessCheckResolved(
 function formatSkillMissed(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -353,12 +430,15 @@ function formatSkillMissed(
     return undefined;
   }
   const sourceUnitId = event["sourceUnitId"];
-  const actorName =
-    typeof sourceUnitId === "string" ? resolveDisplayName(roster, sourceUnitId) : "-";
+  const skill = labelerFor(roster, labeler).skillLabel(
+    typeof sourceUnitId === "string" ? sourceUnitId : undefined,
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${actorName}のスキル「${details["skillDefinitionId"]}」が暗闇によりMISSしました（${details["missedByEffectInstanceIds"].length}件の暗闇）。`,
+    summary: `スキル「${skill}」が暗闇によりMISSしました（${details["missedByEffectInstanceIds"].length}件の暗闇）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "negative",
   };
 }

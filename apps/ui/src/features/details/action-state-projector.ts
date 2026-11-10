@@ -53,6 +53,9 @@ export interface UnitChargeState {
 export interface UnitEffectState {
   readonly effectInstanceId: string;
   readonly effectDefinitionId: string;
+  /** 表示名の付与元。付与イベントを引けない場合の代替に使う（R-MEM-04由来は`sourceSide`のみ）。 */
+  readonly sourceUnitId?: string;
+  readonly sourceSide?: string;
   readonly category: string;
   readonly statusKind?: string;
   readonly isEffective: boolean;
@@ -176,9 +179,13 @@ function readEffectsFromFinalState(finalUnit: unknown): readonly UnitEffectState
     }
     const duration = entry["duration"];
     const statusKind = entry["statusKind"];
+    const sourceUnitId = entry["sourceUnitId"];
+    const sourceSide = entry["sourceSide"];
     effects.push({
       effectInstanceId: entry["effectInstanceId"],
       effectDefinitionId: entry["effectDefinitionId"],
+      ...(typeof sourceUnitId === "string" ? { sourceUnitId } : {}),
+      ...(typeof sourceSide === "string" ? { sourceSide } : {}),
       category: entry["category"],
       ...(typeof statusKind === "string" ? { statusKind } : {}),
       isEffective: entry["isEffective"],

@@ -3,7 +3,10 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { BattleDetailsSection } from "./BattleDetailsSection.js";
 import { createActionTraceResponse, TRACE_ROSTER } from "../../test/action-trace-response.js";
-import type { BattleSimulationResponse } from "../../shared/api/api-contract.js";
+import type {
+  BattleSimulationCatalogResponse,
+  BattleSimulationResponse,
+} from "../../shared/api/api-contract.js";
 
 const response: BattleSimulationResponse = {
   schemaVersion: 1,
@@ -244,5 +247,86 @@ describe("BattleDetailsSection", () => {
 
     rerender(<BattleDetailsSection response={response} logLevel="SUMMARY" />);
     expect(screen.getByText(/行動トレース/)).toBeInTheDocument();
+  });
+
+  it("UI-CT-205/UI-AC-071: CatalogのスキルをRoster・全イベント列と合わせて解決し、時系列・因果ツリー・スキル時系列のスキルを表示名で出す", async () => {
+    const user = userEvent.setup();
+    const catalog: BattleSimulationCatalogResponse = {
+      schemaVersion: 1,
+      catalogRevision: "rev-1",
+      units: [
+        {
+          unitDefinitionId: "UNIT_A",
+          displayName: "【約束】エー",
+          characterName: "エー",
+          attribute: "CUTE",
+          unitType: "HUMANOID",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT"],
+        },
+      ],
+      memories: [],
+      skills: [
+        {
+          skillDefinitionId: "SKL_A_AS1",
+          displayName: "スキル",
+          skillType: "AS",
+          slotLabel: "AS1",
+        },
+      ],
+    };
+    const unit = { battleUnitId: "ally:1", unitDefinitionId: "UNIT_A", side: "ALLY" };
+    const labelled: BattleSimulationResponse = {
+      ...response,
+      initialState: { units: [unit] as never },
+      finalState: { units: [unit] as never },
+      events: [
+        {
+          sequence: 1,
+          type: "SKILL_USE_STARTED",
+          category: "FACT",
+          turnNumber: 1,
+          cycleNumber: 1,
+          rootSequence: 1,
+          skillUseId: "su-1",
+          sourceUnitId: "ally:1",
+          targetUnitIds: [],
+          details: { skillDefinitionId: "SKL_A_AS1" },
+          stateVersionBefore: 0,
+          stateVersionAfter: 0,
+        },
+        {
+          sequence: 2,
+          type: "COOLDOWN_STARTED",
+          category: "FACT",
+          turnNumber: 1,
+          cycleNumber: 1,
+          rootSequence: 1,
+          parentSequence: 1,
+          skillUseId: "su-1",
+          sourceUnitId: "ally:1",
+          targetUnitIds: [],
+          details: { actorUnitId: "ally:1", skillDefinitionId: "SKL_A_AS1", initialRemaining: 2 },
+          stateVersionBefore: 0,
+          stateVersionAfter: 0,
+        },
+      ],
+      stateTransitions: [],
+    };
+
+    render(<BattleDetailsSection response={labelled} catalog={catalog} logLevel="DETAILED" />);
+
+    expect(screen.getByRole("button", { name: /COOLDOWN_STARTED/ })).toHaveTextContent(
+      "スキル「【約束】エー-AS1」",
+    );
+
+    await user.click(screen.getByRole("tab", { name: "因果ツリー" }));
+    expect(screen.getByRole("button", { name: /COOLDOWN_STARTED/ })).toHaveTextContent(
+      "スキル「【約束】エー-AS1」",
+    );
+
+    await user.click(screen.getByRole("tab", { name: "スキル時系列" }));
+    expect(screen.getByRole("checkbox", { name: "【約束】エー-AS1" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).not.toHaveTextContent("SKL_A_AS1");
   });
 });

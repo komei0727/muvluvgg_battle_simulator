@@ -2,6 +2,7 @@ import { useMemo, useReducer } from "react";
 import { createBattleStateReplay } from "../../entities/battle-state-replay.js";
 import type { BattleLogResponse, BattleStateResponse } from "../../shared/api/api-contract.js";
 import type { RosterIndex } from "../details/event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import { projectActionSegments } from "./action-segment-projector.js";
 import { TraceActionOrder } from "./TraceActionOrder.js";
 import { TraceBoard } from "./TraceBoard.js";
@@ -30,13 +31,19 @@ import styles from "./ActionTraceSection.module.css";
 export interface ActionTraceSectionProps {
   readonly response: BattleLogResponse;
   readonly roster: RosterIndex;
+  /** スキル・効果の表示名の解決器（01_UI要求・画面設計.md §8.1「スキル・効果の表示名」）。 */
+  readonly labeler?: EffectLabeler;
   readonly onJumpToTransition: (index: number) => void;
 }
 
-function useTraceProjection(response: BattleLogResponse, roster: RosterIndex) {
+function useTraceProjection(
+  response: BattleLogResponse,
+  roster: RosterIndex,
+  labeler: EffectLabeler | undefined,
+) {
   return useMemo(() => {
     const segments = projectActionSegments(response.events, [...roster.values()]);
-    const stepsBySegment = segments.map((segment) => projectTraceSteps(segment, roster));
+    const stepsBySegment = segments.map((segment) => projectTraceSteps(segment, roster, labeler));
     // 区間の先頭の版にだけ完全な状態を持ち、その間の版は直前のcheckpointから求める
     // （長い戦闘で1回の移動ごとに戦闘全体を組み立て直さない）
     const replay = createBattleStateReplay<BattleStateResponse>(
@@ -49,7 +56,7 @@ function useTraceProjection(response: BattleLogResponse, roster: RosterIndex) {
       stepsBySegment.map((steps) => steps.length),
     );
     const ticks = segments.map((segment): TraceTimelineTick => {
-      const label = segmentLabelOf(segment, roster);
+      const label = segmentLabelOf(segment, roster, labeler);
       return {
         segmentIndex: segment.index,
         turnNumber: segment.turnNumber,
@@ -62,15 +69,16 @@ function useTraceProjection(response: BattleLogResponse, roster: RosterIndex) {
       };
     });
     return { segments, stepsBySegment, replay, index, ticks };
-  }, [response, roster]);
+  }, [response, roster, labeler]);
 }
 
 export function ActionTraceSection({
   response,
   roster,
+  labeler,
   onJumpToTransition,
 }: ActionTraceSectionProps) {
-  const projection = useTraceProjection(response, roster);
+  const projection = useTraceProjection(response, roster, labeler);
   const { segments, stepsBySegment, replay, index, ticks } = projection;
   const [state, dispatch] = useReducer(traceCursorReducer, index, createInitialTraceCursor);
 
@@ -106,8 +114,9 @@ export function ActionTraceSection({
     steps: range.steps,
     roster,
     actionOrders: selectActionOrders(segments, segment.turnNumber),
+    ...(labeler !== undefined ? { labeler } : {}),
   });
-  const changes = projectTraceChanges(before, after, roster);
+  const changes = projectTraceChanges(before, after, roster, labeler);
   const transitionIndex = selectFirstTransitionInRange(response.stateTransitions, range);
   const currentStep = segmentSteps[cursor.stepIndex];
   const position: TracePositionView = {
@@ -120,7 +129,7 @@ export function ActionTraceSection({
     firstSequence: currentStep?.firstSequence ?? segment.firstSequence,
     lastSequence: currentStep?.lastSequence ?? segment.lastSequence,
   };
-  const label = segmentLabelOf(segment, roster);
+  const label = segmentLabelOf(segment, roster, labeler);
   const turnActions = segments.filter(
     (candidate) => candidate.kind === "ACTION" && candidate.turnNumber === segment.turnNumber,
   );
@@ -188,7 +197,9 @@ export function ActionTraceSection({
                 {label.title}
               </span>
               {label.skill !== undefined ? (
-                <span className={styles.skill}>{label.skill}</span>
+                <span className={styles.skill} title={label.skillDefinitionId}>
+                  {label.skill}
+                </span>
               ) : null}
             </h3>
           </div>

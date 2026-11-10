@@ -6,13 +6,17 @@ import type {
 } from "./skill-timeline-projector.js";
 import { EventCausalityTree } from "../details/EventCausalityTree.js";
 import { resolveDisplayName } from "../details/event-presentation.js";
+import { labelerFor } from "../details/event-presentation.js";
 import type { RosterIndex } from "../details/event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import styles from "./SkillTimelineSection.module.css";
 
 export interface SkillTimelineSectionProps {
   readonly events: readonly BattleLogEventResponse[];
   readonly roster: RosterIndex;
+  /** スキルの表示名（01_UI要求・画面設計.md §8.8）。不在ならスキル種別番号の位置に論理名を出す。 */
+  readonly labeler?: EffectLabeler;
 }
 
 const OUTCOME_LABELS: Readonly<Record<SkillActivationOutcome, string>> = {
@@ -62,12 +66,22 @@ function skillDefinitionIdsOwnedBy(
 // 紛らわしいため。行を展開すると、そのスキル解決に属するイベント集合だけを渡した既存の
 // `EventCausalityTree`（`UI-CMP-006`）をそのまま埋め込み、因果ツリー表示のロジックを
 // 複製しない。
-export function SkillTimelineSection({ events, roster }: SkillTimelineSectionProps) {
+export function SkillTimelineSection({ events, roster, labeler }: SkillTimelineSectionProps) {
   const headingId = useId();
   const unitHintId = useId();
   const skillHintId = useId();
 
   const timeline = useMemo(() => projectSkillTimeline(events), [events]);
+  const resolvedLabeler = useMemo(() => labelerFor(roster, labeler), [roster, labeler]);
+  const actorUnitIdsBySkill = useMemo(() => {
+    const actors = new Map<string, string[]>();
+    for (const instance of timeline.instances) {
+      const list = actors.get(instance.skillDefinitionId) ?? [];
+      list.push(instance.actorUnitId);
+      actors.set(instance.skillDefinitionId, list);
+    }
+    return actors;
+  }, [timeline]);
   const unitOptions = useMemo(
     () => unitOptionsOf(timeline.actorUnitIds, roster),
     [timeline, roster],
@@ -181,7 +195,7 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
             <ul className={styles["selectionList"]}>
               {visibleSkillDefinitionIds.map((skillDefinitionId) => (
                 <li key={skillDefinitionId}>
-                  <label className={styles["selectionItem"]}>
+                  <label className={styles["selectionItem"]} title={skillDefinitionId}>
                     <input
                       type="checkbox"
                       checked={selectedSkillDefinitionIds.has(skillDefinitionId)}
@@ -189,7 +203,12 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
                         toggleSkill(skillDefinitionId);
                       }}
                     />
-                    <span className={styles["mono"]}>{skillDefinitionId}</span>
+                    <span>
+                      {resolvedLabeler.skillDefinitionLabel(
+                        skillDefinitionId,
+                        actorUnitIdsBySkill.get(skillDefinitionId) ?? [],
+                      )}
+                    </span>
                   </label>
                 </li>
               ))}
@@ -216,7 +235,12 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
                           #{String(instance.startSequence).padStart(3, "0")}
                         </span>
                         <span>T{instance.turnNumber}</span>
-                        <span className={styles["skill"]}>{instance.skillDefinitionId}</span>
+                        <span className={styles["skill"]} title={instance.skillDefinitionId}>
+                          {resolvedLabeler.skillLabel(
+                            instance.actorUnitId,
+                            instance.skillDefinitionId,
+                          )}
+                        </span>
                         <span>{resolveDisplayName(roster, instance.actorUnitId)}</span>
                         <span className={styles["outcome"]}>
                           {OUTCOME_LABELS[instance.outcome]}
@@ -227,7 +251,11 @@ export function SkillTimelineSection({ events, roster }: SkillTimelineSectionPro
                           <p className={styles["expandedLabel"]}>
                             因果ツリー #{instance.startSequence}
                           </p>
-                          <EventCausalityTree events={instance.events} roster={roster} />
+                          <EventCausalityTree
+                            events={instance.events}
+                            roster={roster}
+                            labeler={resolvedLabeler}
+                          />
                         </div>
                       ) : null}
                     </li>

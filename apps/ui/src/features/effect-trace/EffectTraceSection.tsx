@@ -180,6 +180,16 @@ export function EffectTraceSection({ response, roster, catalog }: EffectTraceSec
     () => createEffectLabeler(catalog, roster, response.events),
     [catalog, roster, response],
   );
+  // 候補比較の内訳は保持者ごと・定義ごとに畳まれているため、その保持者への付与から付与元を引く。
+  const contributionLabelOf = (holderUnitId: string, effectActionDefinitionId: string) =>
+    labeler.definitionLabel(
+      effectActionDefinitionId,
+      trace.instances.filter(
+        (instance) =>
+          instance.holderUnitId === holderUnitId &&
+          instance.effectActionDefinitionId === effectActionDefinitionId,
+      ),
+    );
   // 候補の母集団を付与先と同じ陣営に限るために要る（`candidate-comparison.ts`）。
   // 総力戦で一度も出撃しなかったユニットは盤面に居たことがないので、母集団から外す。
   const sideByUnitId = useMemo(
@@ -399,7 +409,11 @@ export function EffectTraceSection({ response, roster, catalog }: EffectTraceSec
                           {comparison !== undefined && expanded ? (
                             <tr>
                               <td colSpan={COMPARISON_ROW_COLUMN_COUNT}>
-                                <CandidateComparison comparison={comparison} roster={roster} />
+                                <CandidateComparison
+                                  comparison={comparison}
+                                  roster={roster}
+                                  effectLabelOf={contributionLabelOf}
+                                />
                               </td>
                             </tr>
                           ) : null}

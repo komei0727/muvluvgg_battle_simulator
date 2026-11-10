@@ -2,7 +2,8 @@
 // 見出しに出す区間の名前。行動区間は行動者の表示名、システム区間は見出しの構造値から作る
 // （`projectActionSegments`は文言を返さない）。
 import { splitDisplayName } from "../../components/display-name.js";
-import type { RosterIndex } from "../details/event-presentation.js";
+import { labelerFor, type RosterIndex } from "../details/event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import type { ActionSegment, SystemSegmentHeadline } from "./action-segment-projector.js";
 
 const SIDE_LABEL: Readonly<Record<string, string>> = { ALLY: "味方", ENEMY: "敵" };
@@ -52,20 +53,31 @@ export interface SegmentLabel {
   readonly title: string;
   /** タイムラインの目盛りに出す短い名前。 */
   readonly short: string;
-  /** 行動本体のスキル定義ID。 */
+  /** 行動本体のスキルの表示名（キャラ正式名-スキル種別番号）。 */
   readonly skill?: string;
+  /** 行動本体のスキル定義ID。本文に出さずツールチップへ回す。 */
+  readonly skillDefinitionId?: string;
 }
 
-export function segmentLabelOf(segment: ActionSegment, roster: RosterIndex): SegmentLabel {
+export function segmentLabelOf(
+  segment: ActionSegment,
+  roster: RosterIndex,
+  labeler?: EffectLabeler,
+): SegmentLabel {
   if (segment.kind === "SYSTEM") {
     return { title: headlineText(segment.headline), short: shortHeadline(segment.headline) };
   }
   const actor = segment.actorUnitId;
   const title = actor === undefined ? "行動者不明" : (roster.get(actor)?.displayName ?? actor);
-  const skill = segment.mainSkill?.skillDefinitionId;
+  const skillDefinitionId = segment.mainSkill?.skillDefinitionId;
   return {
     title,
     short: splitDisplayName(title).name,
-    ...(skill !== undefined ? { skill } : {}),
+    ...(skillDefinitionId !== undefined
+      ? {
+          skill: labelerFor(roster, labeler).skillLabel(actor, skillDefinitionId),
+          skillDefinitionId,
+        }
+      : {}),
   };
 }

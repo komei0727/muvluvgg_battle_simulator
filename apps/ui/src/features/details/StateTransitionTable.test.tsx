@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { StateTransitionTable } from "./StateTransitionTable.js";
 import type { StateTransitionResponse } from "../../shared/api/api-contract.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 
 describe("StateTransitionTable", () => {
   it("renders rows in stateTransitions array order with version/causedBy/target columns (§8.2)", () => {
@@ -87,5 +88,30 @@ describe("StateTransitionTable", () => {
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows[1]).toHaveAttribute("data-highlighted", "true");
     expect(rows[0]).not.toHaveAttribute("data-highlighted", "true");
+  });
+
+  it("UI-CT-201: ツリー表示のスキルを表示名で表し、論理名を行のツールチップでだけ読める", () => {
+    const transitions = [
+      {
+        stateVersionBefore: 0,
+        stateVersionAfter: 1,
+        causedBySequence: 1,
+        delta: {
+          units: {
+            "ally:1": { charge: { before: null, after: { skillDefinitionId: "SKL_A_AS1" } } },
+          },
+        },
+      },
+    ] as unknown as readonly StateTransitionResponse[];
+    const labeler = createEffectLabeler(
+      { skills: [{ skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" }] },
+      new Map([["ally:1", { displayName: "エー" }]]),
+      [],
+    );
+
+    render(<StateTransitionTable transitions={transitions} labeler={labeler} />);
+
+    const line = screen.getByText("units.ally:1.charge: null → エー-AS1");
+    expect(line).toHaveAttribute("title", "SKL_A_AS1");
   });
 });

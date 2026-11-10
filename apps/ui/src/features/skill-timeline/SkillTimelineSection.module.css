@@ -113,11 +113,6 @@
   letter-spacing: 0.08em;
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
-}
-
 .empty {
   padding: var(--space-3);
   color: var(--color-text-muted);

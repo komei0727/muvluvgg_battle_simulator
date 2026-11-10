@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createActionTraceResponse, TRACE_ROSTER } from "../../test/action-trace-response.js";
 import { buildRosterIndex } from "../details/event-presentation.js";
 import { ActionTraceSection } from "./ActionTraceSection.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 
 const ROSTER = buildRosterIndex(TRACE_ROSTER);
 
@@ -349,6 +350,38 @@ describe("ActionTraceSection", () => {
     );
     expect(position()).toMatch(/行動 1 \/ 8/);
     expect(screen.getByRole("button", { name: "再生" })).toBeInTheDocument();
+  });
+
+  it("UI-CT-202: 区間見出しと処理の一覧がスキルをキャラ正式名-スキル種別番号で表し、論理名をツールチップでだけ読める", async () => {
+    const user = userEvent.setup();
+    const response = createActionTraceResponse();
+    const labeler = createEffectLabeler(
+      {
+        skills: [
+          { skillDefinitionId: "SKL_ALLY_AS", slotLabel: "AS1" },
+          { skillDefinitionId: "SKL_ENEMY_PS", slotLabel: "PS1" },
+        ],
+      },
+      ROSTER,
+      response.events,
+    );
+    render(
+      <ActionTraceSection
+        response={response}
+        roster={ROSTER}
+        labeler={labeler}
+        onJumpToTransition={vi.fn()}
+      />,
+    );
+    await goToSegment(user, 2);
+
+    const heading = screen.getByRole("heading", { name: /【先駆】味方A/ });
+    expect(within(heading).getByText("【先駆】味方A-AS1")).toHaveAttribute("title", "SKL_ALLY_AS");
+    expect(stepList()).not.toHaveTextContent("SKL_ENEMY_PS");
+    expect(within(stepList()).getByText(/パッシブスキル「敵D-PS1」/)).toHaveAttribute(
+      "title",
+      "SKL_ENEMY_PS",
+    );
   });
 
   it("shows a notice instead of the trace when the log has no events", () => {

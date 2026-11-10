@@ -1,14 +1,16 @@
 // docs/ui-design/03_API・データ連携設計.md §12「イベント表示」のうち、スキルの
 // クールタイム・チャージ・パッシブのライフサイクルを表すイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
-import { resolveDisplayName } from "./event-presentation.js";
+import { labelerFor } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 
 function formatCooldownStarted(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -19,10 +21,15 @@ function formatCooldownStarted(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムを設定しました（残り${details["initialRemaining"]}）。`,
+    summary: `スキル「${skill}」のクールタイムを設定しました（残り${details["initialRemaining"]}）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -30,6 +37,7 @@ function formatCooldownStarted(
 function formatCooldownReduced(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -41,10 +49,15 @@ function formatCooldownReduced(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムが${details["before"]} → ${details["after"]}になりました。`,
+    summary: `スキル「${skill}」のクールタイムが${details["before"]} → ${details["after"]}になりました。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -52,6 +65,7 @@ function formatCooldownReduced(
 function formatCooldownCompleted(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -61,10 +75,15 @@ function formatCooldownCompleted(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のスキル「${details["skillDefinitionId"]}」のクールタイムが完了しました。`,
+    summary: `スキル「${skill}」のクールタイムが完了しました。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -72,6 +91,7 @@ function formatCooldownCompleted(
 function formatChargeStarted(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -81,10 +101,15 @@ function formatChargeStarted(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}がスキル「${details["skillDefinitionId"]}」のチャージを開始しました。`,
+    summary: `スキル「${skill}」のチャージを開始しました。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -92,6 +117,7 @@ function formatChargeStarted(
 function formatChargeReleased(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -101,10 +127,15 @@ function formatChargeReleased(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のチャージ「${details["skillDefinitionId"]}」が発動しました。`,
+    summary: `チャージ「${skill}」が発動しました。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -113,6 +144,7 @@ function formatChargeReleased(
 function formatChargeCancelled(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -123,10 +155,15 @@ function formatChargeCancelled(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のチャージ「${details["skillDefinitionId"]}」が中断されました（理由: ${details["reason"]}）。`,
+    summary: `チャージ「${skill}」が中断されました（理由: ${details["reason"]}）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "negative",
   };
 }
@@ -134,6 +171,7 @@ function formatChargeCancelled(
 function formatChargeHeldByFreeze(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -143,10 +181,15 @@ function formatChargeHeldByFreeze(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}は凍結のためチャージ「${details["skillDefinitionId"]}」を維持したまま待機しました。`,
+    summary: `凍結のためチャージ「${skill}」を維持したまま待機しました。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -154,6 +197,7 @@ function formatChargeHeldByFreeze(
 function formatPassiveActivated(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -167,10 +211,15 @@ function formatPassiveActivated(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」が発動しました。PP ${details["ppBefore"]} → ${details["ppAfter"]} / EX ${details["exBefore"]} → ${details["exAfter"]}`,
+    summary: `パッシブスキル「${skill}」が発動しました。PP ${details["ppBefore"]} → ${details["ppAfter"]} / EX ${details["exBefore"]} → ${details["exAfter"]}`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -178,6 +227,7 @@ function formatPassiveActivated(
 function formatPassiveResolved(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -188,10 +238,15 @@ function formatPassiveResolved(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」の効果解決が完了しました（${details["resolvedStepCount"]}step）。`,
+    summary: `パッシブスキル「${skill}」の効果解決が完了しました（${details["resolvedStepCount"]}step）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }
@@ -199,6 +254,7 @@ function formatPassiveResolved(
 function formatPassiveInterrupted(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -210,10 +266,15 @@ function formatPassiveInterrupted(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」が中断しました（理由: ${details["reason"]}、未解決効果${details["unresolvedEffectCount"]}件）。`,
+    summary: `パッシブスキル「${skill}」が中断しました（理由: ${details["reason"]}、未解決効果${details["unresolvedEffectCount"]}件）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "negative",
   };
 }
@@ -221,6 +282,7 @@ function formatPassiveInterrupted(
 function formatPassivePointConsumed(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -233,10 +295,15 @@ function formatPassivePointConsumed(
   ) {
     return undefined;
   }
+  const skill = labelerFor(roster, labeler).skillLabel(
+    details["actorUnitId"],
+    details["skillDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["actorUnitId"])}のパッシブスキル「${details["skillDefinitionId"]}」がPPを消費しました。PP ${details["before"]} → ${details["after"]}（消費${details["consumedAmount"]}）。`,
+    summary: `パッシブスキル「${skill}」がPPを消費しました。PP ${details["before"]} → ${details["after"]}（消費${details["consumedAmount"]}）。`,
     details,
+    logicalNames: [details["skillDefinitionId"]],
     severity: "neutral",
   };
 }

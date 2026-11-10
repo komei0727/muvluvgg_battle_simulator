@@ -13,7 +13,8 @@
 // domain-event.ts（意味）。`reason`/`damageType`/`continuousDamageKind`のような
 // 列挙値は 03_API・データ連携設計.md §12 のとおり翻訳せずそのまま出す
 // （UI側で列挙値の部分集合を持つとDomainの分類と黙って乖離するため）。
-import { resolveDisplayName } from "./event-presentation.js";
+import { eventSequenceOf, labelerFor, resolveDisplayName } from "./event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import { isRecord, numberOf } from "../../lib/unknown-narrowing.js";
@@ -37,6 +38,18 @@ function percentText(rate: number): string {
 function hitLabel(details: Record<string, unknown>): string | undefined {
   const hitIndex = numberOf(details["hitIndex"]);
   return hitIndex !== undefined ? `ヒット${hitIndex + 1}` : undefined;
+}
+
+/** インスタンスIDがあればイベントの時点までの付与で、無ければ定義だけで効果を表す。 */
+function instanceEffectLabel(
+  labeler: EffectLabeler,
+  event: BattleLogEventResponse,
+  effectInstanceId: unknown,
+  effectActionDefinitionId: string,
+): string {
+  return typeof effectInstanceId === "string"
+    ? labeler.instanceLabel(effectInstanceId, { effectActionDefinitionId }, eventSequenceOf(event))
+    : labeler.grantLabel({ effectActionDefinitionId });
 }
 
 function sourceName(event: BattleLogEventResponse, roster: RosterIndex): string {
@@ -397,6 +410,7 @@ function formatSubUnitDamaged(
 function formatDamageRedirected(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -414,8 +428,15 @@ function formatDamageRedirected(
       : details["reason"] === "COVER"
         ? "肩代わり"
         : details["reason"];
+  const causeEffectActionDefinitionId = details["causeEffectActionDefinitionId"];
+  const cause = instanceEffectLabel(
+    labelerFor(roster, labeler),
+    event,
+    details["effectInstanceId"],
+    causeEffectActionDefinitionId,
+  );
   const terms = optionalTerms([
-    `要因: ${details["causeEffectActionDefinitionId"]}`,
+    `要因: ${cause}`,
     rateTerm("肩代わり率", details["damageShareRate"]),
     rateTerm("軽減率", details["guardRate"]),
   ]);
@@ -425,6 +446,7 @@ function formatDamageRedirected(
     title: event.type,
     summary: `${resolveDisplayName(roster, details["originalTargetUnitId"])}${hitText}が${reasonLabel}により${resolveDisplayName(roster, details["newTargetUnitId"])}へ移りました${terms}。`,
     details,
+    logicalNames: [causeEffectActionDefinitionId],
     severity: "neutral",
   };
 }
@@ -494,6 +516,7 @@ function formatLinkedDamageGenerated(
 function formatLethalDamageSurvived(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -506,10 +529,17 @@ function formatLethalDamageSurvived(
   ) {
     return undefined;
   }
+  const effect = instanceEffectLabel(
+    labelerFor(roster, labeler),
+    event,
+    details["effectInstanceId"],
+    details["effectActionDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["battleUnitId"])}が致死ダメージ${details["lethalDamage"]}を耐えました（${details["effectActionDefinitionId"]}）。HP ${details["hpBefore"]} → ${details["survivalHp"]}`,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}が致死ダメージ${details["lethalDamage"]}を耐えました（${effect}）。HP ${details["hpBefore"]} → ${details["survivalHp"]}`,
     details,
+    logicalNames: [details["effectActionDefinitionId"]],
     severity: "positive",
   };
 }
@@ -600,6 +630,7 @@ function formatContinuousDamageApplied(
 function formatEffectMerged(
   event: BattleLogEventResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): EventPresentation | undefined {
   const details = event["details"];
   if (
@@ -621,10 +652,18 @@ function formatEffectMerged(
       ? `残り期間 ${remainingBefore} → ${remainingAfter}`
       : undefined,
   ]);
+  // 統合で採用元が入れ替わった場合は、この統合自体の時点の付与（＝採用された付与元）で表す
+  const effect = instanceEffectLabel(
+    labelerFor(roster, labeler),
+    event,
+    details["effectInstanceId"],
+    details["effectActionDefinitionId"],
+  );
   return {
     title: event.type,
-    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${details["effectActionDefinitionId"]}」を既存インスタンスへ統合しました${terms}。`,
+    summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${effect}」を既存インスタンスへ統合しました${terms}。`,
     details,
+    logicalNames: [details["effectActionDefinitionId"]],
     severity: "neutral",
   };
 }

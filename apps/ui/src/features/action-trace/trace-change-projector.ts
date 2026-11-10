@@ -6,6 +6,7 @@
 import { numberOf } from "../../lib/unknown-narrowing.js";
 import type { BattleStateResponse } from "../../shared/api/api-contract.js";
 import type { RosterIndex } from "../details/event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import { chipSourcesOf, currentMaximum, resourceOf, shieldTotal } from "./trace-board-projector.js";
 
 export type TraceChangeLabel = "HP" | "AP" | "PP" | "EX" | "シールド";
@@ -21,8 +22,10 @@ export type TraceEffectChangeKind = "added" | "removed" | "remaining";
 
 export interface TraceEffectChange {
   readonly key: string;
-  /** 定義ID。 */
+  /** 印と同じ名前（`TraceChipView.label`）。 */
   readonly label: string;
+  /** `label`を表示名にしたときの論理名。ツールチップにだけ出す。 */
+  readonly logicalName?: string;
   readonly change: TraceEffectChangeKind;
   readonly before?: string;
   readonly after?: string;
@@ -75,9 +78,13 @@ function valueChangesOf(before: UnitRecord, after: UnitRecord): readonly TraceVa
 }
 
 /** 付いたもの、残り時間が変わったもの、外れたものの順に並べる。 */
-function effectChangesOf(before: UnitRecord, after: UnitRecord): readonly TraceEffectChange[] {
-  const beforeChips = new Map(chipSourcesOf(before).map((chip) => [chip.key, chip]));
-  const afterChips = chipSourcesOf(after);
+function effectChangesOf(
+  before: UnitRecord,
+  after: UnitRecord,
+  labeler: EffectLabeler | undefined,
+): readonly TraceEffectChange[] {
+  const beforeChips = new Map(chipSourcesOf(before, labeler).map((chip) => [chip.key, chip]));
+  const afterChips = chipSourcesOf(after, labeler);
   const afterKeys = new Set(afterChips.map((chip) => chip.key));
   const added: TraceEffectChange[] = [];
   const remaining: TraceEffectChange[] = [];
@@ -87,6 +94,7 @@ function effectChangesOf(before: UnitRecord, after: UnitRecord): readonly TraceE
       added.push({
         key: chip.key,
         label: chip.label,
+        ...(chip.logicalName !== undefined ? { logicalName: chip.logicalName } : {}),
         change: "added",
         ...(chip.remaining !== undefined ? { after: chip.remaining } : {}),
       });
@@ -94,6 +102,7 @@ function effectChangesOf(before: UnitRecord, after: UnitRecord): readonly TraceE
       remaining.push({
         key: chip.key,
         label: chip.label,
+        ...(chip.logicalName !== undefined ? { logicalName: chip.logicalName } : {}),
         change: "remaining",
         ...(previous.remaining !== undefined ? { before: previous.remaining } : {}),
         ...(chip.remaining !== undefined ? { after: chip.remaining } : {}),
@@ -106,6 +115,7 @@ function effectChangesOf(before: UnitRecord, after: UnitRecord): readonly TraceE
       (chip): TraceEffectChange => ({
         key: chip.key,
         label: chip.label,
+        ...(chip.logicalName !== undefined ? { logicalName: chip.logicalName } : {}),
         change: "removed",
         ...(chip.remaining !== undefined ? { before: chip.remaining } : {}),
       }),
@@ -117,6 +127,7 @@ export function projectTraceChanges(
   before: BattleStateResponse,
   after: BattleStateResponse,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): readonly TraceChangeRow[] {
   const beforeById = new Map<string, UnitRecord>(
     before.units.map((unit) => [unit.battleUnitId, unit]),
@@ -135,7 +146,7 @@ export function projectTraceChanges(
       continue;
     }
     const values = valueChangesOf(previous, unit);
-    const effects = effectChangesOf(previous, unit);
+    const effects = effectChangesOf(previous, unit, labeler);
     const defeated = unit.combatStatus === "DEFEATED" && previous["combatStatus"] !== "DEFEATED";
     if (values.length > 0 || effects.length > 0 || defeated) {
       rows.push({ ...base, deployed: false, defeated, values, effects });

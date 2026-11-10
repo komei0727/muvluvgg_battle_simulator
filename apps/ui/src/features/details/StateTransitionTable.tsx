@@ -5,6 +5,7 @@ import type { StateTransitionResponse } from "../../shared/api/api-contract.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import { resolveDisplayName } from "./event-presentation.js";
 import type { RosterIndex } from "./event-presentation.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import styles from "./StateTransitionTable.module.css";
 
 export interface StateTransitionTableProps {
@@ -12,6 +13,8 @@ export interface StateTransitionTableProps {
   readonly highlightedIndex?: number;
   /** 総力戦の`addedUnits`の行にユニット名を出すために使う。 */
   readonly roster?: RosterIndex;
+  /** 効果・スキルを表示名で表すための解決器。論理名は行のツールチップへ回す。 */
+  readonly labeler?: EffectLabeler;
 }
 
 function targetOf(delta: unknown): string {
@@ -39,6 +42,7 @@ export function StateTransitionTable({
   transitions,
   highlightedIndex,
   roster,
+  labeler,
 }: StateTransitionTableProps) {
   const resolveUnitName = (battleUnitId: string) =>
     roster !== undefined ? resolveDisplayName(roster, battleUnitId) : battleUnitId;
@@ -110,8 +114,15 @@ export function StateTransitionTable({
                     <pre>{JSON.stringify(delta, null, 2)}</pre>
                   ) : (
                     <ul>
-                      {flattenDelta(delta, { resolveUnitName }).map((line) => (
-                        <li key={line.path} className={styles["deltaLine"]}>
+                      {flattenDelta(delta, {
+                        resolveUnitName,
+                        ...(labeler !== undefined ? { labeler } : {}),
+                      }).map((line) => (
+                        <li
+                          key={line.path}
+                          className={styles["deltaLine"]}
+                          title={line.logicalNames?.join(", ")}
+                        >
                           {line.path}: {line.text}
                         </li>
                       ))}

@@ -146,7 +146,7 @@ describe("EFFECT_APPLIED", () => {
       rosterIndex,
     );
 
-    expect(presentation?.summary).toContain("効果「EFF_1」");
+    expect(presentation?.summary).toContain("効果「エー-EFF_1」");
     expect(presentation?.summary).toContain("期間 TURN 3");
     expect(presentation?.summary).toContain("重複あり");
   });
@@ -468,7 +468,7 @@ describe("SKILL_MISSED", () => {
     expect(presentation?.severity).toBe("negative");
   });
 
-  it("falls back to a dash actor name without a source unit", () => {
+  it("names the skill without an actor when there is no source unit", () => {
     const presentation = effectEventFormatters["SKILL_MISSED"]?.(
       event({
         type: "SKILL_MISSED",
@@ -477,7 +477,7 @@ describe("SKILL_MISSED", () => {
       rosterIndex,
     );
 
-    expect(presentation?.summary.startsWith("-のスキル")).toBe(true);
+    expect(presentation?.summary.startsWith("スキル「SKL_1」")).toBe(true);
   });
 
   it("returns undefined when missedByEffectInstanceIds is not an array", () => {
