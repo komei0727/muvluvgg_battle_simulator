@@ -670,6 +670,33 @@ describe("projectTraceBoard", () => {
     });
   });
 
+  it("UI-UT-ATR-038: 反射・リンクの適用で吸収源が枯渇し失効を挟んでも、その適用結果をダメージ合計へ含める", () => {
+    for (const type of ["REFLECTED_DAMAGE_GENERATED", "LINKED_DAMAGE_GENERATED"]) {
+      const events = [
+        ...actionStart(),
+        ...hitOn(4, ENEMY, 0, { hitPointDamage: 100 }),
+        event({ sequence: 7, type, skillUseId: MAIN, parentSequence: 6, targetUnitIds: [ALLY] }),
+        event({ sequence: 8, type: "SHIELD_CONSUMED", skillUseId: MAIN, parentSequence: 7 }),
+        event({ sequence: 9, type: "EFFECT_EXPIRED", skillUseId: MAIN, parentSequence: 8 }),
+        event({ sequence: 10, type: "HIT_POINT_REDUCED", skillUseId: MAIN, parentSequence: 7 }),
+        event({
+          sequence: 11,
+          type: "DAMAGE_APPLIED",
+          skillUseId: MAIN,
+          parentSequence: 7,
+          targetUnitIds: [ALLY],
+          details: { targetUnitId: ALLY, untypedShieldAbsorbed: 30, hitPointDamage: 70 },
+        }),
+      ];
+      expect(cardOf(board(events, state(), state()).units, ALLY).damage).toEqual({
+        total: 100,
+        hits: 1,
+        critical: false,
+        shieldAbsorbed: 30,
+      });
+    }
+  });
+
   it("UI-UT-ATR-036: 字下げの無いシステム区間のPSでも、発動に属する処理の発動者を「PS発動」とし、PSの矢印を引く", () => {
     const events = [
       event({ sequence: 1, type: "TURN_STARTED", actionId: null }),
