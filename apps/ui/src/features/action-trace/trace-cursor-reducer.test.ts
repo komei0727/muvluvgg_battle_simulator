@@ -3,6 +3,7 @@ import {
   createInitialTraceCursor,
   createTraceIndex,
   selectCanMove,
+  selectCanMoveToEdge,
   traceCursorReducer,
   type TraceCursorAction,
   type TraceCursorState,
@@ -323,5 +324,28 @@ describe("selectCanMove", () => {
     expect(selectCanMove(at(0, 1), 1)).toBe(true);
     expect(selectCanMove(at(0, 0, { unit: "step" }), -1)).toBe(false);
     expect(selectCanMove(at(7, 1), 1)).toBe(false);
+  });
+});
+
+describe("selectCanMoveToEdge (UI-UT-ATR-040)", () => {
+  it("UI-UT-ATR-040: 先頭・末尾へ動けるかを実際の先頭・末尾と現在位置の比較で決め、単位の移動や追跡で端に届かない位置でも有効にする", () => {
+    // ターン単位でターン2の先頭（区間5）からは1単位進めないが、末尾（区間7）はまだ先にある
+    const lastTurn = at(5, 0, { unit: "turn" });
+    expect(selectCanMove(lastTurn, 1)).toBe(false);
+    expect(selectCanMoveToEdge(lastTurn, "last")).toBe(true);
+    expect(position(run(lastTurn, { type: "movedToEdge", edge: "last" }))).toEqual([7, 1]);
+
+    // 味方追跡で最初の味方行動（区間1）からは1単位戻れないが、先頭（区間0）はまだ前にある
+    const firstAlly = at(1, 2, { follow: "ALLY" });
+    expect(selectCanMove(firstAlly, -1)).toBe(false);
+    expect(selectCanMoveToEdge(firstAlly, "first")).toBe(true);
+
+    // 実際の端では無効。先頭は単位で位置が変わる（行動単位は区間の最後のステップ）
+    expect(selectCanMoveToEdge(at(0, 1), "first")).toBe(false);
+    expect(selectCanMoveToEdge(at(0, 0, { unit: "step" }), "first")).toBe(false);
+    expect(selectCanMoveToEdge(at(0, 1, { unit: "step" }), "first")).toBe(true);
+    expect(selectCanMoveToEdge(at(7, 1), "last")).toBe(false);
+    expect(selectCanMoveToEdge(at(7, 0, { unit: "step" }), "last")).toBe(true);
+    expect(selectCanMoveToEdge(createInitialTraceCursor({ segments: [] }), "last")).toBe(false);
   });
 });

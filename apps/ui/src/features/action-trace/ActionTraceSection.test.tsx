@@ -176,6 +176,36 @@ describe("ActionTraceSection", () => {
     expect(position()).toMatch(/行動 6 \/ 8/);
   });
 
+  it("keeps 先頭へ／末尾へ enabled until the real edges even where a single unit cannot move", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: "ターン" }));
+    await user.click(screen.getByRole("button", { name: "1単位進む" }));
+    await user.click(screen.getByRole("button", { name: "1単位進む" }));
+    expect(position()).toMatch(/行動 6 \/ 8/);
+    expect(screen.getByRole("button", { name: "1単位進む" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "末尾へ" })).not.toHaveAttribute("aria-disabled");
+    await user.click(screen.getByRole("button", { name: "末尾へ" }));
+    expect(position()).toMatch(/行動 8 \/ 8/);
+
+    await user.click(screen.getByRole("button", { name: "行動" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "追跡" }), "ALLY");
+    await user.click(screen.getByRole("button", { name: "先頭へ" }));
+    await user.click(screen.getByRole("button", { name: "1単位進む" }));
+    expect(position()).toMatch(/行動 3 \/ 8/);
+    expect(screen.getByRole("button", { name: "1単位戻る" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "先頭へ" })).not.toHaveAttribute("aria-disabled");
+    await user.click(screen.getByRole("button", { name: "先頭へ" }));
+    expect(position()).toMatch(/行動 1 \/ 8/);
+  });
+
   it("UI-CT-182: 領域の中のキー操作で移動・再生でき、selectにフォーカスがある間はキーを奪わない", async () => {
     const user = userEvent.setup();
     renderSection();

@@ -1,6 +1,7 @@
 import type { Dispatch, ReactNode } from "react";
 import {
   selectCanMove,
+  selectCanMoveToEdge,
   type TraceCursorAction,
   type TraceCursorState,
   type TraceFollow,
@@ -90,6 +91,9 @@ function sequenceText(first: number, last: number): string {
 export function TraceControls({ cursor, dispatch, position, children }: TraceControlsProps) {
   const canBack = selectCanMove(cursor, -1);
   const canForward = selectCanMove(cursor, 1);
+  // 先頭・末尾は1単位の移動とは別に、実際の端と比べて判定する（Home／Endと同じ）
+  const canFirst = selectCanMoveToEdge(cursor, "first");
+  const canLast = selectCanMoveToEdge(cursor, "last");
   const hasSegments = cursor.index.segments.length > 0;
   const n = cursor.stepCount;
   const move = (direction: 1 | -1, times: number) => {
@@ -102,7 +106,7 @@ export function TraceControls({ cursor, dispatch, position, children }: TraceCon
           <TransportButton
             label="先頭へ"
             hint="Home"
-            enabled={canBack}
+            enabled={canFirst}
             onPress={() => {
               dispatch({ type: "movedToEdge", edge: "first" });
             }}
@@ -168,7 +172,7 @@ export function TraceControls({ cursor, dispatch, position, children }: TraceCon
           <TransportButton
             label="末尾へ"
             hint="End"
-            enabled={canForward}
+            enabled={canLast}
             onPress={() => {
               dispatch({ type: "movedToEdge", edge: "last" });
             }}

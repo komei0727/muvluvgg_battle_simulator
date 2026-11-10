@@ -206,6 +206,19 @@ function edgePosition(state: TraceCursorState, edge: "first" | "last"): Position
     : { segmentIndex: lastSegment, stepIndex: lastStepOf(state.index, lastSegment) };
 }
 
+/**
+ * 先頭・末尾へ動けるか。1単位の移動（`selectCanMove`）とは別に判定する —— ターン単位の
+ * 最後のターンや追跡で除外された区間のように、1単位では進めなくても実際の端はまだ先に
+ * あるため。Home／Endと同じく、実際の端の位置と現在位置を比べる。
+ */
+export function selectCanMoveToEdge(state: TraceCursorState, edge: "first" | "last"): boolean {
+  if (state.index.segments.length === 0) {
+    return false;
+  }
+  const target = edgePosition(state, edge);
+  return target.segmentIndex !== state.segmentIndex || target.stepIndex !== state.stepIndex;
+}
+
 function jump(
   state: TraceCursorState,
   segmentIndex: number,

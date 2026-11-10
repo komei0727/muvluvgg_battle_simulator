@@ -1,12 +1,8 @@
 import { stringOf } from "../../lib/unknown-narrowing.js";
 import { resolveDisplayName, type RosterIndex } from "../details/event-presentation.js";
 import { sideLabelOf } from "./trace-segment-label.js";
-import type {
-  HitApplication,
-  HitCalculation,
-  TraceStep,
-  TraceStepKind,
-} from "./trace-step-projector.js";
+import { hitCalculationTerms } from "./hit-calculation-terms.js";
+import type { HitApplication, TraceStep, TraceStepKind } from "./trace-step-projector.js";
 import styles from "./TraceStepList.module.css";
 
 // 01_UI要求・画面設計.md §8.10「処理の一覧」/ 04_コンポーネント・状態管理設計.md §3
@@ -45,25 +41,6 @@ const KIND_CLASS: Readonly<Partial<Record<TraceStepKind, string | undefined>>> =
   EFFECT: styles.iconEffect,
   DEFEAT: styles.iconDamage,
 };
-
-/** R-DMG-01の乗算順（03_API・データ連携設計.md §12.1.1と同じ並び）。 */
-const CALCULATION_TERMS: readonly { readonly key: keyof HitCalculation; readonly label: string }[] =
-  [
-    { key: "attackerAttack", label: "攻撃力" },
-    { key: "effectiveDefense", label: "実効防御" },
-    { key: "baseDamage", label: "基礎ダメージ" },
-    { key: "skillPower", label: "スキル威力" },
-    { key: "attributeMultiplier", label: "属性倍率" },
-    { key: "criticalMultiplier", label: "会心倍率" },
-    { key: "outgoingDamageMultiplier", label: "与ダメージ倍率" },
-    { key: "incomingDamageMultiplier", label: "被ダメージ倍率" },
-    { key: "actionDamageMultiplier", label: "Action内追加倍率" },
-    { key: "confusionDamageMultiplier", label: "混乱倍率" },
-    { key: "freezeMultiplier", label: "凍結増幅" },
-    { key: "guardRate", label: "肩代わり軽減" },
-    { key: "thresholdReductionMultiplier", label: "閾値軽減倍率" },
-    { key: "finalDamage", label: "計算ダメージ" },
-  ];
 
 const NUMBER_FORMAT = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 4 });
 
@@ -116,14 +93,7 @@ function HitDetail({ step }: { readonly step: TraceStep }) {
   if (hit === undefined) {
     return null;
   }
-  const calculation = hit.calculation;
-  const terms =
-    calculation === undefined
-      ? []
-      : CALCULATION_TERMS.flatMap(({ key, label }) => {
-          const value = calculation[key];
-          return typeof value === "number" ? [{ label, value }] : [];
-        });
+  const terms = hit.calculation !== undefined ? hitCalculationTerms(hit.calculation) : [];
   const application = hit.application !== undefined ? applicationTerms(hit.application) : [];
   return (
     <>
@@ -132,7 +102,7 @@ function HitDetail({ step }: { readonly step: TraceStep }) {
           {terms.map((term) => (
             <li key={term.label} className={styles.term}>
               <small>{term.label}</small>
-              {formatNumber(term.value)}
+              {term.value}
             </li>
           ))}
         </ul>
