@@ -394,3 +394,96 @@ describe("createEffectLabeler.instanceLabel", () => {
     expect(local.instanceDefinitionId("ei-unseen")).toBeUndefined();
   });
 });
+
+describe("createEffectLabeler: 毒の統合（R-DOT-04）", () => {
+  const catalog: EffectLabelCatalog = {
+    skills: [
+      { skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" },
+      { skillDefinitionId: "SKL_B_AS2", slotLabel: "AS2" },
+    ],
+    effects: [
+      { effectActionDefinitionId: "ACT_POISON_A", kind: "APPLY_CONTINUOUS_DAMAGE" },
+      { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+    ],
+  };
+  const units = new Map([
+    ["ally:1", { displayName: "エー" }],
+    ["ally:2", { displayName: "ビー" }],
+  ]);
+  const base: readonly EffectLabelEvent[] = [
+    {
+      sequence: 1,
+      type: "SKILL_USE_STARTED",
+      skillUseId: "su-a",
+      details: { skillDefinitionId: "SKL_A_AS1" },
+    },
+    {
+      sequence: 2,
+      type: "EFFECT_APPLIED",
+      skillUseId: "su-a",
+      sourceUnitId: "ally:1",
+      details: {
+        effectInstanceId: "ei-p",
+        effectActionDefinitionId: "ACT_POISON_A",
+        magnitude: 0.05,
+      },
+    },
+    {
+      sequence: 3,
+      type: "SKILL_USE_STARTED",
+      skillUseId: "su-b",
+      details: { skillDefinitionId: "SKL_B_AS2" },
+    },
+  ];
+  const merged = (tickDamageBefore: number, tickDamageAfter: number, definition: string) => ({
+    sequence: 4,
+    type: "EFFECT_MERGED",
+    skillUseId: "su-b",
+    sourceUnitId: "ally:2",
+    details: {
+      effectInstanceId: "ei-p",
+      effectActionDefinitionId: definition,
+      reason: "POISON_REAPPLY",
+      magnitudeBefore: 0.05,
+      magnitudeAfter: 0.1,
+      tickDamageBefore,
+      tickDamageAfter,
+    },
+  });
+
+  it("UI-UT-LBL-040: 新しい付与の効果量が採られた統合の後は、その付与元スキルと定義で表す", () => {
+    const labeler = createEffectLabeler(catalog, units, [...base, merged(50, 100, "ACT_POISON_B")]);
+    expect(labeler.instanceLabel("ei-p")).toBe("ビー-AS2-継続ダメージ");
+    expect(labeler.instanceDefinitionId("ei-p")).toBe("ACT_POISON_B");
+  });
+
+  it("UI-UT-LBL-041: 統合より前の時点を指定すれば、その時点の付与で表す", () => {
+    const labeler = createEffectLabeler(catalog, units, [...base, merged(50, 100, "ACT_POISON_B")]);
+    expect(labeler.instanceLabel("ei-p", undefined, 3)).toBe("エー-AS1-継続ダメージ");
+    expect(labeler.instanceDefinitionId("ei-p", 3)).toBe("ACT_POISON_A");
+  });
+
+  it("UI-UT-LBL-042: 既存の効果量が残った統合では付与元を変えない", () => {
+    const labeler = createEffectLabeler(catalog, units, [
+      ...base,
+      merged(100, 100, "ACT_POISON_A"),
+    ]);
+    expect(labeler.instanceLabel("ei-p")).toBe("エー-AS1-継続ダメージ");
+  });
+
+  it("UI-UT-LBL-043: 状態スナップショットの定義・付与元と一致する付与で表す", () => {
+    const labeler = createEffectLabeler(catalog, units, [...base, merged(50, 100, "ACT_POISON_B")]);
+    expect(
+      labeler.instanceLabel("ei-p", {
+        effectActionDefinitionId: "ACT_POISON_A",
+        originUnitId: "ally:1",
+      }),
+    ).toBe("エー-AS1-継続ダメージ");
+    expect(
+      labeler.instanceLabel("ei-p", {
+        effectActionDefinitionId: "ACT_POISON_B",
+        originUnitId: "ally:2",
+      }),
+    ).toBe("ビー-AS2-継続ダメージ");
+  });
+});

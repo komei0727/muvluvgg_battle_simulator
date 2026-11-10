@@ -321,4 +321,54 @@ describe("flattenDelta display labels", () => {
       },
     ]);
   });
+
+  it("UI-UT-LBL-046: 効果の更新で定義が変わったら、変更前後を表示名で表し論理名をlogicalNamesへ回す", () => {
+    const local = createEffectLabeler(
+      {
+        effects: [
+          { effectActionDefinitionId: "ACT_POISON_A", kind: "APPLY_CONTINUOUS_DAMAGE" },
+          { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+        ],
+      },
+      new Map([
+        ["ally:1", { displayName: "エー" }],
+        ["ally:2", { displayName: "ビー" }],
+      ]),
+      [],
+    );
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [],
+              updated: [
+                {
+                  id: "ei-p",
+                  before: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_A",
+                    sourceUnitId: "ally:1",
+                  },
+                  after: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_B",
+                    sourceUnitId: "ally:2",
+                  },
+                },
+              ],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler: local },
+    );
+
+    expect(lines[1]).toEqual({
+      path: "units.enemy:1.effects.updated[0]",
+      text: "~ ビー-継続ダメージ（ei-p）: effectDefinitionId エー-継続ダメージ → ビー-継続ダメージ、sourceUnitId ally:1 → ally:2",
+      logicalNames: ["ACT_POISON_B", "ACT_POISON_A"],
+    });
+  });
 });

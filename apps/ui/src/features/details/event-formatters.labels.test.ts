@@ -310,4 +310,131 @@ describe("時系列イベントのスキルの表示名", () => {
   it("UI-UT-LBL-034: スキル・効果を名指ししないイベントはlogicalNamesを持たない", () => {
     expect(format(event({ sequence: 9, type: "TURN_STARTED" })).logicalNames).toBeUndefined();
   });
+
+  it("UI-UT-LBL-044: 付与拒否は拒否した免疫効果の論理名もlogicalNamesへ回す", () => {
+    const immunity = event({
+      sequence: 5,
+      type: "EFFECT_APPLIED",
+      skillUseId: "su-1",
+      sourceUnitId: "ally:1",
+      details: {
+        effectInstanceId: "ei-immune",
+        targetUnitId: "enemy:1",
+        effectActionDefinitionId: "ACT_IMMUNE",
+        duplicate: false,
+      },
+    });
+    const rejected = event({
+      sequence: 6,
+      type: "EFFECT_APPLICATION_REJECTED",
+      skillUseId: "su-1",
+      sourceUnitId: "ally:1",
+      details: {
+        battleUnitId: "enemy:1",
+        effectActionDefinitionId: "ACT_STUN",
+        sourceUnitId: "ally:1",
+        blockingEffectInstanceId: "ei-immune",
+        reason: "IMMUNE",
+      },
+    });
+    const local = createEffectLabeler(
+      {
+        ...catalog,
+        effects: [
+          ...(catalog.effects ?? []),
+          { effectActionDefinitionId: "ACT_IMMUNE", kind: "EFFECT_IMMUNITY" },
+        ],
+      },
+      roster,
+      [...events, immunity, rejected],
+    );
+    const presentation = formatEvent(rejected, roster, local);
+    expect(presentation.summary).toContain("拒否した効果: 【約束】エー-AS1-効果無効");
+    expect(presentation.logicalNames).toEqual(["ACT_STUN", "ACT_IMMUNE"]);
+  });
+
+  it("UI-UT-LBL-045: 毒の統合と統合後の失効は統合で採られた付与で表し、統合前の残り回数の変化は統合前の付与で表す", () => {
+    const poisonCatalog: EffectLabelCatalog = {
+      ...catalog,
+      skills: [...(catalog.skills ?? []), { skillDefinitionId: "SKL_B_AS2", slotLabel: "AS2" }],
+      effects: [
+        ...(catalog.effects ?? []),
+        { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+      ],
+    };
+    const poisonEvents = [
+      skillStarted,
+      event({
+        sequence: 2,
+        type: "EFFECT_APPLIED",
+        skillUseId: "su-1",
+        sourceUnitId: "ally:1",
+        details: {
+          effectInstanceId: "ei-p",
+          targetUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_POISON",
+          duplicate: false,
+        },
+      }),
+      event({
+        sequence: 3,
+        type: "EFFECT_DURATION_REDUCED",
+        details: {
+          battleUnitId: "enemy:1",
+          effectInstanceId: "ei-p",
+          unit: "TURN",
+          before: 3,
+          after: 2,
+        },
+      }),
+      event({
+        sequence: 4,
+        type: "SKILL_USE_STARTED",
+        skillUseId: "su-2",
+        sourceUnitId: "enemy:1",
+        details: { skillDefinitionId: "SKL_B_AS2" },
+      }),
+      event({
+        sequence: 5,
+        type: "EFFECT_MERGED",
+        skillUseId: "su-2",
+        sourceUnitId: "enemy:1",
+        details: {
+          effectInstanceId: "ei-p",
+          battleUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_POISON_B",
+          reason: "POISON_REAPPLY",
+          magnitudeBefore: 0.05,
+          magnitudeAfter: 0.1,
+          tickDamageBefore: 50,
+          tickDamageAfter: 100,
+        },
+      }),
+      event({
+        sequence: 6,
+        type: "EFFECT_EXPIRED",
+        details: {
+          effectInstanceId: "ei-p",
+          battleUnitId: "enemy:1",
+          effectActionDefinitionId: "ACT_POISON_B",
+          kindKey: "POISON",
+          reason: "DURATION",
+          linkedEffectGroupId: null,
+          cascaded: false,
+        },
+      }),
+    ];
+    const local = createEffectLabeler(poisonCatalog, roster, poisonEvents);
+    const [, , reduced, , mergedEvent, expired] = poisonEvents;
+
+    expect(formatEvent(reduced!, roster, local).summary).toContain(
+      "効果「【約束】エー-AS1-継続ダメージ」",
+    );
+    expect(formatEvent(reduced!, roster, local).logicalNames).toEqual(["ACT_POISON"]);
+    expect(formatEvent(mergedEvent!, roster, local).summary).toContain(
+      "効果「ビー-AS2-継続ダメージ」",
+    );
+    expect(formatEvent(expired!, roster, local).summary).toContain("効果「ビー-AS2-継続ダメージ」");
+    expect(formatEvent(expired!, roster, local).logicalNames).toEqual(["ACT_POISON_B"]);
+  });
 });

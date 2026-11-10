@@ -44,6 +44,15 @@ export function labelerFor(roster: RosterIndex, labeler: EffectLabeler | undefin
   return labeler ?? createEffectLabeler(undefined, roster, []);
 }
 
+/**
+ * 効果インスタンスの表示名を引く時点。毒の統合で採用元が入れ替わるため、イベントの文言は
+ * そのイベントの時点までの付与で表す（`EffectLabeler.instanceLabel`の`atSequence`）。
+ */
+export function eventSequenceOf(event: BattleLogEventResponse): number | undefined {
+  const sequence = event["sequence"];
+  return typeof sequence === "number" ? sequence : undefined;
+}
+
 /** 行のツールチップに出す論理名。名指ししないイベントでは`title`属性自体を付けない。 */
 export function logicalNamesTitle(presentation: EventPresentation): string | undefined {
   const names = presentation.logicalNames;

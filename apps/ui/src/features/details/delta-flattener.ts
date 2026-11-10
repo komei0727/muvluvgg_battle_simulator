@@ -211,6 +211,64 @@ function diffEntity(before: unknown, after: unknown, prefix = ""): readonly stri
   return [`${prefix ? `${prefix} ` : ""}${formatValue(before)} → ${formatValue(after)}`];
 }
 
+/** 効果エントリの片側（更新の`before`／`after`）の表示名。付与元はその側のスナップショットに従う。 */
+function effectSideLabel(
+  side: Readonly<Record<string, unknown>>,
+  instanceId: string | undefined,
+  labeler: EffectLabeler,
+): LabelledText | undefined {
+  const effectDefinitionId = side["effectDefinitionId"];
+  if (typeof effectDefinitionId !== "string") {
+    return undefined;
+  }
+  const sourceUnitId = side["sourceUnitId"];
+  const sourceSide = side["sourceSide"];
+  const fallback = {
+    effectActionDefinitionId: effectDefinitionId,
+    ...(typeof sourceUnitId === "string" ? { originUnitId: sourceUnitId } : {}),
+    ...(typeof sourceUnitId !== "string" && typeof sourceSide === "string"
+      ? { originSide: sourceSide }
+      : {}),
+  };
+  return {
+    text:
+      instanceId !== undefined
+        ? labeler.instanceLabel(instanceId, fallback)
+        : labeler.grantLabel(fallback),
+    logicalNames: [effectDefinitionId],
+  };
+}
+
+/**
+ * 更新エントリの変更項目。毒の統合（R-DOT-04）では同じインスタンスのまま`effectDefinitionId`が
+ * 入れ替わるため、解決器があればその変更前後も表示名で表し、論理名を`logicalNames`へ回す。
+ */
+function updatedChanges(
+  before: unknown,
+  after: unknown,
+  instanceId: string | undefined,
+  context: FlattenContext,
+): LabelledText {
+  const labeler = context.labeler;
+  if (labeler === undefined || !isRecord(before) || !isRecord(after)) {
+    return { text: diffEntity(before, after).join("、"), logicalNames: [] };
+  }
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+  const logicalNames: string[] = [];
+  const changes = keys.flatMap((key) => {
+    if (key === "effectDefinitionId" && before[key] !== after[key]) {
+      const beforeLabel = effectSideLabel(before, instanceId, labeler);
+      const afterLabel = effectSideLabel(after, instanceId, labeler);
+      if (beforeLabel !== undefined && afterLabel !== undefined) {
+        logicalNames.push(...beforeLabel.logicalNames, ...afterLabel.logicalNames);
+        return [`${key} ${beforeLabel.text} → ${afterLabel.text}`];
+      }
+    }
+    return diffEntity(before[key], after[key], key);
+  });
+  return { text: changes.join("、"), logicalNames };
+}
+
 function entryLine(
   prefix: string,
   bucket: "added" | "updated" | "removed",
@@ -256,11 +314,13 @@ function updatedLines(
       text: formatValue(entry),
       logicalNames: [],
     };
-    const changes = diffEntity(entry["before"], entry["after"]);
-    const changeText = changes.length > 0 ? changes.join("、") : "表示可能な変更項目なし";
+    const instanceId =
+      firstString(entry["after"] ?? entry["before"], INSTANCE_ID_KEYS) ?? fallbackId;
+    const changes = updatedChanges(entry["before"], entry["after"], instanceId, context);
+    const changeText = changes.text !== "" ? changes.text : "表示可能な変更項目なし";
     return entryLine(prefix, "updated", index, {
-      ...label,
       text: `~ ${label.text}: ${changeText}`,
+      logicalNames: [...new Set([...label.logicalNames, ...changes.logicalNames])],
     });
   });
 }

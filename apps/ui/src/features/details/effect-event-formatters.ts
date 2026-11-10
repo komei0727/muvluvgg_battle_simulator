@@ -1,7 +1,7 @@
 // M7-009（Issue #182）: 「M7 効果・状態異常・
 // 回復拡張」。回復・効果ライフサイクル・状態異常・命中判定のイベント。共通の型・helperは
 // `event-presentation.ts`が持つ（formatter群の各ファイル間で循環importを避けるため）。
-import { labelerFor, resolveDisplayName } from "./event-presentation.js";
+import { eventSequenceOf, labelerFor, resolveDisplayName } from "./event-presentation.js";
 import { isRecord } from "../../lib/unknown-narrowing.js";
 import type { EventFormatter, EventPresentation, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
@@ -192,12 +192,21 @@ function formatEffectApplicationRejected(
   const effectActionDefinitionId = details["effectActionDefinitionId"];
   const resolved = labelerFor(roster, labeler);
   const label = resolved.grantLabel(grantOf(event, details, effectActionDefinitionId));
-  const blocking = resolved.instanceLabel(details["blockingEffectInstanceId"]);
+  const sequence = eventSequenceOf(event);
+  const blockingInstanceId = details["blockingEffectInstanceId"];
+  const blocking = resolved.instanceLabel(blockingInstanceId, undefined, sequence);
+  const blockingDefinitionId = resolved.instanceDefinitionId(blockingInstanceId, sequence);
   return {
     title: event.type,
     summary: `${resolveDisplayName(roster, details["battleUnitId"])}への効果「${label}」の付与が拒否されました（理由: ${details["reason"]}、拒否した効果: ${blocking}）。`,
     details,
-    logicalNames: [effectActionDefinitionId],
+    // 拒否した免疫効果も本文では表示名にしているため、その論理名もツールチップで読めるようにする
+    logicalNames: [
+      ...new Set([
+        effectActionDefinitionId,
+        ...(blockingDefinitionId !== undefined ? [blockingDefinitionId] : []),
+      ]),
+    ],
     severity: "neutral",
   };
 }
@@ -223,7 +232,11 @@ function effectLifecycleEndFormatter(verb: string): EventFormatter {
     const effectInstanceId = details["effectInstanceId"];
     const label =
       typeof effectInstanceId === "string"
-        ? resolved.instanceLabel(effectInstanceId, { effectActionDefinitionId })
+        ? resolved.instanceLabel(
+            effectInstanceId,
+            { effectActionDefinitionId },
+            eventSequenceOf(event),
+          )
         : resolved.grantLabel({ effectActionDefinitionId });
     const cascadedText = details["cascaded"] ? "、連動グループの連鎖" : "";
     return {
@@ -251,10 +264,14 @@ function effectRemainingChangeFormatter(label: string, unitKey: string): EventFo
       return undefined;
     }
     const resolved = labelerFor(roster, labeler);
-    const effectActionDefinitionId = resolved.instanceDefinitionId(details["effectInstanceId"]);
+    const sequence = eventSequenceOf(event);
+    const effectActionDefinitionId = resolved.instanceDefinitionId(
+      details["effectInstanceId"],
+      sequence,
+    );
     return {
       title: event.type,
-      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${resolved.instanceLabel(details["effectInstanceId"])}」の${label}（${String(details[unitKey])}）が${details["before"]} → ${details["after"]}になりました。`,
+      summary: `${resolveDisplayName(roster, details["battleUnitId"])}の効果「${resolved.instanceLabel(details["effectInstanceId"], undefined, sequence)}」の${label}（${String(details[unitKey])}）が${details["before"]} → ${details["after"]}になりました。`,
       details,
       ...(effectActionDefinitionId !== undefined
         ? { logicalNames: [effectActionDefinitionId] }
@@ -287,9 +304,11 @@ function formatEffectiveEffectChanged(
   const instanceIds = [details["before"], details["after"]].filter(
     (id): id is string => typeof id === "string",
   );
-  const labelOf = (id: unknown) => (typeof id === "string" ? resolved.instanceLabel(id) : "なし");
+  const sequence = eventSequenceOf(event);
+  const labelOf = (id: unknown) =>
+    typeof id === "string" ? resolved.instanceLabel(id, undefined, sequence) : "なし";
   const definitionIds = instanceIds
-    .map((id) => resolved.instanceDefinitionId(id))
+    .map((id) => resolved.instanceDefinitionId(id, sequence))
     .filter((id): id is string => id !== undefined);
   // 前後どちらの付与も引けなければインスタンスIDしか出せず、どのグループか読めなくなる。
   // その場合だけ縮退として同種グループ鍵を本文に出す。
