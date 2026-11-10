@@ -371,4 +371,58 @@ describe("flattenDelta display labels", () => {
       logicalNames: ["ACT_POISON_B", "ACT_POISON_A"],
     });
   });
+
+  it("UI-UT-LBL-047: 効果の更新で同種グループ鍵が変わっても、鍵の値を本文に出さずlogicalNamesへ回す", () => {
+    const local = createEffectLabeler(
+      {
+        effects: [
+          { effectActionDefinitionId: "ACT_POISON_A", kind: "APPLY_CONTINUOUS_DAMAGE" },
+          { effectActionDefinitionId: "ACT_POISON_B", kind: "APPLY_CONTINUOUS_DAMAGE" },
+        ],
+      },
+      new Map([
+        ["ally:1", { displayName: "エー" }],
+        ["ally:2", { displayName: "ビー" }],
+      ]),
+      [],
+    );
+    // 実応答の`EffectStateResponse`は`effectKindKey`を持ち、`kindKey`未宣言の効果では
+    // 効果定義IDと同じ値になる。
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [],
+              updated: [
+                {
+                  id: "ei-p",
+                  before: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_A",
+                    effectKindKey: "ACT_POISON_A",
+                    sourceUnitId: "ally:1",
+                  },
+                  after: {
+                    effectInstanceId: "ei-p",
+                    effectDefinitionId: "ACT_POISON_B",
+                    effectKindKey: "ACT_POISON_B",
+                    sourceUnitId: "ally:2",
+                  },
+                },
+              ],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler: local },
+    );
+
+    expect(lines[1]?.text).toBe(
+      "~ ビー-継続ダメージ（ei-p）: effectDefinitionId エー-継続ダメージ → ビー-継続ダメージ、effectKindKey 変更、sourceUnitId ally:1 → ally:2",
+    );
+    expect(lines[1]?.text).not.toMatch(/ACT_POISON/);
+    expect(lines[1]?.logicalNames).toEqual(["ACT_POISON_B", "ACT_POISON_A"]);
+  });
 });

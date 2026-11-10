@@ -264,6 +264,17 @@ function updatedChanges(
         return [`${key} ${beforeLabel.text} → ${afterLabel.text}`];
       }
     }
+    // 同種グループ鍵（R-STA-03）は`kindKey`未宣言の効果では効果定義IDと同じ値になり、宣言時も
+    // Catalogの論理名である。表示名を持たないため、本文には変わったことだけを出し値はツールチップへ回す
+    if (
+      key === "effectKindKey" &&
+      typeof before[key] === "string" &&
+      typeof after[key] === "string" &&
+      before[key] !== after[key]
+    ) {
+      logicalNames.push(before[key], after[key]);
+      return [`${key} 変更`];
+    }
     return diffEntity(before[key], after[key], key);
   });
   return { text: changes.join("、"), logicalNames };
