@@ -303,8 +303,6 @@ describe("projectTraceSteps splits hits and bundles effects (UI-UT-ATR-011)", ()
   it("classifies every origin type of the table", () => {
     const types: readonly [string, string][] = [
       ["CONTINUOUS_DAMAGE_APPLIED", "SPECIAL_DAMAGE"],
-      ["REFLECTED_DAMAGE_GENERATED", "SPECIAL_DAMAGE"],
-      ["LINKED_DAMAGE_GENERATED", "SPECIAL_DAMAGE"],
       ["HEALING_TRANSFERRED", "HEAL"],
       ["EFFECT_REMOVED", "EFFECT"],
       ["MARKER_APPLIED", "EFFECT"],
@@ -316,6 +314,9 @@ describe("projectTraceSteps splits hits and bundles effects (UI-UT-ATR-011)", ()
       ["LETHAL_DAMAGE_SURVIVED", "DEFEAT"],
       ["UNIT_BROKEN", "DEFEAT"],
       ["UNIT_REVIVED", "DEFEAT"],
+      // 反射・リンクの生成は適用まで効果・回復を取り込むため、取り込まれない起点の前に置く
+      ["REFLECTED_DAMAGE_GENERATED", "SPECIAL_DAMAGE"],
+      ["LINKED_DAMAGE_GENERATED", "SPECIAL_DAMAGE"],
       ["RESOURCES_RECOVERED", "SYSTEM"],
       ["FORMATION_DEFEATED", "SYSTEM"],
     ];
@@ -827,6 +828,38 @@ describe("projectTraceSteps reports the version after each step (UI-UT-ATR-014)"
           Math.max(...projectTraceSteps(segment, ROSTER).map((s) => s.stateVersionAfter)),
         ).toBe(segment.stateVersionAfter);
       }
+    },
+  );
+});
+
+describe("projectTraceSteps keeps the application of reflected and linked damage together", () => {
+  it.each(["REFLECTED_DAMAGE_GENERATED", "LINKED_DAMAGE_GENERATED"])(
+    "UI-UT-ATR-037: %s が吸収源を枯渇させても、失効と続くDAMAGE_APPLIEDが特殊ダメージのステップに残り、その後の効果は別のステップになる",
+    (type) => {
+      const steps = stepsOf(
+        actionWith([
+          hit(4, ENEMY, 1),
+          applied(5, ENEMY, 1, { hitPointDamage: 100 }),
+          event({ sequence: 6, type, skillUseId: MAIN, parentSequence: 5, targetUnitIds: [ALLY] }),
+          plain(7, "SHIELD_CONSUMED", 6),
+          plain(8, "EFFECT_EXPIRED", 7),
+          plain(9, "HIT_POINT_REDUCED", 6),
+          event({
+            sequence: 10,
+            type: "DAMAGE_APPLIED",
+            skillUseId: MAIN,
+            parentSequence: 6,
+            targetUnitIds: [ALLY],
+            details: { targetUnitId: ALLY, untypedShieldAbsorbed: 30, hitPointDamage: 70 },
+          }),
+          plain(11, "EFFECT_EXPIRED", 10),
+        ]),
+      );
+      expect(shapeOf(steps).slice(3)).toEqual([
+        ["HIT", [4, 5]],
+        ["SPECIAL_DAMAGE", [6, 7, 8, 9, 10]],
+        ["EFFECT", [11]],
+      ]);
     },
   );
 });

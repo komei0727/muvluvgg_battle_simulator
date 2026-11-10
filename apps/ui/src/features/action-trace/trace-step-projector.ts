@@ -409,24 +409,47 @@ interface PendingStep {
 }
 
 /**
+ * 取り込み中の適用。ヒットは同じヒットの`DAMAGE_APPLIED`で、反射・リンクの生成は続く
+ * 反射先・リンク先への`DAMAGE_APPLIED`で閉じる。
+ */
+type Capture = { readonly kind: "hit"; readonly key: HitKey } | { readonly kind: "generated" };
+
+/**
+ * 反射・リンクの生成。吸収源を枯渇させる適用は`*_DAMAGE_GENERATED → SHIELD_CONSUMED →
+ * EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`と届くため、ヒットと同じく適用まで取り込む。
+ */
+const GENERATED_DAMAGE_TYPES = new Set(["REFLECTED_DAMAGE_GENERATED", "LINKED_DAMAGE_GENERATED"]);
+
+function closesCapture(capture: Capture, event: BattleLogEventResponse): boolean {
+  if (EFFECT_ACTION_BOUNDARY_TYPES.has(event.type)) {
+    return true;
+  }
+  if (capture.kind === "generated") {
+    return event.type === "DAMAGE_APPLIED";
+  }
+  return (
+    (event.type === "DAMAGE_APPLIED" && sameHit(hitKeyOf(event), capture.key)) ||
+    event.type === "DAMAGE_CONVERTED_TO_HEAL"
+  );
+}
+
+/**
  * 区間のイベントを起点typeごとにステップへ分ける（§12.5の起点表と取り込み規則）。
- * 取り込みは`HIT_CONFIRMED`を起点とするヒットだけが持ち、同じヒットの
- * `DAMAGE_APPLIED`・`DAMAGE_CONVERTED_TO_HEAL`・EffectActionの境界・効果と回復以外の起点で閉じる。
+ * 取り込みは`HIT_CONFIRMED`を起点とするヒットと反射・リンクの生成だけが持ち、その適用の
+ * `DAMAGE_APPLIED`（ヒットは`DAMAGE_CONVERTED_TO_HEAL`も）・EffectActionの境界・効果と回復以外の起点で閉じる。
  */
 function splitSteps(events: readonly BattleLogEventResponse[]): readonly PendingStep[] {
   const steps: PendingStep[] = [];
-  let capture: HitKey | undefined;
+  let capture: Capture | undefined;
   for (const event of events) {
     const current = steps.at(-1);
     const kind = ORIGIN_KIND_BY_TYPE.get(event.type);
 
     if (capture !== undefined && current !== undefined) {
-      capture = followRedirect(capture, event);
-      const closes =
-        (event.type === "DAMAGE_APPLIED" && sameHit(hitKeyOf(event), capture)) ||
-        event.type === "DAMAGE_CONVERTED_TO_HEAL" ||
-        EFFECT_ACTION_BOUNDARY_TYPES.has(event.type);
-      if (closes) {
+      if (capture.kind === "hit") {
+        capture = { kind: "hit", key: followRedirect(capture.key, event) };
+      }
+      if (closesCapture(capture, event)) {
         current.events.push(event);
         capture = undefined;
         continue;
@@ -463,7 +486,9 @@ function splitSteps(events: readonly BattleLogEventResponse[]): readonly Pending
 
     steps.push({ kind, events: [event], originEvents: [event] });
     if (event.type === "HIT_CONFIRMED") {
-      capture = hitKeyOf(event);
+      capture = { kind: "hit", key: hitKeyOf(event) };
+    } else if (GENERATED_DAMAGE_TYPES.has(event.type)) {
+      capture = { kind: "generated" };
     }
   }
   return steps;

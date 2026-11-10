@@ -966,9 +966,9 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 | システム     | `BATTLE_STARTED`・`TURN_STARTED`・`RESOURCES_RECOVERED`・`ACTION_QUEUE_CREATED`・`TURN_COMPLETED`・`FORMATION_DEPLOYED`・`FORMATION_DEFEATED`・`BATTLE_COMPLETED` |
 
 - 表に無いtypeは直前のステップの「その他」になる。表の漏れは表示の粒度が粗くなるだけで、イベントの欠落にはならない。
-- **ヒットの適用中の処理**: ヒットの起点から、同じヒットの`DAMAGE_APPLIED`までの間に現れる「効果」「回復」の起点は新しいステップを始めず、ヒットのステップへ含める。シールド・サブユニットが枯渇するヒットでは`DAMAGE_CALCULATED → SHIELD_CONSUMED → EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`の順に届く（枯渇した吸収源の失効は、`DAMAGE_APPLIED`に反応するPSが残量0の吸収源を観測しないよう、HPの減少より前に記録される）ため、`EFFECT_EXPIRED`で分けるとヒットの行に計算値だけが残り、適用結果が失効の行へ離れる。取り込みは`HIT_CONFIRMED`を起点とするヒットだけが持ち、次のいずれかで閉じる。閉じた後の効果・回復の起点は通常どおり新しいステップを始める。
-  1. 同じヒットの`DAMAGE_APPLIED`（そのステップに含めて閉じる）。
-  2. `DAMAGE_CONVERTED_TO_HEAL`（幻惑などでダメージが回復へ変わったヒットの結果。回復の起点としてではなく、ヒットのステップに含めて閉じる）。
+- **ヒットの適用中の処理**: ヒットの起点から、同じヒットの`DAMAGE_APPLIED`までの間に現れる「効果」「回復」の起点は新しいステップを始めず、ヒットのステップへ含める。シールド・サブユニットが枯渇するヒットでは`DAMAGE_CALCULATED → SHIELD_CONSUMED → EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`の順に届く（枯渇した吸収源の失効は、`DAMAGE_APPLIED`に反応するPSが残量0の吸収源を観測しないよう、HPの減少より前に記録される）ため、`EFFECT_EXPIRED`で分けるとヒットの行に計算値だけが残り、適用結果が失効の行へ離れる。取り込みは`HIT_CONFIRMED`を起点とするヒットと、反射・リンクの生成（`REFLECTED_DAMAGE_GENERATED`・`LINKED_DAMAGE_GENERATED`）だけが持ち、次のいずれかで閉じる。閉じた後の効果・回復の起点は通常どおり新しいステップを始める。反射・リンクの生成も、反射先・リンク先の吸収源を枯渇させると`*_DAMAGE_GENERATED → SHIELD_CONSUMED → EFFECT_EXPIRED → HIT_POINT_REDUCED → DAMAGE_APPLIED`の順に届くため、取り込まないと適用結果が失効のステップへ離れる。
+  1. 同じヒットの`DAMAGE_APPLIED`、反射・リンクの生成では続く`DAMAGE_APPLIED`（そのステップに含めて閉じる）。
+  2. ヒットでは`DAMAGE_CONVERTED_TO_HEAL`（幻惑などでダメージが回復へ変わったヒットの結果。回復の起点としてではなく、ヒットのステップに含めて閉じる）。
   3. `EFFECT_ACTION_COMPLETED`・`EFFECT_ACTION_STARTING`・`EFFECT_STEP_COMPLETED`・`EFFECT_STEP_STARTING`（EffectActionの境界。ダメージが無効化されて`DAMAGE_APPLIED`が出ないヒットもここで閉じる。境界のイベント自身は起点ではないので、従来どおり直前のステップへ含まれる）。
   4. 「効果」「回復」以外の起点（次のヒット・発動など）、または区間の終わり。
 

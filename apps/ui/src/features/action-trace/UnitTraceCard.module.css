@@ -1,0 +1,371 @@
+.card {
+  --side: var(--color-text-muted);
+
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 132px;
+  padding: 8px 9px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.ally {
+  --side: var(--color-ally);
+}
+
+.enemy {
+  --side: var(--color-enemy);
+}
+
+.target {
+  border-style: dashed;
+  border-color: var(--color-warning);
+}
+
+.activator {
+  border-style: dashed;
+  border-color: var(--color-system);
+}
+
+.actor {
+  border-style: solid;
+  border-color: var(--side);
+  box-shadow: 0 0 0 1px var(--side);
+}
+
+.defeated {
+  opacity: 0.45;
+}
+
+.defeated .name {
+  text-decoration: line-through;
+}
+
+.tags {
+  position: absolute;
+  top: -9px;
+  left: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.tag {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--color-warning);
+  color: var(--color-bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+}
+
+.actor .tag:first-child {
+  background: var(--side);
+}
+
+.activator .tag {
+  background: var(--color-system);
+}
+
+.delta {
+  position: absolute;
+  z-index: 1;
+  top: 22px;
+  right: 6px;
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.deltaDamage {
+  color: var(--color-danger);
+}
+
+.deltaHeal {
+  color: var(--color-success);
+}
+
+.deltaValue {
+  padding: 3px 6px;
+  border: 1px solid currentcolor;
+  border-radius: 5px;
+  background: var(--color-bg);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.deltaSub {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.defeatedBadge {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  padding: 2px 10px;
+  border: 2px solid var(--color-danger);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  pointer-events: none;
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.order {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.hp {
+  display: grid;
+  gap: 2px;
+}
+
+.bar {
+  display: block;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.track {
+  fill: var(--color-bg);
+}
+
+.hpFill {
+  fill: var(--side);
+}
+
+.hpLost {
+  fill: var(--color-danger);
+  opacity: 0.85;
+}
+
+.hpGained {
+  fill: var(--color-success);
+  opacity: 0.6;
+}
+
+.shieldStripe {
+  fill: var(--color-shield);
+}
+
+.shieldFill {
+  opacity: 0.95;
+}
+
+.hpText {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hpText b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.shieldText {
+  color: var(--color-shield);
+}
+
+.resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
+.resource {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.pip {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 1px;
+}
+
+.pip-on {
+  border-color: var(--color-text-muted);
+  background: var(--color-text-muted);
+}
+
+.pip-gain {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+/* 消費した分は枠だけを赤くし、点が「無い」ことを形でも示す */
+.pip-spent {
+  border-color: var(--color-danger);
+  border-style: dashed;
+}
+
+.extra {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 3px;
+  min-width: 56px;
+}
+
+.exBar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+}
+
+.exFill {
+  fill: var(--color-warning);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  gap: 3px;
+  max-width: 100%;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.chipLabel {
+  overflow: hidden;
+  min-width: 0;
+  max-width: 11ch;
+  text-overflow: ellipsis;
+}
+
+.chipRemaining {
+  flex: none;
+  opacity: 0.75;
+}
+
+.chipBuff {
+  background: rgba(85, 230, 174, 0.14);
+  color: var(--color-success);
+}
+
+.chipDebuff {
+  background: rgba(255, 114, 133, 0.14);
+  color: var(--color-danger);
+}
+
+.chipStatus {
+  background: rgba(255, 200, 97, 0.14);
+  color: var(--color-warning);
+}
+
+.chipMarker {
+  background: rgba(169, 155, 255, 0.14);
+  color: var(--color-system);
+}
+
+.chipCharge {
+  background: rgba(159, 184, 255, 0.14);
+  color: var(--color-shield);
+}
+
+.chipOther {
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+}
+
+.chipAdded {
+  border-color: currentcolor;
+}
+
+.chipIneffective {
+  border-style: dotted;
+  opacity: 0.7;
+}
+
+.chipRemoved {
+  border: 1px dashed currentcolor;
+  background: transparent;
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .delta {
+    animation: pop 0.35s ease-out;
+  }
+
+  .hpFill,
+  .hpLost,
+  .hpGained,
+  .exFill {
+    transition: width 0.3s ease;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
