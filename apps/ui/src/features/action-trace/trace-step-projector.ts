@@ -73,7 +73,10 @@ export interface HitApplication {
 }
 
 export interface TraceHit {
+  /** `HIT_CONFIRMED`の対象。 */
   readonly targetUnitId?: string;
+  /** 引き寄せ・肩代わり（`DAMAGE_REDIRECTED`）で防御側が変わった場合の、実際に適用された対象。 */
+  readonly appliedTargetUnitId?: string;
   readonly hitIndex?: number;
   readonly calculation?: HitCalculation;
   readonly application?: HitApplication;
@@ -283,21 +286,51 @@ function sameHit(a: HitKey, b: HitKey): boolean {
   );
 }
 
+/**
+ * 引き寄せ・肩代わりでこのヒットの防御側が変わったら、対応づけの対象を新しい防御側へ移す。
+ * 適用（`DAMAGE_APPLIED`）は差し替え後の防御側について記録されるため、移さないと
+ * 元の対象のままでは同じヒットの適用を見つけられない。両方が成立すると2件続けて届く。
+ */
+function followRedirect(key: HitKey, event: BattleLogEventResponse): HitKey {
+  if (event.type !== "DAMAGE_REDIRECTED" || skillUseIdOf(event) !== key.skillUseId) {
+    return key;
+  }
+  const details = detailsOf(event);
+  const newTargetUnitId = stringOf(details["newTargetUnitId"]);
+  if (
+    newTargetUnitId === undefined ||
+    stringOf(details["originalTargetUnitId"]) !== key.targetUnitId ||
+    numberOf(details["hitIndex"]) !== key.hitIndex
+  ) {
+    return key;
+  }
+  return { ...key, targetUnitId: newTargetUnitId };
+}
+
 function hitOf(
   origin: BattleLogEventResponse,
   events: readonly BattleLogEventResponse[],
 ): TraceHit {
   const key = hitKeyOf(origin);
   const calculated = events.find((event) => event.type === "DAMAGE_CALCULATED");
-  const applied = events.find(
-    (event) => event.type === "DAMAGE_APPLIED" && sameHit(hitKeyOf(event), key),
-  );
+  let appliedKey = key;
+  let applied: BattleLogEventResponse | undefined;
+  for (const event of events) {
+    appliedKey = followRedirect(appliedKey, event);
+    if (event.type === "DAMAGE_APPLIED" && sameHit(hitKeyOf(event), appliedKey)) {
+      applied = event;
+      break;
+    }
+  }
   const critical = events
     .filter((event) => event.type === "CRITICAL_CHECK_RESOLVED")
     .map((event) => detailsOf(event)["result"])
     .find((result): result is boolean => typeof result === "boolean");
   return {
     ...(key.targetUnitId !== undefined ? { targetUnitId: key.targetUnitId } : {}),
+    ...(appliedKey.targetUnitId !== key.targetUnitId && appliedKey.targetUnitId !== undefined
+      ? { appliedTargetUnitId: appliedKey.targetUnitId }
+      : {}),
     ...(key.hitIndex !== undefined ? { hitIndex: key.hitIndex } : {}),
     ...(calculated !== undefined
       ? {
@@ -323,10 +356,18 @@ function hitOf(
   };
 }
 
+/** 実回復量を持つ回復の起点と、その回復を受けたユニットを持つ項目。 */
+const HEAL_TARGET_KEY_BY_TYPE: ReadonlyMap<string, string> = new Map([
+  ["HEAL_APPLIED", "targetUnitId"],
+  ["HEALING_TRANSFERRED", "toUnitId"],
+]);
+
 function healsOf(origins: readonly BattleLogEventResponse[]): readonly TraceHeal[] {
   const heals: TraceHeal[] = [];
   for (const origin of origins) {
-    if (origin.type !== "HEAL_APPLIED") {
+    // 回復リンクの転送は、転送先を`toUnitId`に持つ（`targetUnitId`は持たない）。
+    const targetKey = HEAL_TARGET_KEY_BY_TYPE.get(origin.type);
+    if (targetKey === undefined) {
       continue;
     }
     const details = detailsOf(origin);
@@ -334,7 +375,7 @@ function healsOf(origins: readonly BattleLogEventResponse[]): readonly TraceHeal
     if (appliedAmount === undefined) {
       continue;
     }
-    const targetUnitId = stringOf(details["targetUnitId"]);
+    const targetUnitId = stringOf(details[targetKey]);
     const discardedAmount = numberOf(details["discardedAmount"]);
     heals.push({
       ...(targetUnitId !== undefined ? { targetUnitId } : {}),
@@ -380,6 +421,7 @@ function splitSteps(events: readonly BattleLogEventResponse[]): readonly Pending
     const kind = ORIGIN_KIND_BY_TYPE.get(event.type);
 
     if (capture !== undefined && current !== undefined) {
+      capture = followRedirect(capture, event);
       const closes =
         (event.type === "DAMAGE_APPLIED" && sameHit(hitKeyOf(event), capture)) ||
         event.type === "DAMAGE_CONVERTED_TO_HEAL" ||

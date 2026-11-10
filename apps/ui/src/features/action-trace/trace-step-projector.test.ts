@@ -567,6 +567,32 @@ describe("projectTraceSteps reads hit breakdowns and heal amounts (UI-UT-ATR-013
     ]);
     expect(steps[0]!.heals).toBeUndefined();
   });
+
+  it("reads the transferred amount of a healing link with the receiver from toUnitId", () => {
+    const steps = stepsOf(
+      actionWith([
+        event({
+          sequence: 4,
+          type: "HEALING_TRANSFERRED",
+          skillUseId: MAIN,
+          parentSequence: 3,
+          sourceUnitId: ALLY,
+          details: {
+            fromUnitId: ALLY,
+            toUnitId: ALLY_2,
+            appliedAmount: 5452,
+            discardedAmount: 0,
+            hpBefore: 100,
+            hpAfter: 5552,
+          },
+        }),
+      ]),
+    );
+    expect(steps[3]!.kind).toBe("HEAL");
+    expect(steps[3]!.heals).toEqual([
+      { targetUnitId: ALLY_2, appliedAmount: 5452, discardedAmount: 0 },
+    ]);
+  });
 });
 
 describe("projectTraceSteps keeps the application of a hit together (UI-UT-ATR-023)", () => {
@@ -604,6 +630,64 @@ describe("projectTraceSteps keeps the application of a hit together (UI-UT-ATR-0
       actionWith([hit(4, ENEMY, 1), applied(5, ENEMY_2, 1), plain(6, "EFFECT_EXPIRED", 5)]),
     );
     expect(shapeOf(steps).slice(3)).toEqual([["HIT", [4, 5, 6]]]);
+  });
+
+  it("follows target redirects and cover to the DAMAGE_APPLIED of the new defender", () => {
+    const redirected = (
+      sequence: number,
+      reason: string,
+      originalTargetUnitId: string,
+      newTargetUnitId: string,
+    ) =>
+      event({
+        sequence,
+        type: "DAMAGE_REDIRECTED",
+        skillUseId: MAIN,
+        parentSequence: 5,
+        sourceUnitId: ALLY,
+        details: { reason, originalTargetUnitId, newTargetUnitId, hitIndex: 1 },
+      });
+    const steps = stepsOf(
+      actionWith([
+        hit(4, ENEMY_2, 1),
+        event({
+          sequence: 5,
+          type: "DAMAGE_CALCULATED",
+          skillUseId: MAIN,
+          parentSequence: 4,
+          details: { finalDamage: 900 },
+        }),
+        // 別ヒットの対象変更は追わない。
+        event({
+          sequence: 6,
+          type: "DAMAGE_REDIRECTED",
+          skillUseId: MAIN,
+          details: {
+            reason: "COVER",
+            originalTargetUnitId: ENEMY_2,
+            newTargetUnitId: ALLY,
+            hitIndex: 2,
+          },
+        }),
+        redirected(7, "TARGET_REDIRECT", ENEMY_2, ALLY_2),
+        redirected(8, "COVER", ALLY_2, ENEMY),
+        plain(9, "SHIELD_CONSUMED", 8),
+        plain(10, "EFFECT_EXPIRED", 9),
+        applied(11, ENEMY, 1, { untypedShieldAbsorbed: 400, hitPointDamage: 500 }),
+        plain(12, "EFFECT_EXPIRED", 11),
+      ]),
+    );
+    expect(shapeOf(steps).slice(3)).toEqual([
+      ["HIT", [4, 5, 6, 7, 8, 9, 10, 11]],
+      ["EFFECT", [12]],
+    ]);
+    expect(steps[3]!.hit).toEqual({
+      targetUnitId: ENEMY_2,
+      appliedTargetUnitId: ENEMY,
+      hitIndex: 1,
+      calculation: { finalDamage: 900 },
+      application: { untypedShieldAbsorbed: 400, hitPointDamage: 500 },
+    });
   });
 
   it("starts a new step at the next hit after a missed hit without DAMAGE_APPLIED", () => {
