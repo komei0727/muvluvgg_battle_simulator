@@ -1,0 +1,150 @@
+.board {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sideLabelAlly,
+.sideLabelEnemy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.sideLabelAlly {
+  order: 1;
+  color: var(--color-ally);
+}
+
+.sideLabelEnemy {
+  color: var(--color-enemy);
+}
+
+.sideLabelAlly::after,
+.sideLabelEnemy::after {
+  flex: 1;
+  height: 1px;
+  background: currentcolor;
+  content: "";
+  opacity: 0.25;
+}
+
+.rows {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+}
+
+.rowLabel {
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.cell {
+  display: grid;
+  min-width: 0;
+}
+
+.empty {
+  min-height: 132px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.frontline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+}
+
+.frontline::before,
+.frontline::after {
+  flex: 1;
+  border-top: 1px dashed var(--color-border-strong);
+  content: "";
+}
+
+/* 390px幅でも3列を保ち、行の見出しを省いてカードへ幅を譲る */
+@media (width <= 560px) {
+  .row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .rowLabel {
+    display: none;
+  }
+}
+
+.arrows {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arrowAttackAlly {
+  stroke: var(--color-ally);
+}
+
+.arrowAttackEnemy {
+  stroke: var(--color-enemy);
+}
+
+.arrowPassive {
+  stroke: var(--color-system);
+}
+
+.arrowHeal {
+  stroke: var(--color-success);
+}
+
+.headAttackAlly {
+  fill: var(--color-ally);
+}
+
+.headAttackEnemy {
+  fill: var(--color-enemy);
+}
+
+.headPassive {
+  fill: var(--color-system);
+}
+
+.headHeal {
+  fill: var(--color-success);
+}
+
+/* 読み上げ専用テキスト。display:noneでは通知されないため画面外へ逃がす。 */
+.visuallyHidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}

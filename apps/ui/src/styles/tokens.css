@@ -20,6 +20,9 @@
   --color-success: #55e6ae;
   --color-warning: #ffc861;
   --color-danger: #ff7285;
+  /* 行動トレースの盤面（01_UI要求・画面設計.md §8.10）: シールドとPS・メモリー発動 */
+  --color-shield: #9fb8ff;
+  --color-system: #a99bff;
   --radius-sm: 6px;
   --radius-md: 10px;
 
