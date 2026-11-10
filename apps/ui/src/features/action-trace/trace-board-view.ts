@@ -41,6 +41,7 @@ export interface TraceDamageView {
   readonly total: number;
   readonly hits: number;
   readonly critical: boolean;
+  /** シールドの吸収だけ。サブユニットの吸収は`total`に含めるがここには含めない。 */
   readonly shieldAbsorbed: number;
 }
 

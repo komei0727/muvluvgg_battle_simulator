@@ -225,25 +225,82 @@ interface MutableDamage {
   shieldAbsorbed: number;
 }
 
+/** `DAMAGE_APPLIED`・`CONTINUOUS_DAMAGE_APPLIED`に共通の適用結果の内訳。 */
+interface DamageBreakdown {
+  readonly typedShieldAbsorbed?: number;
+  readonly untypedShieldAbsorbed?: number;
+  readonly subUnitAbsorbed?: number;
+  readonly hitPointDamage?: number;
+}
+
+/** 特殊ダメージの区間で、適用結果を持つイベント。反射・リンクは続く`DAMAGE_APPLIED`が持つ。 */
+const SPECIAL_DAMAGE_APPLICATION_TYPES = new Set(["CONTINUOUS_DAMAGE_APPLIED", "DAMAGE_APPLIED"]);
+
+function addDamage(
+  byUnit: Map<string, MutableDamage>,
+  target: string,
+  breakdown: DamageBreakdown,
+  critical: boolean,
+): void {
+  // シールドとサブユニットはAPI上も別の吸収源なので、「盾」の表示にはシールドの分だけを出す
+  const shieldAbsorbed =
+    (breakdown.typedShieldAbsorbed ?? 0) + (breakdown.untypedShieldAbsorbed ?? 0);
+  const entry = byUnit.get(target) ?? { total: 0, hits: 0, critical: false, shieldAbsorbed: 0 };
+  entry.total +=
+    (breakdown.hitPointDamage ?? 0) + shieldAbsorbed + (breakdown.subUnitAbsorbed ?? 0);
+  entry.hits += 1;
+  entry.critical ||= critical;
+  entry.shieldAbsorbed += shieldAbsorbed;
+  byUnit.set(target, entry);
+}
+
+function specialDamageOf(
+  event: TraceStep["events"][number],
+): { readonly target: string; readonly breakdown: DamageBreakdown } | undefined {
+  const details = isRecord(event["details"]) ? event["details"] : {};
+  const targetUnitIds = event["targetUnitIds"];
+  const target =
+    stringOf(details["targetUnitId"]) ??
+    (Array.isArray(targetUnitIds) ? stringOf(targetUnitIds[0]) : undefined);
+  if (target === undefined) {
+    return undefined;
+  }
+  const breakdown: Record<string, number> = {};
+  for (const key of [
+    "typedShieldAbsorbed",
+    "untypedShieldAbsorbed",
+    "subUnitAbsorbed",
+    "hitPointDamage",
+  ] as const) {
+    const value = numberOf(details[key]);
+    if (value !== undefined) {
+      breakdown[key] = value;
+    }
+  }
+  return { target, breakdown };
+}
+
 function damageByUnit(steps: readonly TraceStep[]): ReadonlyMap<string, TraceDamageView> {
   const byUnit = new Map<string, MutableDamage>();
   for (const step of steps) {
+    if (step.kind === "SPECIAL_DAMAGE") {
+      // 継続・反射・リンクのダメージはヒットの投影（`hit`）を持たないため、適用結果を直接読む
+      for (const event of step.events) {
+        const special = SPECIAL_DAMAGE_APPLICATION_TYPES.has(event.type)
+          ? specialDamageOf(event)
+          : undefined;
+        if (special !== undefined) {
+          addDamage(byUnit, special.target, special.breakdown, false);
+        }
+      }
+      continue;
+    }
     const hit = step.hit;
     const application = hit?.application;
     const target = hit?.appliedTargetUnitId ?? hit?.targetUnitId;
-    if (application === undefined || target === undefined) {
-      continue;
+    if (application !== undefined && target !== undefined) {
+      addDamage(byUnit, target, application, hit?.critical === true);
     }
-    const absorbed =
-      (application.typedShieldAbsorbed ?? 0) +
-      (application.untypedShieldAbsorbed ?? 0) +
-      (application.subUnitAbsorbed ?? 0);
-    const entry = byUnit.get(target) ?? { total: 0, hits: 0, critical: false, shieldAbsorbed: 0 };
-    entry.total += (application.hitPointDamage ?? 0) + absorbed;
-    entry.hits += 1;
-    entry.critical ||= hit?.critical === true;
-    entry.shieldAbsorbed += absorbed;
-    byUnit.set(target, entry);
   }
   return byUnit;
 }
@@ -258,9 +315,29 @@ function healByUnit(steps: readonly TraceStep[]): ReadonlyMap<string, TraceHealV
   return new Map([...byUnit].map(([id, total]) => [id, { total }]));
 }
 
-/** PS・メモリーの発動、またはその発動に属する処理（割り込み）。 */
-function isActivation(step: TraceStep): boolean {
-  return step.kind === "ACTIVATION" || step.interruptDepth > 0;
+const ACTIVATION_TYPES = new Set(["PASSIVE_ACTIVATED", "MEMORY_TRIGGERED"]);
+
+/**
+ * 区間の中でPS・メモリーの発動に使われた`skillUseId`。システム区間ではターン開始時などの
+ * PSが字下げされない（`interruptDepth`が0になる）ため、発動への所属は深さではなくこれで決める。
+ */
+function activationSkillUsesOf(segment: ActionSegment): ReadonlySet<string> {
+  const skillUses = new Set<string>();
+  for (const event of segment.events) {
+    const skillUseId = stringOf(event["skillUseId"]);
+    if (ACTIVATION_TYPES.has(event.type) && skillUseId !== undefined) {
+      skillUses.add(skillUseId);
+    }
+  }
+  return skillUses;
+}
+
+/** PS・メモリーの発動、またはその発動に属する処理。 */
+function isActivation(step: TraceStep, activationSkillUses: ReadonlySet<string>): boolean {
+  return (
+    step.kind === "ACTIVATION" ||
+    (step.skillUseId !== undefined && activationSkillUses.has(step.skillUseId))
+  );
 }
 
 function targetsOf(step: TraceStep): readonly string[] {
@@ -271,11 +348,17 @@ function targetsOf(step: TraceStep): readonly string[] {
   return [...step.targetUnitIds, ...(applied !== undefined ? [applied] : []), ...heals];
 }
 
-function arrowKindOf(step: TraceStep): TraceArrowKind | undefined {
+function arrowKindOf(
+  step: TraceStep,
+  activationSkillUses: ReadonlySet<string>,
+): TraceArrowKind | undefined {
   if (step.kind === "HEAL") {
     return "heal";
   }
-  if (isActivation(step) && (ATTACK_KINDS.has(step.kind) || step.kind === "EFFECT")) {
+  if (
+    isActivation(step, activationSkillUses) &&
+    (ATTACK_KINDS.has(step.kind) || step.kind === "EFFECT")
+  ) {
     return "passive";
   }
   return ATTACK_KINDS.has(step.kind) ? "attack" : undefined;
@@ -284,12 +367,13 @@ function arrowKindOf(step: TraceStep): TraceArrowKind | undefined {
 function arrowsOf(
   steps: readonly TraceStep[],
   sides: ReadonlyMap<string, TraceBoardSide>,
+  activationSkillUses: ReadonlySet<string>,
 ): readonly TraceArrowView[] {
   const arrows: TraceArrowView[] = [];
   const seen = new Set<string>();
   for (const step of steps) {
     const from = step.sourceUnitId;
-    const kind = arrowKindOf(step);
+    const kind = arrowKindOf(step, activationSkillUses);
     const side = from === undefined ? undefined : sides.get(from);
     if (from === undefined || kind === undefined || side === undefined) {
       continue;
@@ -336,12 +420,13 @@ export function projectTraceBoard(input: TraceBoardInput): TraceBoardView {
   const beforeById = new Map<string, UnitRecord>(
     before.units.map((unit) => [unit.battleUnitId, unit]),
   );
+  const activationSkillUses = activationSkillUsesOf(segment);
   const damage = damageByUnit(steps);
   const heals = healByUnit(steps);
   const actor = segment.kind === "ACTION" ? segment.actorUnitId : undefined;
   const activators = new Set(
     steps
-      .filter(isActivation)
+      .filter((step) => isActivation(step, activationSkillUses))
       .flatMap((step) => (step.sourceUnitId !== undefined ? [step.sourceUnitId] : [])),
   );
   const targets = new Set(
@@ -395,5 +480,5 @@ export function projectTraceBoard(input: TraceBoardInput): TraceBoardView {
       defeated: unit.combatStatus === "DEFEATED",
     });
   }
-  return { units, arrows: arrowsOf(steps, sides) };
+  return { units, arrows: arrowsOf(steps, sides, activationSkillUses) };
 }

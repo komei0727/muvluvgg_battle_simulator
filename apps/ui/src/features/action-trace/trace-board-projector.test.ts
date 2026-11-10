@@ -352,7 +352,8 @@ describe("projectTraceBoard", () => {
       total: 650,
       hits: 2,
       critical: true,
-      shieldAbsorbed: 150,
+      // サブユニットの吸収はダメージ合計に含めるが、シールド吸収には含めない
+      shieldAbsorbed: 130,
     });
     expect(cardOf(view.units, ENEMY_2).damage).toEqual({
       total: 50,
@@ -371,7 +372,7 @@ describe("projectTraceBoard", () => {
       total: 220,
       hits: 1,
       critical: true,
-      shieldAbsorbed: 20,
+      shieldAbsorbed: 0,
     });
   });
 
@@ -593,6 +594,128 @@ describe("projectTraceBoard", () => {
       { fromUnitId: ALLY, toUnitId: ENEMY, kind: "attack", side: "ALLY" },
       { fromUnitId: ENEMY, toUnitId: ALLY, kind: "passive", side: "ENEMY" },
       { fromUnitId: ALLY, toUnitId: ALLY_2, kind: "heal", side: "ALLY" },
+    ]);
+  });
+
+  it("UI-UT-ATR-035: 継続ダメージ・反射・リンクの特殊ダメージを、適用された対象ごとのダメージ合計とシールド吸収へ含める", () => {
+    const events = [
+      ...actionStart(),
+      event({
+        sequence: 4,
+        type: "CONTINUOUS_DAMAGE_APPLIED",
+        parentSequence: 1,
+        targetUnitIds: [ALLY],
+        details: {
+          targetUnitId: ALLY,
+          calculatedDamage: 100,
+          typedShieldAbsorbed: 30,
+          untypedShieldAbsorbed: 0,
+          subUnitAbsorbed: 0,
+          hitPointDamage: 70,
+        },
+      }),
+      ...hitOn(5, ENEMY, 0, { hitPointDamage: 100 }),
+      event({
+        sequence: 8,
+        type: "LINKED_DAMAGE_GENERATED",
+        skillUseId: MAIN,
+        parentSequence: 7,
+        targetUnitIds: [ENEMY_2],
+        details: { linkedDamage: 100 },
+      }),
+      event({
+        sequence: 9,
+        type: "DAMAGE_APPLIED",
+        skillUseId: MAIN,
+        parentSequence: 8,
+        targetUnitIds: [ENEMY_2],
+        details: { targetUnitId: ENEMY_2, hitPointDamage: 80, subUnitAbsorbed: 20 },
+      }),
+      event({
+        sequence: 10,
+        type: "REFLECTED_DAMAGE_GENERATED",
+        skillUseId: MAIN,
+        parentSequence: 7,
+        sourceUnitId: ENEMY,
+        targetUnitIds: [ALLY],
+        details: { reflectedDamage: 100 },
+      }),
+      event({
+        sequence: 11,
+        type: "DAMAGE_APPLIED",
+        skillUseId: MAIN,
+        parentSequence: 10,
+        targetUnitIds: [ALLY],
+        details: { targetUnitId: ALLY, hitPointDamage: 100 },
+      }),
+    ];
+    const view = board(events, state(), state());
+    expect(cardOf(view.units, ALLY).damage).toEqual({
+      total: 200,
+      hits: 2,
+      critical: false,
+      shieldAbsorbed: 30,
+    });
+    expect(cardOf(view.units, ENEMY).damage).toEqual({
+      total: 100,
+      hits: 1,
+      critical: false,
+      shieldAbsorbed: 0,
+    });
+    expect(cardOf(view.units, ENEMY_2).damage).toEqual({
+      total: 100,
+      hits: 1,
+      critical: false,
+      shieldAbsorbed: 0,
+    });
+  });
+
+  it("UI-UT-ATR-036: 字下げの無いシステム区間のPSでも、発動に属する処理の発動者を「PS発動」とし、PSの矢印を引く", () => {
+    const events = [
+      event({ sequence: 1, type: "TURN_STARTED", actionId: null }),
+      event({
+        sequence: 2,
+        type: "PASSIVE_ACTIVATED",
+        actionId: null,
+        skillUseId: PS,
+        parentSequence: 1,
+        sourceUnitId: ENEMY,
+        details: { skillDefinitionId: "SKL_PS" },
+      }),
+      event({
+        sequence: 3,
+        type: "EFFECT_APPLIED",
+        actionId: null,
+        skillUseId: PS,
+        parentSequence: 2,
+        sourceUnitId: ENEMY,
+        targetUnitIds: [ALLY],
+        details: { targetUnitId: ALLY },
+      }),
+      event({
+        sequence: 4,
+        type: "HIT_CONFIRMED",
+        actionId: null,
+        skillUseId: PS,
+        parentSequence: 2,
+        sourceUnitId: ENEMY,
+        targetUnitIds: [ALLY_2],
+        details: { targetUnitId: ALLY_2, hitIndex: 0 },
+      }),
+    ];
+    const segment = segmentOf(events);
+    const steps = projectTraceSteps(segment, ROSTER);
+    expect(steps.map((s) => s.interruptDepth)).toEqual([0, 0, 0, 0]);
+    const effectStep = steps.findIndex((s) => s.kind === "EFFECT");
+    const single = board(events, state(), state(), { stepIndex: effectStep });
+    expect(cardOf(single.units, ENEMY).roles.activator).toBe(true);
+    expect(cardOf(single.units, ALLY).roles.target).toBe(true);
+    expect(single.arrows).toEqual([
+      { fromUnitId: ENEMY, toUnitId: ALLY, kind: "passive", side: "ENEMY" },
+    ]);
+    expect(board(events, state(), state()).arrows).toEqual([
+      { fromUnitId: ENEMY, toUnitId: ALLY, kind: "passive", side: "ENEMY" },
+      { fromUnitId: ENEMY, toUnitId: ALLY_2, kind: "passive", side: "ENEMY" },
     ]);
   });
 
