@@ -512,6 +512,18 @@ describe("createBattleStateReplay with checkpoints (UI-UT-ATR-005)", () => {
     ).toEqual(["eff-14", "eff-15"]);
   });
 
+  it("keeps a checkpoint at a version no transition lands on from absorbing the next transition", () => {
+    // 遷移の版が飛ぶ（版2・3に遷移が無い）とき、版2・3のcheckpointは版1の後の状態である
+    const sparse = [transition(1, transitions[0]!.delta), transition(4, transitions[1]!.delta)];
+    const withoutCheckpoints = createBattleStateReplay(initialState, sparse, []);
+    const withCheckpoints = createBattleStateReplay(initialState, sparse, [2, 3]);
+
+    for (let version = 0; version <= 4; version += 1) {
+      expect(withCheckpoints.stateAt(version)).toEqual(withoutCheckpoints.stateAt(version));
+    }
+    expect(unitAt(withCheckpoints.stateAt(2), "enemy:1")?.hp.current).toBe(990);
+  });
+
   it("accepts transitions out of order and ignores checkpoint versions outside the range", () => {
     const replay = createBattleStateReplay(initialState, [...transitions].reverse(), [-3, 99, 10]);
 

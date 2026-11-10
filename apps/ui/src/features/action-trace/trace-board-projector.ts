@@ -78,7 +78,7 @@ function positionOf(
   return { column, row };
 }
 
-function currentMaximum(
+export function currentMaximum(
   value: unknown,
 ): { readonly current: number; readonly maximum: number } | undefined {
   if (!isRecord(value)) {
@@ -98,12 +98,12 @@ function gauge(after: unknown, before: unknown): TraceGaugeView | undefined {
   return { before: b?.current ?? a.current, after: a.current, maximum: a.maximum };
 }
 
-function resourceOf(unit: UnitRecord | undefined, key: string): unknown {
+export function resourceOf(unit: UnitRecord | undefined, key: string): unknown {
   const resources = unit?.["resources"];
   return isRecord(resources) ? resources[key] : undefined;
 }
 
-function shieldTotal(unit: UnitRecord): number {
+export function shieldTotal(unit: UnitRecord): number {
   const shields = unit["shields"];
   if (!isRecord(shields)) {
     return 0;
@@ -131,7 +131,7 @@ function isOnBoard(state: BattleStateResponse, unit: UnitRecord, side: TraceBoar
   return active === undefined || formationNumber === undefined || formationNumber === active;
 }
 
-interface ChipSource {
+export interface ChipSource {
   readonly key: string;
   readonly label: string;
   readonly kind: TraceChipKind;
@@ -151,7 +151,7 @@ function durationText(duration: unknown): string | undefined {
   return `${remaining.toString()}${DURATION_SUFFIX[unit] ?? unit}`;
 }
 
-function chipSourcesOf(unit: UnitRecord): readonly ChipSource[] {
+export function chipSourcesOf(unit: UnitRecord): readonly ChipSource[] {
   const chips: ChipSource[] = [];
   const effects = unit["effects"];
   for (const effect of Array.isArray(effects) ? effects : []) {

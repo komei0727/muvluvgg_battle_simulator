@@ -460,10 +460,15 @@ export function createBattleStateReplay<TState extends ReplaySourceState>(
       if (next >= checkpointList.length) {
         break;
       }
+      // 遷移の版が飛ぶとき、間の版のcheckpointはこの遷移を適用する前の状態である
+      while (next < checkpointList.length && checkpointList[next]! < transition.stateVersionAfter) {
+        checkpoints.push({ version: checkpointList[next]!, snapshot: cloneSnapshot(working) });
+        next += 1;
+      }
       applyTransition(working, transition);
       while (
         next < checkpointList.length &&
-        checkpointList[next]! <= transition.stateVersionAfter
+        checkpointList[next]! === transition.stateVersionAfter
       ) {
         checkpoints.push({ version: checkpointList[next]!, snapshot: cloneSnapshot(working) });
         next += 1;

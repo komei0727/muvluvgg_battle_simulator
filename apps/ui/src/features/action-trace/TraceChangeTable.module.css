@@ -1,0 +1,103 @@
+.section {
+  border-top: 1px solid var(--color-border);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ally);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link[aria-disabled="true"] {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.empty {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.scroll {
+  overflow-x: auto;
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+/* 狭い画面では列を潰さず、表の中だけを横スクロールさせる */
+.table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ally {
+  color: var(--color-ally);
+}
+
+.enemy {
+  color: var(--color-enemy);
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+}
+
+.negative {
+  color: var(--color-danger);
+}
+
+.positive {
+  color: var(--color-success);
+}
+
+.none {
+  color: var(--color-text-muted);
+}
+
+.effects {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.removed {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

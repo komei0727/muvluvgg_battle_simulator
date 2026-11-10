@@ -8,6 +8,7 @@ import { StateTransitionTable } from "./StateTransitionTable.js";
 import { UnitActionStateSection } from "./UnitActionStateSection.js";
 import { EffectTraceSection } from "../effect-trace/EffectTraceSection.js";
 import { SkillTimelineSection } from "../skill-timeline/SkillTimelineSection.js";
+import { ActionTraceSection } from "../action-trace/ActionTraceSection.js";
 import type { LogLevel } from "../../entities/battle-draft.js";
 import { selectRoster } from "../../entities/roster.js";
 import type { RosterEntry } from "../../entities/roster.js";
@@ -36,12 +37,13 @@ type DetailsTab =
   | "actionState"
   | "causalityTree"
   | "effectTrace"
-  | "skillTimeline";
+  | "skillTimeline"
+  | "actionTrace";
 
 // causalityTreeを"events"と"transitions"の間へ挿入すると、
 // 既存e2e/keyboard.spec.tsが検証する「時系列イベント --ArrowRight--> 状態遷移」
 // のtab隣接関係が崩れる。既存tabの相対順序を変更せず、末尾に追加する。
-// skillTimeline（Issue #669）も同じ理由でeffectTraceの後、末尾に追加する。
+// skillTimeline（Issue #669）・actionTrace（01 §8.10）も同じ理由で末尾に追加する。
 const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] = [
   { id: "events", label: "時系列イベント" },
   { id: "transitions", label: "状態遷移" },
@@ -50,6 +52,7 @@ const TAB_ITEMS: readonly { readonly id: DetailsTab; readonly label: string }[] 
   { id: "causalityTree", label: "因果ツリー" },
   { id: "effectTrace", label: "効果トレース" },
   { id: "skillTimeline", label: "スキル時系列" },
+  { id: "actionTrace", label: "行動トレース" },
 ];
 
 const EMPTY_CATALOG: BattleSimulationCatalogResponse = {
@@ -92,7 +95,7 @@ export function BattleDetailsSection({
     return (
       <div className={styles["panel"]}>
         <p className={styles["notice"]}>
-          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・効果トレース・スキル時系列・レスポンスJSONを閲覧できます。
+          詳細ログモード（DETAILED）で実行すると、時系列イベント・状態遷移・因果ツリー・ユニット状態・効果トレース・スキル時系列・行動トレース・レスポンスJSONを閲覧できます。
         </p>
       </div>
     );
@@ -156,6 +159,15 @@ export function BattleDetailsSection({
       {activeTab === "skillTimeline" ? (
         <div role="tabpanel" id="tabpanel-skillTimeline" aria-labelledby="tab-skillTimeline">
           <SkillTimelineSection events={response.events} roster={roster} />
+        </div>
+      ) : null}
+      {activeTab === "actionTrace" ? (
+        <div role="tabpanel" id="tabpanel-actionTrace" aria-labelledby="tab-actionTrace">
+          <ActionTraceSection
+            response={response}
+            roster={roster}
+            onJumpToTransition={jumpToTransition}
+          />
         </div>
       ) : null}
     </div>

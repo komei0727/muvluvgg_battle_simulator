@@ -68,4 +68,20 @@ describe("BattleDetailsSection with a total war Roster (UI-AC-064 / UI-CMP-040)"
     expect(enemyItems).toHaveLength(2);
     expect(enemyItems[1]).not.toHaveTextContent("未出撃");
   });
+
+  it("puts the action trace tab last for a total war and shows a mid-battle deployment on the final board by name", async () => {
+    const user = userEvent.setup();
+    renderDetails();
+
+    expect(screen.getAllByRole("tab").at(-1)).toHaveTextContent("行動トレース");
+    await user.click(screen.getByRole("tab", { name: "行動トレース" }));
+    const panel = screen.getByRole("tabpanel", { name: "行動トレース" });
+    await user.click(within(panel).getByRole("button", { name: "末尾へ" }));
+
+    const enemyBoard = within(panel).getByRole("region", { name: "敵の盤面" });
+    expect(
+      within(enemyBoard).getByRole("group", { name: /^UI Fixture Enemy/ }),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText(/enemy:2/)).not.toBeInTheDocument();
+  });
 });
