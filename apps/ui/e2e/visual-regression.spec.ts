@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { battleActionTraceFixture } from "./fixtures/battle-action-trace.js";
 import { battleSuccessFixture } from "./fixtures/battle-success.js";
 import { catalogFixture } from "./fixtures/catalog.js";
 import { totalWarSuccessFixture } from "./fixtures/total-war-success.js";
@@ -153,6 +154,38 @@ test("desktop (1440x900) total war result screen matches the visual baseline @vi
   await expect(page.getByRole("table", { name: "戦闘履歴" })).toBeVisible();
 
   await expect(page).toHaveScreenshot("desktop-1440x900-total-war-result.png", {
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
+// 行動トレース（01_UI要求・画面設計.md §8.10）。既存の結果画面のbaselineは時系列イベントtabを
+// 写すため貼り替えを要さない。盤面・処理の一覧・変化の表がそろう、ヒットと割り込みPSを
+// 含む区間（味方の行動）で撮る。
+test("desktop (1440x900) action trace tab matches the visual baseline @visual", async ({
+  page,
+}) => {
+  await mockSimulationSequence(page, [{ status: 200, body: battleActionTraceFixture }]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("./");
+  await openBattleMode(page);
+  await fillMinimalFormation(page, "アライアルファ", "エネミーアルファ");
+  await selectDetailedLogLevel(page);
+  await page.getByRole("button", { name: "戦闘を開始" }).click();
+  await expect(page.getByText("戦闘が完了しました。")).toBeVisible();
+  await page.getByRole("tab", { name: "行動トレース" }).click();
+  const trace = page.getByRole("region", { name: "行動トレース" });
+  await trace.getByRole("button", { name: "1単位進む" }).click();
+  await trace.getByRole("button", { name: "1単位進む" }).click();
+  await expect(trace.getByRole("status", { name: "現在位置" })).toContainText("行動 3 / 8");
+  await page.locator(":focus").blur();
+  // ボタンを押すとページがスクロールし、stickyなtopbarがその位置に写る。スクロール量は
+  // 実行ごとに揺れるため、他のbaselineと同じく先頭へ戻してから撮る
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+
+  await expect(page).toHaveScreenshot("desktop-1440x900-action-trace.png", {
     fullPage: true,
     animations: "disabled",
   });

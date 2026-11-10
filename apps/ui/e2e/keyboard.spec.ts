@@ -81,13 +81,13 @@ test("reaches every step of unit selection through the details tabs via real Tab
 
   // 末尾のtabも他tabと同じくArrowだけで到達・選択
   // できることを実keystrokeで検証する(UI-NFR-001)。Home/Endで両端へ移動できる
-  // ことも合わせて確認する。末尾はスキル時系列(Issue #669)であり、tabを足すたびに
+  // ことも合わせて確認する。末尾は行動トレース(01 §8.10)であり、tabを足すたびに
   // ここが指す対象は変わる —— 検証しているのはEndが末尾へ届くことである。
-  const lastTab = page.getByRole("tab", { name: "スキル時系列" });
+  const lastTab = page.getByRole("tab", { name: "行動トレース" });
   await page.keyboard.press("End");
   await expect(lastTab).toBeFocused();
   await expect(lastTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel", { name: "スキル時系列" })).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "行動トレース" })).toBeVisible();
 
   await page.keyboard.press("Home");
   await expect(eventsTab).toBeFocused();

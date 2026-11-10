@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { BattleDetailsSection } from "./BattleDetailsSection.js";
+import { createActionTraceResponse, TRACE_ROSTER } from "../../test/action-trace-response.js";
 import type { BattleSimulationResponse } from "../../shared/api/api-contract.js";
 
 const response: BattleSimulationResponse = {
@@ -210,6 +211,38 @@ describe("BattleDetailsSection", () => {
       "因果ツリー",
       "効果トレース",
       "スキル時系列",
+      "行動トレース",
     ]);
+  });
+
+  it("UI-CT-176: 詳細タブの末尾に行動トレースがあり、SUMMARYの案内に行動トレースが含まれる", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <BattleDetailsSection
+        response={createActionTraceResponse()}
+        logLevel="DETAILED"
+        roster={TRACE_ROSTER}
+      />,
+    );
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.at(-1)).toHaveTextContent("行動トレース");
+
+    await user.click(screen.getByRole("tab", { name: "スキル時系列" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "行動トレース" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    const panel = screen.getByRole("tabpanel", { name: "行動トレース" });
+    expect(within(panel).getByRole("region", { name: "行動トレース" })).toBeInTheDocument();
+
+    // 変化の表から状態遷移tabへ移ると、範囲の最初の遷移の行が強調される
+    await user.click(within(panel).getByRole("button", { name: "末尾へ" }));
+    await user.click(within(panel).getByRole("button", { name: "1単位戻る" }));
+    await user.click(within(panel).getByRole("button", { name: "状態遷移で開く" }));
+    expect(screen.getByRole("tab", { name: "状態遷移" })).toHaveAttribute("aria-selected", "true");
+
+    rerender(<BattleDetailsSection response={response} logLevel="SUMMARY" />);
+    expect(screen.getByText(/行動トレース/)).toBeInTheDocument();
   });
 });
