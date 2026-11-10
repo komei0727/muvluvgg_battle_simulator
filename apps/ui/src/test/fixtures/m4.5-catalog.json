@@ -433,5 +433,27 @@
         }
       ]
     }
+  ],
+  "skills": [
+    {
+      "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+      "displayName": "UI Fixture Strike",
+      "skillType": "AS",
+      "ownerUnitDefinitionId": "UNIT_UI_FIXTURE_ALLY",
+      "slotLabel": "AS1"
+    }
+  ],
+  "effects": [
+    {
+      "effectActionDefinitionId": "ACT_UI_FIXTURE_STRIKE",
+      "kind": "DAMAGE"
+    },
+    {
+      "effectActionDefinitionId": "ACT_UI_FIXTURE_ATK_UP",
+      "kind": "APPLY_STAT_MOD",
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "constantMagnitude": 0.05
+    }
   ]
 }

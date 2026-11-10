@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { GetBattleSimulationCatalogUseCase } from "./get-battle-simulation-catalog-use-case.js";
+import {
+  CATALOG_PROJECTION_VERSION,
+  GetBattleSimulationCatalogUseCase,
+} from "./get-battle-simulation-catalog-use-case.js";
 import { buildGearEffects, gearEffectsFingerprint } from "./gear-effect-catalog.js";
 import type { EffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition.js";
 import { createEffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition-factory.js";
@@ -29,11 +32,29 @@ function damageAction(id: string): EffectActionDefinition {
   );
 }
 
-function attackSkill(id: string, effectActionId: string): SkillDefinition {
+const SKILL_COST_RESOURCE = { AS: "AP", PS: "PP", EX: "EX_GAUGE" } as const;
+
+function attackSkill(
+  id: string,
+  effectActionId: string,
+  skillType: "AS" | "PS" | "EX" = "AS",
+): SkillDefinition {
   return createSkillDefinition({
     skillDefinitionId: id,
-    skillType: "AS",
-    cost: { resource: "AP", amount: 1 },
+    skillType,
+    cost: { resource: SKILL_COST_RESOURCE[skillType], amount: 1 },
+    ...(skillType === "PS"
+      ? {
+          triggers: [
+            {
+              eventType: "BattleStarted",
+              category: "FACT",
+              sourceSelector: "SELF",
+              targetSelector: "ALLY",
+            },
+          ],
+        }
+      : {}),
     resolution: {
       kind: "IMMEDIATE",
       targetBindings: [
@@ -52,8 +73,55 @@ function attackSkill(id: string, effectActionId: string): SkillDefinition {
     },
     cooldown: { unit: "ACTION", count: 1 },
     traits: {},
-    metadata: { displayName: id },
+    metadata: { displayName: `${id}-display` },
   });
+}
+
+const BUFF_DURATION = { dispellable: true, timeLimit: { unit: "ACTION", count: 1 } };
+
+function statModAction(id: string, formula: Record<string, unknown>): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STAT_MOD",
+      payload: {
+        stat: "ATTACK",
+        valueType: "RATIO",
+        formula,
+        stacking: { mode: "STACKABLE" },
+        duration: BUFF_DURATION,
+      },
+    },
+    "effectAction",
+  );
+}
+
+function damageModAction(id: string, damageType: string | null): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_DAMAGE_MOD",
+      payload: {
+        direction: "INCOMING",
+        damageType,
+        formula: { kind: "CONSTANT", value: -0.3 },
+        stacking: { mode: "STACKABLE" },
+        duration: BUFF_DURATION,
+      },
+    },
+    "effectAction",
+  );
+}
+
+function statusAction(id: string): EffectActionDefinition {
+  return createEffectActionDefinition(
+    {
+      effectActionDefinitionId: id,
+      kind: "APPLY_STATUS",
+      payload: { status: "STUN", duration: BUFF_DURATION },
+    },
+    "effectAction",
+  );
 }
 
 function unitDefinition(
@@ -61,6 +129,8 @@ function unitDefinition(
   overrides: {
     requiredCapabilities?: readonly string[];
     activeSkillDefinitionIds?: readonly string[];
+    passiveSkillDefinitionIds?: readonly string[];
+    extraSkillDefinitionId?: string;
     category?: string;
     exerciseActive?: boolean;
   } = {},
@@ -84,8 +154,8 @@ function unitDefinition(
     },
     extraGaugeMaximum: 100,
     activeSkillDefinitionIds: overrides.activeSkillDefinitionIds ?? [],
-    passiveSkillDefinitionIds: [],
-    extraSkillDefinitionId: "SKL_EX",
+    passiveSkillDefinitionIds: overrides.passiveSkillDefinitionIds ?? [],
+    extraSkillDefinitionId: overrides.extraSkillDefinitionId ?? "SKL_EX",
     metadata: {
       displayName: `${id}-name`,
       characterName: `${id}-char`,
@@ -257,27 +327,206 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     expect(useCase.execute().units.length).toBe(1);
   });
 
-  it("does not expose Skill, EffectAction, or triggeredEffects shapes in the result", () => {
+  it("UT-CATALOG-LABEL-001: projects every Skill with its display name, type and the owning unit's slot label (AS/PS in declaration order, EX)", () => {
+    const unit = unitDefinition("UNIT_A", {
+      activeSkillDefinitionIds: ["SKL_A_AS1", "SKL_A_AS2"],
+      passiveSkillDefinitionIds: ["SKL_A_PS1", "SKL_A_PS2"],
+      extraSkillDefinitionId: "SKL_A_EX",
+    });
+    const skills = [
+      attackSkill("SKL_A_PS2", "ACT_A", "PS"),
+      attackSkill("SKL_A_AS2", "ACT_A"),
+      attackSkill("SKL_A_EX", "ACT_A", "EX"),
+      attackSkill("SKL_A_AS1", "ACT_A"),
+      attackSkill("SKL_A_PS1", "ACT_A", "PS"),
+    ];
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({
+          units: toMap([unit], (u) => u.unitDefinitionId),
+          skills: toMap(skills, (s) => s.skillDefinitionId),
+          effectActions: toMap([damageAction("ACT_A")], (e) => e.effectActionDefinitionId),
+        }),
+      ),
+    });
+
+    const result = useCase.execute();
+
+    expect(result.skills).toEqual([
+      {
+        skillDefinitionId: "SKL_A_AS1",
+        displayName: "SKL_A_AS1-display",
+        skillType: "AS",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "AS1",
+      },
+      {
+        skillDefinitionId: "SKL_A_AS2",
+        displayName: "SKL_A_AS2-display",
+        skillType: "AS",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "AS2",
+      },
+      {
+        skillDefinitionId: "SKL_A_EX",
+        displayName: "SKL_A_EX-display",
+        skillType: "EX",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "EX",
+      },
+      {
+        skillDefinitionId: "SKL_A_PS1",
+        displayName: "SKL_A_PS1-display",
+        skillType: "PS",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "PS1",
+      },
+      {
+        skillDefinitionId: "SKL_A_PS2",
+        displayName: "SKL_A_PS2-display",
+        skillType: "PS",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "PS2",
+      },
+    ]);
+  });
+
+  it("UT-CATALOG-LABEL-002: omits owner and slot for a Skill no unit or more than one unit declares, since neither names a single slot", () => {
+    const unitA = unitDefinition("UNIT_A", { activeSkillDefinitionIds: ["SKL_SHARED"] });
+    const unitB = unitDefinition("UNIT_B", { passiveSkillDefinitionIds: ["SKL_SHARED"] });
+    const skills = [
+      attackSkill("SKL_SHARED", "ACT_A"),
+      attackSkill("SKL_ORPHAN", "ACT_A"),
+      attackSkill("SKL_EX", "ACT_A", "EX"),
+    ];
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({
+          units: toMap([unitA, unitB], (u) => u.unitDefinitionId),
+          skills: toMap(skills, (s) => s.skillDefinitionId),
+          effectActions: toMap([damageAction("ACT_A")], (e) => e.effectActionDefinitionId),
+        }),
+      ),
+    });
+
+    const result = useCase.execute();
+
+    // `SKL_EX`は両ユニットのEXとして宣言されている（`unitDefinition`の既定値）。
+    expect(result.skills).toEqual([
+      { skillDefinitionId: "SKL_EX", displayName: "SKL_EX-display", skillType: "EX" },
+      { skillDefinitionId: "SKL_ORPHAN", displayName: "SKL_ORPHAN-display", skillType: "AS" },
+      { skillDefinitionId: "SKL_SHARED", displayName: "SKL_SHARED-display", skillType: "AS" },
+    ]);
+  });
+
+  it("UT-CATALOG-LABEL-003: projects every EffectAction with its kind and only the classification fields that kind declares", () => {
+    const effects = [
+      statusAction("ACT_STATUS"),
+      damageModAction("ACT_DMG_MOD", "EN"),
+      damageModAction("ACT_DMG_MOD_ANY", null),
+      statModAction("ACT_STAT", { kind: "CONSTANT", value: 0.05 }),
+      damageAction("ACT_DAMAGE"),
+    ];
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({ effectActions: toMap(effects, (e) => e.effectActionDefinitionId) }),
+      ),
+    });
+
+    const result = useCase.execute();
+
+    expect(result.effects).toEqual([
+      { effectActionDefinitionId: "ACT_DAMAGE", kind: "DAMAGE" },
+      {
+        effectActionDefinitionId: "ACT_DMG_MOD",
+        kind: "APPLY_DAMAGE_MOD",
+        direction: "INCOMING",
+        damageType: "EN",
+        constantMagnitude: -0.3,
+      },
+      {
+        effectActionDefinitionId: "ACT_DMG_MOD_ANY",
+        kind: "APPLY_DAMAGE_MOD",
+        direction: "INCOMING",
+        constantMagnitude: -0.3,
+      },
+      {
+        effectActionDefinitionId: "ACT_STAT",
+        kind: "APPLY_STAT_MOD",
+        stat: "ATTACK",
+        valueType: "RATIO",
+        constantMagnitude: 0.05,
+      },
+      { effectActionDefinitionId: "ACT_STATUS", kind: "APPLY_STATUS", status: "STUN" },
+    ]);
+  });
+
+  it("UT-CATALOG-LABEL-004: publishes constantMagnitude only for a CONSTANT formula, since any other formula is evaluated per grant", () => {
+    const effects = [
+      statModAction("ACT_SCALED", {
+        kind: "STAT_RATIO",
+        source: { kind: "SKILL_SOURCE" },
+        stat: "ATTACK",
+        ratio: 0.1,
+      }),
+    ];
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({ effectActions: toMap(effects, (e) => e.effectActionDefinitionId) }),
+      ),
+    });
+
+    const [summary] = useCase.execute().effects;
+
+    expect(summary).toEqual({
+      effectActionDefinitionId: "ACT_SCALED",
+      kind: "APPLY_STAT_MOD",
+      stat: "ATTACK",
+      valueType: "RATIO",
+    });
+  });
+
+  it("UT-CATALOG-LABEL-005: does not expose Skill or EffectAction resolution shapes (cost, steps, formula, duration) in the summaries", () => {
     const unit = unitDefinition("UNIT_A", { activeSkillDefinitionIds: ["SKL_A"] });
-    const memory = memoryDefinition("MEM_A", "ACT_MEM");
     const snapshot = snapshotOf({
       units: toMap([unit], (u) => u.unitDefinitionId),
       skills: toMap([attackSkill("SKL_A", "ACT_A")], (s) => s.skillDefinitionId),
       effectActions: toMap(
-        [damageAction("ACT_A"), damageAction("ACT_MEM")],
+        [statModAction("ACT_A", { kind: "CONSTANT", value: 0.1 })],
         (e) => e.effectActionDefinitionId,
       ),
-      memories: toMap([memory], (m) => m.memoryDefinitionId),
     });
     const useCase = new GetBattleSimulationCatalogUseCase({
       battleCatalogDirectory: new FakeBattleCatalogDirectory(snapshot),
     });
 
     const result = useCase.execute();
-    const [unitSummary] = result.units;
-    const [memorySummary] = result.memories;
-    if (unitSummary === undefined || memorySummary === undefined) {
-      throw new Error("expected one unit and one memory summary");
+    const serialized = JSON.stringify({ skills: result.skills, effects: result.effects });
+
+    for (const hidden of [
+      "cost",
+      "resolution",
+      "steps",
+      "cooldown",
+      "formula",
+      "duration",
+      "payload",
+    ]) {
+      expect(serialized).not.toContain(`"${hidden}"`);
     }
+  });
+
+  it("UT-CATALOG-LABEL-010 (10_API設計.md「ETag」): derives representationRevision from the projection version too, so a deploy that only adds response fields is not answered with 304", () => {
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({ catalogRevision: "rev-1" }),
+      ),
+    });
+
+    const result = useCase.execute();
+
+    expect(result.representationRevision).toContain(
+      `projection.${String(CATALOG_PROJECTION_VERSION)}`,
+    );
   });
 });

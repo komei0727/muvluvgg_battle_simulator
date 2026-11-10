@@ -18,6 +18,12 @@ import {
   gearEffectsFingerprint,
   type BattleSimulationGearEffect,
 } from "./gear-effect-catalog.js";
+import {
+  buildEffectSummaries,
+  buildSkillSummaries,
+  type BattleSimulationEffectSummary,
+  type BattleSimulationSkillSummary,
+} from "./skill-effect-summary.js";
 import type { BattleCatalogDirectory } from "../../domain/ports/battle-catalog-directory.js";
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import { deepFreeze } from "../../domain/shared/deep-freeze.js";
@@ -41,12 +47,24 @@ export interface BattleSimulationMemorySummary {
   readonly displayName: string;
 }
 
+/**
+ * Catalog一覧の射影（レスポンスに何を載せるか）の版。射影を変えたら上げる。
+ * Catalogファイルが同じでも射影が変わればレスポンス本文が変わるため、ETagの
+ * 導出元に含めないと、旧本文を持つクライアントへ304を返し続ける
+ * （`10_API設計.md`「ETag」）。
+ */
+export const CATALOG_PROJECTION_VERSION = 2;
+
 export interface BattleSimulationCatalogResult {
   readonly catalogRevision: string;
   readonly units: readonly BattleSimulationUnitSummary[];
   readonly memories: readonly BattleSimulationMemorySummary[];
   /** R-ENH-04 #3のギア効果表。クライアントが表を持たずに上昇値を表示するために公開する。 */
   readonly gearEffects: readonly BattleSimulationGearEffect[];
+  /** 戦闘ログの`skillDefinitionId`を表示名へ読み替えるための全Skillの要約。 */
+  readonly skills: readonly BattleSimulationSkillSummary[];
+  /** 戦闘ログの`effectActionDefinitionId`を表示名へ読み替えるための全EffectActionの要約。 */
+  readonly effects: readonly BattleSimulationEffectSummary[];
   /**
    * このread model全体の版。ETagの導出元であり、Catalogファイル由来の
    * `catalogRevision`とコード定数由来の効果表fingerprintの両方を含む
@@ -90,13 +108,17 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
     .sort((a, b) => a.memoryDefinitionId.localeCompare(b.memoryDefinitionId));
 
   const gearEffects = buildGearEffects();
+  const skills = buildSkillSummaries(snapshot.skills.values(), snapshot.units.values());
+  const effects = buildEffectSummaries(snapshot.effectActions.values());
 
   return deepFreeze({
     catalogRevision: snapshot.catalogRevision,
     units,
     memories,
     gearEffects,
-    representationRevision: `${snapshot.catalogRevision}+gear.${gearEffectsFingerprint(gearEffects)}`,
+    skills,
+    effects,
+    representationRevision: `${snapshot.catalogRevision}+gear.${gearEffectsFingerprint(gearEffects)}+projection.${String(CATALOG_PROJECTION_VERSION)}`,
   });
 }
 
@@ -104,7 +126,8 @@ function buildResult(snapshot: BattleCatalogSnapshot): BattleSimulationCatalogRe
  * `09_アプリケーション設計.md` の `GetBattleSimulationCatalogUseCase`:
  * `BattleCatalogDirectory`から取得した検証済みスナップショットを表示用へ
  * projectionする。Skill、EffectAction、Formula、Condition、triggeredEffects
- * の完全定義はResultへ公開しない。
+ * の完全定義はResultへ公開しない。Skill・EffectActionは戦闘ログの定義IDを
+ * 表示名へ読み替える分類項目だけを要約として公開する（`skill-effect-summary.ts`）。
  *
  * `11_インフラストラクチャ設計.md`「Catalog一覧read modelを起動時に1回だけ
  * 構築する」: `loadSnapshot`とprojectionはコンストラクタで1回だけ実行し、

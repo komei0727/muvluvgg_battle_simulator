@@ -5,7 +5,9 @@ import { TOTAL_WAR_MAX_FORMATIONS, TOTAL_WAR_TURN_LIMIT } from "../../entities/t
 import type {
   BattleSimulationCatalogResponse,
   BattleSimulationResponse,
+  CatalogEffectSummary,
   CatalogMemorySummary,
+  CatalogSkillSummary,
   CatalogUnitSummary,
   FormationStatPreviewResponse,
   TacticalExerciseEvaluationResponse,
@@ -101,6 +103,42 @@ function isValidGearEffect(value: unknown): boolean {
   );
 }
 
+// apps/api/.../catalog-schema.ts の catalogSkillSummaryResponseSchema /
+// catalogEffectSummaryResponseSchema。`gearEffects`と同じく、要約を公開しない旧APIとも
+// 組み合わせられるよう不在は許し、届いた要約が壊れている場合は契約違反として扱う。
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isValidSkillSummary(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(value["skillDefinitionId"]) &&
+    isNonEmptyString(value["displayName"]) &&
+    isNonEmptyString(value["skillType"]) &&
+    isOptionalString(value["ownerUnitDefinitionId"]) &&
+    isOptionalString(value["slotLabel"])
+  );
+}
+
+function isValidEffectSummary(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const constantMagnitude = value["constantMagnitude"];
+  return (
+    isNonEmptyString(value["effectActionDefinitionId"]) &&
+    isNonEmptyString(value["kind"]) &&
+    ["stat", "valueType", "direction", "damageType", "status"].every((key) =>
+      isOptionalString(value[key]),
+    ) &&
+    (constantMagnitude === undefined ||
+      (typeof constantMagnitude === "number" && Number.isFinite(constantMagnitude)))
+  );
+}
+
 function hasDuplicateIds(ids: readonly string[]): boolean {
   return new Set(ids).size !== ids.length;
 }
@@ -155,6 +193,20 @@ export function validateCatalogResponse(body: unknown): CatalogValidationResult 
     }
   }
 
+  const skills = body["skills"];
+  if (skills !== undefined) {
+    if (!Array.isArray(skills) || !skills.every(isValidSkillSummary)) {
+      return mismatch("Catalog response skills is malformed.");
+    }
+  }
+
+  const effects = body["effects"];
+  if (effects !== undefined) {
+    if (!Array.isArray(effects) || !effects.every(isValidEffectSummary)) {
+      return mismatch("Catalog response effects is malformed.");
+    }
+  }
+
   return {
     ok: true,
     response: {
@@ -163,6 +215,8 @@ export function validateCatalogResponse(body: unknown): CatalogValidationResult 
       units,
       memories,
       ...(gearEffects === undefined ? {} : { gearEffects }),
+      ...(skills === undefined ? {} : { skills: skills as readonly CatalogSkillSummary[] }),
+      ...(effects === undefined ? {} : { effects: effects as readonly CatalogEffectSummary[] }),
     },
   };
 }

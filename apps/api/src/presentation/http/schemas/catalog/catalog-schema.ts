@@ -78,11 +78,58 @@ const catalogGearEffectResponseSchema = {
   },
 } as const;
 
+/**
+ * `10_API設計.md`「CatalogSkillSummaryResponse」。`skillType`は将来値を許容するため
+ * `enum`を持たない。`ownerUnitDefinitionId`/`slotLabel`は宣言ユニットがちょうど1体の
+ * スキルだけが持つ。
+ */
+const catalogSkillSummaryResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["skillDefinitionId", "displayName", "skillType"],
+  properties: {
+    skillDefinitionId: { type: "string" },
+    displayName: { type: "string" },
+    skillType: { type: "string" },
+    ownerUnitDefinitionId: { type: "string" },
+    slotLabel: { type: "string" },
+  },
+} as const;
+
+/**
+ * `10_API設計.md`「CatalogEffectSummaryResponse」。分類項目はkindが宣言するものだけが
+ * 現れ、いずれも将来値を許容するため`enum`を持たない。
+ */
+const catalogEffectSummaryResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["effectActionDefinitionId", "kind"],
+  properties: {
+    effectActionDefinitionId: { type: "string" },
+    kind: { type: "string" },
+    stat: { type: "string" },
+    valueType: { type: "string" },
+    direction: { type: "string" },
+    damageType: { type: "string" },
+    status: { type: "string" },
+    // `formula`が`CONSTANT`のときだけ現れる。`EffectApplied.magnitude`と同じ尺度。
+    constantMagnitude: { type: "number" },
+  },
+} as const;
+
 /** `GET /api/v1/battle-simulation-catalog`の`200 OK`成功レスポンスbody schema。 */
 export const battleSimulationCatalogResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["schemaVersion", "catalogRevision", "units", "memories", "gearEffects"],
+  required: [
+    "schemaVersion",
+    "catalogRevision",
+    "units",
+    "memories",
+    "gearEffects",
+    "skills",
+    "effects",
+  ],
   properties: {
     schemaVersion: { type: "integer" },
     catalogRevision: { type: "string" },
@@ -90,5 +137,8 @@ export const battleSimulationCatalogResponseSchema = {
     memories: { type: "array", items: catalogMemorySummaryResponseSchema },
     // R-ENH-04 #3のギア効果表。クライアントが表を持たずに上昇値を表示できるようにする。
     gearEffects: { type: "array", items: catalogGearEffectResponseSchema },
+    // 戦闘ログの定義IDを表示名へ読み替えるための要約。完全定義は公開しない。
+    skills: { type: "array", items: catalogSkillSummaryResponseSchema },
+    effects: { type: "array", items: catalogEffectSummaryResponseSchema },
   },
 } as const;

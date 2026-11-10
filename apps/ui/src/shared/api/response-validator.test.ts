@@ -91,6 +91,64 @@ describe("validateCatalogResponse", () => {
     }
   });
 
+  // UI-UT-CAT-013 (Issue #812): スキル・効果の表示用要約は加算的に追加された任意項目.
+  it("carries well-formed skill and effect summaries through", () => {
+    const skills = [
+      {
+        skillDefinitionId: "SKL_A_PS1",
+        displayName: "スキルA",
+        skillType: "PS",
+        ownerUnitDefinitionId: "UNIT_A",
+        slotLabel: "PS1",
+      },
+      { skillDefinitionId: "SKL_ORPHAN", displayName: "孤立", skillType: "AS" },
+    ];
+    const effects = [
+      {
+        effectActionDefinitionId: "ACT_A",
+        kind: "APPLY_STAT_MOD",
+        stat: "ATTACK",
+        valueType: "RATIO",
+        constantMagnitude: 0.05,
+      },
+      { effectActionDefinitionId: "ACT_B", kind: "DAMAGE" },
+    ];
+
+    const result = validateCatalogResponse(validResponse({ skills, effects }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.skills).toEqual(skills);
+    expect(result.response.effects).toEqual(effects);
+  });
+
+  it("accepts a response from an older API that does not publish skill or effect summaries", () => {
+    const result = validateCatalogResponse(validResponse());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.skills).toBeUndefined();
+    expect(result.response.effects).toBeUndefined();
+  });
+
+  it("rejects malformed skill or effect summaries rather than labelling with half-read entries", () => {
+    for (const overrides of [
+      { skills: {} },
+      { skills: [{ skillDefinitionId: "SKL_A", displayName: "A" }] },
+      { skills: [{ skillDefinitionId: "SKL_A", displayName: "A", skillType: "AS", slotLabel: 1 }] },
+      { effects: {} },
+      { effects: [{ effectActionDefinitionId: "", kind: "DAMAGE" }] },
+      { effects: [{ effectActionDefinitionId: "ACT_A", kind: "APPLY_STAT_MOD", stat: 3 }] },
+      {
+        effects: [
+          { effectActionDefinitionId: "ACT_A", kind: "APPLY_STAT_MOD", constantMagnitude: "0.1" },
+        ],
+      },
+    ]) {
+      expect(validateCatalogResponse(validResponse(overrides)).ok).toBe(false);
+    }
+  });
+
   // R-TEX-11 #1 #4: category/exerciseActiveは加算的に追加された任意項目.
   it("carries category and exerciseActive through", () => {
     const units = [validUnit({ category: "EXERCISE_ENEMY", exerciseActive: false })];

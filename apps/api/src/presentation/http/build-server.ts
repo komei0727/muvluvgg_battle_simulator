@@ -95,6 +95,8 @@ const EMPTY_CATALOG_RESULT: BattleSimulationCatalogResult = {
   // Catalog未読込のno-op portであり、ギア効果表も公開しない
   // （実`GetBattleSimulationCatalogUseCase`だけがR-ENH-04 #3の表を載せる）。
   gearEffects: [],
+  skills: [],
+  effects: [],
   representationRevision: "",
 };
 const NO_CATALOG: GetBattleSimulationCatalogUseCasePort = {

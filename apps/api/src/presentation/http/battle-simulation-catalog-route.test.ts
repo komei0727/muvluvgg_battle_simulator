@@ -55,6 +55,8 @@ function fakeCatalogResult(
         unavailableCapabilities: ["CAP_MEMORY_TRIGGERED_EFFECT"],
       },
     ],
+    skills: [],
+    effects: [],
     ...overrides,
   } as BattleSimulationCatalogResult;
 }
@@ -81,6 +83,45 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     const response = await app.inject({ method: "GET", url: CATALOG_PATH });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("HTTP-CATALOG-017 (10_API設計.md「CatalogSkillSummaryResponse」「CatalogEffectSummaryResponse」): serializes skill and effect summaries with their optional fields instead of dropping them", async () => {
+    const result = fakeCatalogResult({
+      skills: [
+        {
+          skillDefinitionId: "SKL_JUNKA_CHILDHOOD_PS1",
+          displayName: "まじ本気だすぞー！！",
+          skillType: "PS",
+          ownerUnitDefinitionId: "UNIT_JUNKA_CHILDHOOD",
+          slotLabel: "PS1",
+        },
+      ] as unknown as BattleSimulationCatalogResult["skills"],
+      effects: [
+        {
+          effectActionDefinitionId: "ACT_DMG_MOD",
+          kind: "APPLY_DAMAGE_MOD",
+          direction: "INCOMING",
+          damageType: "EN",
+          constantMagnitude: -0.3,
+        },
+        {
+          effectActionDefinitionId: "ACT_STAT",
+          kind: "APPLY_STAT_MOD",
+          stat: "ATTACK",
+          valueType: "RATIO",
+          constantMagnitude: 0.05,
+        },
+        { effectActionDefinitionId: "ACT_STATUS", kind: "APPLY_STATUS", status: "STUN" },
+      ] as unknown as BattleSimulationCatalogResult["effects"],
+    });
+    app = await buildServer(UNUSED_BATTLE_USE_CASE, { catalogUseCase: fakeCatalogUseCase(result) });
+
+    const response = await app.inject({ method: "GET", url: CATALOG_PATH });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<BattleSimulationCatalogResponseBody>();
+    expect(body.skills).toEqual(result.skills);
+    expect(body.effects).toEqual(result.effects);
   });
 
   it("HTTP-CATALOG-016 (R-TEX-11 #1/#4): exposes category on every unit and exerciseActive only on EXERCISE_ENEMY units", async () => {
@@ -188,8 +229,17 @@ describe("GET /api/v1/battle-simulation-catalog", () => {
     const response = await app.inject({ method: "GET", url: CATALOG_PATH });
     const body = response.json<Record<string, unknown>>();
 
+    // Skill/EffectActionは表示用要約（`skills`/`effects`）としてだけ現れる。
     expect(Object.keys(body).sort()).toEqual(
-      ["schemaVersion", "catalogRevision", "units", "memories", "gearEffects"].sort(),
+      [
+        "schemaVersion",
+        "catalogRevision",
+        "units",
+        "memories",
+        "gearEffects",
+        "skills",
+        "effects",
+      ].sort(),
     );
   });
 
