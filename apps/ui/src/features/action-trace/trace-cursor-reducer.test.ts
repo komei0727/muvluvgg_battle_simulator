@@ -290,15 +290,20 @@ describe("traceCursorReducer controls playback (UI-UT-ATR-021)", () => {
     expect(position(restarted)).toEqual([0, 0]);
   });
 
-  it("keeps playing while settings change", () => {
-    const state = run(
-      at(3, 0, { playing: true }),
-      { type: "speedChanged", speed: 0.5 },
-      { type: "unitChanged", unit: "step" },
-      { type: "stepCountChanged", stepCount: 3 },
-      { type: "followChanged", follow: "ALLY" },
-    );
+  it.each([
+    ["unitChanged", { type: "unitChanged", unit: "step" }],
+    ["stepCountChanged", { type: "stepCountChanged", stepCount: 3 }],
+    ["followChanged", { type: "followChanged", follow: "ALLY" }],
+  ] as const)("stops playback on %s", (_label, settingAction) => {
+    const state = run(at(3, 0, { playing: true }), settingAction);
+    expect(state.playing).toBe(false);
+    expect(position(state)).toEqual([3, 0]);
+  });
+
+  it("keeps playing when only the speed changes", () => {
+    const state = run(at(3, 0, { playing: true }), { type: "speedChanged", speed: 0.5 });
     expect(state.playing).toBe(true);
+    expect(state.speed).toBe(0.5);
   });
 
   it("resets the position and playback for a new index", () => {

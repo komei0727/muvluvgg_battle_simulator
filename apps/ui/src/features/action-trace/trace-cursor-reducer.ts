@@ -250,12 +250,14 @@ export function traceCursorReducer(
         unit: action.unit,
         stepIndex:
           action.unit === "step" ? state.stepIndex : lastStepOf(state.index, state.segmentIndex),
+        playing: false,
       };
     case "stepCountChanged":
-      return { ...state, stepCount: action.stepCount };
+      return { ...state, stepCount: action.stepCount, playing: false };
     case "followChanged":
-      return { ...state, follow: action.follow };
+      return { ...state, follow: action.follow, playing: false };
     case "speedChanged":
+      // 速度は再生そのものの設定であり、再生中に変えて見やすさを調整できるよう止めない
       return { ...state, speed: action.speed };
     case "playToggled":
       if (state.playing) {
