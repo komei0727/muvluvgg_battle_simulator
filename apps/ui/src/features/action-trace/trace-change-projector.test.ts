@@ -6,6 +6,7 @@ import type {
 } from "../../shared/api/api-contract.js";
 import { buildRosterIndex } from "../details/event-presentation.js";
 import { projectTraceChanges } from "./trace-change-projector.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 
 const ROSTER_ENTRIES: readonly RosterEntry[] = [
   {
@@ -126,5 +127,37 @@ describe("projectTraceChanges", () => {
       ROSTER,
     );
     expect(rows[0]?.displayName).toBe("x:9");
+  });
+
+  it("UI-UT-LBL-039: 表示名の解決器があれば、効果の変化を表示名で表し論理名を別に持つ", () => {
+    const labeler = createEffectLabeler(
+      {
+        effects: [
+          {
+            effectActionDefinitionId: "EFF_NEW",
+            kind: "APPLY_STAT_MOD",
+            stat: "ATTACK",
+            valueType: "RATIO",
+            constantMagnitude: 0.1,
+          },
+        ],
+      },
+      ROSTER,
+      [],
+    );
+    const before = state(unit("ally:1", "ALLY"));
+    const after = state(unit("ally:1", "ALLY", { effects: [effect("e3", "EFF_NEW", 2)] }));
+
+    const rows = projectTraceChanges(before, after, ROSTER, labeler);
+
+    expect(rows[0]?.effects).toEqual([
+      {
+        key: "effect:e3",
+        label: "攻撃力+10%",
+        logicalName: "EFF_NEW",
+        change: "added",
+        after: "2T",
+      },
+    ]);
   });
 });

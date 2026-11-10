@@ -213,7 +213,7 @@ function Chip({ chip }: { readonly chip: TraceChipView }) {
         chip.change === "removed" && styles.chipRemoved,
         chip.ineffective && styles.chipIneffective,
       )}
-      title={label}
+      title={chip.logicalName !== undefined ? `${label}\n${chip.logicalName}` : label}
       aria-label={label}
     >
       <span className={styles.chipLabel} aria-hidden="true">

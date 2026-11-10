@@ -9,6 +9,7 @@ import { formatEvent } from "../details/event-formatters.js";
 import type { ActionSegment } from "./action-segment-projector.js";
 import type { EventPresentation, RosterIndex } from "../details/event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 
 export type TraceStepKind =
   | "ACTION_STARTED"
@@ -544,6 +545,7 @@ function activationDepths(
 export function projectTraceSteps(
   segment: ActionSegment,
   roster: RosterIndex,
+  labeler?: EffectLabeler,
 ): readonly TraceStep[] {
   const mainSkillUseId = segment.kind === "ACTION" ? segment.mainSkill?.skillUseId : undefined;
   const depths = activationDepths(segment.events, mainSkillUseId);
@@ -569,7 +571,7 @@ export function projectTraceSteps(
       events: step.events,
       originEvents: step.originEvents,
       otherEvents,
-      presentations: presented.map((event) => formatEvent(event, roster)),
+      presentations: presented.map((event) => formatEvent(event, roster, labeler)),
       firstSequence: sequenceOf(step.events[0]!),
       lastSequence: sequenceOf(step.events.at(-1)!),
       stateVersionAfter: Math.max(

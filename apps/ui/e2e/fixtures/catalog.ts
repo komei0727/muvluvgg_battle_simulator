@@ -62,6 +62,42 @@ export const catalogFixture = {
       displayName: "記憶アルファ",
     },
   ],
+  // スキル・効果の表示名（01_UI要求・画面設計.md §8冒頭）。行動トレース
+  // （battle-action-trace.ts）と状態付与（battle-heal-effects.ts）のfixtureが使う定義だけを
+  // 持つ。ここに無い定義は表示名の縮退規則で論理名の位置に定義IDが出る。
+  skills: [
+    {
+      skillDefinitionId: "SKL_ALLY_AS",
+      displayName: "アライスラッシュ",
+      skillType: "ACTIVE",
+      ownerUnitDefinitionId: "UNIT_ALLY_A",
+      slotLabel: "AS1",
+    },
+    {
+      skillDefinitionId: "SKL_ENEMY_HEAL",
+      displayName: "エネミーヒール",
+      skillType: "ACTIVE",
+      ownerUnitDefinitionId: "UNIT_ENEMY_A",
+      slotLabel: "AS1",
+    },
+    {
+      skillDefinitionId: "SKL_ENEMY_PS",
+      displayName: "エネミーガード",
+      skillType: "PASSIVE",
+      ownerUnitDefinitionId: "UNIT_ENEMY_A",
+      slotLabel: "PS1",
+    },
+  ],
+  effects: [
+    {
+      effectActionDefinitionId: "EFF_GUARD",
+      kind: "APPLY_STAT_MOD",
+      stat: "DEFENSE",
+      valueType: "RATIO",
+      constantMagnitude: 0.2,
+    },
+    { effectActionDefinitionId: "ACT_ENEMY_STUN", kind: "APPLY_STATUS", status: "STUN" },
+  ],
 };
 
 // Regression fixture: an HTTP 500 error body, covering "Catalog failure"

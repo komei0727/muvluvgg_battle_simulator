@@ -312,3 +312,85 @@ describe("createEffectLabeler.definitionLabel", () => {
     );
   });
 });
+
+describe("createEffectLabeler.skillLabel", () => {
+  it("UI-UT-LBL-016: スキルをキャラ正式名-スキル種別番号で表す", () => {
+    expect(labeler.skillLabel("bu-ally-1", "SKL_SUMIKA_PS1")).toBe("【幼き日の約束】鑑純夏-PS1");
+  });
+
+  it("UI-UT-LBL-017: スキル種別番号が引けなければその位置に論理名を出す", () => {
+    expect(labeler.skillLabel("bu-ally-1", "SKL_NOT_IN_CATALOG")).toBe(
+      "【幼き日の約束】鑑純夏-SKL_NOT_IN_CATALOG",
+    );
+    expect(labeler.skillLabel("bu-ally-1", "SKL_SHARED")).toBe("【幼き日の約束】鑑純夏-SKL_SHARED");
+    expect(
+      createEffectLabeler(undefined, UNITS, EVENTS).skillLabel("bu-ally-1", "SKL_SUMIKA_PS1"),
+    ).toBe("【幼き日の約束】鑑純夏-SKL_SUMIKA_PS1");
+  });
+
+  it("UI-UT-LBL-018: 使用者が分からなければスキル種別番号だけで表す", () => {
+    expect(labeler.skillLabel(undefined, "SKL_SUMIKA_AS2")).toBe("AS2");
+  });
+
+  it("UI-UT-LBL-019: 定義単位では、使用者が全員同じ表示名のときだけキャラ名を出す", () => {
+    const units = new Map([...UNITS, ["bu-ally-2", { displayName: "【幼き日の約束】鑑純夏" }]]);
+    const local = createEffectLabeler(CATALOG, units, EVENTS);
+    expect(local.skillDefinitionLabel("SKL_SUMIKA_PS1", ["bu-ally-1", "bu-ally-2"])).toBe(
+      "【幼き日の約束】鑑純夏-PS1",
+    );
+    expect(local.skillDefinitionLabel("SKL_SUMIKA_PS1", ["bu-ally-1", "bu-enemy-1"])).toBe("PS1");
+  });
+});
+
+describe("createEffectLabeler.instanceLabel", () => {
+  const instanceEvents: readonly EffectLabelEvent[] = [
+    ...EVENTS,
+    {
+      sequence: 10,
+      type: "EFFECT_APPLIED",
+      skillUseId: "su-ps",
+      sourceUnitId: "bu-ally-1",
+      details: {
+        effectInstanceId: "ei-1",
+        effectActionDefinitionId: "ACT_ATK_UP",
+        targetUnitId: "bu-ally-1",
+        magnitude: 0.08,
+      },
+    },
+    {
+      sequence: 11,
+      type: "EFFECT_APPLIED",
+      details: {
+        effectInstanceId: "ei-mem",
+        effectActionDefinitionId: "ACT_DEF_DOWN",
+        targetUnitId: "bu-enemy-1",
+        sourceSide: "ALLY",
+        magnitude: -0.15,
+      },
+    },
+  ];
+  const local = createEffectLabeler(CATALOG, UNITS, instanceEvents);
+
+  it("UI-UT-LBL-020: 付与イベントを引けるインスタンスは付与元スキルと付与時点の量で表す", () => {
+    expect(local.instanceLabel("ei-1")).toBe("【幼き日の約束】鑑純夏-PS1-攻撃力+8%");
+    expect(local.instanceLabel("ei-mem")).toBe("ALLY陣営のMemory-防御力-15%");
+  });
+
+  it("UI-UT-LBL-021: 付与イベントを引けなければ代替の付与情報と定義上の固定値で表す", () => {
+    expect(
+      local.instanceLabel("ei-unseen", {
+        effectActionDefinitionId: "ACT_ATK_UP",
+        originUnitId: "bu-enemy-1",
+      }),
+    ).toBe("エネミーα-攻撃力+5%");
+  });
+
+  it("UI-UT-LBL-022: 付与イベントも代替も無ければインスタンスIDを出す", () => {
+    expect(local.instanceLabel("ei-unseen")).toBe("ei-unseen");
+  });
+
+  it("UI-UT-LBL-035: インスタンスの論理名は付与イベントから引き、引けなければundefined", () => {
+    expect(local.instanceDefinitionId("ei-1")).toBe("ACT_ATK_UP");
+    expect(local.instanceDefinitionId("ei-unseen")).toBeUndefined();
+  });
+});

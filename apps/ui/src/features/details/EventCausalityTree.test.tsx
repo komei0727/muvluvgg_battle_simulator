@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { EventCausalityTree } from "./EventCausalityTree.js";
 import { buildRosterIndex } from "./event-formatters.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
@@ -26,6 +27,13 @@ function baseEvent(
     ...overrides,
   } satisfies BattleLogEventResponse;
 }
+
+const labelCatalog = { skills: [{ skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" }] };
+const cooldownEvent = baseEvent({
+  sequence: 1,
+  type: "COOLDOWN_STARTED",
+  details: { actorUnitId: "ally:1", skillDefinitionId: "SKL_A_AS1", initialRemaining: 3 },
+});
 
 describe("EventCausalityTree", () => {
   it("nests a PS activation event beneath its causing action, indented under the parent row", () => {
@@ -116,5 +124,15 @@ describe("EventCausalityTree", () => {
     render(<EventCausalityTree events={events} roster={rosterIndex} />);
 
     expect(screen.getByRole("button", { name: /SOME_FUTURE_EVENT/ })).toBeInTheDocument();
+  });
+
+  it("UI-CT-198: スキル・効果を表示名で表し、論理名を行のツールチップでだけ読める", () => {
+    const labeler = createEffectLabeler(labelCatalog, rosterIndex, [cooldownEvent]);
+    render(<EventCausalityTree events={[cooldownEvent]} roster={rosterIndex} labeler={labeler} />);
+
+    const row = screen.getByRole("button", { name: /COOLDOWN_STARTED/ });
+    expect(row).toHaveTextContent("スキル「エー-AS1」");
+    expect(row).not.toHaveTextContent("SKL_A_AS1");
+    expect(within(row).getByText(/スキル「エー-AS1」/)).toHaveAttribute("title", "SKL_A_AS1");
   });
 });

@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { SkillTimelineSection } from "./SkillTimelineSection.js";
 import { buildRosterIndex } from "../details/event-formatters.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
 const ATTACKER = "bu-ally-1";
@@ -81,7 +82,7 @@ describe("SkillTimelineSection", () => {
     expect(screen.getByRole("button", { name: /SKL_ATTACK/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /SKL_CAST/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー" }));
 
     expect(screen.queryByRole("button", { name: /SKL_ATTACK/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /SKL_CAST/ })).toBeInTheDocument();
@@ -92,7 +93,7 @@ describe("SkillTimelineSection", () => {
     const user = userEvent.setup();
     render(<SkillTimelineSection events={EVENTS} roster={roster} />);
 
-    await user.click(screen.getByRole("checkbox", { name: "SKL_ATTACK" }));
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー-SKL_ATTACK" }));
 
     expect(screen.queryByRole("button", { name: /SKL_ATTACK/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /SKL_CAST/ })).toBeInTheDocument();
@@ -104,8 +105,8 @@ describe("SkillTimelineSection", () => {
     render(<SkillTimelineSection events={EVENTS} roster={roster} />);
 
     // アタッカーのユニットだけ残し、SKL_CASTのスキルだけ残す -> 両方満たす行はゼロ件になる。
-    await user.click(screen.getByRole("checkbox", { name: /キャスター/ }));
-    await user.click(screen.getByRole("checkbox", { name: "SKL_ATTACK" }));
+    await user.click(screen.getByRole("checkbox", { name: "キャスター" }));
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー-SKL_ATTACK" }));
 
     expect(screen.queryByRole("button", { name: /SKL_ATTACK/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /SKL_CAST/ })).not.toBeInTheDocument();
@@ -142,17 +143,19 @@ describe("SkillTimelineSection", () => {
     const user = userEvent.setup();
     render(<SkillTimelineSection events={EVENTS} roster={roster} />);
 
-    expect(screen.getByRole("checkbox", { name: "SKL_ATTACK" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "SKL_CAST" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "アタッカー-SKL_ATTACK" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "キャスター-SKL_CAST" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー" }));
 
-    expect(screen.queryByRole("checkbox", { name: "SKL_ATTACK" })).not.toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "SKL_CAST" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "アタッカー-SKL_ATTACK" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "キャスター-SKL_CAST" })).toBeInTheDocument();
 
     // 再度チェックすると一覧へ戻り、以前の選択状態(選択済み)も保たれている。
-    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
-    const restoredCheckbox = screen.getByRole("checkbox", { name: "SKL_ATTACK" });
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー" }));
+    const restoredCheckbox = screen.getByRole("checkbox", { name: "アタッカー-SKL_ATTACK" });
     expect(restoredCheckbox).toBeInTheDocument();
     expect(restoredCheckbox).toBeChecked();
   });
@@ -165,7 +168,7 @@ describe("SkillTimelineSection", () => {
     const { rerender } = render(<SkillTimelineSection events={EVENTS} roster={roster} />);
 
     // 前回結果でアタッカーを非表示にしておく(選択状態にstaleなIDが残ることを模す)。
-    await user.click(screen.getByRole("checkbox", { name: /アタッカー/ }));
+    await user.click(screen.getByRole("checkbox", { name: "アタッカー" }));
     expect(screen.queryByRole("button", { name: /SKL_ATTACK/ })).not.toBeInTheDocument();
 
     const RERUN_EVENTS: readonly BattleLogEventResponse[] = [
@@ -181,6 +184,21 @@ describe("SkillTimelineSection", () => {
     rerender(<SkillTimelineSection events={RERUN_EVENTS} roster={roster} />);
 
     expect(screen.getByRole("button", { name: /SKL_RERUN/ })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /アタッカー/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "アタッカー" })).toBeChecked();
+  });
+
+  it("UI-CT-199: スキルの選択肢と各行をキャラ正式名-スキル種別番号で表し、論理名をツールチップでだけ読める", () => {
+    const labeler = createEffectLabeler(
+      { skills: [{ skillDefinitionId: "SKL_ATTACK", slotLabel: "AS1" }] },
+      roster,
+      EVENTS,
+    );
+    render(<SkillTimelineSection events={EVENTS} roster={roster} labeler={labeler} />);
+
+    const checkbox = screen.getByRole("checkbox", { name: "アタッカー-AS1" });
+    expect(checkbox.closest("label")).toHaveAttribute("title", "SKL_ATTACK");
+    const row = screen.getByRole("button", { name: /アタッカー-AS1/ });
+    expect(row).not.toHaveTextContent("SKL_ATTACK");
+    expect(within(row).getByText("アタッカー-AS1")).toHaveAttribute("title", "SKL_ATTACK");
   });
 });

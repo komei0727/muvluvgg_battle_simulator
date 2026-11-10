@@ -12,6 +12,8 @@ import { projectActionSegments, type ActionSegment } from "./action-segment-proj
 import { projectTraceBoard, selectActionOrders } from "./trace-board-projector.js";
 import type { TraceUnitCardView } from "./trace-board-view.js";
 import { projectTraceSteps } from "./trace-step-projector.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 
 const ALLY = "ally:1";
 const ALLY_2 = "ally:2";
@@ -202,6 +204,7 @@ function board(
   options: {
     readonly stepIndex?: number;
     readonly actionOrders?: ReadonlyMap<string, number>;
+    readonly labeler?: EffectLabeler;
   } = {},
 ) {
   const segment = segmentOf(events);
@@ -213,6 +216,7 @@ function board(
     steps: options.stepIndex === undefined ? steps : [steps[options.stepIndex]!],
     roster: ROSTER,
     actionOrders: options.actionOrders ?? new Map(),
+    ...(options.labeler !== undefined ? { labeler: options.labeler } : {}),
   });
 }
 
@@ -471,6 +475,51 @@ describe("projectTraceBoard", () => {
         kind: "MARKER",
         change: "removed",
         remaining: "×1",
+        ineffective: false,
+      },
+    ]);
+  });
+
+  it("UI-UT-LBL-038: 表示名の解決器があれば、効果・チャージの印を表示名で表し論理名を別に持つ", () => {
+    const labeler = createEffectLabeler(
+      {
+        skills: [{ skillDefinitionId: "SKL_CHARGE", slotLabel: "AS2" }],
+        effects: [{ effectActionDefinitionId: "EFF_POISON", kind: "APPLY_CONTINUOUS_DAMAGE" }],
+      },
+      ROSTER,
+      [],
+    );
+    const after = state({
+      [ALLY]: {
+        effects: [
+          {
+            effectInstanceId: "E2",
+            effectDefinitionId: "EFF_POISON",
+            sourceUnitId: ALLY,
+            category: "STATUS_ABNORMALITY",
+            isEffective: true,
+          },
+        ],
+        charge: { skillDefinitionId: "SKL_CHARGE" },
+      },
+    });
+    const chips = cardOf(board(actionStart(), after, after, { labeler }).units, ALLY).chips;
+    const allyName = ROSTER.get(ALLY)!.displayName;
+    expect(chips).toEqual([
+      {
+        key: "effect:E2",
+        label: `${allyName}-継続ダメージ`,
+        logicalName: "EFF_POISON",
+        kind: "STATUS_ABNORMALITY",
+        change: "kept",
+        ineffective: false,
+      },
+      {
+        key: "charge",
+        label: `${allyName}-AS2`,
+        logicalName: "SKL_CHARGE",
+        kind: "CHARGE",
+        change: "kept",
         ineffective: false,
       },
     ]);

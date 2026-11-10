@@ -64,6 +64,21 @@ export interface EffectLabeler {
     effectActionDefinitionId: string,
     grants: readonly EffectGrantLabelInput[],
   ): string;
+  /**
+   * 効果インスタンスの表示名。同じ`effectInstanceId`の`EFFECT_APPLIED`があればその付与で表し、
+   * 無ければ`fallback`（状態スナップショットが持つ付与元等）と定義上の固定値で表す。
+   * どちらも無ければインスタンスIDを返す。
+   */
+  instanceLabel(effectInstanceId: string, fallback?: EffectGrantLabelInput): string;
+  /** 付与イベントから引いたインスタンスの論理名。ツールチップへ回すために使う。 */
+  instanceDefinitionId(effectInstanceId: string): string | undefined;
+  /**
+   * スキルの表示名`キャラ正式名-スキル種別番号`。種別番号が引けなければその位置に論理名を出す
+   * （効果内容が引けない場合と同じ縮退）。使用者が分からなければ種別番号だけで表す。
+   */
+  skillLabel(actorUnitId: string | undefined, skillDefinitionId: string): string;
+  /** スキル定義単位の表示名。キャラ名は、使用者が全員同じ表示名のときだけ出す。 */
+  skillDefinitionLabel(skillDefinitionId: string, actorUnitIds: readonly string[]): string;
 }
 
 const SEPARATOR = "-";
@@ -259,6 +274,53 @@ function indexSkillUseOrigins(
   return origins;
 }
 
+function detailNumber(event: EffectLabelEvent, key: string): number | undefined {
+  const details = event["details"];
+  if (typeof details !== "object" || details === null) {
+    return undefined;
+  }
+  const value = (details as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function envelopeString(event: EffectLabelEvent, key: string): string | undefined {
+  const value = event[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * `EFFECT_APPLIED`を`effectInstanceId`で引けるようにする。付与元の読み方は
+ * `effect-trace-projector.ts`と同じ（detailsを優先し、無ければエンベロープ）。
+ */
+function indexGrants(
+  events: readonly EffectLabelEvent[],
+): ReadonlyMap<string, EffectGrantLabelInput> {
+  const grants = new Map<string, EffectGrantLabelInput>();
+  for (const event of events) {
+    if (event["type"] !== "EFFECT_APPLIED") {
+      continue;
+    }
+    const effectInstanceId = detailString(event, "effectInstanceId");
+    const effectActionDefinitionId = detailString(event, "effectActionDefinitionId");
+    if (effectInstanceId === undefined || effectActionDefinitionId === undefined) {
+      continue;
+    }
+    const originUnitId =
+      detailString(event, "sourceUnitId") ?? envelopeString(event, "sourceUnitId");
+    const originSide = detailString(event, "sourceSide") ?? envelopeString(event, "sourceSide");
+    const skillUseId = envelopeString(event, "skillUseId");
+    const magnitude = detailNumber(event, "magnitude");
+    grants.set(effectInstanceId, {
+      effectActionDefinitionId,
+      ...(originUnitId !== undefined ? { originUnitId } : {}),
+      ...(originUnitId === undefined && originSide !== undefined ? { originSide } : {}),
+      ...(skillUseId !== undefined ? { skillUseId } : {}),
+      ...(magnitude !== undefined ? { magnitude } : {}),
+    });
+  }
+  return grants;
+}
+
 function joinParts(parts: readonly (string | undefined)[]): string {
   return parts.filter((part): part is string => part !== undefined && part !== "").join(SEPARATOR);
 }
@@ -280,6 +342,7 @@ export function createEffectLabeler(
     ),
   );
   const skillUseOrigins = indexSkillUseOrigins(events);
+  const grantByInstanceId = indexGrants(events);
 
   /** 付与元（キャラ名-スキル種別番号、メモリー名、または陣営）。何も分からなければ空文字。 */
   function originPrefixOf(grant: EffectGrantLabelInput): string {
@@ -309,12 +372,47 @@ export function createEffectLabeler(
     );
   }
 
+  function grantLabel(grant: EffectGrantLabelInput): string {
+    return joinParts([
+      originPrefixOf(grant),
+      contentOf(grant.effectActionDefinitionId, grant.magnitude),
+    ]);
+  }
+
+  function slotOf(skillDefinitionId: string): string {
+    return slotBySkillId.get(skillDefinitionId) ?? skillDefinitionId;
+  }
+
   return {
-    grantLabel(grant) {
-      return joinParts([
-        originPrefixOf(grant),
-        contentOf(grant.effectActionDefinitionId, grant.magnitude),
-      ]);
+    grantLabel,
+    instanceLabel(effectInstanceId, fallback) {
+      const grant = grantByInstanceId.get(effectInstanceId);
+      if (grant !== undefined) {
+        return grantLabel(grant);
+      }
+      if (fallback === undefined) {
+        return effectInstanceId;
+      }
+      const magnitude =
+        fallback.magnitude ?? effectById.get(fallback.effectActionDefinitionId)?.constantMagnitude;
+      return grantLabel({ ...fallback, ...(magnitude !== undefined ? { magnitude } : {}) });
+    },
+    instanceDefinitionId(effectInstanceId) {
+      return grantByInstanceId.get(effectInstanceId)?.effectActionDefinitionId;
+    },
+    skillLabel(actorUnitId, skillDefinitionId) {
+      const unitName =
+        actorUnitId !== undefined
+          ? (units.get(actorUnitId)?.displayName ?? actorUnitId)
+          : undefined;
+      return joinParts([unitName, slotOf(skillDefinitionId)]);
+    },
+    skillDefinitionLabel(skillDefinitionId, actorUnitIds) {
+      const names = new Set(
+        actorUnitIds.map((actorUnitId) => units.get(actorUnitId)?.displayName ?? actorUnitId),
+      );
+      const unitName = names.size === 1 ? [...names][0] : undefined;
+      return joinParts([unitName, slotOf(skillDefinitionId)]);
     },
     definitionLabel(effectActionDefinitionId, grants) {
       const prefixes = new Set(grants.map(originPrefixOf));

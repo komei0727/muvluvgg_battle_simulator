@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flattenDelta } from "./delta-flattener.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 
 describe("flattenDelta", () => {
   it("returns nothing for a non-object delta", () => {
@@ -224,6 +225,100 @@ describe("flattenDelta total war deltas (UI-UT-TWR-018)", () => {
   it("falls back to compact JSON for an added unit without a battleUnitId", () => {
     expect(flattenDelta({ addedUnits: [{ side: "ENEMY" }] })).toEqual([
       { path: "addedUnits[0]", text: '+ {"side":"ENEMY"} 出撃' },
+    ]);
+  });
+});
+
+// docs/ui-design/01_UI要求・画面設計.md §8.2: 状態遷移のツリー表示もスキル・効果を表示名で表し、
+// 論理名は行のツールチップ（`logicalNames`）へ回す。
+describe("flattenDelta display labels", () => {
+  const labeler = createEffectLabeler(
+    {
+      skills: [{ skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" }],
+      effects: [
+        {
+          effectActionDefinitionId: "ACT_POISON",
+          kind: "APPLY_CONTINUOUS_DAMAGE",
+        },
+      ],
+    },
+    new Map([
+      ["ally:1", { displayName: "エー" }],
+      ["enemy:1", { displayName: "ビー" }],
+    ]),
+    [],
+  );
+
+  it("UI-UT-LBL-036: 効果エントリを表示名とインスタンスIDで表し、論理名をlogicalNamesへ回す", () => {
+    const lines = flattenDelta(
+      {
+        units: {
+          "enemy:1": {
+            effects: {
+              added: [
+                {
+                  effectInstanceId: "battle-1:effect:3",
+                  effectDefinitionId: "ACT_POISON",
+                  sourceUnitId: "ally:1",
+                  category: "STATUS_ABNORMALITY",
+                },
+              ],
+              updated: [],
+              removed: [],
+            },
+          },
+        },
+      },
+      { labeler },
+    );
+
+    expect(lines[1]).toEqual({
+      path: "units.enemy:1.effects.added[0]",
+      text: "+ エー-継続ダメージ（battle-1:effect:3）",
+      logicalNames: ["ACT_POISON"],
+    });
+  });
+
+  it("UI-UT-LBL-037: クールタイムとチャージのスキルを、そのユニットのキャラ名-スキル種別番号で表す", () => {
+    const lines = flattenDelta(
+      {
+        units: {
+          "ally:1": {
+            cooldowns: {
+              added: [{ skillDefinitionId: "SKL_A_AS1", unit: "TURN", remaining: 2 }],
+              // 実応答の更新・削除は、ラッパーの`id`がスキル定義IDで、値は残り回数だけを持つ。
+              updated: [{ id: "SKL_A_AS1", before: 2, after: 1 }],
+              removed: [{ id: "SKL_A_AS1", before: 1 }],
+            },
+            charge: { before: null, after: { skillDefinitionId: "SKL_A_AS1" } },
+          },
+        },
+      },
+      { labeler },
+    );
+
+    expect(lines).toEqual([
+      { path: "units.ally:1.cooldowns", text: "+1 / ~1 / -1" },
+      {
+        path: "units.ally:1.cooldowns.added[0]",
+        text: "+ エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.cooldowns.updated[0]",
+        text: "~ エー-AS1: 2 → 1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.cooldowns.removed[0]",
+        text: "- エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
+      {
+        path: "units.ally:1.charge",
+        text: "null → エー-AS1",
+        logicalNames: ["SKL_A_AS1"],
+      },
     ]);
   });
 });

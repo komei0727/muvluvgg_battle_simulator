@@ -26,8 +26,13 @@ export type TraceChipChange = "added" | "kept" | "removed";
 
 export interface TraceChipView {
   readonly key: string;
-  /** 定義ID（スキル・効果名はCatalogが返さないため）。 */
+  /**
+   * 効果・チャージは表示名（01_UI要求・画面設計.md §8.6）、マーカーはマーカーID。
+   * 表示名の解決器が無ければ定義IDのまま。
+   */
   readonly label: string;
+  /** `label`を表示名にしたときの論理名。ツールチップにだけ出す。 */
+  readonly logicalName?: string;
   readonly kind: TraceChipKind;
   readonly change: TraceChipChange;
   /** 残り時間・スタック数の短い表記。永続効果では持たない。 */

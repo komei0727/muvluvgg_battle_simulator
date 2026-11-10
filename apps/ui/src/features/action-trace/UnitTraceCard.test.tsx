@@ -126,6 +126,25 @@ describe("UnitTraceCard", () => {
     expect(items[3]?.className).toMatch(/chipMarker/);
   });
 
+  it("UI-CT-203: 表示名の印は表示名をaccessible nameに、論理名をツールチップにだけ持つ", () => {
+    const card = renderCard({
+      chips: [
+        {
+          key: "effect:E1",
+          label: "味方A-AS1-攻撃力+10%",
+          logicalName: "EFF_ATTACK_UP",
+          kind: "BUFF",
+          change: "kept",
+          ineffective: false,
+        },
+      ],
+    });
+    const item = within(card).getByRole("listitem");
+    expect(item).toHaveAttribute("aria-label", "バフ 味方A-AS1-攻撃力+10%");
+    expect(item).toHaveAttribute("title", "バフ 味方A-AS1-攻撃力+10%\nEFF_ATTACK_UP");
+    expect(item).not.toHaveTextContent("EFF_ATTACK_UP");
+  });
+
   it("UI-CT-192: 行動者に「行動中」、PS発動者に「PS発動」のタグと枠が付き、撃破されたユニットに撃破が出る", () => {
     const { rerender } = render(
       <UnitTraceCard card={{ ...BASE, roles: { actor: true, activator: false, target: false } }} />,

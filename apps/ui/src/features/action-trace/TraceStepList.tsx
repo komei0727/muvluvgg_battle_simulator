@@ -1,5 +1,9 @@
 import { stringOf } from "../../lib/unknown-narrowing.js";
-import { resolveDisplayName, type RosterIndex } from "../details/event-presentation.js";
+import {
+  logicalNamesTitle,
+  resolveDisplayName,
+  type RosterIndex,
+} from "../details/event-presentation.js";
 import { sideLabelOf } from "./trace-segment-label.js";
 import { hitCalculationTerms } from "./hit-calculation-terms.js";
 import type { HitApplication, TraceStep, TraceStepKind } from "./trace-step-projector.js";
@@ -185,7 +189,7 @@ export function TraceStepList({ steps, currentStepIndex, roster, onSelect }: Tra
                   <span className={styles.type}>{presentation?.title ?? step.kind}</span>
                 </span>
                 {step.presentations.map((item, position) => (
-                  <span key={position} className={styles.summary}>
+                  <span key={position} className={styles.summary} title={logicalNamesTitle(item)}>
                     {item.summary}
                   </span>
                 ))}

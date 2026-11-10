@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "../../components/Button.js";
-import { formatEvent, resolveDisplayName } from "./event-formatters.js";
+import { formatEvent, logicalNamesTitle, resolveDisplayName } from "./event-formatters.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 import type { RosterIndex } from "./event-formatters.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 import { numberOf, stringOf } from "../../lib/unknown-narrowing.js";
@@ -9,6 +10,8 @@ import styles from "./EventTimeline.module.css";
 export interface EventTimelineProps {
   readonly events: readonly BattleLogEventResponse[];
   readonly roster: RosterIndex;
+  /** スキル・効果の表示名の解決器。戦闘全体のイベント列から作ったものを渡す。 */
+  readonly labeler?: EffectLabeler;
   readonly onJumpToTransition?: (stateTransitionIndex: number) => void;
 }
 
@@ -39,7 +42,7 @@ function targetsLabelOf(event: BattleLogEventResponse, roster: RosterIndex): str
 
 // docs/ui-design/01_UI要求・画面設計.md §8.1: `sequence`昇順で表示し、欠番を
 // 許容する。SUMMARYで省略された親イベント参照があってもエラーにしない。
-export function EventTimeline({ events, roster, onJumpToTransition }: EventTimelineProps) {
+export function EventTimeline({ events, roster, labeler, onJumpToTransition }: EventTimelineProps) {
   const [expandedSequences, setExpandedSequences] = useState<ReadonlySet<number>>(new Set());
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
 
@@ -77,7 +80,7 @@ export function EventTimeline({ events, roster, onJumpToTransition }: EventTimel
             const stateTransitionIndex = numberOf(event["stateTransitionIndex"]);
             const parentSequence = numberOf(event["parentSequence"]);
             const rootSequence = numberOf(event["rootSequence"]);
-            const presentation = formatEvent(event, roster);
+            const presentation = formatEvent(event, roster, labeler);
             const isExpanded = expandedSequences.has(sequence);
 
             return (
@@ -97,7 +100,7 @@ export function EventTimeline({ events, roster, onJumpToTransition }: EventTimel
                   <span className={styles["type"]}>{presentation.title}</span>
                   <span className={styles["source"]}>{sourceLabelOf(event, roster)}</span>
                   <span className={styles["targets"]}>{targetsLabelOf(event, roster)}</span>
-                  <span>{presentation.summary}</span>
+                  <span title={logicalNamesTitle(presentation)}>{presentation.summary}</span>
                   <span>v{stateVersionAfter ?? "-"}</span>
                 </button>
                 {isExpanded ? (

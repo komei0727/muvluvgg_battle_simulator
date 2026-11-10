@@ -122,6 +122,7 @@ export function TraceChangeTable({
                             <li
                               key={effect.key}
                               className={effect.change === "removed" ? styles.removed : undefined}
+                              title={effect.logicalName}
                             >
                               {effectText(effect)}
                             </li>

@@ -11,6 +11,7 @@ import { SkillTimelineSection } from "../skill-timeline/SkillTimelineSection.js"
 import { ActionTraceSection } from "../action-trace/ActionTraceSection.js";
 import type { LogLevel } from "../../entities/battle-draft.js";
 import { selectRoster } from "../../entities/roster.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 import type { RosterEntry } from "../../entities/roster.js";
 import type {
   BattleLogResponse,
@@ -82,6 +83,12 @@ export function BattleDetailsSection({
     [suppliedRoster, response, catalog],
   );
   const roster = useMemo(() => buildRosterIndex(rosterEntries), [rosterEntries]);
+  // スキル・効果の表示名（01_UI要求・画面設計.md §8.1「スキル・効果の表示名」）。失効等は
+  // 付与イベントから付与元を引くため、戦闘全体のイベント列から1つ作って各タブへ渡す。
+  const labeler = useMemo(
+    () => createEffectLabeler(catalog, roster, response.events),
+    [catalog, roster, response],
+  );
 
   function jumpToTransition(index: number) {
     setHighlightedTransitionIndex(index);
@@ -116,6 +123,7 @@ export function BattleDetailsSection({
           <EventTimeline
             events={response.events}
             roster={roster}
+            labeler={labeler}
             onJumpToTransition={jumpToTransition}
           />
         </div>
@@ -125,6 +133,7 @@ export function BattleDetailsSection({
           <StateTransitionTable
             transitions={response.stateTransitions}
             roster={roster}
+            labeler={labeler}
             {...(highlightedTransitionIndex !== undefined
               ? { highlightedIndex: highlightedTransitionIndex }
               : {})}
@@ -148,7 +157,7 @@ export function BattleDetailsSection({
       ) : null}
       {activeTab === "causalityTree" ? (
         <div role="tabpanel" id="tabpanel-causalityTree" aria-labelledby="tab-causalityTree">
-          <EventCausalityTree events={response.events} roster={roster} />
+          <EventCausalityTree events={response.events} roster={roster} labeler={labeler} />
         </div>
       ) : null}
       {activeTab === "effectTrace" ? (
@@ -162,7 +171,7 @@ export function BattleDetailsSection({
       ) : null}
       {activeTab === "skillTimeline" ? (
         <div role="tabpanel" id="tabpanel-skillTimeline" aria-labelledby="tab-skillTimeline">
-          <SkillTimelineSection events={response.events} roster={roster} />
+          <SkillTimelineSection events={response.events} roster={roster} labeler={labeler} />
         </div>
       ) : null}
       {activeTab === "actionTrace" ? (
@@ -170,6 +179,7 @@ export function BattleDetailsSection({
           <ActionTraceSection
             response={response}
             roster={roster}
+            labeler={labeler}
             onJumpToTransition={jumpToTransition}
           />
         </div>

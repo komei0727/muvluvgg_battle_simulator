@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EventTimeline } from "./EventTimeline.js";
 import { buildRosterIndex } from "./event-formatters.js";
+import { createEffectLabeler } from "../../lib/effect-display-label.js";
 import type { RosterEntry } from "../../entities/roster.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
 
@@ -27,6 +28,13 @@ function baseEvent(
     ...overrides,
   } satisfies BattleLogEventResponse;
 }
+
+const labelCatalog = { skills: [{ skillDefinitionId: "SKL_A_AS1", slotLabel: "AS1" }] };
+const cooldownEvent = baseEvent({
+  sequence: 1,
+  type: "COOLDOWN_STARTED",
+  details: { actorUnitId: "ally:1", skillDefinitionId: "SKL_A_AS1", initialRemaining: 3 },
+});
 
 describe("EventTimeline", () => {
   it("displays events sorted by sequence ascending regardless of input order (§8.1)", () => {
@@ -161,5 +169,15 @@ describe("EventTimeline", () => {
     await user.click(within(row).getByRole("button", { name: /状態遷移 #4/ }));
 
     expect(onJumpToTransition).toHaveBeenCalledWith(3);
+  });
+
+  it("UI-CT-197: スキル・効果を表示名で表し、論理名を行のツールチップでだけ読める", () => {
+    const labeler = createEffectLabeler(labelCatalog, rosterIndex, [cooldownEvent]);
+    render(<EventTimeline events={[cooldownEvent]} roster={rosterIndex} labeler={labeler} />);
+
+    const row = screen.getByRole("button", { name: /COOLDOWN_STARTED/ });
+    expect(row).toHaveTextContent("スキル「エー-AS1」");
+    expect(row).not.toHaveTextContent("SKL_A_AS1");
+    expect(within(row).getByText(/スキル「エー-AS1」/)).toHaveAttribute("title", "SKL_A_AS1");
   });
 });

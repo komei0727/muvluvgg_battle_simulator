@@ -12,6 +12,8 @@ import { effectEventFormatters } from "./effect-event-formatters.js";
 import { exerciseEventFormatters } from "./exercise-event-formatters.js";
 import {
   buildRosterIndex,
+  labelerFor,
+  logicalNamesTitle,
   mergeDisjointFormatters,
   resolveDisplayName,
 } from "./event-presentation.js";
@@ -20,11 +22,12 @@ import { skillEventFormatters } from "./skill-event-formatters.js";
 import { totalWarEventFormatters } from "./total-war-event-formatters.js";
 import type { EventPresentation, EventSeverity, RosterIndex } from "./event-presentation.js";
 import type { BattleLogEventResponse } from "../../shared/api/api-contract.js";
+import type { EffectLabeler } from "../../lib/effect-display-label.js";
 
 // 共通の型・helperは`event-presentation.ts`が持つ（DMG-010／Issue #191で
 // M8ダメージformatterを別ファイルへ分けた際に循環importを避けるため）。
 // 既存の利用側importを壊さないよう、ここから再exportする。
-export { buildRosterIndex, resolveDisplayName };
+export { buildRosterIndex, logicalNamesTitle, resolveDisplayName };
 export type { EventPresentation, EventSeverity, RosterIndex };
 
 // 新しいtypeはいずれか1つのカテゴリだけへ追加する。カテゴリを増やすときも必ず
@@ -65,7 +68,15 @@ function genericFallback(event: BattleLogEventResponse, roster: RosterIndex): Ev
   };
 }
 
-export function formatEvent(event: BattleLogEventResponse, roster: RosterIndex): EventPresentation {
+/**
+ * `labeler`はスキル・効果の表示名の解決に使う。戦闘全体のイベント列から作ったものを渡す
+ * —— 失効イベント等は、同じインスタンスの付与イベントから付与元スキルを引くため。
+ */
+export function formatEvent(
+  event: BattleLogEventResponse,
+  roster: RosterIndex,
+  labeler?: EffectLabeler,
+): EventPresentation {
   const formatter = eventFormatters[event.type];
-  return formatter?.(event, roster) ?? genericFallback(event, roster);
+  return formatter?.(event, roster, labelerFor(roster, labeler)) ?? genericFallback(event, roster);
 }

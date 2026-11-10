@@ -133,4 +133,25 @@ describe("CandidateComparison", () => {
     expect(candidateRows()).toHaveLength(1);
     expect(screen.queryByText(/次点との差/)).toBeNull();
   });
+
+  it("UI-CT-204: 内訳の効果を表示名で表し、論理名をツールチップでだけ読める", () => {
+    render(
+      <CandidateComparison
+        comparison={comparison()}
+        roster={roster}
+        effectLabelOf={(holderUnitId, effectActionDefinitionId) =>
+          holderUnitId === "ally:1" && effectActionDefinitionId === "ACT_KOTOHA_REBEL_AS2_ATK_UP"
+            ? "コトハ-AS2-攻撃力+20%"
+            : effectActionDefinitionId
+        }
+      />,
+    );
+
+    const chosenRow = candidateRows()[0]!;
+    expect(chosenRow).not.toHaveTextContent("ACT_KOTOHA_REBEL_AS2_ATK_UP");
+    expect(within(chosenRow).getByText("コトハ-AS2-攻撃力+20% +3,914")).toHaveAttribute(
+      "title",
+      "ACT_KOTOHA_REBEL_AS2_ATK_UP",
+    );
+  });
 });

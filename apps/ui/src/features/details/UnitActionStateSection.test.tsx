@@ -468,4 +468,111 @@ describe("UnitActionStateSection", () => {
     expect(screen.getByText(/シールド.*不明/)).toBeInTheDocument();
     expect(screen.getByText(/サブユニット.*不明/)).toBeInTheDocument();
   });
+
+  it("UI-CT-200: クールタイム・チャージ・効果をスキル・効果の表示名で表し、論理名をツールチップでだけ読める", () => {
+    const catalog: BattleSimulationCatalogResponse = {
+      ...catalogWith([
+        {
+          unitDefinitionId: "UNIT_A",
+          displayName: "【約束】エー",
+          characterName: "エー",
+          attribute: "CUTE",
+          unitType: "HUMANOID",
+          role: "PHYSICAL_ATTACKER",
+          positionAptitudes: ["FRONT"],
+        },
+      ]),
+      skills: [
+        {
+          skillDefinitionId: "SKL_A_AS1",
+          displayName: "スキル",
+          skillType: "AS",
+          slotLabel: "AS1",
+        },
+        {
+          skillDefinitionId: "SKL_A_AS2",
+          displayName: "スキル",
+          skillType: "AS",
+          slotLabel: "AS2",
+        },
+      ],
+      effects: [
+        {
+          effectActionDefinitionId: "ACT_ATTACK_UP",
+          kind: "APPLY_STAT_MOD",
+          stat: "ATTACK",
+          valueType: "RATIO",
+          constantMagnitude: 0.1,
+        },
+      ],
+    };
+    const event = (
+      sequence: number,
+      type: string,
+      details: Record<string, unknown>,
+      skillUseId?: string,
+    ) => ({
+      sequence,
+      type,
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 1,
+      rootSequence: sequence,
+      sourceUnitId: "ally:1",
+      targetUnitIds: [],
+      ...(skillUseId !== undefined ? { skillUseId } : {}),
+      details,
+      stateVersionBefore: 0,
+      stateVersionAfter: 0,
+    });
+    const response = responseWith({
+      units: [
+        {
+          battleUnitId: "ally:1",
+          unitDefinitionId: "UNIT_A",
+          side: "ALLY",
+          cooldowns: [{ skillDefinitionId: "SKL_A_AS1", unit: "TURN", remaining: 2 }],
+          charge: { skillDefinitionId: "SKL_A_AS2" },
+          effects: [
+            {
+              effectInstanceId: "battle-1:effect:1",
+              effectDefinitionId: "ACT_ATTACK_UP",
+              sourceUnitId: "ally:1",
+              category: "BUFF",
+              effectKindKey: "ACT_ATTACK_UP",
+              stackMode: "NON_STACKING",
+              isEffective: true,
+              value: {},
+              appliedTurnNumber: 1,
+            },
+          ],
+        },
+      ],
+      events: [
+        event(1, "SKILL_USE_STARTED", { skillDefinitionId: "SKL_A_AS1" }, "su-1"),
+        event(
+          2,
+          "EFFECT_APPLIED",
+          {
+            effectInstanceId: "battle-1:effect:1",
+            effectActionDefinitionId: "ACT_ATTACK_UP",
+            targetUnitId: "ally:1",
+            magnitude: 0.2,
+            duplicate: false,
+          },
+          "su-1",
+        ),
+      ],
+    });
+
+    render(<UnitActionStateSection response={response} logLevel="DETAILED" catalog={catalog} />);
+
+    expect(screen.getByText("【約束】エー-AS1: 残り2")).toHaveAttribute("title", "SKL_A_AS1");
+    expect(screen.getByText("チャージ中: 【約束】エー-AS2")).toHaveAttribute("title", "SKL_A_AS2");
+    expect(screen.getByText(/【約束】エー-AS1-攻撃力\+20%/)).toHaveAttribute(
+      "title",
+      "ACT_ATTACK_UP",
+    );
+    expect(screen.queryByText(/SKL_A_AS|ACT_ATTACK_UP/)).not.toBeInTheDocument();
+  });
 });
