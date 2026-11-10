@@ -403,6 +403,26 @@ function buildCatalogResult(): BattleSimulationCatalogResult {
         displayName: "UI Fixture Memory",
       },
     ],
+    skills: [
+      {
+        skillDefinitionId: STRIKER_SKILL_ID,
+        displayName: "UI Fixture Strike",
+        skillType: "AS",
+        ownerUnitDefinitionId: "UNIT_UI_FIXTURE_ALLY",
+        slotLabel: "AS1",
+      },
+    ],
+    effects: [
+      { effectActionDefinitionId: STRIKER_EFFECT_ACTION_ID, kind: "DAMAGE" },
+      // 分類項目と`constantMagnitude`を持つ要約の表現（戦闘fixtureは付与しない）。
+      {
+        effectActionDefinitionId: "ACT_UI_FIXTURE_ATK_UP",
+        kind: "APPLY_STAT_MOD",
+        stat: "ATTACK",
+        valueType: "RATIO",
+        constantMagnitude: 0.05,
+      },
+    ],
   } as unknown as BattleSimulationCatalogResult;
 }
 

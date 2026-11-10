@@ -40,5 +40,28 @@ export function toBattleSimulationCatalogResponseBody(
         percentagePoints: value.percentagePoints,
       })),
     })),
+    // 任意項目は値を持つときだけ載せる（`additionalProperties: false`の公開schemaに
+    // `undefined`キーを残さない）。
+    skills: result.skills.map((skill) => ({
+      skillDefinitionId: skill.skillDefinitionId,
+      displayName: skill.displayName,
+      skillType: skill.skillType,
+      ...(skill.ownerUnitDefinitionId === undefined
+        ? {}
+        : { ownerUnitDefinitionId: skill.ownerUnitDefinitionId }),
+      ...(skill.slotLabel === undefined ? {} : { slotLabel: skill.slotLabel }),
+    })),
+    effects: result.effects.map((effect) => ({
+      effectActionDefinitionId: effect.effectActionDefinitionId,
+      kind: effect.kind,
+      ...(effect.stat === undefined ? {} : { stat: effect.stat }),
+      ...(effect.valueType === undefined ? {} : { valueType: effect.valueType }),
+      ...(effect.direction === undefined ? {} : { direction: effect.direction }),
+      ...(effect.damageType === undefined ? {} : { damageType: effect.damageType }),
+      ...(effect.status === undefined ? {} : { status: effect.status }),
+      ...(effect.constantMagnitude === undefined
+        ? {}
+        : { constantMagnitude: effect.constantMagnitude }),
+    })),
   };
 }

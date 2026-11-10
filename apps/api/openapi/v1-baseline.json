@@ -44188,7 +44188,9 @@
                     "catalogRevision",
                     "units",
                     "memories",
-                    "gearEffects"
+                    "gearEffects",
+                    "skills",
+                    "effects"
                   ],
                   "properties": {
                     "schemaVersion": {
@@ -44296,6 +44298,65 @@
                                 }
                               }
                             }
+                          }
+                        }
+                      }
+                    },
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["skillDefinitionId", "displayName", "skillType"],
+                        "properties": {
+                          "skillDefinitionId": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "skillType": {
+                            "type": "string"
+                          },
+                          "ownerUnitDefinitionId": {
+                            "type": "string"
+                          },
+                          "slotLabel": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "effects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["effectActionDefinitionId", "kind"],
+                        "properties": {
+                          "effectActionDefinitionId": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "stat": {
+                            "type": "string"
+                          },
+                          "valueType": {
+                            "type": "string"
+                          },
+                          "direction": {
+                            "type": "string"
+                          },
+                          "damageType": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "constantMagnitude": {
+                            "type": "number"
                           }
                         }
                       }

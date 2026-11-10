@@ -11,6 +11,8 @@ function result(
     units: [],
     memories: [],
     gearEffects: buildGearEffects(),
+    skills: [],
+    effects: [],
     representationRevision: "rev-1+gear.0000000000000000",
     ...overrides,
   };
@@ -81,7 +83,15 @@ describe("toBattleSimulationCatalogResponseBody", () => {
     const body = toBattleSimulationCatalogResponseBody(result());
 
     expect(Object.keys(body).sort()).toEqual(
-      ["schemaVersion", "catalogRevision", "units", "memories", "gearEffects"].sort(),
+      [
+        "schemaVersion",
+        "catalogRevision",
+        "units",
+        "memories",
+        "gearEffects",
+        "skills",
+        "effects",
+      ].sort(),
     );
   });
 
@@ -103,5 +113,79 @@ describe("toBattleSimulationCatalogResponseBody", () => {
         displayName: "心の色",
       },
     ]);
+  });
+
+  it("UT-CATALOG-LABEL-006 (10_API設計.md「CatalogSkillSummaryResponse」): maps every Skill summary field and keeps owner/slot absent when the summary has none", () => {
+    const body = toBattleSimulationCatalogResponseBody(
+      result({
+        skills: [
+          {
+            skillDefinitionId: "SKL_JUNKA_CHILDHOOD_PS1",
+            displayName: "まじ本気だすぞー！！",
+            skillType: "PS",
+            ownerUnitDefinitionId: "UNIT_JUNKA_CHILDHOOD",
+            slotLabel: "PS1",
+          },
+          { skillDefinitionId: "SKL_ORPHAN", displayName: "孤立", skillType: "AS" },
+        ] as unknown as BattleSimulationCatalogResult["skills"],
+      }),
+    );
+
+    expect(body.skills).toEqual([
+      {
+        skillDefinitionId: "SKL_JUNKA_CHILDHOOD_PS1",
+        displayName: "まじ本気だすぞー！！",
+        skillType: "PS",
+        ownerUnitDefinitionId: "UNIT_JUNKA_CHILDHOOD",
+        slotLabel: "PS1",
+      },
+      { skillDefinitionId: "SKL_ORPHAN", displayName: "孤立", skillType: "AS" },
+    ]);
+    expect("slotLabel" in (body.skills[1] ?? {})).toBe(false);
+  });
+
+  it("UT-CATALOG-LABEL-007 (10_API設計.md「CatalogEffectSummaryResponse」): maps every EffectAction summary field and keeps undeclared classification fields absent", () => {
+    const body = toBattleSimulationCatalogResponseBody(
+      result({
+        effects: [
+          {
+            effectActionDefinitionId: "ACT_DMG_MOD",
+            kind: "APPLY_DAMAGE_MOD",
+            direction: "INCOMING",
+            damageType: "EN",
+            constantMagnitude: -0.3,
+          },
+          {
+            effectActionDefinitionId: "ACT_STAT",
+            kind: "APPLY_STAT_MOD",
+            stat: "ATTACK",
+            valueType: "RATIO",
+            constantMagnitude: 0.05,
+          },
+          { effectActionDefinitionId: "ACT_STATUS", kind: "APPLY_STATUS", status: "STUN" },
+          { effectActionDefinitionId: "ACT_DAMAGE", kind: "DAMAGE" },
+        ] as unknown as BattleSimulationCatalogResult["effects"],
+      }),
+    );
+
+    expect(body.effects).toEqual([
+      {
+        effectActionDefinitionId: "ACT_DMG_MOD",
+        kind: "APPLY_DAMAGE_MOD",
+        direction: "INCOMING",
+        damageType: "EN",
+        constantMagnitude: -0.3,
+      },
+      {
+        effectActionDefinitionId: "ACT_STAT",
+        kind: "APPLY_STAT_MOD",
+        stat: "ATTACK",
+        valueType: "RATIO",
+        constantMagnitude: 0.05,
+      },
+      { effectActionDefinitionId: "ACT_STATUS", kind: "APPLY_STATUS", status: "STUN" },
+      { effectActionDefinitionId: "ACT_DAMAGE", kind: "DAMAGE" },
+    ]);
+    expect(Object.keys(body.effects[3] ?? {}).sort()).toEqual(["effectActionDefinitionId", "kind"]);
   });
 });

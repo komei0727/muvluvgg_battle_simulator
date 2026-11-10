@@ -32,6 +32,8 @@ const CATALOG_USE_CASE: GetBattleSimulationCatalogUseCasePort = {
     units: [],
     memories: [],
     gearEffects: [],
+    skills: [],
+    effects: [],
   }),
 };
 

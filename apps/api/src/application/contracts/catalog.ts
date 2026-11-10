@@ -47,6 +47,33 @@ export interface CatalogGearEffectResponseBody {
   readonly values: readonly CatalogGearEffectValueResponseBody[];
 }
 
+/**
+ * `10_API設計.md`「CatalogSkillSummaryResponse」。`ownerUnitDefinitionId`/`slotLabel`は
+ * 宣言ユニットがちょうど1体のスキルだけが持つ。
+ */
+export interface CatalogSkillSummaryResponseBody {
+  readonly skillDefinitionId: string;
+  readonly displayName: string;
+  readonly skillType: string;
+  readonly ownerUnitDefinitionId?: string;
+  readonly slotLabel?: string;
+}
+
+/**
+ * `10_API設計.md`「CatalogEffectSummaryResponse」。分類項目はそのkindが宣言する
+ * ものだけを持ち、`constantMagnitude`は`formula`が`CONSTANT`のときだけ持つ。
+ */
+export interface CatalogEffectSummaryResponseBody {
+  readonly effectActionDefinitionId: string;
+  readonly kind: string;
+  readonly stat?: string;
+  readonly valueType?: string;
+  readonly direction?: string;
+  readonly damageType?: string;
+  readonly status?: string;
+  readonly constantMagnitude?: number;
+}
+
 /** `10_API設計.md`「BattleSimulationCatalogResponse」。 */
 export interface BattleSimulationCatalogResponseBody {
   readonly schemaVersion: number;
@@ -54,4 +81,6 @@ export interface BattleSimulationCatalogResponseBody {
   readonly units: readonly CatalogUnitSummaryResponseBody[];
   readonly memories: readonly CatalogMemorySummaryResponseBody[];
   readonly gearEffects: readonly CatalogGearEffectResponseBody[];
+  readonly skills: readonly CatalogSkillSummaryResponseBody[];
+  readonly effects: readonly CatalogEffectSummaryResponseBody[];
 }

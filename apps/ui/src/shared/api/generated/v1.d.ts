@@ -13216,6 +13216,23 @@ export interface paths {
                   percentagePoints: number;
                 }[];
               }[];
+              skills: {
+                skillDefinitionId: string;
+                displayName: string;
+                skillType: string;
+                ownerUnitDefinitionId?: string;
+                slotLabel?: string;
+              }[];
+              effects: {
+                effectActionDefinitionId: string;
+                kind: string;
+                stat?: string;
+                valueType?: string;
+                direction?: string;
+                damageType?: string;
+                status?: string;
+                constantMagnitude?: number;
+              }[];
             };
           };
         };

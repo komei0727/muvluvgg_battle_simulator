@@ -25,6 +25,32 @@ interface BattleSimulationCatalogResponse {
   readonly memories: readonly CatalogMemorySummary[];
   // 効果表を公開しない旧APIと組み合わせても壊さないため任意項目として扱う。
   readonly gearEffects?: readonly CatalogGearEffect[];
+  // 戦闘ログの定義IDを表示名へ読み替える要約。`gearEffects`と同じ理由で任意項目として扱う。
+  readonly skills?: readonly CatalogSkillSummary[];
+  readonly effects?: readonly CatalogEffectSummary[];
+}
+
+interface CatalogSkillSummary {
+  readonly skillDefinitionId: string;
+  readonly displayName: string;
+  readonly skillType: string;
+  /** 宣言ユニットがちょうど1体のスキルだけが持つ。 */
+  readonly ownerUnitDefinitionId?: string;
+  /** `AS1`／`AS2`／`PS1`〜／`EX`。`ownerUnitDefinitionId`と同時に現れる。 */
+  readonly slotLabel?: string;
+}
+
+interface CatalogEffectSummary {
+  readonly effectActionDefinitionId: string;
+  readonly kind: string;
+  /** 以下はkindが宣言するものだけが現れる。 */
+  readonly stat?: string;
+  readonly valueType?: string;
+  readonly direction?: string;
+  readonly damageType?: string;
+  readonly status?: string;
+  /** `formula`が`CONSTANT`のときだけ現れる。`EffectApplied.magnitude`と同じ尺度。 */
+  readonly constantMagnitude?: number;
 }
 
 interface CatalogGearEffect {
@@ -64,8 +90,9 @@ interface CatalogMemorySummary {
 - Unit/Memory配列はdefinition ID昇順とし、UI側の表示sortに依存しない安定順を持つ。
 - `gearEffects`はギア選択肢の上昇値表示（`01_UI要求・画面設計.md` §5.7）にだけ使う。UIは値を再計算せず、効果表も換算式も持たない。
 - `category`と`exerciseActive`は`gearEffects`と同じく任意項目として扱う。この2項目を返さない旧APIと組み合わせても壊さず、`category`不在は`PLAYABLE`として扱う。届いた場合の型違反は編成プールの判定を誤らせるため契約違反とする（§8）。
+- `skills`と`effects`は戦闘結果の表示で定義IDを表示名へ読み替えるためにだけ使う。`gearEffects`と同じく任意項目として扱い、不在（旧API）や未解決の定義IDは定義IDのまま表示する。
 - 画像URLはAPI契約に含めない。UIはdefinition IDに対応する任意のローカル画像mapを重ね、なければfallbackを使う。
-- Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。
+- Skill、EffectAction、Formula、Condition、triggeredEffectsの内容を返さない。Skill・EffectActionは上記の表示用要約だけが届く。
 - pagination、検索query、availability filterは初期契約に設けない。
 
 ### 2.2 戦闘シミュレーション
@@ -665,6 +692,7 @@ type FormationStatPreviewApiResult =
 - 各定義IDが空でなく、配列内で重複しない
 - `displayName`と分類値が契約shapeを満たす
 - `gearEffects`は不在を許容する。届いた場合は各項目が`stat`・`application`・`values`を持ち、各値が`tier`・`grade`・有限数の`percentagePoints`を持つ
+- `skills`・`effects`は不在を許容する。届いた場合は各要約の定義ID・`displayName`／`kind`・`skillType`が空でないstring、任意の分類項目が空でないstring、`constantMagnitude`が有限数である
 - `category`・`exerciseActive`は不在を許容する。届いた場合は`category`が空でないstring、`exerciseActive`がbooleanである
 
 契約違反時は編成を有効にせず `RESPONSE_CONTRACT_MISMATCH`を表示する。UIがCatalogファイルから欠損値を補完しない。

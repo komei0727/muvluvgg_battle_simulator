@@ -29,6 +29,11 @@ type GeneratedCatalogResponse = DeepReadonly<
 type GeneratedCatalogUnitSummary = GeneratedCatalogResponse["units"][number];
 type GeneratedCatalogGearEffect = GeneratedCatalogResponse["gearEffects"][number];
 
+// docs/ddd/10_API設計.md「CatalogSkillSummaryResponse」「CatalogEffectSummaryResponse」。
+// 戦闘ログの定義IDを表示名へ読み替えるための要約。
+export type CatalogSkillSummary = GeneratedCatalogResponse["skills"][number];
+export type CatalogEffectSummary = GeneratedCatalogResponse["effects"][number];
+
 export type CatalogUnitSummary = Omit<
   GeneratedCatalogUnitSummary,
   "category" | "exerciseActive"
@@ -58,11 +63,15 @@ export type CatalogGearEffect = GeneratedCatalogGearEffect;
 
 export interface BattleSimulationCatalogResponse extends Omit<
   GeneratedCatalogResponse,
-  "units" | "gearEffects"
+  "units" | "gearEffects" | "skills" | "effects"
 > {
   readonly units: readonly CatalogUnitSummary[];
   /** 効果表を公開しない旧APIと組み合わせても壊さないため任意項目にする（生成型は必須）。 */
   readonly gearEffects?: readonly CatalogGearEffect[];
+  /** `gearEffects`と同じ理由で任意項目にする（生成型は必須）。不在時は定義IDで表示する。 */
+  readonly skills?: readonly CatalogSkillSummary[];
+  /** `gearEffects`と同じ理由で任意項目にする（生成型は必須）。不在時は定義IDで表示する。 */
+  readonly effects?: readonly CatalogEffectSummary[];
 }
 
 export interface ViolationResponseBody {

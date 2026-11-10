@@ -209,7 +209,7 @@ GET /health/ready
 
 `Cache-Control: no-store`は戦闘シミュレーションPOSTとエラーレスポンスへ適用する。Catalog一覧GETの200応答は不変のrepresentation版をETagとして使い、`Cache-Control: private, max-age=300` を返す。`public` にしないのは、`Authorization` 付きrequestへの応答を共有キャッシュへ保存させないためである（RFC 9111 §3.5は `public` が付くと共有キャッシュでの保存を許す）。browser自身のcacheとETag再検証は `private` でも従来どおり働く。`If-None-Match`が現在のETagと一致する場合は本文なしの304を返す。Catalog更新は新しいapplication deploymentであり、同一revisionの内容を稼働中に変更しない。
 
-ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfingerprintの両方から導出する。効果表はCatalog定義ファイルではなくコード定数であり `catalogRevision` に紐づかないため、`catalogRevision` だけを導出元にすると、効果表だけを変更したデプロイでETagが変わらず、クライアントが古い表を304で保持し続ける。ETagは不透明な文字列であり、導出元を増やしてもクライアント契約（比較して一致するかだけを見る）は変わらない。
+ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfingerprintと、一覧の射影版（`CATALOG_PROJECTION_VERSION`）から導出する。効果表はCatalog定義ファイルではなくコード定数であり `catalogRevision` に紐づかないため、`catalogRevision` だけを導出元にすると、効果表だけを変更したデプロイでETagが変わらず、クライアントが古い表を304で保持し続ける。射影版も同じ理由で含める——`skills`／`effects` の追加のように、Catalogファイルが同じでもレスポンスに載せる項目を変えたデプロイでは本文が変わるため、射影を変えたら版を上げる。ETagは不透明な文字列であり、導出元を増やしてもクライアント契約（比較して一致するかだけを見る）は変わらない。
 
 ## 戦闘シミュレーション用Catalogレスポンス
 
@@ -253,19 +253,39 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
         { "tier": "III", "grade": "S", "percentagePoints": 7 }
       ]
     }
+  ],
+  "skills": [
+    {
+      "skillDefinitionId": "SKL_JUNKA_CHILDHOOD_PS1",
+      "displayName": "まじ本気だすぞー！！",
+      "skillType": "PS",
+      "ownerUnitDefinitionId": "UNIT_JUNKA_CHILDHOOD",
+      "slotLabel": "PS1"
+    }
+  ],
+  "effects": [
+    {
+      "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_PS1_ATK_UP_SELF",
+      "kind": "APPLY_STAT_MOD",
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "constantMagnitude": 0.05
+    }
   ]
 }
 ```
 
 ### BattleSimulationCatalogResponse
 
-| プロパティ        | 型                               | 説明                                     |
-| ----------------- | -------------------------------- | ---------------------------------------- |
-| `schemaVersion`   | integer                          | response schema版。初期値1。             |
-| `catalogRevision` | string                           | 一覧と戦闘事前検証が使用するCatalog版。  |
-| `units`           | `CatalogUnitSummaryResponse[]`   | 全Unit。`unitDefinitionId`昇順。         |
-| `memories`        | `CatalogMemorySummaryResponse[]` | 全Memory。`memoryDefinitionId`昇順。     |
-| `gearEffects`     | `CatalogGearEffectResponse[]`    | R-ENH-04 #3のギア効果表。7ステータス分。 |
+| プロパティ        | 型                               | 説明                                                         |
+| ----------------- | -------------------------------- | ------------------------------------------------------------ |
+| `schemaVersion`   | integer                          | response schema版。初期値1。                                 |
+| `catalogRevision` | string                           | 一覧と戦闘事前検証が使用するCatalog版。                      |
+| `units`           | `CatalogUnitSummaryResponse[]`   | 全Unit。`unitDefinitionId`昇順。                             |
+| `memories`        | `CatalogMemorySummaryResponse[]` | 全Memory。`memoryDefinitionId`昇順。                         |
+| `gearEffects`     | `CatalogGearEffectResponse[]`    | R-ENH-04 #3のギア効果表。7ステータス分。                     |
+| `skills`          | `CatalogSkillSummaryResponse[]`  | 全Skillの表示用要約。`skillDefinitionId`昇順。               |
+| `effects`         | `CatalogEffectSummaryResponse[]` | 全EffectActionの表示用要約。`effectActionDefinitionId`昇順。 |
 
 ### CatalogUnitSummaryResponse
 
@@ -287,6 +307,37 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 | -------------------- | ------ | ---- | -------------------------- |
 | `memoryDefinitionId` | string | 必須 | 不透明なMemory定義ID。     |
 | `displayName`        | string | 必須 | Catalog metadataの表示名。 |
+
+### CatalogSkillSummaryResponse
+
+戦闘ログの `skillDefinitionId` を「どのユニットのどの枠のスキルか」へ読み替えるための表示用要約。コスト・発動条件・解決手順は公開しない。
+
+| プロパティ              | 型     | 必須 | 説明                                                                                                                                                                                |
+| ----------------------- | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `skillDefinitionId`     | string | 必須 | 不透明なSkill定義ID。                                                                                                                                                               |
+| `displayName`           | string | 必須 | Catalog metadataのスキル名。                                                                                                                                                        |
+| `skillType`             | string | 必須 | `AS`、`PS`、`EX`。未知の将来値を許容する。                                                                                                                                          |
+| `ownerUnitDefinitionId` | string | 任意 | このスキルを宣言しているUnit定義ID。宣言Unitがちょうど1体のときだけ現れる。                                                                                                         |
+| `slotLabel`             | string | 任意 | 宣言Unit内の枠。`activeSkillDefinitionIds`／`passiveSkillDefinitionIds`の並び順（1始まり）で`AS1`・`PS2`等、`extraSkillDefinitionId`は`EX`。`ownerUnitDefinitionId`と同時に現れる。 |
+
+宣言Unitが0体・複数体のスキルは枠を1つに決められないため、`ownerUnitDefinitionId`／`slotLabel`を省略する。
+
+### CatalogEffectSummaryResponse
+
+戦闘ログの `effectActionDefinitionId` を「何をどれだけ変える効果か」へ読み替えるための表示用要約。分類項目はそのkindが宣言するものだけが現れ、いずれも未知の将来値を許容する。
+
+| プロパティ                 | 型     | 必須 | 説明                                                                                                         |
+| -------------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------ |
+| `effectActionDefinitionId` | string | 必須 | 不透明なEffectAction定義ID。                                                                                 |
+| `kind`                     | string | 必須 | EffectActionの種別（`APPLY_STAT_MOD`等）。                                                                   |
+| `stat`                     | string | 任意 | `APPLY_STAT_MOD`の対象ステータス。                                                                           |
+| `valueType`                | string | 任意 | `APPLY_STAT_MOD`の`RATIO`（割合）／`FIXED`（固定値）。                                                       |
+| `direction`                | string | 任意 | `APPLY_DAMAGE_MOD`の`OUTGOING`（与ダメージ）／`INCOMING`（被ダメージ）。                                     |
+| `damageType`               | string | 任意 | `APPLY_DAMAGE_MOD`の対象ダメージ種別。全種別に効く補正では現れない。                                         |
+| `status`                   | string | 任意 | `APPLY_STATUS`の状態種別。                                                                                   |
+| `constantMagnitude`        | number | 任意 | `APPLY_STAT_MOD`／`APPLY_DAMAGE_MOD`の`formula`が`CONSTANT`のときの値。`EffectApplied.magnitude`と同じ尺度。 |
+
+`formula`が`CONSTANT`以外の効果は付与ごとに量が変わるため `constantMagnitude` を持たない。付与された量は戦闘ログの `EffectApplied.magnitude` が持つ。
 
 ### CatalogGearEffectResponse
 
@@ -310,7 +361,7 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 一覧APIは次を公開しない。
 
-- Skill、EffectAction、Formula、Condition、triggeredEffectsの完全定義
+- Skill、EffectAction、Formula、Condition、triggeredEffectsの完全定義（Skill・EffectActionは `CatalogSkillSummaryResponse`／`CatalogEffectSummaryResponse` の表示用要約だけを公開する）
 - Catalogファイルパス、hash、manifest全文
 - 画像URL。初期版はUIの任意アセットmapで解決する。
 
