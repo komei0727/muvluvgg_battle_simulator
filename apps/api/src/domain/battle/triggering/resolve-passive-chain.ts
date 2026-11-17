@@ -25,6 +25,7 @@ import {
   peekTop,
   popTop,
   pushCandidateGroups,
+  resolvesMemoryCandidatesFirst,
   withTopCandidates,
   withTopMemoryCandidates,
   type PassiveResolutionStack,
@@ -580,10 +581,18 @@ function resolveTopGroup(
   if (top === undefined) {
     return undefined;
   }
+  if (resolvesMemoryCandidatesFirst(top) && top.memoryCandidates.length > 0) {
+    // R-MEM-02 #3: Memory候補を使い切ってからPS候補へ進む。PS候補の再確認
+    // （R-PS-04）と対象選択は、Memoryの効果を反映した状態で行われる。
+    const violation = resolveTopMemoryGroup(state, deps);
+    if (violation !== undefined) {
+      return violation;
+    }
+    return resolveTopGroup(state, deps);
+  }
   const [next, ...restCandidates] = top.candidates;
   if (next === undefined) {
-    // R-MEM-02「同じイベントでPS候補とMemory候補が両方存在する場合、PS候補を先に
-    // 解決し、その後Memory候補を解決する」: PS候補を使い切ってからMemory候補へ進む。
+    // R-MEM-02: PS候補が先のイベントでは、PS候補を使い切ってからMemory候補へ進む。
     return resolveTopMemoryGroup(state, deps);
   }
   state.stack = withTopCandidates(state.stack, restCandidates);
@@ -624,7 +633,8 @@ function resolveTopGroup(
  * すること）だけを`deps.reconfirmMemoryCandidate`で確認する。1件のMemory解決から
  * 生じたイベントは`driveSteps`（PSと共通）が処理するため、その効果処理中に生じた
  * 候補グループはそのMemory発動自身の保留キューへ入り、`MemoryResolved`の後・
- * 未処理の親Memory候補より前に解決される（R-MEM-02の後半、`R-ATM-02`と同じ規約）。
+ * 未処理の親Memory候補（Memory先のイベントでは親PS候補も）より前に解決される
+ * （R-MEM-02の後半、`R-ATM-02`と同じ規約）。
  */
 function resolveTopMemoryGroup(
   state: ChainState,

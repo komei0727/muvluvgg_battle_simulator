@@ -13,14 +13,24 @@ export interface PassiveResolutionStackEntry {
   readonly event: TriggerCandidateEvent;
   readonly candidates: PassiveCandidateGroup;
   /**
-   * R-MEM-02「同じイベントでPS候補とMemory候補が両方存在する場合、PS候補を先に
-   * 解決し、その後Memory候補を解決する」: 同じイベントの候補グループはPS候補と
-   * Memory候補を1つのエントリとして保持し、`candidates`（PS）を使い切ってから
-   * `memoryCandidates`を先頭から処理する。PS解決中に新しいイベントが生じた場合は
-   * 新しいエントリがスタック先頭へ積まれるため（R-PS-06）、その中のMemory候補は
-   * 「現在のPS候補グループより後、未処理の親Memory候補より前」に自然と解決される。
+   * R-MEM-02: 同じイベントの候補グループはPS候補とMemory候補を1つのエントリとして
+   * 保持し、一方を使い切ってからもう一方を先頭から処理する。どちらを先にするかは
+   * `resolvesMemoryCandidatesFirst`だけが決める。解決中に新しいイベントが生じた場合は
+   * 新しいエントリがスタック先頭へ積まれるため（R-PS-06）、その中の候補は
+   * 「現在の候補より後、このエントリの未処理の候補より前」に自然と解決される。
    */
   readonly memoryCandidates: MemoryCandidateGroup;
+}
+
+/**
+ * R-MEM-02 #3: 戦闘開始時・ターン開始時はMemory候補をPS候補より先に解決する
+ * （実機の発動順が「戦闘開始時Memory → 戦闘開始時PS → ターン開始時Memory →
+ * ターン開始時PS」であるため）。それ以外のイベントはPS候補が先。
+ */
+const MEMORY_FIRST_EVENT_TYPES: ReadonlySet<string> = new Set(["BattleStarted", "TurnStarted"]);
+
+export function resolvesMemoryCandidatesFirst(entry: PassiveResolutionStackEntry): boolean {
+  return MEMORY_FIRST_EVENT_TYPES.has(entry.event.eventType);
 }
 
 export type PassiveResolutionStack = readonly PassiveResolutionStackEntry[];

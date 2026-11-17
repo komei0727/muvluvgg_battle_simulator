@@ -1223,6 +1223,105 @@ describe("resolvePassiveChain", () => {
     expect(order).toEqual(["SKL_A", "MEM_NESTED", "MEM_PARENT"]);
   });
 
+  it.each(["BattleStarted", "TurnStarted"])(
+    "UT-R-MEM-02-006: resolves every Memory candidate of %s before its PS candidates",
+    (eventType) => {
+      const unitA = unit("A");
+      const candA = candidateOf(unitA, skillOf("SKL_A"));
+      const memoryA = memoryCandidateOf("MEM_A", 0);
+      const memoryB = memoryCandidateOf("MEM_B", 1);
+
+      const order: string[] = [];
+      const rootEvent = event(eventType);
+
+      const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+        detectCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [candA] : []),
+        detectMemoryCandidates: (evt) =>
+          evt.eventType === rootEvent.eventType ? [memoryA, memoryB] : [],
+        getCurrentUnit: () => unitA,
+        activate: function* (candidate) {
+          order.push(candidate.skillDefinition.skillDefinitionId);
+          yield resolvedStep();
+          return DONE;
+        },
+        activateMemory: (candidate) => {
+          order.push(candidate.memoryDefinitionId);
+          return completedActivation(DONE);
+        },
+        limits: GENEROUS_LIMITS,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(order).toEqual(["MEM_A", "MEM_B", "SKL_A"]);
+    },
+  );
+
+  it("UT-R-MEM-02-007: resolves a PS raised by a Memory of TurnStarted before the next Memory and the event's own PS", () => {
+    const unitA = unit("A");
+    const ownPs = candidateOf(unitA, skillOf("SKL_OWN"));
+    const nestedPs = candidateOf(unitA, skillOf("SKL_NESTED"));
+    const memoryA = memoryCandidateOf("MEM_A", 0);
+    const memoryB = memoryCandidateOf("MEM_B", 1);
+
+    const order: string[] = [];
+    const rootEvent = event("TurnStarted");
+    const eventFromMemoryA = event("FROM_MEM_A");
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => {
+        if (evt.eventType === rootEvent.eventType) {
+          return [ownPs];
+        }
+        return evt.eventType === eventFromMemoryA.eventType ? [nestedPs] : [];
+      },
+      detectMemoryCandidates: (evt) =>
+        evt.eventType === rootEvent.eventType ? [memoryA, memoryB] : [],
+      getCurrentUnit: () => unitA,
+      activate: function* (candidate) {
+        order.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        return DONE;
+      },
+      activateMemory: function* (candidate) {
+        order.push(candidate.memoryDefinitionId);
+        yield resolvedStep(candidate.memoryDefinitionId === "MEM_A" ? [eventFromMemoryA] : []);
+        return DONE;
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(["MEM_A", "SKL_NESTED", "MEM_B", "SKL_OWN"]);
+  });
+
+  it("UT-R-MEM-02-008: keeps resolving PS candidates first for an event other than BattleStarted/TurnStarted", () => {
+    const unitA = unit("A");
+    const candA = candidateOf(unitA, skillOf("SKL_A"));
+    const memoryA = memoryCandidateOf("MEM_A", 0);
+
+    const order: string[] = [];
+    const rootEvent = event("TurnCompleting");
+
+    const result = resolvePassiveChain(rootEvent, createEmptyPassiveActivationGuard(), {
+      detectCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [candA] : []),
+      detectMemoryCandidates: (evt) => (evt.eventType === rootEvent.eventType ? [memoryA] : []),
+      getCurrentUnit: () => unitA,
+      activate: function* (candidate) {
+        order.push(candidate.skillDefinition.skillDefinitionId);
+        yield resolvedStep();
+        return DONE;
+      },
+      activateMemory: (candidate) => {
+        order.push(candidate.memoryDefinitionId);
+        return completedActivation(DONE);
+      },
+      limits: GENEROUS_LIMITS,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(["SKL_A", "MEM_A"]);
+  });
+
   it("UT-R-MEM-01-007: skips a Memory candidate whose trigger condition no longer holds at activation time", () => {
     const unitA = unit("A");
     const stale = memoryCandidateOf("MEM_STALE", 0);
