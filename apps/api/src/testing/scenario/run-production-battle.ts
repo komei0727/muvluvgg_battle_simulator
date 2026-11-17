@@ -5,7 +5,10 @@ import type { SimulateBattleResult } from "../../application/simulation/simulati
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import { SimulateTacticalExerciseUseCase } from "../../application/simulation/simulate-tactical-exercise-use-case.js";
-import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createMemoryDefinitionId,
+  createUnitDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { RandomSourceFactory } from "../../domain/ports/random-source-factory.js";
 import {
@@ -117,7 +120,10 @@ export function runProductionUnitBattle(
 }
 
 /** 6スロット（前列3・後列3）を左から詰めて割り当てる。 */
-function partySlots(unitDefinitionIds: readonly string[]): SimulateBattleCommand["allyFormation"] {
+function partySlots(
+  unitDefinitionIds: readonly string[],
+  memoryDefinitionIds: readonly string[] = [],
+): SimulateBattleCommand["allyFormation"] {
   const columns = [0, 1, 2] as const;
   return {
     slots: unitDefinitionIds.map((id, index) => ({
@@ -127,7 +133,7 @@ function partySlots(unitDefinitionIds: readonly string[]): SimulateBattleCommand
         row: index < 3 ? ("FRONT" as const) : ("REAR" as const),
       },
     })),
-    memoryDefinitionIds: [],
+    memoryDefinitionIds: memoryDefinitionIds.map((id) => createMemoryDefinitionId(id)),
   };
 }
 
@@ -139,12 +145,17 @@ function partySlots(unitDefinitionIds: readonly string[]): SimulateBattleCommand
  */
 export function runProductionPartyBattle(
   catalogDir: string,
-  parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
+  parties: {
+    readonly ally: readonly string[];
+    readonly enemy: readonly string[];
+    /** 味方編成に指定するMemory（API指定順）。省略時はなし。 */
+    readonly allyMemories?: readonly string[];
+  },
   options: ProductionBattleOptions = {},
 ): FullObservationBattleResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateBattleCommand = {
-    allyFormation: partySlots(parties.ally),
+    allyFormation: partySlots(parties.ally, parties.allyMemories),
     enemyFormation: partySlots(parties.enemy),
     turnLimit: options.turnLimit ?? 5,
     logLevel: options.logLevel ?? "DETAILED",
