@@ -650,7 +650,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 追加（Issue #760）。既存のUnit・Skill・EffectActionは変えていない。
     // `2026-11-03.3` は新規Unit 1件（`UNIT_INIA_CRYSKA`、【スカーレット・ツイン】
     // イーニァ＆クリスカ）の追加（Issue #763）。既存のUnit・Skill・EffectActionは変えていない。
-    expect(catalog.catalogRevision).toBe("2026-11-03.3");
+    // `2026-11-18.1` は新規Memory 1件（`MEM_NEW_PATH_FOR_THE_WORLD`、世界は今、新たな道を
+    // 描いて、Issue #820）の追加。対象順 `SLOWEST` を初めて production Catalog で使用する。
+    // 差分は `memories.json`・`effects.json` だけ。
+    expect(catalog.catalogRevision).toBe("2026-11-18.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
