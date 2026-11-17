@@ -504,6 +504,15 @@ describe("TargetSelectorDefinition", () => {
     expect(result.order).toEqual(["HIGHEST_CRITICAL_RATE", "DEFAULT"]);
   });
 
+  it("UT-CAT-TSEL-045: SLOWEST is a valid order key", () => {
+    const result = createTargetSelectorDefinition(
+      { kind: "SELECT", side: "ALLY", count: 1, order: ["SLOWEST"] },
+      "selector",
+      undefined,
+    );
+    expect(result.order).toEqual(["SLOWEST"]);
+  });
+
   it("UT-CAT-TSEL-037: rejects EXCLUDE_RESOLVED_UNIT referencing an unsupported kind", () => {
     for (const kind of [
       "TRIGGER_SOURCE",

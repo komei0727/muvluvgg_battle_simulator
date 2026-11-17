@@ -532,6 +532,7 @@ selector:
 | `HIGHEST_CUMULATIVE_DAMAGE_DEALT` | 戦闘開始からの累計与ダメージが多い順（Issue #700）   |
 | `HIGHEST_EX_GAUGE_RATIO`          | EXゲージ充填率が高い順                               |
 | `FASTEST`                         | 行動速度が高い順                                     |
+| `SLOWEST`                         | 行動速度が低い順（Issue #820）                       |
 | `FRONT_ROW`                       | 前列優先                                             |
 | `BACK_ROW`                        | 後列優先                                             |
 | `LEFT_TO_RIGHT`                   | 絶対左から右                                         |

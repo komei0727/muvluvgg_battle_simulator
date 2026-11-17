@@ -407,6 +407,10 @@ function compareFastest(a: BattleUnit, b: BattleUnit): number {
   return b.combatStats.actionSpeed - a.combatStats.actionSpeed;
 }
 
+function compareSlowest(a: BattleUnit, b: BattleUnit): number {
+  return a.combatStats.actionSpeed - b.combatStats.actionSpeed;
+}
+
 /** TARGET_ORDER_UNITTYPE_OR_SELF_EXCLUDEテーマ:「自身以外を優先」— 自身をhard excludeせず末尾へ回す（自身しかいない場合は自身が残る）。 */
 function compareSelfLowestPriority(source: ResolutionSource) {
   const actor = requireSourceUnit(source, 'order key "SELF_LOWEST_PRIORITY"');
@@ -441,6 +445,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   HIGHEST_CUMULATIVE_DAMAGE_DEALT: () => compareHighestCumulativeDamageDealt,
   HIGHEST_EX_GAUGE_RATIO: () => compareHighestExGaugeRatio,
   FASTEST: () => compareFastest,
+  SLOWEST: () => compareSlowest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
 };
 

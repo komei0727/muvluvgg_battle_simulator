@@ -169,6 +169,12 @@ export interface MemoryBoardOverrides {
    * APが最大値まで回復した後に評価されるため、最大APを動かして所持APを作る。
    */
   readonly maximumApBySlot?: Readonly<Record<string, number>>;
+  /**
+   * スロットキー → そのスロットの行動速度（両陣営の同じスロットに同じ値）。既定は全スロット
+   * 共通の`MEMORY_COMBAT_STATS.actionSpeed`。行動速度の順位で対象を選ぶMemory
+   * （`FASTEST`/`SLOWEST`）の検証で、最速・最遅のスロットを作るために使う。
+   */
+  readonly actionSpeedBySlot?: Readonly<Record<string, number>>;
 }
 
 function slotUnitDefinition(slot: MemorySlot, overrides: MemoryBoardOverrides): UnitDefinition {
@@ -190,12 +196,14 @@ function slotBattleUnit(slot: MemorySlot, side: Side, overrides: MemoryBoardOver
   const attribute = overrides.attributesBySlot?.[slot.key];
   const subAttribute = overrides.subAttributesBySlot?.[slot.key];
   const maximumAp = overrides.maximumApBySlot?.[slot.key];
+  const actionSpeed = overrides.actionSpeedBySlot?.[slot.key];
   return testBattleUnit({
     battleUnitId: memoryUnitId(side, slot.key),
     unitDefinitionId: slotUnitDefinitionId(slot, overrides),
     side,
     position: slot.position,
-    combatStats: MEMORY_COMBAT_STATS,
+    combatStats:
+      actionSpeed === undefined ? MEMORY_COMBAT_STATS : { ...MEMORY_COMBAT_STATS, actionSpeed },
     limits: maximumAp === undefined ? MEMORY_LIMITS : { ...MEMORY_LIMITS, maximumAp },
     ...(attribute === undefined ? {} : { attribute }),
     ...(subAttribute === undefined ? {} : { overrides: { subAttribute } }),

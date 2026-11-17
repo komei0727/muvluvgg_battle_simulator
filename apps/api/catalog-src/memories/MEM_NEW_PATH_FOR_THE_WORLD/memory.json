@@ -1,0 +1,60 @@
+{
+  "memoryDefinitionId": "MEM_NEW_PATH_FOR_THE_WORLD",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_FASTEST_ENEMY",
+            "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["FASTEST"] }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_FASTEST_ENEMY" },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_NEW_PATH_FOR_THE_WORLD_FASTEST_ENEMY_SPEED_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRUE" }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SLOWEST_ALLY",
+            "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["SLOWEST"] }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_SLOWEST_ALLY" },
+            "actions": [
+              { "effectActionDefinitionId": "ACT_MEM_NEW_PATH_FOR_THE_WORLD_SLOWEST_ALLY_SPEED_UP" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": { "displayName": "世界は今、新たな道を描いて", "tags": [] }
+}
