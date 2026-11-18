@@ -75,7 +75,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 3, "damageType": "EN" }
       }
     },
     "metadata": { "tags": [] }

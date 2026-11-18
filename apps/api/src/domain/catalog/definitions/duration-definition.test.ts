@@ -479,40 +479,54 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
-  it("UT-CAT-DUR-037 [R-EFF-07]: accepts consumption.instancePolicy OLDEST_ONLY on NEXT_INCOMING_ATTACK", () => {
-    const result = createDurationDefinition(
-      {
-        consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "OLDEST_ONLY" },
-      },
+  it("UT-CAT-DUR-037 [R-EFF-07]: accepts consumption.damageType and scope on NEXT_*_ATTACK kinds", () => {
+    const incoming = createDurationDefinition(
+      { consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3, damageType: "EN" } },
       "duration",
       undefined,
     );
-    expect(result.consumption).toEqual({
+    expect(incoming.consumption).toEqual({
       kind: "NEXT_INCOMING_ATTACK",
+      maxCount: 3,
+      damageType: "EN",
+    });
+    const outgoing = createDurationDefinition(
+      { consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1, scope: "ACTION" } },
+      "duration",
+      undefined,
+    );
+    expect(outgoing.consumption).toEqual({
+      kind: "NEXT_OUTGOING_ATTACK",
       maxCount: 1,
-      instancePolicy: "OLDEST_ONLY",
+      scope: "ACTION",
     });
   });
 
-  it("UT-CAT-DUR-038 [R-EFF-07]: rejects consumption.instancePolicy on kinds other than NEXT_INCOMING_ATTACK", () => {
-    expect(() =>
-      createDurationDefinition(
-        { consumption: { kind: "INCOMING_HIT", maxCount: 1, instancePolicy: "OLDEST_ONLY" } },
-        "duration",
-        undefined,
-      ),
-    ).toThrow(DomainValidationError);
-  });
+  it.each([
+    { kind: "INCOMING_HIT", maxCount: 1, damageType: "EN" },
+    { kind: "OUTGOING_HIT", maxCount: 1, scope: "ATTACK" },
+  ])(
+    "UT-CAT-DUR-038 [R-EFF-07]: rejects consumption.damageType/scope on per-hit or non-attack kinds ($kind)",
+    (consumption) => {
+      expect(() => createDurationDefinition({ consumption }, "duration", undefined)).toThrow(
+        DomainValidationError,
+      );
+    },
+  );
 
-  it("UT-CAT-DUR-039 [R-EFF-07]: rejects an unknown consumption.instancePolicy", () => {
-    expect(() =>
-      createDurationDefinition(
-        { consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "ALL" } },
-        "duration",
-        undefined,
-      ),
-    ).toThrow(DomainValidationError);
-  });
+  it.each([
+    { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, damageType: "FIRE" },
+    { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, scope: "TURN" },
+    { kind: "NEXT_INCOMING_ATTACK", maxCount: 2, scope: "ACTION" },
+    { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, instancePolicy: "OLDEST_ONLY" },
+  ])(
+    "UT-CAT-DUR-039 [R-EFF-07]: rejects an unknown damageType/scope, ACTION scope above one use, and the removed instancePolicy (%o)",
+    (consumption) => {
+      expect(() => createDurationDefinition({ consumption }, "duration", undefined)).toThrow(
+        DomainValidationError,
+      );
+    },
+  );
 
   it("UT-CAT-DUR-040 [R-EFF-09]: accepts linkedEffectGroupScope SKILL_USE", () => {
     const result = createDurationDefinition(

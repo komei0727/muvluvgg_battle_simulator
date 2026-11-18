@@ -468,7 +468,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_30",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
       ],
       resources: [
@@ -502,7 +502,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_75",
           magnitude: -0.75,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
       ],
       resources: [
@@ -537,7 +537,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_OLGA_NADYA_BOND_PS2_GUARD_75",
           magnitude: -0.75,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
       ],
       resources: [

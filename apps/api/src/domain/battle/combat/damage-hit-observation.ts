@@ -9,6 +9,7 @@ import { resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import {
+  unitForCalculation,
   consumeAndExpire,
   driveRemovalSteps,
   findUnit,
@@ -114,6 +115,8 @@ export function* observeHitSteps(
     targetUnitId,
     "NEXT_INCOMING_ATTACK",
     lastEventId,
+    undefined,
+    profile.damageType,
   );
 
   // R-EFF-07: `NEXT_OUTGOING_ATTACK`は攻撃者が命中判定に到達した時点
@@ -124,6 +127,8 @@ export function* observeHitSteps(
     attackerAtStart.battleUnitId,
     "NEXT_OUTGOING_ATTACK",
     lastEventId,
+    undefined,
+    profile.damageType,
   );
 
   // `NEXT_*_ATTACK`消費の失効が発火したPS連鎖は`working`を
@@ -146,8 +151,8 @@ export function* observeHitSteps(
     );
     return { kind: "SKIP", lastEventId };
   }
-  const attackerAfterTiming = afterTiming.attacker;
-  const targetAfterTiming = afterTiming.target;
+  const attackerAfterTiming = unitForCalculation(context, afterTiming.attacker);
+  const targetAfterTiming = unitForCalculation(context, afterTiming.target);
 
   // R-HIT-02/R-HIT-04: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
   // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
@@ -298,7 +303,7 @@ export function* observeHitSteps(
   // （`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`）を実効値へ畳み込んでから判定する。
   // 使用者を同じ最新状態から取り直すのはR-HIT-05の必中付与と同じ理由で、直前の連鎖が
   // これらの効果を付与・失効させ得るためである。
-  const attackerBeforeCritical = beforeCritical.attacker;
+  const attackerBeforeCritical = unitForCalculation(context, beforeCritical.attacker);
   const effectiveCriticalMode = resolveEffectiveCriticalMode(
     attackerBeforeCritical,
     profile.criticalMode,
@@ -357,9 +362,10 @@ export function* observeHitSteps(
   const willBeAppliedEventsStart = context.recorder.getEvents().length;
   // R-DMG-04（DMG-002）: この時点の集計結果をsnapshotとして載せる。
   // 下の連鎖が軽減効果を付け外しし得るため、確定値は`DamageCalculated`側で改めて集計する。
+  // R-EFF-07: snapshotもこの攻撃で有効な効果だけで集計する（`DamageCalculated`と揃える）。
   const willBeAppliedMultipliers = composeDamageModifiers({
-    attacker: afterCriticalCheck.attacker,
-    defender: afterCriticalCheck.target,
+    attacker: unitForCalculation(context, afterCriticalCheck.attacker),
+    defender: unitForCalculation(context, afterCriticalCheck.target),
     damageType: profile.damageType,
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
   });

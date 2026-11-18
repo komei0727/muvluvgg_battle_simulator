@@ -4,6 +4,7 @@ import {
   type AdditionalAttackHitSpec,
 } from "./additional-attack-hit.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
+import { driveRemovalSteps } from "./damage-hit-chain.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -87,6 +88,17 @@ export function* applyFollowUpAttacksSteps(
         return { lastEventId, interrupted: true };
       }
     }
+    // R-EFF-07: ライダーごとの追撃は別の攻撃。この追撃で使い切った効果を次の追撃へ
+    // 持ち越さず、次の追撃では改めて1回分を消費する。
+    if (context.finalizeConsumedEffectDurations !== undefined) {
+      const finalized = yield* driveRemovalSteps(
+        context,
+        working,
+        context.finalizeConsumedEffectDurations(Array.from(working.values()), lastEventId),
+      );
+      lastEventId = finalized.lastEventId;
+    }
+    context.beginNextAttack?.();
   }
   return { lastEventId, interrupted: false };
 }

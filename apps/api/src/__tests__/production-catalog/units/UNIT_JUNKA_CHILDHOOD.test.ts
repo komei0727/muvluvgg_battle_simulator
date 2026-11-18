@@ -552,7 +552,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_JUNKA_CHILDHOOD_EX_SHIELD",
           magnitude: 1000,
           consumption: {
-            kind: "INCOMING_HIT",
+            kind: "NEXT_INCOMING_ATTACK",
             maxCount: 2,
           },
         },

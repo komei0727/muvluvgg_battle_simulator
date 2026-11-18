@@ -28,6 +28,7 @@ import {
 import type { DamageResultRegistry } from "../../domain/battle/skill/formula-evaluator.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createActionId } from "../../domain/shared/event-ids.js";
 import { effectActionGroupContext, noMissNoCrit, seedRecorder } from "../fixtures/index.js";
 
 /**
@@ -606,6 +607,12 @@ export interface LifecycleDamageProbeOptions extends DamageProbeOptions {
    * 実戦闘では `action-skill-use-resolver` が1解決スコープにつき1つを通す。
    */
   readonly damageResults?: DamageResultRegistry;
+  /**
+   * この1発を行動の中の攻撃として解決する。`consumption.scope: ACTION`（R-EFF-07）の効果は
+   * 行動の中でだけ失効を行動の完了まで待つため、同じ行動の続きの攻撃を表すには
+   * 複数回の観測へ同じ値を渡す。省略時は行動外の攻撃になる。
+   */
+  readonly actionId?: string;
 }
 
 /**
@@ -743,6 +750,7 @@ export function observeLifecycleDamageProbe(
           ? {}
           : { onFactEventForPassiveChain: options.onFactEventForPassiveChain }),
         ...(options.damageResults === undefined ? {} : { damageResults: options.damageResults }),
+        ...(options.actionId === undefined ? {} : { actionId: createActionId(options.actionId) }),
       },
     }),
   );

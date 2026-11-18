@@ -242,7 +242,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_SHIRANA_LUCKY_TEX_PS2_GUARD",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 2 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 2 },
         },
         {
           unitId: "enemy:back",

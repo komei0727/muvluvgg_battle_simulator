@@ -36,10 +36,7 @@
       },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "INCOMING_HIT",
-          "maxCount": 1
-        }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
     "metadata": {

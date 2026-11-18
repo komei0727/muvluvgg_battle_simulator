@@ -2,7 +2,7 @@ import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import type { DomainEventId, EffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
+import type { ConsumptionKind, DamageType } from "../../catalog/definitions/catalog-enums.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 
@@ -25,6 +25,11 @@ export function findUnit(
   return unit;
 }
 
+/** R-EFF-07: このヒットの計算に使うユニット（{@link DamageEventContext.unitView}）。 */
+export function unitForCalculation(context: DamageEventContext, unit: BattleUnit): BattleUnit {
+  return context.unitView?.(unit) ?? unit;
+}
+
 /**
  * R-EFF-07: `context.consumeEffectDuration`（呼び出し側が注入する、`combat/`は
  * `effects/`へ依存できないため）へ委譲し、`ownerUnitId`が保持する`kind`一致の
@@ -38,6 +43,7 @@ export function* consumeAndExpire(
   kind: ConsumptionKind,
   parentEventId: DomainEventId,
   effectInstanceId?: EffectInstanceId,
+  attackDamageType?: DamageType,
 ): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
   if (context.consumeEffectDuration === undefined) {
     return parentEventId;
@@ -51,6 +57,7 @@ export function* consumeAndExpire(
       Array.from(workingMap.values()),
       parentEventId,
       effectInstanceId,
+      attackDamageType,
     ),
   );
   return result.lastEventId;

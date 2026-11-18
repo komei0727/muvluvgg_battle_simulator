@@ -136,12 +136,23 @@ export function absorbFromShieldPool(
   target: BattleUnit,
   amount: number,
   shieldType: DamageType | null,
+  /**
+   * R-EFF-07: このヒットの攻撃では吸収に使わないインスタンス（同じstepの別の攻撃が使い切り、
+   * 失効を待っているシールド）。プール合計（`poolBefore`）には含めたまま、吸収だけを外す。
+   */
+  excludedEffectInstanceIds: ReadonlySet<EffectInstanceId> = new Set(),
 ): ShieldPoolAbsorption {
   if (amount <= 0) {
     return { absorbed: 0, appliedEffects: target.appliedEffects };
   }
   const poolBefore = poolTotalOf(target.appliedEffects, shieldType);
-  if (poolBefore <= 0) {
+  const usable = poolTotalOf(
+    target.appliedEffects.filter(
+      (effect) => !excludedEffectInstanceIds.has(effect.effectInstanceId),
+    ),
+    shieldType,
+  );
+  if (usable <= 0) {
     return { absorbed: 0, appliedEffects: target.appliedEffects };
   }
   const instances: ShieldInstanceChange[] = [];
@@ -153,6 +164,7 @@ export function absorbFromShieldPool(
     if (
       remainingDamage <= 0 ||
       shield === undefined ||
+      excludedEffectInstanceIds.has(effect.effectInstanceId) ||
       shield.remaining <= 0 ||
       shield.shieldType !== shieldType
     ) {

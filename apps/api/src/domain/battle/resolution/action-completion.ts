@@ -179,6 +179,45 @@ export function recordActionCompletion(
     }
   }
 
+  // R-EFF-07: `consumption.scope: ACTION`の効果は、この行動の攻撃で残数を使い切っても
+  // 行動の残りの攻撃（同じ行動内の別スキルのDAMAGE）を覆うため、失効を行動の完了まで
+  // 遅らせている。保持者は行動者とは限らない（敵の攻撃行動を受けた側の軽減）。
+  // 消費条件は時間制限より先に評価する（R-EFF-07）。
+  const actionScopedConsumptionSeeds: ExpirationSeed[] = working.flatMap((unit) =>
+    unit.appliedEffects
+      .filter(
+        (effect) =>
+          effect.duration.definition.consumption?.scope === "ACTION" &&
+          effect.duration.consumptionRemaining === 0,
+      )
+      .map((effect) => ({
+        battleUnitId: unit.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        reason: "CONSUMPTION" as const,
+      })),
+  );
+  if (actionScopedConsumptionSeeds.length > 0) {
+    const expiry = expireEffects(
+      {
+        recorder,
+        turnNumber: context.turnNumber,
+        cycleNumber: context.cycleNumber,
+        actionId: context.actionId,
+        resolutionScopeId: context.resolutionScopeId,
+        rootEventId: context.rootEventId,
+        ...(context.onFactEventForPassiveChain !== undefined
+          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+          : {}),
+      },
+      working,
+      actionScopedConsumptionSeeds,
+      context.effectActions,
+      lastEventId,
+    );
+    working = expiry.units;
+    lastEventId = expiry.lastEventId;
+  }
+
   // `06_戦闘状態遷移.md` COMPLETING #6-8 / R-EFF-04: クールタイム減算後、行動単位
   // 効果の残り回数を減らし、0になったインスタンスを即時に失効させる。
   // `timeLimit.owner`が`EFFECT_SOURCE`/`BATTLE`の場合、保持ユニット

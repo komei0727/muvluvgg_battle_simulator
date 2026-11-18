@@ -10,6 +10,7 @@ import {
   driveRemovalSteps,
   findUnit,
   revalidateHit,
+  unitForCalculation,
 } from "./damage-hit-chain.js";
 import { observeHitSteps } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
@@ -106,17 +107,31 @@ export function* applyOneAdditionalAttackHitSteps(
     working,
     attackerUnitId,
     targetUnitId,
-    { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
+    {
+      effectActionDefinitionId: profile.effectActionDefinitionId,
+      hitIndex: profile.hitIndex,
+      damageType: profile.damageType,
+    },
     observation.lastEventId,
   );
   if (intervention.kind !== "RESOLVED") {
     return { kind: intervention.kind, lastEventId: intervention.lastEventId };
   }
-  const attacker = findUnit(working, attackerUnitId, "attacker.battleUnitId");
-  const target = findUnit(working, intervention.defenderUnitId, "hits[].targetUnitId");
+  // R-EFF-07: 追加攻撃も元の攻撃の一部であり、通常ヒットと同じ有効効果で計算する。
+  const attacker = unitForCalculation(
+    context,
+    findUnit(working, attackerUnitId, "attacker.battleUnitId"),
+  );
+  const target = unitForCalculation(
+    context,
+    findUnit(working, intervention.defenderUnitId, "hits[].targetUnitId"),
+  );
 
   const formulaContext = {
-    skillSource: findUnit(working, spec.skillSourceUnitId, "skillSource.battleUnitId"),
+    skillSource: unitForCalculation(
+      context,
+      findUnit(working, spec.skillSourceUnitId, "skillSource.battleUnitId"),
+    ),
     target,
     allUnits: Array.from(working.values()),
     ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),

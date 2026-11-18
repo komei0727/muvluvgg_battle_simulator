@@ -17,6 +17,7 @@ import type { DomainEventId } from "../../../shared/event-ids.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../../events/domain-event.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
+import type { AttackConsumptionScope } from "./effect-duration-consumption.js";
 import {
   eventContextOf,
   findActorUnit,
@@ -158,6 +159,12 @@ export interface EffectActionApplicationInput {
    */
   readonly distributionShareCount: number;
   readonly cursor: EffectActionEventCursor;
+  /**
+   * R-EFF-07: このDAMAGE適用が属する1回の攻撃（同じstepで同じDAMAGE参照を受ける全対象）の
+   * 消費状態。`final`はその攻撃の最後の適用で、遅延させた消費の失効をここで確定させる。
+   * 未指定ならこの適用だけで1回の攻撃とみなす。
+   */
+  readonly attack?: { readonly scope: AttackConsumptionScope; readonly final: boolean };
 }
 
 /**
@@ -208,7 +215,7 @@ export type SteppedEffectActionHandler<TKind extends EffectActionKind> = (
  * PSが発動したりしなかったりする差が生まれる。
  */
 export function* driveRemovalSteps<TResult extends { readonly units: readonly BattleUnit[] }>(
-  input: EffectActionApplicationInput,
+  input: Pick<EffectActionApplicationInput, "context" | "box" | "cursor">,
   steps: Generator<
     { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
     TResult,

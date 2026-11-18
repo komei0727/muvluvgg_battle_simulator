@@ -1,4 +1,9 @@
-import type { DurationOwner, DurationTimeUnit, ConsumptionKind } from "./catalog-enums.js";
+import type {
+  ConsumptionKind,
+  DamageType,
+  DurationOwner,
+  DurationTimeUnit,
+} from "./catalog-enums.js";
 import {
   createConditionDefinition,
   type ConditionDefinition,
@@ -33,7 +38,7 @@ const DURATION_ALLOWED_KEYS = [
   "removeOnSourceDefeated",
 ] as const;
 const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner", "countGrantTurn"] as const;
-const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount", "instancePolicy"] as const;
+const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount", "damageType", "scope"] as const;
 const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
 const REAPPLY_ALLOWED_KEYS = ["existingRemaining", "count"] as const;
 const REAPPLY_REMAINING_ALLOWED_KEYS = ["op", "value"] as const;
@@ -56,7 +61,12 @@ const CONSUMPTION_KINDS = [
   "LETHAL_DAMAGE",
 ] as const;
 const LINKED_EFFECT_GROUP_ROLES = ["PARENT", "CHILD"] as const;
-const CONSUMPTION_INSTANCE_POLICIES = ["OLDEST_ONLY"] as const;
+const ATTACK_CONSUMPTION_KINDS: readonly ConsumptionKind[] = [
+  "NEXT_OUTGOING_ATTACK",
+  "NEXT_INCOMING_ATTACK",
+];
+const CONSUMPTION_DAMAGE_TYPES = ["PHYSICAL", "EN"] as const;
+const CONSUMPTION_SCOPES = ["ATTACK", "ACTION"] as const;
 
 export interface DurationTimeLimit {
   readonly unit: DurationTimeUnit;
@@ -71,18 +81,22 @@ export interface DurationTimeLimit {
 }
 
 /**
- * R-EFF-07: 同じ`EffectActionDefinitionId`由来のインスタンスを複数保持しているときの
- * 消費対象。省略時は一致する全インスタンスを減算する。`OLDEST_ONLY`は1回の攻撃で
- * 付与順が最も古い1インスタンスだけを減算する（多段ヒットの2ヒット目以降も次の
- * インスタンスへ進まない）。「1回攻撃を受けると消滅する」効果を重複付与したとき、
- * 1回の攻撃で全セットが消えないようにするためのもの。
+ * R-EFF-07: `NEXT_*_ATTACK`の1回分を数える範囲。`ATTACK`（省略時）は1 DAMAGE EffectAction
+ * （全対象・全ヒット）、`ACTION`はその攻撃を含む行動全体。行動内の別スキルの攻撃
+ * （PSの隣接攻撃と元のAS、敵1行動の複数DAMAGE）までまとめて覆う効果だけが宣言する。
  */
-export type ConsumptionInstancePolicy = (typeof CONSUMPTION_INSTANCE_POLICIES)[number];
+export type ConsumptionScope = (typeof CONSUMPTION_SCOPES)[number];
 
 export interface DurationConsumption {
   readonly kind: ConsumptionKind;
   readonly maxCount: number;
-  readonly instancePolicy?: ConsumptionInstancePolicy;
+  /**
+   * R-EFF-07: 指定したダメージタイプの攻撃だけが消費する（他タイプの攻撃では残る）。
+   * 省略時はタイプを問わない。効果自体の対象タイプ（`APPLY_DAMAGE_MOD.damageType`）とは
+   * 独立に宣言する — 物理軽減をEN攻撃でも回数消費させるスキルがあるため。
+   */
+  readonly damageType?: DamageType;
+  readonly scope?: ConsumptionScope;
 }
 
 export interface DurationExpiration {
@@ -195,7 +209,8 @@ export interface DurationTimeLimitInput {
 export interface DurationConsumptionInput {
   readonly kind: string;
   readonly maxCount: number;
-  readonly instancePolicy?: string;
+  readonly damageType?: string;
+  readonly scope?: string;
 }
 
 export interface DurationExpirationInput {
@@ -277,19 +292,34 @@ function createConsumption(input: DurationConsumptionInput, path: string): Durat
   assertKnownKeys(input, CONSUMPTION_ALLOWED_KEYS, path);
   assertEnumValue(input.kind, CONSUMPTION_KINDS, `${path}.kind`);
   assertInteger(input.maxCount, `${path}.maxCount`, { min: 1 });
-  if (input.instancePolicy === undefined) {
-    return { kind: input.kind, maxCount: input.maxCount };
-  }
-  assertEnumValue(input.instancePolicy, CONSUMPTION_INSTANCE_POLICIES, `${path}.instancePolicy`);
-  // 「1回の攻撃」を単位にできるのは攻撃単位で消費するkindだけで、他のkindでは
-  // 最古1件へ絞る契機の境界が定まらない。
-  if (input.kind !== "NEXT_INCOMING_ATTACK") {
+  const result: { -readonly [K in keyof DurationConsumption]: DurationConsumption[K] } = {
+    kind: input.kind,
+    maxCount: input.maxCount,
+  };
+  // 攻撃のダメージタイプと攻撃・行動の範囲は、攻撃単位で消費するkindにしか存在しない。
+  if (
+    (input.damageType !== undefined || input.scope !== undefined) &&
+    !ATTACK_CONSUMPTION_KINDS.includes(input.kind)
+  ) {
     throw new DomainValidationError(
-      `${path}.instancePolicy`,
-      "is only supported with kind NEXT_INCOMING_ATTACK",
+      path,
+      "damageType and scope are only supported with kind NEXT_OUTGOING_ATTACK or NEXT_INCOMING_ATTACK",
     );
   }
-  return { kind: input.kind, maxCount: input.maxCount, instancePolicy: input.instancePolicy };
+  if (input.damageType !== undefined) {
+    assertEnumValue(input.damageType, CONSUMPTION_DAMAGE_TYPES, `${path}.damageType`);
+    result.damageType = input.damageType;
+  }
+  if (input.scope !== undefined) {
+    assertEnumValue(input.scope, CONSUMPTION_SCOPES, `${path}.scope`);
+    // 行動の途中で残数が0になっても失効は行動の完了まで遅れるため、2回目以降を
+    // 同じ行動の後続攻撃と区別できない。1回で消える効果だけを許可する。
+    if (input.scope === "ACTION" && input.maxCount !== 1) {
+      throw new DomainValidationError(`${path}.scope`, "ACTION requires maxCount 1");
+    }
+    result.scope = input.scope;
+  }
+  return result;
 }
 
 /**

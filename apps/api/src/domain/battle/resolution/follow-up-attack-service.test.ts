@@ -513,6 +513,78 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     expect(attackerAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
   });
 
+  it("UT-R-FUP-01-016 [R-FUP-01, R-EFF-07]: each rider's follow-up is a separate attack — an incoming next-attack effect is consumed once per rider and stops boosting once used up", () => {
+    const vulnerabilityId = createEffectActionDefinitionId("ACT_TEST_FUP_VULN");
+    const vulnerabilityDuration = {
+      consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 2 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    } as const;
+    const vulnerability: EffectActionDefinition = {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: vulnerabilityId,
+      metadata: { tags: [] },
+      payload: {
+        direction: "INCOMING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 1 },
+        stacking: { mode: "STACKABLE" },
+        duration: vulnerabilityDuration,
+      },
+    };
+    const { attacker, enemy } = board({
+      attackerEffects: [
+        riderEffect("ally:attacker", "RIDER_1"),
+        riderEffect("ally:attacker", "RIDER_2"),
+      ],
+      enemyEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("VULN_1"),
+          effectActionDefinitionId: vulnerabilityId,
+          kindKey: effectKindKeyFromDefinitionId(vulnerabilityId),
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("ally:attacker"),
+          targetUnitId: createBattleUnitId("enemy:1"),
+          magnitude: 1,
+          categories: ["DEBUFF"],
+          damageModifier: { direction: "INCOMING", damageType: null },
+          duration: { definition: vulnerabilityDuration, consumptionRemaining: 2 },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+
+    const { recorder } = useSkill(
+      attacker,
+      enemy,
+      definitions([], [vulnerability]),
+      AS_ID,
+      "B_FUP_RIDER_ATTACKS",
+    );
+
+    const vulnerabilityConsumptions = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "EffectConsumptionChanged" &&
+          (event.payload as { effectInstanceId: string }).effectInstanceId === "VULN_1",
+      )
+      .map((event) => {
+        const payload = event.payload as { before: number; after: number };
+        return [payload.before, payload.after];
+      });
+    // 元の攻撃で2→1、1つ目の追撃で1→0。2つ目の追撃にはもう乗らない。
+    expect(vulnerabilityConsumptions).toEqual([
+      [2, 1],
+      [1, 0],
+    ]);
+    expect(
+      followUpDamageEvents(recorder).map(
+        (event) => (event.payload as { finalDamage: number }).finalDamage,
+      ),
+    ).toEqual([80, 40]);
+  });
+
   it("UT-R-FUP-01-011: a skill without any DAMAGE action neither consumes the rider nor triggers a follow-up", () => {
     const BUFF_AS_ID = "SKL_TEST_FUP_BUFF_AS";
     const battleDefinitions = definitions([attackSkill([SPEED_DOWN_ID], BUFF_AS_ID)]);

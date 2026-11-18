@@ -23,7 +23,7 @@
       },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 }
       }
     },
     "metadata": { "tags": [] }

@@ -38,7 +38,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1, "scope": "ACTION" }
       }
     },
     "metadata": { "tags": [] }

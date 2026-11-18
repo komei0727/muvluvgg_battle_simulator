@@ -378,7 +378,7 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
     expect(subject.currentPp).toBe(board.subject.currentPp);
   });
 
-  it("IT-UNIT-YIFEI-STORM-005 [R-EFF-07, R-EFF-09]: AS2を2回使ってシールドとバフを2セット持つと、1回の攻撃で消えるのは古いセットのシールドとバフだけで、新しいセットは残る", () => {
+  it("IT-UNIT-YIFEI-STORM-005 [R-EFF-07, R-EFF-09]: AS2を2回使ってシールドとバフを2セット持つと、1回の攻撃で両セットのシールドと会心バフ（計＋15ポイント・＋27ポイント）が全て消える（SR-139）", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, { allies: [] });
     const recorder = new EventRecorder(createBattleId("B_YIFEI_AS2_SETS"));
     const afterFirst = useSkill({
@@ -407,7 +407,10 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
       (effect) => effect.effectActionDefinitionId === "ACT_YIFEI_STORM_AS2_SHIELD",
     );
     expect(shieldsBefore).toHaveLength(2);
-    const newerSkillUseId = shieldsBefore[1]!.duration.linkedGroupSkillUseId;
+    const subjectOf = (units: readonly BattleUnit[]) =>
+      units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    const statsOf = (units: readonly BattleUnit[]) =>
+      computeCombatStats(subjectOf(units), board.definitions.effectActions).combatStats;
 
     const { units } = rideStandInAttack({
       attackerUnitId: "enemy:front",
@@ -416,15 +419,11 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
       battleId: "B_YIFEI_AS2_SETS_HIT",
     });
 
-    const remaining = setMembersOf(units);
-    expect(remaining.map((effect) => effect.effectActionDefinitionId).sort()).toEqual([
-      "ACT_YIFEI_STORM_AS2_CRIT_DMG_UP",
-      "ACT_YIFEI_STORM_AS2_CRIT_UP",
-      "ACT_YIFEI_STORM_AS2_SHIELD",
-    ]);
+    expect(setMembersOf(units)).toEqual([]);
+    expect(statsOf(afterSecond).criticalRate - statsOf(units).criticalRate).toBeCloseTo(0.15, 10);
     expect(
-      remaining.every((effect) => effect.duration.linkedGroupSkillUseId === newerSkillUseId),
-    ).toBe(true);
+      statsOf(afterSecond).criticalDamageBonus - statsOf(units).criticalDamageBonus,
+    ).toBeCloseTo(0.27, 10);
   });
 
   it("IT-UNIT-YIFEI-STORM-006 [R-EFF-05]: PS2はターン終了のたびに発動し、会心率と防御力の上昇が置き換わらずに重なって残る", () => {

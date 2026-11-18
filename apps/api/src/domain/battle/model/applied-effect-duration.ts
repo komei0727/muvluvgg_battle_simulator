@@ -2,8 +2,7 @@ import type { AppliedEffect, EffectDurationState } from "./applied-effect.js";
 import type { BattleUnit } from "./battle-unit.js";
 import type { ActionId, EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { ConsumptionKind } from "../../catalog/definitions/catalog-enums.js";
-import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
+import type { ConsumptionKind, DamageType } from "../../catalog/definitions/catalog-enums.js";
 
 /**
  * `14_Catalog定義スキーマ.md`「DurationDefinition」`timeLimit.owner`が省略された
@@ -302,16 +301,15 @@ function isThresholdGatedDamageModifier(effect: AppliedEffect): boolean {
  * 対象を絞れない。逆向きの除外も同時に必要になる — `isHitCountEvasionStatus`を
  * 参照。
  *
- * `consumption.instancePolicy: OLDEST_ONLY`のインスタンスは、同じ
- * `EffectActionDefinitionId`ごとに付与順（`appliedEffects`の並び）が最も古い、残り回数を
- * 持つ1件だけを減らす。同じ攻撃の後続ヒットで次のインスタンスへ進まないようにする
- * 攻撃単位の制御は呼び出し側（`effect-duration-consumption.ts`）が持つ。
+ * `attackDamageType`は消費の契機になった攻撃のダメージタイプ。`consumption.damageType`を
+ * 宣言した効果は、それと一致する攻撃でだけ消費する。
  */
 export function consumeEffectDurations(
   units: readonly BattleUnit[],
   ownerUnitId: BattleUnitId,
   kind: ConsumptionKind,
   effectInstanceId?: EffectInstanceId,
+  attackDamageType?: DamageType,
 ): ConsumeEffectDurationsResult {
   const changes: ConsumptionChange[] = [];
   const nextUnits = units.map((battleUnit) => {
@@ -319,13 +317,11 @@ export function consumeEffectDurations(
       return battleUnit;
     }
     let changedInUnit = false;
-    const oldestOnlyConsumed = new Set<EffectActionDefinitionId>();
     const nextEffects = battleUnit.appliedEffects.map((effect) => {
       const consumption = effect.duration.definition.consumption;
       if (
         consumption?.kind !== kind ||
-        (consumption.instancePolicy === "OLDEST_ONLY" &&
-          oldestOnlyConsumed.has(effect.effectActionDefinitionId)) ||
+        (consumption.damageType !== undefined && consumption.damageType !== attackDamageType) ||
         (effectInstanceId !== undefined
           ? effect.effectInstanceId !== effectInstanceId
           : kind === "INCOMING_HIT" &&
@@ -334,9 +330,6 @@ export function consumeEffectDurations(
         effect.duration.consumptionRemaining <= 0
       ) {
         return effect;
-      }
-      if (consumption.instancePolicy === "OLDEST_ONLY") {
-        oldestOnlyConsumed.add(effect.effectActionDefinitionId);
       }
       const before = effect.duration.consumptionRemaining;
       const after = before - 1;

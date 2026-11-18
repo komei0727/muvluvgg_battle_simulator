@@ -16,6 +16,7 @@ import {
   driveRemovalSteps,
   findUnit,
   revalidateHit,
+  unitForCalculation,
 } from "./damage-hit-chain.js";
 import { observeHitSteps, type HitObservationProfile } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
@@ -217,14 +218,25 @@ function* applyOneSubUnitAdditionalDamageSteps(
     working,
     attackerUnitId,
     targetUnitId,
-    { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
+    {
+      effectActionDefinitionId: profile.effectActionDefinitionId,
+      hitIndex: profile.hitIndex,
+      damageType: profile.damageType,
+    },
     observation.lastEventId,
   );
   if (intervention.kind !== "RESOLVED") {
     return { kind: intervention.kind, lastEventId: intervention.lastEventId };
   }
-  const owner = findUnit(working, attackerUnitId, "attacker.battleUnitId");
-  const target = findUnit(working, intervention.defenderUnitId, "hits[].targetUnitId");
+  // R-EFF-07: サブユニットの追加ダメージも元の攻撃の一部であり、同じ有効効果で計算する。
+  const owner = unitForCalculation(
+    context,
+    findUnit(working, attackerUnitId, "attacker.battleUnitId"),
+  );
+  const target = unitForCalculation(
+    context,
+    findUnit(working, intervention.defenderUnitId, "hits[].targetUnitId"),
+  );
 
   const formulaContext = {
     skillSource: owner,

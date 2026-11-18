@@ -59,11 +59,7 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.25 },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_INCOMING_ATTACK",
-          "maxCount": 1,
-          "instancePolicy": "OLDEST_ONLY"
-        },
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 },
         "linkedEffectGroupId": "YIFEI_STORM_AS2_SET_LINK",
         "linkedEffectGroupRole": "PARENT",
         "linkedEffectGroupScope": "SKILL_USE"

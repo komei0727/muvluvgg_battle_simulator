@@ -339,19 +339,19 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_SUIRAN_CASINO_PS1_SHIELD",
           magnitude: 2000,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_SUIRAN_CASINO_PS1_SHIELD",
           magnitude: 2000,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
         {
           unitId: "ally:back",
           effectActionDefinitionId: "ACT_SUIRAN_CASINO_PS1_SHIELD",
           magnitude: 2000,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
         {
           unitId: "enemy:front",

@@ -11,7 +11,11 @@ import type {
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResolveBreakHook } from "../events/break-resolution.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import type { ConsumptionKind, SkillType } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ConsumptionKind,
+  DamageType,
+  SkillType,
+} from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
   SkillDefinitionId,
@@ -164,6 +168,8 @@ export interface DamageEventContext {
     parentEventId: DomainEventId,
     /** R-HIT-04: 指定時はこの1インスタンスだけを消費する（Nヒット回避の自己消費）。 */
     effectInstanceId?: EffectInstanceId,
+    /** R-EFF-07: `consumption.damageType`を宣言した効果の照合に使う、契機の攻撃のタイプ。 */
+    attackDamageType?: DamageType,
   ) => Generator<
     { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
     { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
@@ -176,6 +182,23 @@ export interface DamageEventContext {
    * （`EffectExpired`発行、CombatStat再計算を含む）。`consumeEffectDuration`と同じ理由で
    * 呼び出し側が注入する。未指定、または遅延対象が無ければ何もしない。
    */
+  /**
+   * R-EFF-07: 同じACTION stepの別のDAMAGE（別の攻撃）が使い切り、その攻撃の終了まで失効を
+   * 待っている効果のうち、この攻撃が消費していないもの。この攻撃の計算と吸収には参加させない。
+   */
+  readonly suspendedEffectInstanceIds?: ReadonlySet<EffectInstanceId>;
+  /**
+   * R-EFF-07: {@link suspendedEffectInstanceIds}を除いて能力値を計算し直したユニット。
+   * 攻撃側・防御側の命中・回避・会心・貫通・補正・ダメージ式・無効の判定でだけ使い、
+   * `working`へは書き戻さない。未指定ならユニットそのもの。
+   */
+  readonly unitView?: (unit: BattleUnit) => BattleUnit;
+  /**
+   * R-EFF-07: 以後のヒットを新しい1回の攻撃として数え始める。1つの`DamageEventContext`で
+   * 複数の攻撃を順に解決する呼び出し（追撃ライダーごとの追撃、R-FUP-01）が、前の攻撃の
+   * `finalizeConsumedEffectDurations`を済ませてから呼ぶ。
+   */
+  readonly beginNextAttack?: () => void;
   readonly finalizeConsumedEffectDurations?: (
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,
