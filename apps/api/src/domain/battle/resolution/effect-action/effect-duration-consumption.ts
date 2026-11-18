@@ -8,8 +8,6 @@ import { consumeEffectDurations } from "../../model/applied-effect-duration.js";
 import type { ConsumptionKind } from "../../../catalog/definitions/catalog-enums.js";
 import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
-import type { BattleUnitId } from "../../../shared/ids.js";
-import type { EffectInstanceId } from "../../../shared/event-ids.js";
 
 /**
  * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は「効果ownerが次に攻撃/攻撃対象に
@@ -29,41 +27,62 @@ const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set(
 ]);
 
 /**
+ * R-EFF-07: 1回の攻撃（1 DAMAGE EffectAction参照の全対象・全ヒット）の間で共有する
+ * `NEXT_*_ATTACK`消費の状態。ACTION stepは対象ごとに`actions`を並べて解決するため、
+ * 同じ攻撃が複数の適用（対象）にまたがる。消費の記録と遅延失効を適用ごとに閉じると、
+ * 最初の対象の解決後に効果が失効して2体目以降に補正が乗らない。
+ */
+export interface AttackConsumptionScope {
+  /** この攻撃で既に1回分消費したインスタンス（`保持ユニット|インスタンスID`）。 */
+  readonly consumedInstanceKeys: Set<string>;
+  /** 消費で0になり、この攻撃の終了まで失効を遅らせているインスタンス。 */
+  readonly pendingExpirySeeds: ExpirationSeed[];
+}
+
+export function createAttackConsumptionScope(): AttackConsumptionScope {
+  return { consumedInstanceKeys: new Set(), pendingExpirySeeds: [] };
+}
+
+/**
+ * R-EFF-07: 失効させずに残す消費。`consumption.scope: ACTION`は攻撃ではなく行動の完了で
+ * 失効させる（`action-completion.ts`）。行動外の攻撃（ターン開始時のPS等）は待つ行動が
+ * 無いため、攻撃単位と同じく攻撃の終了で失効させる。
+ */
+function waitsForActionCompletion(
+  context: EffectActionGroupContext,
+  units: readonly BattleUnit[],
+  seed: ExpirationSeed,
+): boolean {
+  if (context.actionId === undefined) {
+    return false;
+  }
+  const effect = units
+    .find((unit) => unit.battleUnitId === seed.battleUnitId)
+    ?.appliedEffects.find((candidate) => candidate.effectInstanceId === seed.effectInstanceId);
+  return effect?.duration.definition.consumption?.scope === "ACTION";
+}
+
+/**
  * R-EFF-07: `damage-application-service.ts`（`combat/`）が`effects/`へ直接依存できない
  * （Domain層のmodule境界、`onFactEventForPassiveChain`と同じ理由）ため、
  * `DamageEventContext.consumeEffectDuration`/`finalizeConsumedEffectDurations`として
  * 注入する一対のクロージャを組み立てる。{@link DEFERRED_EXPIRY_CONSUMPTION_KINDS}に
- * 属するkindの消費で0になったインスタンスは即座には失効させず、`pendingExpirySeeds`へ
- * 貯めておき、`finalizeConsumedEffectDurations`（呼び出し側が1回の`applyDamageAction`＝
- * 1EffectActionの全ヒット解決後に1回だけ呼ぶ）でまとめて失効させる。
+ * 属するkindは、同じ攻撃（`attackScope`）の中で各インスタンスを1回だけ消費し、0になった
+ * インスタンスは即座には失効させず`attackScope.pendingExpirySeeds`へ貯める。
+ * `finalizeConsumedEffectDurations`がそれをまとめて失効させる。呼び出し側は攻撃の最後の
+ * 適用でだけ`finalizeConsumedEffectDurations`を渡す。
  *
  * `APPLY_STATUS`もR-EFF-07の`STATUS_BLOCKED`消費で`consumeEffectDuration`だけを使う。
  */
-export function buildConsumeEffectDurationHooks(context: EffectActionGroupContext): {
+export function buildConsumeEffectDurationHooks(
+  context: EffectActionGroupContext,
+  attackScope: AttackConsumptionScope = createAttackConsumptionScope(),
+): {
   readonly consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]>;
   readonly finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
   >;
 } {
-  const pendingExpirySeeds: ExpirationSeed[] = [];
-  // `consumption.instancePolicy: OLDEST_ONLY`は「1回の攻撃で最古の1インスタンス」。
-  // このフックは1 EffectAction（＝1回の攻撃）ごとに組み立てられるため、ここで消費済みの
-  // 保持ユニット×定義を覚えておき、多段ヒットの2ヒット目以降が次のインスタンスへ
-  // 進むのを止める。
-  const oldestOnlyConsumedKeys = new Set<string>();
-  const oldestOnlyKeyOf = (
-    units: readonly BattleUnit[],
-    battleUnitId: BattleUnitId,
-    effectInstanceId: EffectInstanceId,
-  ): string | null => {
-    const effect = units
-      .find((unit) => unit.battleUnitId === battleUnitId)
-      ?.appliedEffects.find((candidate) => candidate.effectInstanceId === effectInstanceId);
-    if (effect?.duration.definition.consumption?.instancePolicy !== "OLDEST_ONLY") {
-      return null;
-    }
-    return JSON.stringify([battleUnitId, effect.effectActionDefinitionId]);
-  };
   // 失効はステップを`yield`する`expireEffectsSteps`へ委譲し、通知（またはyield）の粒度は
   // `damage-application-service.ts`の`driveRemovalSteps`が決める。
   // `onFactEventForPassiveChain`をこの`eventContext`へ渡すと、そのstep通知とDAMAGE側の
@@ -71,7 +90,7 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
   const eventContext = eventContextOf(context);
 
   const consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]> =
-    function* (ownerUnitId, kind, units, callParentEventId, effectInstanceId) {
+    function* (ownerUnitId, kind, units, callParentEventId, effectInstanceId, attackDamageType) {
       // 消費対象の「決定」と「適用」を分ける。`consumeEffectDurations`は一致する全
       // インスタンスを一括で減算した`units`を返すため、それを起点にしてイベントだけ
       // 1件ずつ発行すると、最初の`EffectConsumptionChanged`を観測するPS/Memoryが
@@ -79,20 +98,24 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
       // ここでは対象インスタンスの決定にだけ使い、実際の減算・イベント発行・`yield`は
       // 最新の`workingUnits`へ1インスタンスずつ行う（`consumeEffectDurations`の第4引数で
       // 対象を1件へ限定できる — R-HIT-04のNヒット回避自己消費と同じ機構）。
-      const planned = consumeEffectDurations(units, ownerUnitId, kind, effectInstanceId);
+      const planned = consumeEffectDurations(
+        units,
+        ownerUnitId,
+        kind,
+        effectInstanceId,
+        attackDamageType,
+      );
       if (planned.changes.length === 0) {
         return { units, lastEventId: callParentEventId };
       }
+      const perAttack = DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind);
       let workingUnits = units;
       let lastEventId = callParentEventId;
       const seeds: ExpirationSeed[] = [];
       for (const plannedChange of planned.changes) {
-        const oldestOnlyKey = oldestOnlyKeyOf(
-          workingUnits,
-          plannedChange.battleUnitId,
-          plannedChange.effectInstanceId,
-        );
-        if (oldestOnlyKey !== null && oldestOnlyConsumedKeys.has(oldestOnlyKey)) {
+        // 多段ヒットの2ヒット目以降・2体目以降の対象は、同じ攻撃の続きであり新たな1回ではない。
+        const attackKey = `${plannedChange.battleUnitId}|${plannedChange.effectInstanceId}`;
+        if (perAttack && attackScope.consumedInstanceKeys.has(attackKey)) {
           continue;
         }
         // 先行stepのPS/Memory連鎖が後続の対象を解除・失効させている場合があるため、
@@ -103,14 +126,15 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
           ownerUnitId,
           kind,
           plannedChange.effectInstanceId,
+          attackDamageType,
         );
         const change = applied.changes[0];
         if (change === undefined) {
           continue;
         }
         workingUnits = applied.units;
-        if (oldestOnlyKey !== null) {
-          oldestOnlyConsumedKeys.add(oldestOnlyKey);
+        if (perAttack) {
+          attackScope.consumedInstanceKeys.add(attackKey);
         }
         const stepEventsStart = eventContext.recorder.getEvents().length;
         lastEventId = emitEffectConsumptionChangedEvents(
@@ -137,8 +161,10 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
       if (seeds.length === 0) {
         return { units: workingUnits, lastEventId };
       }
-      if (DEFERRED_EXPIRY_CONSUMPTION_KINDS.has(kind)) {
-        pendingExpirySeeds.push(...seeds);
+      if (perAttack) {
+        attackScope.pendingExpirySeeds.push(
+          ...seeds.filter((seed) => !waitsForActionCompletion(context, workingUnits, seed)),
+        );
         return { units: workingUnits, lastEventId };
       }
       const expiry = yield* expireEffectsSteps(
@@ -154,10 +180,11 @@ export function buildConsumeEffectDurationHooks(context: EffectActionGroupContex
   const finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
   > = function* (units, parentEventId) {
-    if (pendingExpirySeeds.length === 0) {
+    const pending = attackScope.pendingExpirySeeds;
+    if (pending.length === 0) {
       return { units, lastEventId: parentEventId };
     }
-    const seeds = pendingExpirySeeds.splice(0, pendingExpirySeeds.length);
+    const seeds = pending.splice(0, pending.length);
     const expiry = yield* expireEffectsSteps(
       eventContext,
       units,

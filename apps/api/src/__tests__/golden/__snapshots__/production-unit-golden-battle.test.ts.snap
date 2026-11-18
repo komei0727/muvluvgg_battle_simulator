@@ -1513,7 +1513,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAURA_MOUNTAIN comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 160,
-  "eventSequenceHash": "sha256:d55d1e5915f54b60",
+  "eventSequenceHash": "sha256:6b98c7970905f1a3",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1715,7 +1715,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_SINGER completes
   "completedTurn": 4,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 906,
-  "eventSequenceHash": "sha256:4256eefd414ff8d7",
+  "eventSequenceHash": "sha256:0c47f450526b5715",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 33,
     "ACTION_COMPLETING": 33,
@@ -2819,7 +2819,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_NADYA_BOND compl
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 1003,
-  "eventSequenceHash": "sha256:6364b6bf12db797e",
+  "eventSequenceHash": "sha256:7778c5c4614c7b82",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 23,
     "ACTION_COMPLETING": 23,
@@ -3755,8 +3755,8 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SUIRAN_CASINO complet
 {
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
-  "eventCount": 524,
-  "eventSequenceHash": "sha256:c649930c96b6d4e4",
+  "eventCount": 526,
+  "eventSequenceHash": "sha256:2dc1813cf6b3d761",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 10,
     "ACTION_COMPLETING": 10,
@@ -3775,7 +3775,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SUIRAN_CASINO complet
     "EFFECT_ACTION_COMPLETED": 38,
     "EFFECT_ACTION_STARTING": 38,
     "EFFECT_APPLIED": 20,
-    "EFFECT_CONSUMPTION_CHANGED": 16,
+    "EFFECT_CONSUMPTION_CHANGED": 17,
     "EFFECT_DURATION_REDUCED": 3,
     "EFFECT_EXPIRED": 15,
     "EFFECT_STEP_COMPLETED": 54,
@@ -3792,7 +3792,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SUIRAN_CASINO complet
     "PASSIVE_RESOLVED": 8,
     "RESOURCES_RECOVERED": 2,
     "RESOURCE_CHANGED": 45,
-    "SHIELD_CONSUMED": 4,
+    "SHIELD_CONSUMED": 5,
     "SKILL_USE_COMPLETED": 10,
     "SKILL_USE_STARTED": 10,
     "SKILL_USE_STARTING": 10,

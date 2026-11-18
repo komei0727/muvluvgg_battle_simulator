@@ -352,6 +352,72 @@ describe("recordActionCompletion", () => {
     ]);
   });
 
+  it("UT-R-EFF-07-022 [R-EFF-07]: expires ACTION-scoped consumption effects already used up during the action — on any holder — and leaves unused or attack-scoped ones", () => {
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const seed = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const actor = plainUnit("ENEMY_ACTOR");
+    const holder = plainUnit("HOLDER");
+    const consumed = (
+      id: string,
+      remaining: number,
+      scope: "ACTION" | "ATTACK",
+    ): AppliedEffect => ({
+      ...actionEffect(id, holder.battleUnitId, holder.battleUnitId, 1),
+      duration: {
+        definition: {
+          dispellable: true,
+          linkedEffectGroupId: null,
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1, scope },
+        },
+        consumptionRemaining: remaining,
+      },
+    });
+    const holderWithEffects = {
+      ...holder,
+      appliedEffects: [
+        consumed("used-in-action", 0, "ACTION"),
+        consumed("not-yet-used", 1, "ACTION"),
+        consumed("attack-scoped", 1, "ATTACK"),
+      ],
+    };
+
+    const result = recordActionCompletion(
+      recorder,
+      {
+        actionId: createActionId("B_1:action:1"),
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId: seed.eventId,
+        turnNumber: 1,
+        cycleNumber: 1,
+        actorUnitId: actor.battleUnitId,
+        effectActions: new Map([[STAT_MOD_DEFINITION_ID, statModDefinition()]]),
+      },
+      "AS",
+      seed.eventId,
+      [actor, holderWithEffects],
+    );
+
+    const updated = result.units.find((u) => u.battleUnitId === holder.battleUnitId)!;
+    expect(updated.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("not-yet-used"),
+      createEffectInstanceId("attack-scoped"),
+    ]);
+    const expired = recorder.getEvents().filter((e) => e.eventType === "EffectExpired");
+    expect(expired.map((e) => e.payload)).toEqual([
+      expect.objectContaining({
+        effectInstanceId: createEffectInstanceId("used-in-action"),
+        reason: "CONSUMPTION",
+      }),
+    ]);
+  });
+
   it("UT-R-EFF-04-017 (R-EFF-04 owner=EFFECT_SOURCE): decrements an effect held by ANOTHER unit when the completing actor is its source", () => {
     const recorder = new EventRecorder(createBattleId("B_1"));
     const seed = recorder.record({

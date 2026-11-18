@@ -11,7 +11,11 @@ import type {
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResolveBreakHook } from "../events/break-resolution.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import type { ConsumptionKind, SkillType } from "../../catalog/definitions/catalog-enums.js";
+import type {
+  ConsumptionKind,
+  DamageType,
+  SkillType,
+} from "../../catalog/definitions/catalog-enums.js";
 import type {
   EffectActionDefinitionId,
   SkillDefinitionId,
@@ -164,6 +168,8 @@ export interface DamageEventContext {
     parentEventId: DomainEventId,
     /** R-HIT-04: 指定時はこの1インスタンスだけを消費する（Nヒット回避の自己消費）。 */
     effectInstanceId?: EffectInstanceId,
+    /** R-EFF-07: `consumption.damageType`を宣言した効果の照合に使う、契機の攻撃のタイプ。 */
+    attackDamageType?: DamageType,
   ) => Generator<
     { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
     { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },

@@ -27,8 +27,15 @@ import type { BattleUnitId } from "../../shared/ids.js";
 import { resolveEffectActionByKind } from "./effect-action/effect-action-dispatch.js";
 import {
   createEffectActionEventCursor,
+  driveRemovalSteps,
+  type EffectActionApplicationInput,
   type EffectActionOutcome,
 } from "./effect-action/effect-action-handler.js";
+import {
+  buildConsumeEffectDurationHooks,
+  createAttackConsumptionScope,
+  type AttackConsumptionScope,
+} from "./effect-action/effect-duration-consumption.js";
 import {
   isActorDefeated,
   resolutionSourceOf,
@@ -202,6 +209,8 @@ export function* resolveOneEffectActionApplication(
    * `operation: DISTRIBUTE`だけがこれを使い、総量を等分する。
    */
   distributionShareCount = 1,
+  /** R-EFF-07: DAMAGEが属する1回の攻撃の消費状態（{@link EffectActionApplicationInput}）。 */
+  attack?: EffectActionApplicationInput["attack"],
 ): Generator<EffectResolutionStep, OneApplicationResult, void> {
   const effectAction = context.definitions.effectActions.get(application.effectActionDefinitionId);
   if (effectAction === undefined) {
@@ -277,6 +286,7 @@ export function* resolveOneEffectActionApplication(
       startingEventId: starting.eventId,
       distributionShareCount,
       cursor,
+      ...(attack !== undefined ? { attack } : {}),
     });
   }
 
@@ -576,6 +586,36 @@ function* resolveActionApplications(
     return shareCount;
   };
 
+  // R-EFF-07: 同じDAMAGE参照の適用（対象ごと）は全体で1回の攻撃。分配グループと同じ
+  // 参照単位のキーで消費状態を共有し、その参照の最後の適用で遅延させた失効を確定する。
+  const attackScopes = new Map<string, AttackConsumptionScope>();
+  const lastIndexByGroup = new Map<string, number>();
+  shareGroupKeys.forEach((groupKey, index) => lastIndexByGroup.set(groupKey, index));
+  const attackOf = (
+    index: number,
+    isLastRecipient: boolean,
+  ): EffectActionApplicationInput["attack"] => {
+    const groupKey = shareGroupKeys[index]!;
+    const scope = attackScopes.get(groupKey) ?? createAttackConsumptionScope();
+    attackScopes.set(groupKey, scope);
+    return { scope, final: isLastRecipient && lastIndexByGroup.get(groupKey) === index };
+  };
+  // 攻撃の最後の適用が開始されなかった場合（命中条件で除外・使用者の戦闘不能で中断）も、
+  // 0になった効果を次の攻撃へ持ち越さないよう、stepの終わりで失効させる。
+  const flushAttackScopes = function* (): Generator<EffectResolutionStep, void, void> {
+    for (const scope of attackScopes.values()) {
+      if (scope.pendingExpirySeeds.length === 0) {
+        continue;
+      }
+      const { finalizeConsumedEffectDurations } = buildConsumeEffectDurationHooks(context, scope);
+      const finalized = yield* driveRemovalSteps(
+        { context, box, cursor: createEffectActionEventCursor(context, box) },
+        finalizeConsumedEffectDurations(box.units, lastEventId),
+      );
+      lastEventId = finalized.lastEventId;
+    }
+  };
+
   for (let index = 0; index < applications.length; index += 1) {
     // R-SKL-06 #4a: 命中条件を満たさない適用は`targetCondition`で除外された対象と同じく
     // 一切開始しない（イベント・直前結果・解決数のいずれにも現れない）。判定は直前の
@@ -588,6 +628,7 @@ function* resolveActionApplications(
       const unstartedHits = (): number =>
         countHits(effective.slice(effectiveIndex + 1)) + countHits(applications.slice(index + 1));
       if (isActorDefeated(context, box)) {
+        yield* flushAttackScopes();
         finalizeStepTargets();
         return {
           lastEventId,
@@ -605,6 +646,7 @@ function* resolveActionApplications(
         context,
         lastEventId,
         resolveShareCount(index),
+        attackOf(index, effectiveIndex === effective.length - 1),
       );
       lastEventId = applied.lastEventId;
       resolvedCount += applied.resolvedCount;
@@ -648,6 +690,7 @@ function* resolveActionApplications(
       }
 
       if (applied.interrupted) {
+        yield* flushAttackScopes();
         finalizeStepTargets();
         return {
           lastEventId,
@@ -662,6 +705,7 @@ function* resolveActionApplications(
     }
   }
 
+  yield* flushAttackScopes();
   finalizeStepTargets();
   return { lastEventId, walkResult: walkCompleted(resolvedCount, resolvedActionCount) };
 }

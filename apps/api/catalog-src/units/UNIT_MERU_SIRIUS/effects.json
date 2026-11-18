@@ -26,10 +26,7 @@
         "mode": "STACKABLE"
       },
       "duration": {
-        "timeLimit": {
-          "unit": "HIT",
-          "count": 2
-        },
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 },
         "dispellable": true
       }
     },

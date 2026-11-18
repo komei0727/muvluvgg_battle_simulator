@@ -215,7 +215,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_NANAE_COMMANDER_PS1_DMG_DOWN",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
         {
           unitId: "ally:subject",
@@ -228,7 +228,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:back",
           effectActionDefinitionId: "ACT_NANAE_COMMANDER_PS1_DMG_DOWN",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
         {
           unitId: "ally:back",
@@ -274,7 +274,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_NANAE_COMMANDER_PS1_DMG_DOWN",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
         {
           unitId: "ally:subject",
@@ -286,7 +286,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:back",
           effectActionDefinitionId: "ACT_NANAE_COMMANDER_PS1_DMG_DOWN",
           magnitude: -0.3,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
         {
           unitId: "ally:back",

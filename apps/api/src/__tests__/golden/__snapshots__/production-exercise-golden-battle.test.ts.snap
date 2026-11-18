@@ -811,7 +811,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
   "eventCount": 7872,
-  "eventSequenceHash": "sha256:29120f960bfa694d",
+  "eventSequenceHash": "sha256:1c38bbeffaa8d82d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 140,
     "ACTION_COMPLETING": 140,

@@ -181,7 +181,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_MAO_COMMITTEE_AS1_SHIELD",
           magnitude: 500,
-          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
       ],
       resources: [

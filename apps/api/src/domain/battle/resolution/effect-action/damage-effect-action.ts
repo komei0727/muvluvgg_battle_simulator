@@ -242,7 +242,10 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   const targetAlreadyDefeated =
     !application.includeDefeated && isDefeated(requireUnit(box.units, application.targetUnitId));
   const { consumeEffectDuration, finalizeConsumedEffectDurations } =
-    buildConsumeEffectDurationHooks(context);
+    buildConsumeEffectDurationHooks(context, input.attack?.scope);
+  // R-EFF-07: 範囲攻撃は対象ごとの適用にまたがる1回の攻撃のため、消費で0になった効果の
+  // 失効はその攻撃の最後の適用まで待つ（途中で失効させると2体目以降に補正が乗らない）。
+  const finalizesAttack = input.attack === undefined || input.attack.final;
   const skillType = skillTypeOf(context);
   const damageGen = applyDamageActionSteps(
     currentActor,
@@ -257,7 +260,7 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       // R-CFS-02（DMG-009）: 混乱はASの攻撃だけに働く。
       ...(skillType !== undefined ? { skillType } : {}),
       consumeEffectDuration,
-      finalizeConsumedEffectDurations,
+      ...(finalizesAttack ? { finalizeConsumedEffectDurations } : {}),
       includeDefeated: application.includeDefeated,
       // R-TEX-02／R-TEX-03: 演習状態とブレイク解決hookは`eventContextOf`が組で載せる
       // （上の spread に含まれる）。ここで個別に足すと片方だけ渡す配線ミスを許してしまう。

@@ -3192,7 +3192,10 @@
     "payload": {
       "categories": ["STATUS"],
       "statusKinds": ["STUN"],
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 } },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 3 }
+      },
       "maxBlocks": null
     },
     "metadata": { "tags": [] }
@@ -3517,7 +3520,10 @@
         "stat": "ATTACK",
         "ratio": 1
       },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -4522,7 +4528,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1, "scope": "ACTION" }
       }
     },
     "metadata": { "tags": [] }
@@ -5117,7 +5123,10 @@
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "DAMAGE_IMMUNITY",
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -5167,7 +5176,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "damageType": "EN" }
       }
     },
     "metadata": { "tags": [] }
@@ -5214,7 +5223,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "damageType": "EN" }
       }
     },
     "metadata": { "tags": [] }
@@ -6247,7 +6256,10 @@
         "source": { "kind": "SKILL_SOURCE" },
         "ratio": 0.0625
       },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7449,7 +7461,10 @@
       "direction": "INCOMING",
       "formula": { "kind": "CONSTANT", "value": 0.5 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "timeLimit": { "unit": "HIT", "count": 2 }, "dispellable": true }
+      "duration": {
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 },
+        "dispellable": true
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8180,7 +8195,10 @@
       "damageType": "EN",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 3, "damageType": "EN" }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -9361,7 +9379,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -9373,7 +9394,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10218,7 +10242,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10450,7 +10477,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "scope": "ACTION" }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -11218,7 +11248,10 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -12478,7 +12511,10 @@
     "kind": "APPLY_SHIELD",
     "payload": {
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.2 },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13343,11 +13379,7 @@
       "formula": { "kind": "MAX_HP_RATIO", "source": { "kind": "SKILL_SOURCE" }, "ratio": 0.25 },
       "duration": {
         "dispellable": true,
-        "consumption": {
-          "kind": "NEXT_INCOMING_ATTACK",
-          "maxCount": 1,
-          "instancePolicy": "OLDEST_ONLY"
-        },
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 },
         "linkedEffectGroupId": "YIFEI_STORM_AS2_SET_LINK",
         "linkedEffectGroupRole": "PARENT",
         "linkedEffectGroupScope": "SKILL_USE"

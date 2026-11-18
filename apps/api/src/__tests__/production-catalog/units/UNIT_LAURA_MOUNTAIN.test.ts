@@ -224,11 +224,16 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       // 攻撃力バフ（生存している味方3体×1.75%＝5.25%。上限7%＝4体には届かない）は
-      // 隣接攻撃の1発目で消費され、その1発だけが468になる（2発目は424へ戻る）。
-      // 原文では隣接攻撃は「続く自身の攻撃」に付く追加攻撃だが、定義はPS側の攻撃として
-      // 表しているため、`NEXT_OUTGOING_ATTACK` の消費点がASではなくここに来る。
-      hpDeltas: { "enemy:left": -468, "enemy:back": -424 },
+      // 隣接攻撃の全対象に乗り、どちらも468になる（SR-331）。隣接攻撃で残数0になっても
+      // `scope: ACTION`のため行動の完了まで残り、続く元のASにも乗る。
+      hpDeltas: { "enemy:left": -468, "enemy:back": -468 },
       effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF",
+          magnitude: 0.052500000000000005,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
         {
           // 炎上量は消費前の攻撃力1052.5の30%。
           unitId: "enemy:front",

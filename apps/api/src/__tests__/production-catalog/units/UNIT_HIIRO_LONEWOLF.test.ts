@@ -221,7 +221,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY",
           magnitude: 0,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
       ],
       resources: [
@@ -314,7 +314,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_HIIRO_LONEWOLF_PS2_STUN_IMMUNITY",
           magnitude: 0,
-          consumption: { kind: "INCOMING_HIT", maxCount: 3 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3 },
         },
       ],
       resources: [
@@ -471,10 +471,10 @@ describe("production Catalog UNIT_HIIRO_LONEWOLF (【緋色の一匹狼】榊野
   });
 
   it("IT-UNIT-HIIRO-LONEWOLF-006 [R-EFF-03] (R-EFF-03): PS2が配る「気絶無効」も `STATUS` カテゴリ全体ではなく気絶だけを拒否する。実 `ACT_LILY_HERO_AS2_STUN` は弾かれて同じ行動のstat debuffは通り、実 `ACT_NANAE_COMMANDER_EX_FREEZE` は同じ免疫を素通りする", () => {
-    // `-001` のPS2行は実 `UnitDefeated` 契機での付与（`consumption: INCOMING_HIT(3)`）
+    // `-001` のPS2行は実 `UnitDefeated` 契機での付与（`consumption: NEXT_INCOMING_ATTACK(3)`）
     // までを固定する。`statusKinds` の絞り込みは**以後に飛んでくる付与**を弾くか
     // 通すかにしか現れず、これは別のスキル使用に属する。葵（`maxBlocks: null` +
-    // 2行動期間）とヒイロ（被ヒット3回消費）は宣言の形が違うため、種別限定が
+    // 2行動期間）とヒイロ（被攻撃3回消費）は宣言の形が違うため、種別限定が
     // 宣言の形に依らないことは2件を並べて初めて固定される。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const guarded = applyPrecedingActions(board, [

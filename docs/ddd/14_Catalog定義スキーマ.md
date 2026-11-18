@@ -2566,9 +2566,13 @@ duration:
 | `STATUS_BLOCKED`       | 状態異常を無効化したとき |
 | `LETHAL_DAMAGE`        | 致死ダメージを受けたとき |
 
-`consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。
+`consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。`NEXT_OUTGOING_ATTACK`／`NEXT_INCOMING_ATTACK` は1 DAMAGE EffectAction（全対象・全ヒット）を1回と数え、範囲攻撃では最後の対象の解決後に失効する（R-EFF-07）。「Nヒットの間」ではなく「N回攻撃を受けるまで」「N攻撃の間」と書かれた効果・シールドはこの2つで表し、`INCOMING_HIT`／`OUTGOING_HIT` は明示的にヒット数で数える効果（1ヒット盾・Nヒット回避・2ヒットの被ダメージ増加等）に限る。
 
-`consumption.instancePolicy`（省略可、`OLDEST_ONLY`のみ、Issue #755）は、同じ`EffectActionDefinitionId`由来のインスタンスを複数保持しているときの消費対象を表す。省略時は条件に一致する全インスタンスを減算する。`OLDEST_ONLY`は1回の攻撃（1 DAMAGE EffectAction）で、付与順が最も古い残り回数を持つ1インスタンスだけを減算し、多段ヒットの2ヒット目以降も次のインスタンスへ進まない（R-EFF-07）。`kind: NEXT_INCOMING_ATTACK`専用で、他の`kind`との組み合わせはCatalogロード時に拒否する。「1回攻撃を受けると消滅する」効果を重複付与したとき、1回の攻撃で全セットが消えないようにするためのもの。ダメージでシールド残量が0になることによる失効（R-SHD-01）はこの宣言の影響を受けない。
+`consumption.damageType`（省略可、`PHYSICAL`／`EN`）は、そのダメージタイプの攻撃でだけ消費することを表す（「次のEN攻撃」）。省略時はタイプを問わない。効果自体の対象タイプ（`APPLY_DAMAGE_MOD.damageType`）とは独立に宣言する — 物理被ダメージ軽減をEN攻撃でも回数消費させる効果（`ACT_SHIRANA_LUCKY_PS2_GUARD`）があるため。
+
+`consumption.scope`（省略可、`ATTACK`／`ACTION`）は1回分の範囲を表す。`ATTACK`（省略時）は1 DAMAGE EffectAction。`ACTION` はその攻撃を含む行動全体で、残数を使い切っても行動の完了まで失効せず、同じ行動内の別スキルの攻撃も覆う（`ACT_LAURA_MOUNTAIN_PS1_ATK_BUFF`: PSの隣接攻撃と元のAS、`ACT_ROSIE_CAMPAIGN_PS3_DMG_DOWN`: 契機になった敵の攻撃行動全体）。`maxCount: 1` とだけ組み合わせられる。
+
+`damageType`・`scope` は `NEXT_OUTGOING_ATTACK`／`NEXT_INCOMING_ATTACK` 専用で、他の `kind` との組み合わせはCatalogロード時に拒否する。同じ定義由来のインスタンスを重ねて保持している場合は、1回の攻撃で全インスタンスを1回ずつ消費する（以前の `instancePolicy: OLDEST_ONLY` は廃止し、宣言するとロード時に拒否する）。
 
 ### reapply
 

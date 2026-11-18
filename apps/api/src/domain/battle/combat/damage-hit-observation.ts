@@ -114,6 +114,8 @@ export function* observeHitSteps(
     targetUnitId,
     "NEXT_INCOMING_ATTACK",
     lastEventId,
+    undefined,
+    profile.damageType,
   );
 
   // R-EFF-07: `NEXT_OUTGOING_ATTACK`は攻撃者が命中判定に到達した時点
@@ -124,6 +126,8 @@ export function* observeHitSteps(
     attackerAtStart.battleUnitId,
     "NEXT_OUTGOING_ATTACK",
     lastEventId,
+    undefined,
+    profile.damageType,
   );
 
   // `NEXT_*_ATTACK`消費の失効が発火したPS連鎖は`working`を

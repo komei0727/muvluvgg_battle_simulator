@@ -141,7 +141,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_LILY_SINGER_AS1_IMMUNITY",
           magnitude: 0,
-          consumption: { kind: "INCOMING_HIT", maxCount: 2 },
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 2 },
           statusKind: "DAMAGE_IMMUNITY",
         },
       ],
