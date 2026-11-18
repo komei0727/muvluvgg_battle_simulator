@@ -14,6 +14,13 @@ import {
 } from "../../testing/production-unit/skill-behaviour.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../domain/battle/model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
 import type { DamageType } from "../../domain/catalog/definitions/catalog-enums.js";
 
 /**
@@ -278,6 +285,52 @@ describe("シールドの攻撃単位の消費（R-SHD-01）", () => {
     const second = strike(first);
     expect(-second.hpDeltas[HOLDER]!).toBe(858 - 142);
     expect(effectsOf(second.units, "ACT_JUNKA_CHILDHOOD_EX_SHIELD")).toEqual([]);
+  });
+
+  it("IT-CAT-ATKCONS-018 [R-EFF-07][R-INT-02] SR-119: 純夏EXのシールドを持つユニットが味方への攻撃を肩代わりすると、実際に受けた保持者で1攻撃分を消費する", () => {
+    const holder = holderWith("UNIT_JUNKA_CHILDHOOD", ["ACT_JUNKA_CHILDHOOD_EX_SHIELD"]);
+    const coverDefinitionId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    // 攻撃者（`enemy:front`）の攻撃を保持者が全量肩代わりする状態（R-INT-02）。
+    const coveredByHolder: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: coverDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(coverDefinitionId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId(HOLDER),
+      targetUnitId: createBattleUnitId("enemy:front"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId(HOLDER),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const units = holder.units.map((unit) =>
+      unit.battleUnitId === "enemy:front"
+        ? { ...unit, appliedEffects: [...unit.appliedEffects, coveredByHolder] }
+        : unit,
+    );
+    const observed = observeLifecycleDamageProbe({
+      definitions: holder.definitions,
+      units,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: POWER_66,
+      hitCount: 3,
+    });
+
+    expect(observed.redirects.map((redirect) => redirect.newTargetUnitId)).toEqual([
+      HOLDER,
+      HOLDER,
+      HOLDER,
+    ]);
+    expect(remainingOf(observed.units, "ACT_JUNKA_CHILDHOOD_EX_SHIELD")).toEqual([
+      { consumption: 1, shield: 1000 - 66 * 3 },
+    ]);
   });
 
   it("IT-CAT-ATKCONS-010 [R-EFF-07][R-SHD-01] SR-119: 少ヒットの攻撃が2回続くと、容量が残っていても2攻撃目の終了で消える", () => {

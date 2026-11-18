@@ -18,7 +18,7 @@ import type {
   EffectStepDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -598,7 +598,22 @@ function* resolveActionApplications(
     const groupKey = shareGroupKeys[index]!;
     const scope = attackScopes.get(groupKey) ?? createAttackConsumptionScope();
     attackScopes.set(groupKey, scope);
-    return { scope, final: isLastRecipient && lastIndexByGroup.get(groupKey) === index };
+    const suspendedEffectInstanceIds = new Set<EffectInstanceId>();
+    for (const [otherKey, other] of attackScopes) {
+      if (otherKey === groupKey) {
+        continue;
+      }
+      for (const seed of other.pendingExpirySeeds) {
+        if (seed.battleUnitId === context.actorUnitId) {
+          suspendedEffectInstanceIds.add(seed.effectInstanceId);
+        }
+      }
+    }
+    return {
+      scope,
+      final: isLastRecipient && lastIndexByGroup.get(groupKey) === index,
+      suspendedEffectInstanceIds,
+    };
   };
   // 攻撃の最後の適用が開始されなかった場合（命中条件で除外・使用者の戦闘不能で中断）も、
   // 0になった効果を次の攻撃へ持ち越さないよう、stepの終わりで失効させる。

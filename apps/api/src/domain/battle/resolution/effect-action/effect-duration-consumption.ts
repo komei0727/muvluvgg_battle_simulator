@@ -8,6 +8,7 @@ import { consumeEffectDurations } from "../../model/applied-effect-duration.js";
 import type { ConsumptionKind } from "../../../catalog/definitions/catalog-enums.js";
 import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
+import type { BattleUnitId } from "../../../shared/ids.js";
 
 /**
  * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は「効果ownerが次に攻撃/攻撃対象に
@@ -70,19 +71,27 @@ function waitsForActionCompletion(
  * 属するkindは、同じ攻撃（`attackScope`）の中で各インスタンスを1回だけ消費し、0になった
  * インスタンスは即座には失効させず`attackScope.pendingExpirySeeds`へ貯める。
  * `finalizeConsumedEffectDurations`がそれをまとめて失効させる。呼び出し側は攻撃の最後の
- * 適用でだけ`finalizeConsumedEffectDurations`を渡す。
+ * 適用で`finalizeConsumedEffectDurations`を、途中の適用で
+ * `finalizeConsumedEffectDurationsExceptHeldBy(攻撃側)`を渡す。被攻撃側が保持する効果は
+ * その対象への適用が終われば同じ攻撃で再び使われないため、後続の対象を待たずに失効させ、
+ * 同じ対象への別のDAMAGE（別の攻撃）へ持ち越さない。
  *
  * `APPLY_STATUS`もR-EFF-07の`STATUS_BLOCKED`消費で`consumeEffectDuration`だけを使う。
  */
 export function buildConsumeEffectDurationHooks(
   context: EffectActionGroupContext,
-  attackScope: AttackConsumptionScope = createAttackConsumptionScope(),
+  initialAttackScope: AttackConsumptionScope = createAttackConsumptionScope(),
 ): {
   readonly consumeEffectDuration: NonNullable<DamageEventContext["consumeEffectDuration"]>;
   readonly finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
   >;
+  readonly finalizeConsumedEffectDurationsExceptHeldBy: (
+    keptHolderUnitId: BattleUnitId,
+  ) => NonNullable<DamageEventContext["finalizeConsumedEffectDurations"]>;
+  readonly beginNextAttack: NonNullable<DamageEventContext["beginNextAttack"]>;
 } {
+  let attackScope = initialAttackScope;
   // 失効はステップを`yield`する`expireEffectsSteps`へ委譲し、通知（またはyield）の粒度は
   // `damage-application-service.ts`の`driveRemovalSteps`が決める。
   // `onFactEventForPassiveChain`をこの`eventContext`へ渡すと、そのstep通知とDAMAGE側の
@@ -177,23 +186,39 @@ export function buildConsumeEffectDurationHooks(
       return { units: expiry.units, lastEventId: expiry.lastEventId };
     };
 
-  const finalizeConsumedEffectDurations: NonNullable<
-    DamageEventContext["finalizeConsumedEffectDurations"]
-  > = function* (units, parentEventId) {
-    const pending = attackScope.pendingExpirySeeds;
-    if (pending.length === 0) {
-      return { units, lastEventId: parentEventId };
-    }
-    const seeds = pending.splice(0, pending.length);
-    const expiry = yield* expireEffectsSteps(
-      eventContext,
-      units,
-      seeds,
-      context.definitions.effectActions,
-      parentEventId,
-    );
-    return { units: expiry.units, lastEventId: expiry.lastEventId };
+  const finalizeWhere = (
+    expiresNow: (seed: ExpirationSeed) => boolean,
+  ): NonNullable<DamageEventContext["finalizeConsumedEffectDurations"]> =>
+    function* (units, parentEventId) {
+      const pending = attackScope.pendingExpirySeeds;
+      const seeds = pending.filter(expiresNow);
+      if (seeds.length === 0) {
+        return { units, lastEventId: parentEventId };
+      }
+      const kept = pending.filter((seed) => !expiresNow(seed));
+      pending.splice(0, pending.length, ...kept);
+      const expiry = yield* expireEffectsSteps(
+        eventContext,
+        units,
+        seeds,
+        context.definitions.effectActions,
+        parentEventId,
+      );
+      return { units: expiry.units, lastEventId: expiry.lastEventId };
+    };
+  const finalizeConsumedEffectDurations = finalizeWhere(() => true);
+  const finalizeConsumedEffectDurationsExceptHeldBy = (keptHolderUnitId: BattleUnitId) =>
+    finalizeWhere((seed) => seed.battleUnitId !== keptHolderUnitId);
+
+  // 前の攻撃の遅延失効は呼び出し側が`finalizeConsumedEffectDurations`で確定済み。
+  const beginNextAttack = (): void => {
+    attackScope = createAttackConsumptionScope();
   };
 
-  return { consumeEffectDuration, finalizeConsumedEffectDurations };
+  return {
+    consumeEffectDuration,
+    finalizeConsumedEffectDurations,
+    finalizeConsumedEffectDurationsExceptHeldBy,
+    beginNextAttack,
+  };
 }

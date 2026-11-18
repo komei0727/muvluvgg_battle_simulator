@@ -182,6 +182,19 @@ export interface DamageEventContext {
    * （`EffectExpired`発行、CombatStat再計算を含む）。`consumeEffectDuration`と同じ理由で
    * 呼び出し側が注入する。未指定、または遅延対象が無ければ何もしない。
    */
+  /**
+   * R-EFF-07: このヒットの計算に使う攻撃側。同じACTION stepの別のDAMAGE（別の攻撃）が
+   * 使い切り、その攻撃の最後の対象まで失効を待っている攻撃側の効果を除いた姿を返す。
+   * 計算（命中・会心・貫通・与ダメージ補正・ダメージ式）でだけ使い、`working`へは
+   * 書き戻さない。未指定なら攻撃側そのもの。
+   */
+  readonly attackerView?: (attacker: BattleUnit) => BattleUnit;
+  /**
+   * R-EFF-07: 以後のヒットを新しい1回の攻撃として数え始める。1つの`DamageEventContext`で
+   * 複数の攻撃を順に解決する呼び出し（追撃ライダーごとの追撃、R-FUP-01）が、前の攻撃の
+   * `finalizeConsumedEffectDurations`を済ませてから呼ぶ。
+   */
+  readonly beginNextAttack?: () => void;
   readonly finalizeConsumedEffectDurations?: (
     units: readonly BattleUnit[],
     parentEventId: DomainEventId,

@@ -25,6 +25,14 @@ export function findUnit(
   return unit;
 }
 
+/** R-EFF-07: このヒットの計算に使う攻撃側（{@link DamageEventContext.attackerView}）。 */
+export function attackerForCalculation(
+  context: DamageEventContext,
+  attacker: BattleUnit,
+): BattleUnit {
+  return context.attackerView?.(attacker) ?? attacker;
+}
+
 /**
  * R-EFF-07: `context.consumeEffectDuration`（呼び出し側が注入する、`combat/`は
  * `effects/`へ依存できないため）へ委譲し、`ownerUnitId`が保持する`kind`一致の

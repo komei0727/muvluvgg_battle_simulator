@@ -318,7 +318,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 4 completes
     "UNIT_KOTOHA_REBEL",
   ],
   "eventCount": 1214,
-  "eventSequenceHash": "sha256:23577a068f36436f",
+  "eventSequenceHash": "sha256:5bf6bd2857a04ddd",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 16,
     "ACTION_COMPLETING": 16,
@@ -462,7 +462,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 6 completes
     "UNIT_LYDIA_SUMMER",
   ],
   "eventCount": 832,
-  "eventSequenceHash": "sha256:4393a956113d265c",
+  "eventSequenceHash": "sha256:65b8ff754a370927",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 12,
     "ACTION_COMPLETING": 12,
@@ -536,7 +536,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 7 completes
     "UNIT_MEIYA_FATED",
   ],
   "eventCount": 1031,
-  "eventSequenceHash": "sha256:65ef6e7c9d5c651c",
+  "eventSequenceHash": "sha256:2cc2910004161425",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 17,
     "ACTION_COMPLETING": 17,
@@ -751,7 +751,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 10 complete
     "UNIT_RAMI_UNYIELDING",
   ],
   "eventCount": 870,
-  "eventSequenceHash": "sha256:6504af7c4b0a59c4",
+  "eventSequenceHash": "sha256:81352e79bbd5bdb3",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 13,
     "ACTION_COMPLETING": 13,
@@ -892,7 +892,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 12 complete
     "UNIT_SHOUKA_BEACH",
   ],
   "eventCount": 702,
-  "eventSequenceHash": "sha256:954be62335fb137e",
+  "eventSequenceHash": "sha256:e098a529fa04a8f6",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 13,
     "ACTION_COMPLETING": 13,
@@ -961,7 +961,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 13 complete
     "UNIT_SUIRAN_CASINO",
   ],
   "eventCount": 1884,
-  "eventSequenceHash": "sha256:30528ceb3e00cdc3",
+  "eventSequenceHash": "sha256:dc3e5bf4917dd038",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 38,
     "ACTION_COMPLETING": 38,
@@ -1199,7 +1199,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 16 complete
     "UNIT_CHIYURU_MAZE",
   ],
   "eventCount": 1155,
-  "eventSequenceHash": "sha256:755609130cdbaf10",
+  "eventSequenceHash": "sha256:ef1cd8cd4deb32f4",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 19,
     "ACTION_COMPLETING": 19,

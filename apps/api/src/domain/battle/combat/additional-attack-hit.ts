@@ -106,7 +106,11 @@ export function* applyOneAdditionalAttackHitSteps(
     working,
     attackerUnitId,
     targetUnitId,
-    { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
+    {
+      effectActionDefinitionId: profile.effectActionDefinitionId,
+      hitIndex: profile.hitIndex,
+      damageType: profile.damageType,
+    },
     observation.lastEventId,
   );
   if (intervention.kind !== "RESOLVED") {

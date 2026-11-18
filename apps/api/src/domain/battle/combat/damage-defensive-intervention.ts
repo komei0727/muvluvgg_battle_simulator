@@ -8,7 +8,13 @@ import {
   type ReflectSelection,
 } from "./defensive-intervention-policy.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
-import { findUnit, notifyOrYieldNewEvents, revalidateHit } from "./damage-hit-chain.js";
+import {
+  consumeAndExpire,
+  findUnit,
+  notifyOrYieldNewEvents,
+  revalidateHit,
+} from "./damage-hit-chain.js";
+import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { DomainEventId, EffectInstanceId } from "../../shared/event-ids.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -70,6 +76,7 @@ export function* resolveDefensiveInterventionsSteps(
   hitContext: {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;
+    readonly damageType: DamageType;
   },
   parentEventId: DomainEventId,
 ): Generator<DamageStep, DefensiveInterventionResolution, readonly BattleUnit[] | undefined> {
@@ -146,6 +153,25 @@ export function* resolveDefensiveInterventionsSteps(
     defenderUnitId = cover.covererUnitId;
     guardRate = cover.guardRate;
     yield* notifyOrYieldNewEvents(context, working, eventsStart);
+    const revalidation = revalidateHit(context, working, attackerUnitId, defenderUnitId);
+    if (revalidation.kind !== "CONTINUE") {
+      return { kind: revalidation.kind, lastEventId };
+    }
+  }
+
+  // R-EFF-07: 被攻撃回数で消費する効果は、実際にこの攻撃を受けたユニットで消費する。
+  // 元の対象での消費は命中判定の前（R-DMG-05 #1）に済んでおり、差し替え後の防御側は
+  // そこを通らない。同じ攻撃の後続ヒットでは消費済みとして二重に数えない。
+  if (defenderUnitId !== targetUnitId) {
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      defenderUnitId,
+      "NEXT_INCOMING_ATTACK",
+      lastEventId,
+      undefined,
+      hitContext.damageType,
+    );
     const revalidation = revalidateHit(context, working, attackerUnitId, defenderUnitId);
     if (revalidation.kind !== "CONTINUE") {
       return { kind: revalidation.kind, lastEventId };

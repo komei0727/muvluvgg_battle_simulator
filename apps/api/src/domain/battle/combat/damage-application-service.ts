@@ -14,7 +14,12 @@ import type {
   DamageStep,
 } from "./damage-event-context.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
-import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
+import {
+  attackerForCalculation,
+  consumeAndExpire,
+  driveRemovalSteps,
+  findUnit,
+} from "./damage-hit-chain.js";
 import { removeFreezeEffectSteps } from "./damage-effect-expiry.js";
 import { observeHitSteps, type HitConfirmedGrant } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
@@ -214,7 +219,10 @@ export function* applyDamageActionSteps(
         // （`composeDamageModifiers`と同じ粒度）。`NEXT_OUTGOING_ATTACK`で消費された
         // インスタンスは`finalizeConsumedEffectDurations`まで除去されないため、この
         // ヒットの計算にはまだ有効なものとして参加する。
-        piercing: composePiercing(damageAction.payload.piercing, currentAttacker),
+        piercing: composePiercing(
+          damageAction.payload.piercing,
+          attackerForCalculation(context, currentAttacker),
+        ),
       },
       lastEventId,
       hitConfirmedGrant,
@@ -241,6 +249,7 @@ export function* applyDamageActionSteps(
       {
         effectActionDefinitionId: damageAction.effectActionDefinitionId,
         hitIndex: hit.hitIndex,
+        damageType: damageAction.payload.damageType,
       },
       lastEventId,
     );
@@ -267,7 +276,10 @@ export function* applyDamageActionSteps(
     const critical = observation.critical;
     // 介入の`DamageRedirected`連鎖が能力値を変え得るため、攻撃側も差し替え後の防御側も
     // 連鎖解決後の最新状態から取り直す（`observeHitSteps`の各再検証と同じ規約）。
-    const attackerBeforeDamage = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
+    const attackerBeforeDamage = attackerForCalculation(
+      context,
+      findUnit(working, attacker.battleUnitId, "attacker.battleUnitId"),
+    );
     const targetBeforeDamage = findUnit(working, defenderUnitId, "hits[].targetUnitId");
 
     // R-DMG-03（`TEMP_PIERCING_GRANT`、DMG-003）: このヒットで実際に使う貫通率を、

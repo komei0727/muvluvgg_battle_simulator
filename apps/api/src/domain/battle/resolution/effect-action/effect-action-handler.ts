@@ -13,7 +13,7 @@ import type { AppliedEffect } from "../../model/applied-effect.js";
 import type { EffectActionDefinition } from "../../../catalog/definitions/effect-action-definition.js";
 import type { FormulaDefinition } from "../../../catalog/definitions/formula-definition.js";
 import type { StatusKind } from "../../../catalog/definitions/catalog-enums.js";
-import type { DomainEventId } from "../../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../../events/domain-event.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
@@ -164,7 +164,15 @@ export interface EffectActionApplicationInput {
    * 消費状態。`final`はその攻撃の最後の適用で、遅延させた消費の失効をここで確定させる。
    * 未指定ならこの適用だけで1回の攻撃とみなす。
    */
-  readonly attack?: { readonly scope: AttackConsumptionScope; readonly final: boolean };
+  readonly attack?: {
+    readonly scope: AttackConsumptionScope;
+    readonly final: boolean;
+    /**
+     * 同じstepの別のDAMAGE（別の攻撃）が使い切り、その攻撃の最後の対象まで失効を待っている
+     * 攻撃側の効果。この適用の計算には参加させない。
+     */
+    readonly suspendedEffectInstanceIds: ReadonlySet<EffectInstanceId>;
+  };
 }
 
 /**

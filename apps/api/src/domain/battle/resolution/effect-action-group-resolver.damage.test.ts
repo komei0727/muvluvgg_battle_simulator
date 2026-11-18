@@ -498,6 +498,64 @@ describe("applyEffectActionGroups", () => {
     ).toEqual([]);
   });
 
+  it("UT-R-EFF-07-023 [R-EFF-07]: with two DAMAGE actions over two targets, an outgoing next-attack buff used by the first DAMAGE boosts it on both targets but never the second DAMAGE", () => {
+    const atkBuff = consumedStatMod("ACT_ATK_BUFF", "ATTACK", 0.4, {
+      kind: "NEXT_OUTGOING_ATTACK",
+      maxCount: 1,
+    });
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 28 },
+      appliedEffects: [consumedInstance("buff-1", atkBuff, createBattleUnitId("ACTOR"), 1)],
+    });
+    const front = unit("FRONT", "ENEMY");
+    const back = unit("BACK", "ENEMY");
+    const first = damageAction("ACT_FIRST", 1);
+    const second = damageAction("ACT_SECOND", 1);
+    const { recorder, result } = resolveAttackSteps(
+      [actor, front, back],
+      [first, second, atkBuff],
+      [attackStep(0, [first, second], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    // 対象ごとに定義順（FRONT: 1つ目→2つ目、BACK: 1つ目→2つ目）で解決する。
+    const attackerAttacks = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageCalculated")
+      .map((e) => (e.payload as { attackerAttack: number }).attackerAttack);
+    expect(attackerAttacks).toEqual([28, 20, 28, 20]);
+    expect(consumptionChanges(recorder)).toEqual([["buff-1", 1, 0]]);
+    const finalActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(finalActor.appliedEffects).toEqual([]);
+    expect(finalActor.combatStats.attack).toBe(20);
+  });
+
+  it("UT-R-EFF-07-024 [R-EFF-07]: with two DAMAGE actions over two targets, a target's incoming next-attack debuff used by the first DAMAGE does not carry into the second DAMAGE on that target", () => {
+    const defenseDown = consumedStatMod("ACT_DEF_DOWN", "DEFENSE", -0.5, {
+      kind: "NEXT_INCOMING_ATTACK",
+      maxCount: 1,
+    });
+    const actor = unit("ACTOR", "ALLY");
+    const front = unit("FRONT", "ENEMY", {
+      combatStats: { ...unit("E", "ENEMY").combatStats, defense: 5 },
+      appliedEffects: [consumedInstance("down-1", defenseDown, createBattleUnitId("FRONT"), 1)],
+    });
+    const back = unit("BACK", "ENEMY");
+    const first = damageAction("ACT_FIRST", 1);
+    const second = damageAction("ACT_SECOND", 1);
+    const { recorder } = resolveAttackSteps(
+      [actor, front, back],
+      [first, second, defenseDown],
+      [attackStep(0, [first, second], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    const defenderDefenses = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageCalculated")
+      .map((e) => (e.payload as { defenderDefense: number }).defenderDefense);
+    expect(defenderDefenses).toEqual([5, 10, 10, 10]);
+    expect(consumptionChanges(recorder)).toEqual([["down-1", 1, 0]]);
+  });
+
   it("UT-R-EFF-07-021 [R-EFF-07]: an ACTION-scoped consumption stays (at 0) through later attacks of the same action instead of expiring at the end of the first attack", () => {
     const atkBuff = consumedStatMod("ACT_ATK_BUFF", "ATTACK", 0.4, {
       kind: "NEXT_OUTGOING_ATTACK",

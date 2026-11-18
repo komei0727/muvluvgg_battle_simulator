@@ -78,7 +78,7 @@ export function resolveFollowUpAttacksAfterSkillUse(
     return { units, lastEventId: parentEventId, interrupted: false };
   }
 
-  const { consumeEffectDuration, finalizeConsumedEffectDurations } =
+  const { consumeEffectDuration, finalizeConsumedEffectDurations, beginNextAttack } =
     buildConsumeEffectDurationHooks(context);
   const skillType = skillTypeOf(context);
   const damageContext: DamageEventContext = {
@@ -88,6 +88,7 @@ export function resolveFollowUpAttacksAfterSkillUse(
     ...(skillType !== undefined ? { skillType } : {}),
     consumeEffectDuration,
     finalizeConsumedEffectDurations,
+    beginNextAttack,
     // R-SHD-01第3項＋R-SUB-01: 追撃ヒットが枯渇させたシールド・サブユニットの失効も
     // 通常ヒットと同じ経路（`expireEffectsSteps`のR-EFF-09カスケード）をたどる。
     expireDepletedAbsorbers: (

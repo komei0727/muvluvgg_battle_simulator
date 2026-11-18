@@ -1,6 +1,9 @@
 import { applyDamageActionSteps } from "../../combat/damage-application-service.js";
 import { grantEffect } from "../../effects/effect-grant-service.js";
-import { recalculateCombatStatsSteps } from "../../effects/combat-stat-recalculation-service.js";
+import {
+  computeCombatStats,
+  recalculateCombatStatsSteps,
+} from "../../effects/combat-stat-recalculation-service.js";
 import {
   findBlockingImmunity,
   rejectEffectApplication,
@@ -15,7 +18,7 @@ import { DomainValidationError } from "../../../shared/errors.js";
 import type { EffectActionDefinitionId } from "../../../catalog/definitions/catalog-ids.js";
 import type { FormulaDefinition } from "../../../catalog/definitions/formula-definition.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../../events/domain-event.js";
-import type { DomainEventId } from "../../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
 import type { SteppedEffectActionHandler } from "./effect-action-handler.js";
 import {
@@ -200,6 +203,36 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
   return { units: injected ?? step.value.units, lastEventId: step.value.lastEventId };
 }
 
+/**
+ * R-EFF-07: 同じstepの別のDAMAGEが使い切った攻撃側の効果を除き、能力値を計算し直した
+ * 攻撃側を返すview。除く効果が無ければ`undefined`（攻撃側をそのまま使う）。
+ */
+function attackerViewWithout(
+  suspendedEffectInstanceIds: ReadonlySet<EffectInstanceId> | undefined,
+  context: EffectActionGroupContext,
+): ((attacker: BattleUnit) => BattleUnit) | undefined {
+  if (suspendedEffectInstanceIds === undefined || suspendedEffectInstanceIds.size === 0) {
+    return undefined;
+  }
+  return (attacker) => {
+    const appliedEffects = attacker.appliedEffects.filter(
+      (effect) => !suspendedEffectInstanceIds.has(effect.effectInstanceId),
+    );
+    if (appliedEffects.length === attacker.appliedEffects.length) {
+      return attacker;
+    }
+    const withoutSuspended = { ...attacker, appliedEffects };
+    return {
+      ...withoutSuspended,
+      combatStats: computeCombatStats(
+        withoutSuspended,
+        context.definitions.effectActions,
+        context.exercise,
+      ).combatStats,
+    };
+  };
+}
+
 /** R-SKL-06 #5: DAMAGE適用結果から`EffectActionCompleted`のresultKindを導く。 */
 function damageResultKind(
   targetAlreadyDefeated: boolean,
@@ -241,11 +274,19 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   // 扱わない。
   const targetAlreadyDefeated =
     !application.includeDefeated && isDefeated(requireUnit(box.units, application.targetUnitId));
-  const { consumeEffectDuration, finalizeConsumedEffectDurations } =
-    buildConsumeEffectDurationHooks(context, input.attack?.scope);
-  // R-EFF-07: 範囲攻撃は対象ごとの適用にまたがる1回の攻撃のため、消費で0になった効果の
+  const {
+    consumeEffectDuration,
+    finalizeConsumedEffectDurations,
+    finalizeConsumedEffectDurationsExceptHeldBy,
+  } = buildConsumeEffectDurationHooks(context, input.attack?.scope);
+  // R-EFF-07: 範囲攻撃は対象ごとの適用にまたがる1回の攻撃のため、攻撃側が使い切った効果の
   // 失効はその攻撃の最後の適用まで待つ（途中で失効させると2体目以降に補正が乗らない）。
+  // 被攻撃側の効果はこの対象への適用で役目を終えるため、ここで失効させる。
   const finalizesAttack = input.attack === undefined || input.attack.final;
+  const finalize = finalizesAttack
+    ? finalizeConsumedEffectDurations
+    : finalizeConsumedEffectDurationsExceptHeldBy(currentActor.battleUnitId);
+  const attackerView = attackerViewWithout(input.attack?.suspendedEffectInstanceIds, context);
   const skillType = skillTypeOf(context);
   const damageGen = applyDamageActionSteps(
     currentActor,
@@ -260,7 +301,8 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       // R-CFS-02（DMG-009）: 混乱はASの攻撃だけに働く。
       ...(skillType !== undefined ? { skillType } : {}),
       consumeEffectDuration,
-      ...(finalizesAttack ? { finalizeConsumedEffectDurations } : {}),
+      finalizeConsumedEffectDurations: finalize,
+      ...(attackerView !== undefined ? { attackerView } : {}),
       includeDefeated: application.includeDefeated,
       // R-TEX-02／R-TEX-03: 演習状態とブレイク解決hookは`eventContextOf`が組で載せる
       // （上の spread に含まれる）。ここで個別に足すと片方だけ渡す配線ミスを許してしまう。
