@@ -524,11 +524,11 @@ describe("祝福の斬撃の抽選低下（SR-328）", () => {
   const PICK_EX_DOWN = 0.1;
   const PICK_SELF_HEAL = 0.6;
 
-  const kate = (roll: HitRoll, picks: readonly [number, number]) =>
+  const kate = (roll: HitRoll, picks: readonly [number, number], second: HitRoll = roll) =>
     observe(
       "UNIT_KATE_PALADIN",
       "SKL_KATE_PALADIN_AS1",
-      [roll, roll, roll, roll, picks[0], roll, roll, roll, roll, picks[1]],
+      [roll, roll, roll, roll, picks[0], second, second, second, second, picks[1]],
       {
         enemies: [
           enemy("enemy:front", FRONT, { evasive: true, currentExtraGauge: 5 }),
@@ -546,6 +546,21 @@ describe("祝福の斬撃の抽選低下（SR-328）", () => {
     const hit = kate("HIT", [PICK_DMG_DOWN, PICK_DMG_DOWN]);
     expect(appliedTo(hit, "ACT_KATE_PALADIN_AS1_DMG_DOWN")).toEqual(["enemy:front", "enemy:front"]);
   });
+
+  it.each([
+    // 前半の抽選は前半4ヒット、後半の抽選は前後8ヒットのいずれかの命中を参照する（Q-SRV-03）。
+    { first: "HIT", second: "EVADE", debuffs: 2 },
+    { first: "EVADE", second: "HIT", debuffs: 1 },
+  ] as const)(
+    "IT-CAT-HITCOND-027 [R-SKL-06] SR-328: 各抽選はその時点までの命中を参照する（前半$first・後半$second → 低下$debuffs件）",
+    ({ first, second, debuffs }) => {
+      const observation = kate(first, [PICK_DMG_DOWN, PICK_DMG_DOWN], second);
+      expect(observation.hpDeltas?.["enemy:front"]).toBeLessThan(0);
+      expect(appliedTo(observation, "ACT_KATE_PALADIN_AS1_DMG_DOWN")).toEqual(
+        new Array(debuffs).fill("enemy:front"),
+      );
+    },
+  );
 
   it("IT-CAT-HITCOND-026 [R-SKL-06] SR-328: 直接のEX減少と自己回復は全回避でも抽選どおりに起きる", () => {
     const observation = kate("EVADE", [PICK_EX_DOWN, PICK_SELF_HEAL]);
