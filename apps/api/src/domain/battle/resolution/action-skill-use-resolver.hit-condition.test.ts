@@ -430,6 +430,36 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
     expect(units.find((u) => u.battleUnitId === "enemy:2")!.currentHp).toBe(1000);
   });
 
+  it("UT-R-SKL-06-088 [R-SKL-06, R-HEAL-01]: an EVEN-distributed heal fixes its recipients when the denominator is decided, so an earlier share that changes targetCondition does not drop a later share", () => {
+    // enemy:1 への攻撃も enemy:2 が肩代わりし、enemy:2 は2攻撃でHP800（0.8）。
+    // 分母2で50ずつ配る。1件目でHP850（0.85）になっても、2件目は分母決定時の判定で配る。
+    const { units } = run(
+      [
+        { kind: "ACTION", target: ENEMIES, actions: [{ effectActionDefinitionId: DAMAGE_ID }] },
+        {
+          kind: "ACTION",
+          target: ENEMIES,
+          targetCondition: {
+            kind: "TARGET_STATE",
+            target: ENEMIES,
+            field: "HP_RATIO",
+            op: "LT",
+            value: 0.85,
+          },
+          actions: [hitConditioned(SHARED_HEAL_ID)],
+        },
+      ],
+      1,
+      [HIT, HIT],
+      1000,
+      undefined,
+      [],
+      [coverOfFirstEnemyBySecond()],
+    );
+
+    expect(units.find((u) => u.battleUnitId === "enemy:2")!.currentHp).toBe(900);
+  });
+
   describe("DAMAGE hitConfirmedEffects (R-DMG-05 #2a)", () => {
     it("UT-R-DMG-05-010 [R-DMG-05]: grants the effect once per target at its first confirmed hit, after HitConfirmed and before the critical check, and never to a target that evaded every hit", () => {
       const { units, events } = runHitConfirmed([EVADE, EVADE, HIT, HIT]);

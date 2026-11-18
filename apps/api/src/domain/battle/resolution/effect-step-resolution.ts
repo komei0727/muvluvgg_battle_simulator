@@ -448,8 +448,9 @@ function* resolveActionApplications(
     return passes;
   };
   // 命中条件で除外・付与先へ展開し、先送りした`targetCondition`を付与先で評価した、
-  // 実際に開始する適用の一覧。`remember`は解決時だけ真にする（分配の分母を数える
-  // 先読みで、まだその対象の順番が来ていない判定を確定させないため）。
+  // 実際に開始する適用の一覧。`remember`は解決時と、総量を分け合う適用の分母を
+  // 決めるときだけ真にする（それ以外の先読みで、まだその対象の順番が来ていない
+  // 判定を確定させないため）。
   const recipientsOf = (
     application: EffectActionApplication,
     remember: boolean,
@@ -542,9 +543,18 @@ function* resolveActionApplications(
     // 付与先が受け取るため、展開後の実際の付与先を数える。同じACTION内の後続対象の命中は
     // まだ確定していないため、命中条件と分配を同じstepで組み合わせる定義はCatalogロード
     // 時点で拒否する（`UNSUPPORTED_HIT_CONDITION_DISTRIBUTION`）。
+    //
+    // 総量を分け合う適用は、分母を決めたこの時点で付与先の判定も確定させる。先に配った
+    // 分が`targetCondition`の成否を変えても（回復でHP割合の条件が外れる等）、残りの
+    // 付与先が欠けて総量が分母より少なく配られることがないようにするためである。分配
+    // しない適用では確定させない — 付与分ごとにその対象の順番で判定する規則を保つ。
+    const definition = context.definitions.effectActions.get(definitionId);
+    const distributes =
+      (definition?.kind === "HEAL" && definition.payload.distribution === "EVEN") ||
+      (definition?.kind === "MODIFY_RESOURCE" && definition.payload.operation === "DISTRIBUTE");
     const count = applications
       .filter((_, candidateIndex) => shareGroupKeys[candidateIndex] === groupKey)
-      .flatMap((candidate) => recipientsOf(candidate, false))
+      .flatMap((candidate) => recipientsOf(candidate, distributes))
       .filter(
         (candidate) =>
           (distributesToDefeatedTargets && candidate.includeDefeated) ||
