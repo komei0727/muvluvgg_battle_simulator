@@ -83,7 +83,8 @@
                   "effectActionDefinitionId": "ACT_NOEL_RUMBLE_EX_DAMAGE2"
                 },
                 {
-                  "effectActionDefinitionId": "ACT_NOEL_RUMBLE_EX_BURN"
+                  "effectActionDefinitionId": "ACT_NOEL_RUMBLE_EX_BURN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_NOEL_RUMBLE_EX_DAMAGE2"] }
                 }
               ]
             }

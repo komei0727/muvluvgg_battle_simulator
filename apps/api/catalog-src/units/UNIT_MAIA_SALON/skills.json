@@ -31,9 +31,21 @@
           "actions": [{ "effectActionDefinitionId": "ACT_MAIA_SALON_EX_DAMAGE" }]
         },
         {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ENEMY_SPEED_DOWN" }]
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "LAST_RESULT",
+            "field": "resultKind",
+            "op": "EQ",
+            "value": "APPLIED"
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+              "actions": [{ "effectActionDefinitionId": "ACT_MAIA_SALON_EX_ENEMY_SPEED_DOWN" }]
+            }
+          ],
+          "elseSteps": []
         },
         {
           "kind": "ACTION",

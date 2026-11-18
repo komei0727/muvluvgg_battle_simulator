@@ -38,7 +38,8 @@
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF"
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_EX_REMOVE_BUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SHOUKA_SCHEMER_EX_DAMAGE"] }
             }
           ]
         },
@@ -232,7 +233,13 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF"
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS3_REMOVE_BUFF",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_SHOUKA_SCHEMER_AS3_DAMAGE_VS_ATTACK_DEBUFF",
+                  "ACT_SHOUKA_SCHEMER_AS3_DAMAGE"
+                ]
+              }
             }
           ]
         }

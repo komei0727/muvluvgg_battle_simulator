@@ -90,7 +90,12 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA" },
-                { "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DMG_DOWN" }
+                {
+                  "effectActionDefinitionId": "ACT_SIENA_DIVA_AS2_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_SIENA_DIVA_AS2_DAMAGE_EXTRA"]
+                  }
+                }
               ]
             }
           ],

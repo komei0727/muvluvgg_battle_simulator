@@ -69,10 +69,7 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [
-            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1" },
-            { "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF" }
-          ]
+          "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1" }]
         },
         {
           "kind": "BRANCH",
@@ -93,6 +90,22 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [{ "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2" }]
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SAYA_BUNNY_AS1_DEBUFF",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT1",
+                  "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2",
+                  "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED"
+                ]
+              }
             }
           ]
         }

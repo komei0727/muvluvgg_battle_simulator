@@ -63,7 +63,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_MAIN" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_DAMAGE_MAIN" },
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_MARKER" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_SANTA_AS1_DAMAGE_MAIN"] }
+            }
           ]
         },
         {
