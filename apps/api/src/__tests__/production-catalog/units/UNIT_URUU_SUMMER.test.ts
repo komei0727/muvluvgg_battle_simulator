@@ -262,6 +262,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           effectActionDefinitionId: "ACT_URUU_SUMMER_AS1_MARKER_SHIOSAI",
           targets: ["enemy:front"],
+          // 既存を維持し付与分を作らない（R-EFF-10）。
+          resultKind: "SKIPPED",
         },
         { effectActionDefinitionId: "ACT_URUU_SUMMER_AS1_DMG_DOWN", targets: ["ally:subject"] },
         ...PS1_CHAIN_ACTIONS,

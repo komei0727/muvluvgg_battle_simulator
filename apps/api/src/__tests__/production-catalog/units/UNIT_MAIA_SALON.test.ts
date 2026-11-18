@@ -233,7 +233,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS1_DAMAGE", targets: ["enemy:front"] },
         // `KEEP_EXISTING` は既存の「乱調」をそのまま残すため、段数は1のままで
         // `markers` の差分に enemy:front は現れない。
-        { effectActionDefinitionId: "ACT_MAIA_SALON_AS1_MARKER", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_MAIA_SALON_AS1_MARKER",
+          targets: ["enemy:front"],
+          // 既存を維持し付与分を作らない（R-EFF-10）。
+          resultKind: "SKIPPED",
+        },
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS1_DMG_DOWN", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS1_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS1_MARKER", targets: ["enemy:left"] },

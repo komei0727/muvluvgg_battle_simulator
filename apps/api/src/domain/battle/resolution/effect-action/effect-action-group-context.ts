@@ -81,6 +81,14 @@ export interface EffectActionGroupContext {
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
   /**
+   * R-EFF-09: このEffectSequenceで直近に試みた`SKILL_USE`範囲の`PARENT`の付与結果。
+   * キーは`linkedGroupGrantKey`（グループと保持者）、値は付与できた付与分の識別子、
+   * 付与できなかった（`stack.max`到達・`KEEP_EXISTING`など）場合は`null`。後続の`CHILD`は
+   * これを見て、付与されなかった付与分の子を先の付与分へ紐づけずにスキップする。
+   * `resolveEffectSequencePlan`がEffectSequenceごとに新規生成する。
+   */
+  readonly linkedGroupGrants?: Map<string, string | null>;
+  /**
    * R-SKL-08: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
    * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する共有registry。
    * 呼び出し側（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`）が

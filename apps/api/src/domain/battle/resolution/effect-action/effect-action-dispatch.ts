@@ -1,6 +1,10 @@
 import { DomainValidationError } from "../../../shared/errors.js";
 import { durationOf } from "../../../catalog/integrity/effect-action-inspection.js";
-import { hasLinkedParentForGrant } from "../../model/linked-effect-group.js";
+import {
+  hasLinkedParentForGrant,
+  latestLinkedParentAnchor,
+  linkedGroupGrantKey,
+} from "../../model/linked-effect-group.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import {
   settledOutcome,
@@ -43,18 +47,43 @@ import { resolveDefensiveIntervention } from "./defensive-intervention-effect-ac
 export function* resolveEffectActionByKind(
   input: EffectActionApplicationInput,
 ): EffectActionResolution {
-  const effectAction = input.effectAction;
-  const duration = durationOf(effectAction);
+  const duration = durationOf(input.effectAction);
+  const { skillUseId, linkedGroupGrants } = input.context;
+  const targetUnitId = input.application.targetUnitId;
   if (
     duration !== undefined &&
     !hasLinkedParentForGrant(
-      requireUnit(input.box.units, input.application.targetUnitId),
+      requireUnit(input.box.units, targetUnitId),
       duration,
-      input.context.skillUseId,
+      skillUseId,
+      linkedGroupGrants,
     )
   ) {
     return settledOutcome(input, input.startingEventId, "SKIPPED");
   }
+  const outcome = yield* resolveByKind(input);
+  // R-EFF-09: `SKILL_USE`範囲の親の付与結果を記録し、後続の子が付与されなかった
+  // 付与分を先の付与分と取り違えないようにする。
+  const groupId = duration?.linkedEffectGroupId;
+  if (
+    linkedGroupGrants !== undefined &&
+    duration?.linkedEffectGroupScope === "SKILL_USE" &&
+    duration.linkedEffectGroupRole === "PARENT" &&
+    groupId !== undefined &&
+    groupId !== null
+  ) {
+    const holder = input.box.units.find((unit) => unit.battleUnitId === targetUnitId);
+    const anchor =
+      outcome.resultKind === "APPLIED" && holder !== undefined
+        ? latestLinkedParentAnchor(holder, groupId, skillUseId)
+        : undefined;
+    linkedGroupGrants.set(linkedGroupGrantKey(groupId, targetUnitId), anchor ?? null);
+  }
+  return outcome;
+}
+
+function* resolveByKind(input: EffectActionApplicationInput): EffectActionResolution {
+  const effectAction = input.effectAction;
   switch (effectAction.kind) {
     case "DAMAGE":
       return yield* resolveDamage({ ...input, effectAction });

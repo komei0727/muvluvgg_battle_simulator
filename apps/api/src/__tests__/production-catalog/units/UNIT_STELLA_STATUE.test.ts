@@ -151,7 +151,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_EVASION", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_EVASION", targets: ["ally:front"] },
         { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_EVASION", targets: ["ally:back"] },
-        { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_MARKER", targets: ["enemy:front"] },
+        {
+          effectActionDefinitionId: "ACT_STELLA_STATUE_EX_MARKER",
+          targets: ["enemy:front"],
+          // 既存を維持し付与分を作らない（R-EFF-10）。
+          resultKind: "SKIPPED",
+        },
         { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_MARKER", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_STELLA_STATUE_EX_MARKER", targets: ["enemy:back"] },
         // 解除できるデバフを持たないため解除自体が起きない。

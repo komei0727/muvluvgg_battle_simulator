@@ -8,6 +8,7 @@ import {
   type MarkerState,
 } from "../model/marker-state.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { findLinkedGroupAnchor } from "../model/linked-effect-group.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -31,6 +32,8 @@ export interface ApplyMarkerContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /** R-EFF-09: EffectSequence内の直近の親付与結果（`EffectActionGroupContext`と同じ）。 */
+  readonly linkedGroupGrants?: ReadonlyMap<string, string | null>;
 }
 
 /**
@@ -115,6 +118,13 @@ export function applyMarker(
   };
 
   if (existing === undefined || request.stackPolicy === "ADD") {
+    // R-EFF-09: `SKILL_USE`範囲の子Markerは、紐づく親の付与分の識別子を持つ。
+    const childAnchor = findLinkedGroupAnchor(
+      target,
+      request.durationDefinition,
+      context.skillUseId,
+      context.linkedGroupGrants,
+    );
     const markerState = buildInitialMarkerState(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
@@ -122,7 +132,7 @@ export function applyMarker(
       request.targetUnitId,
       request.stackMax,
       request.durationDefinition,
-      grantContext,
+      { ...grantContext, ...(childAnchor !== undefined ? { linkedGroupAnchor: childAnchor } : {}) },
       request.decay,
     );
     const nextUnits = units.map((unit) =>

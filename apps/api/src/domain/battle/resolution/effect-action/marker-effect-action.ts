@@ -29,24 +29,32 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
   if (rejected !== undefined) {
     return rejected;
   }
+  const granted = applyMarker(
+    {
+      ...eventContextOf(context),
+      ...(context.linkedGroupGrants !== undefined
+        ? { linkedGroupGrants: context.linkedGroupGrants }
+        : {}),
+    },
+    box.units,
+    {
+      markerId: effectAction.payload.markerId,
+      // R-MEM-04（M7-008）: Memory由来の`APPLY_MARKER`は付与者ユニットを持たないため、
+      // `AppliedEffect`と同じく`sourceSide`（そのMemoryを指定した陣営）を渡す。
+      ...requireMarkerSource(context),
+      targetUnitId: application.targetUnitId,
+      stackPolicy: effectAction.payload.stack.policy,
+      stackMax: effectAction.payload.stack.max,
+      durationDefinition: effectAction.payload.duration,
+      ...(effectAction.payload.decay !== undefined ? { decay: effectAction.payload.decay } : {}),
+    },
+    startingEventId,
+  );
+  // `stack.max`到達のADD・既存維持のKEEP_EXISTINGは付与分を作らず、イベントも発行しない。
   return completeGrant(
     input,
-    applyMarker(
-      eventContextOf(context),
-      box.units,
-      {
-        markerId: effectAction.payload.markerId,
-        // R-MEM-04（M7-008）: Memory由来の`APPLY_MARKER`は付与者ユニットを持たないため、
-        // `AppliedEffect`と同じく`sourceSide`（そのMemoryを指定した陣営）を渡す。
-        ...requireMarkerSource(context),
-        targetUnitId: application.targetUnitId,
-        stackPolicy: effectAction.payload.stack.policy,
-        stackMax: effectAction.payload.stack.max,
-        durationDefinition: effectAction.payload.duration,
-        ...(effectAction.payload.decay !== undefined ? { decay: effectAction.payload.decay } : {}),
-      },
-      startingEventId,
-    ),
+    granted,
+    granted.lastEventId === startingEventId ? "SKIPPED" : "APPLIED",
   );
 };
 

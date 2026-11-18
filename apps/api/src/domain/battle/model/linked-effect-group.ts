@@ -109,28 +109,24 @@ export function ownLinkedGroupAnchor(
     : undefined;
 }
 
+/** R-EFF-09: `linkedGroupGrants`のキー（`SKILL_USE`範囲のグループと保持ユニット）。 */
+export function linkedGroupGrantKey(groupId: string, holderUnitId: BattleUnitId): string {
+  return JSON.stringify([groupId, holderUnitId]);
+}
+
 /**
- * R-EFF-09: `SKILL_USE`範囲の`CHILD`が紐づく付与分。同じ保持ユニットへ同じスキル使用で
- * 付与された同じグループの`PARENT`のうち、最も新しいものの付与分を返す。見つからなければ
- * `undefined`（親が上限・既存維持などで付与されなかった付与分の子）。`SKILL_USE`以外や
- * `CHILD`以外では常に`undefined`。
+ * R-EFF-09: 同じ保持ユニットへ同じスキル使用で付与された同じグループの`PARENT`のうち、
+ * 最も新しいものの付与分を返す。無ければ`undefined`。
  */
-export function findLinkedGroupAnchor(
+export function latestLinkedParentAnchor(
   holder: BattleUnit,
-  definition: DurationDefinition,
-  skillUseId: SkillUseId | undefined,
+  groupId: string,
+  skillUseId: SkillUseId,
 ): string | undefined {
-  if (
-    definition.linkedEffectGroupScope !== "SKILL_USE" ||
-    definition.linkedEffectGroupRole !== "CHILD" ||
-    skillUseId === undefined
-  ) {
-    return undefined;
-  }
   const isParentOfGrant = (duration: EffectDurationState): boolean =>
     duration.definition.linkedEffectGroupScope === "SKILL_USE" &&
     duration.definition.linkedEffectGroupRole === "PARENT" &&
-    duration.definition.linkedEffectGroupId === definition.linkedEffectGroupId &&
+    duration.definition.linkedEffectGroupId === groupId &&
     duration.linkedGroupSkillUseId === skillUseId;
   const parentMarker = holder.markerStates.findLast((marker) => isParentOfGrant(marker.duration));
   if (parentMarker !== undefined) {
@@ -138,6 +134,35 @@ export function findLinkedGroupAnchor(
   }
   return holder.appliedEffects.findLast((effect) => isParentOfGrant(effect.duration))?.duration
     .linkedGroupAnchor;
+}
+
+/**
+ * R-EFF-09: `SKILL_USE`範囲の`CHILD`が紐づく付与分。同じ保持ユニットへ同じスキル使用で
+ * 付与された同じグループの`PARENT`のうち、最も新しいものの付与分を返す。`grants`
+ * （EffectSequence内の直近の親付与結果）に記録があればそれを優先し、直近の親が
+ * 付与されなかった場合は`undefined`（先の付与分へ紐づけない）。`SKILL_USE`以外や
+ * `CHILD`以外では常に`undefined`。
+ */
+export function findLinkedGroupAnchor(
+  holder: BattleUnit,
+  definition: DurationDefinition,
+  skillUseId: SkillUseId | undefined,
+  grants?: ReadonlyMap<string, string | null>,
+): string | undefined {
+  const groupId = definition.linkedEffectGroupId;
+  if (
+    definition.linkedEffectGroupScope !== "SKILL_USE" ||
+    definition.linkedEffectGroupRole !== "CHILD" ||
+    groupId === null ||
+    skillUseId === undefined
+  ) {
+    return undefined;
+  }
+  const recorded = grants?.get(linkedGroupGrantKey(groupId, holder.battleUnitId));
+  if (recorded === null) {
+    return undefined;
+  }
+  return recorded ?? latestLinkedParentAnchor(holder, groupId, skillUseId);
 }
 
 /**
@@ -150,6 +175,7 @@ export function hasLinkedParentForGrant(
   holder: BattleUnit,
   definition: DurationDefinition,
   skillUseId: SkillUseId,
+  grants?: ReadonlyMap<string, string | null>,
 ): boolean {
   if (
     definition.linkedEffectGroupScope !== "SKILL_USE" ||
@@ -157,7 +183,7 @@ export function hasLinkedParentForGrant(
   ) {
     return true;
   }
-  return findLinkedGroupAnchor(holder, definition, skillUseId) !== undefined;
+  return findLinkedGroupAnchor(holder, definition, skillUseId, grants) !== undefined;
 }
 
 export function collectLinkedGroupCascade(

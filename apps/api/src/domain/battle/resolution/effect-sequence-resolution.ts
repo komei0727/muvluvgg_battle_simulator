@@ -172,6 +172,7 @@ export function* resolveEffectSequencePlan(
   const context: EffectActionGroupContext = {
     ...incomingContext,
     resolvedBindings: plan.resolvedBindings,
+    linkedGroupGrants: new Map(),
   };
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
