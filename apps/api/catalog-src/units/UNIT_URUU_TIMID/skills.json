@@ -48,7 +48,8 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DMG_TAKEN_UP"
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_EX_DMG_TAKEN_UP",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_TIMID_EX_DAMAGE"] }
                 }
               ]
             },
@@ -144,10 +145,12 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DMG_TAKEN_UP"
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_DMG_TAKEN_UP",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_TIMID_AS1_DAMAGE"] }
                 },
                 {
-                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_CRIT_DOWN"
+                  "effectActionDefinitionId": "ACT_URUU_TIMID_AS1_CRIT_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_TIMID_AS1_DAMAGE"] }
                 }
               ]
             }

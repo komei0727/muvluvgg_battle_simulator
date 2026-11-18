@@ -114,7 +114,14 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": ["ACT_KATE_PALADIN_AS1_DAMAGE1"]
+                      }
+                    }
+                  ]
                 }
               ]
             },
@@ -159,7 +166,17 @@
                 {
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-                  "actions": [{ "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN" }]
+                  "actions": [
+                    {
+                      "effectActionDefinitionId": "ACT_KATE_PALADIN_AS1_DMG_DOWN",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": [
+                          "ACT_KATE_PALADIN_AS1_DAMAGE1",
+                          "ACT_KATE_PALADIN_AS1_DAMAGE2"
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             },

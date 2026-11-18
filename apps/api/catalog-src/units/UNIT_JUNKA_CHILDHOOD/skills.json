@@ -69,7 +69,12 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA" },
-                { "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF" }
+                {
+                  "effectActionDefinitionId": "ACT_JUNKA_CHILDHOOD_AS1_DEBUFF",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_JUNKA_CHILDHOOD_AS1_DAMAGE_EXTRA"]
+                  }
+                }
               ]
             }
           ],

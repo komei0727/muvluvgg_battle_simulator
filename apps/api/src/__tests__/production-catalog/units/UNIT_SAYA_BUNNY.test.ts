@@ -44,11 +44,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:front"],
         },
         {
-          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DEBUFF",
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2",
           targets: ["enemy:front"],
         },
+        // 低下は初撃・第2撃のいずれかの命中を条件にするため、第2撃の後に付く（SR-291）。
         {
-          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2",
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DEBUFF",
           targets: ["enemy:front"],
         },
       ],
@@ -99,11 +100,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:front"],
         },
         {
-          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DEBUFF",
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED",
           targets: ["enemy:front"],
         },
+        // 低下は初撃・第2撃のいずれかの命中を条件にするため、第2撃の後に付く（SR-291）。
         {
-          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DAMAGE_HIT2_BOOSTED",
+          effectActionDefinitionId: "ACT_SAYA_BUNNY_AS1_DEBUFF",
           targets: ["enemy:front"],
         },
       ],

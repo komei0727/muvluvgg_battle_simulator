@@ -64,7 +64,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_THREE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MIRIAM_MAGE_AS1_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIRIAM_MAGE_AS1_DAMAGE"] }
+            }
           ]
         },
         {

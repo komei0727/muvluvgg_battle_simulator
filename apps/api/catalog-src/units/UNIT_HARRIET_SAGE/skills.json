@@ -53,9 +53,18 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            }
           ]
         },
         {
@@ -63,9 +72,18 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            }
           ]
         },
         {

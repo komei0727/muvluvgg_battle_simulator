@@ -173,7 +173,10 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DAMAGE2" },
-                { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DEBUFF" }
+                {
+                  "effectActionDefinitionId": "ACT_LYDIA_GENIUS_AS2_DEBUFF",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_LYDIA_GENIUS_AS2_DAMAGE2"] }
+                }
               ]
             }
           ],

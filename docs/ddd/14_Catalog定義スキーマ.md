@@ -685,7 +685,7 @@ actions:
 | `effectActionDefinitionId`               | string   | ✓    | 適用するEffectAction                                                                                                                                                                                                                                                                                                |
 | `hitCondition.effectActionDefinitionIds` | string[] | —    | 1件以上。同じEffectSequenceで定義順にこの参照より前に現れる`DAMAGE`だけを指せる（後ろにしか無い：`HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE`、非DAMAGE：`TYPE_MISMATCH`、未定義：`DANGLING_REFERENCE`）。適用先の対象がいずれかから1ヒット以上命中を受けた場合だけ適用し、受けていなければその対象への適用を開始しない |
 
-`hitCondition`を持つactionは、ACTIONの`targetCondition`を計画時ではなく実際の付与先（肩代わり・引き寄せ後の防御側）で評価する。分配する`HEAL`(`EVEN`)／`MODIFY_RESOURCE`(`DISTRIBUTE`)の`hitCondition`は同じACTIONのDAMAGEを参照できない（`UNSUPPORTED_HIT_CONDITION_DISTRIBUTION`）。全actionが`hitCondition`付きのACTIONは、後続の`LAST_RESULT`等に対して直前結果を確定させるstepとは扱わない（`MISSING_PRECEDING_RESULT`）。
+`hitCondition`を持つactionは、ACTIONの`targetCondition`を計画時ではなく実際の付与先（肩代わり・引き寄せ後の防御側）で評価する。分配する`HEAL`(`EVEN`)／`MODIFY_RESOURCE`(`DISTRIBUTE`)の`hitCondition`は同じACTIONのDAMAGEを参照できない（`UNSUPPORTED_HIT_CONDITION_DISTRIBUTION`）。全actionが`hitCondition`付きのACTIONは、後続の`LAST_RESULT`等に対して直前結果を確定させるstepとは扱わない（`MISSING_PRECEDING_RESULT`）。初撃だけ・追加攻撃だけ・いずれかの命中など、スキル固有の参照範囲は列挙するDAMAGEと効果の置き場所で表す（R-SKL-06「スキル固有の参照範囲」）。
 
 命中はシールド全吸収・ダメージ無効による0ダメージを含み、全ヒット回避（MISS）だけが不成立になる。命中履歴は対象ごと・DAMAGE定義ごとにEffectSequence解決全体で積み上がるため、同じACTION内で先に解決したDAMAGEも、先行stepのDAMAGEも参照できる（詳細はR-SKL-06）。
 

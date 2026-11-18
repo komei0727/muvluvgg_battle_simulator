@@ -660,7 +660,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （`SKL_CLARA_TSUNDERE_PS1`は契機ASの命中を参照）、`SKL_MIRIAM_MAGE_EX`の凍結対象を
     // 攻撃後のHPで選び直す形へ変えた（Issue #826）。新規・削除したUnit・Skill・
     // EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-18.3");
+    // `2026-11-18.4` は初撃・追加攻撃・範囲連動など、スキル固有の命中参照範囲を持つ
+    // 攻撃後効果とBUFF解除を命中条件へ移行し、`SKL_SAYA_BUNNY_AS1`の低下を第2撃の後へ、
+    // `SKL_MAIA_SALON_EX`の敵全体の速度低下を単体攻撃の命中分岐の中へ移した（Issue #827）。
+    // 新規・削除したUnit・Skill・EffectActionはない。
+    expect(catalog.catalogRevision).toBe("2026-11-18.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
