@@ -665,7 +665,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `SKL_MAIA_SALON_EX`の敵全体の速度低下を単体攻撃の命中分岐の中へ移した（Issue #827）。
     // 新規・削除したUnit・Skill・EffectActionはない。
     // `2026-11-18.6` は効果の期間を宣言した時計（戦闘中永続・付与ターン末・契機の敵行動末・
-    // 付与したスキル使用の末・受け手の次行動末）へ揃えた（Issue #829）。差分は`effects.json`だけで、
+    // 付与したスキル使用の末・受け手の次行動末）へ揃えた（Issue #829、戦術演習版の同じスキルを含む）。差分は`effects.json`だけで、
     // 新規・削除したUnit・Skill・EffectActionはない。
     expect(catalog.catalogRevision).toBe("2026-11-18.6");
   });

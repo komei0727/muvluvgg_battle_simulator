@@ -4971,7 +4971,10 @@
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STEALTH",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -4987,7 +4990,10 @@
         "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.2 }
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8437,7 +8443,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.25 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8537,7 +8546,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -10671,6 +10680,7 @@
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true },
         "dispellable": true,
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "scope": "ACTION" }
       }
@@ -11916,7 +11926,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
