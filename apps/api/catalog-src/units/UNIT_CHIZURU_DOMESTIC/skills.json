@@ -121,7 +121,10 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_STUN"
+                  "effectActionDefinitionId": "ACT_CHIZURU_DOMESTIC_AS1_STUN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_CHIZURU_DOMESTIC_AS1_DAMAGE"]
+                  }
                 }
               ]
             }

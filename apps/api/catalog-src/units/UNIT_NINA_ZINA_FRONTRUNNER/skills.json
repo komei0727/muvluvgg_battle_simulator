@@ -150,9 +150,24 @@
             }
           },
           "actions": [
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_AS2_DAMAGE"]
+              }
+            }
           ]
         }
       ]

@@ -295,7 +295,8 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DMG_DOWN"
+                  "effectActionDefinitionId": "ACT_MERU_FLATSPIN_AS3_DMG_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_FLATSPIN_AS3_DAMAGE"] }
                 }
               ]
             }

@@ -80,7 +80,12 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_AS1_STUN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_GRACE_AS1_DAMAGE"] }
+                }
+              ]
             }
           ],
           "elseSteps": []

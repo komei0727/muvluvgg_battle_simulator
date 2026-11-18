@@ -10,6 +10,7 @@ import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import {
   consumeAndExpire,
+  driveRemovalSteps,
   findUnit,
   notifyOrYieldNewEvents,
   revalidateHit,
@@ -45,6 +46,16 @@ export interface HitObservationProfile {
     readonly shieldIgnoreRate: number;
     readonly damageReductionIgnoreRate: number;
   };
+}
+
+/**
+ * R-DMG-05 #2a: 1つのDAMAGE適用の中で、対象ごとに最初の命中確定時だけ付与する効果。
+ * `grantedTargetUnitIds`は同じ適用の後続ヒットで再付与しないための記録で、付与を
+ * 試みた時点で追加する（付与の連鎖で対象が倒れても二度目は試みない）。
+ */
+export interface HitConfirmedGrant {
+  readonly effectActionDefinitionIds: readonly EffectActionDefinitionId[];
+  readonly grantedTargetUnitIds: Set<BattleUnitId>;
 }
 
 /**
@@ -86,6 +97,7 @@ export function* observeHitSteps(
   targetUnitId: BattleUnitId,
   profile: HitObservationProfile,
   parentEventId: DomainEventId,
+  hitConfirmedGrant?: HitConfirmedGrant,
 ): Generator<DamageStep, HitObservation, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
   const attackerAtStart = findUnit(working, attackerUnitId, "attacker.battleUnitId");
@@ -239,13 +251,54 @@ export function* observeHitSteps(
     return { kind: "SKIP", lastEventId };
   }
 
+  let beforeCritical = afterHitConfirmed;
+  if (
+    hitConfirmedGrant !== undefined &&
+    context.grantHitConfirmedEffect !== undefined &&
+    !hitConfirmedGrant.grantedTargetUnitIds.has(targetUnitId)
+  ) {
+    // R-DMG-05 #2a: 命中確定の連鎖を解決し切った後・会心判定の前に付与する。この
+    // 攻撃自身の会心判定と`CriticalCheckResolved`契機のPSが付与済みの効果を参照する。
+    hitConfirmedGrant.grantedTargetUnitIds.add(targetUnitId);
+    for (const effectActionDefinitionId of hitConfirmedGrant.effectActionDefinitionIds) {
+      const granted = yield* driveRemovalSteps(
+        context,
+        working,
+        context.grantHitConfirmedEffect(
+          targetUnitId,
+          effectActionDefinitionId,
+          attackerUnitId,
+          Array.from(working.values()),
+          lastEventId,
+        ),
+      );
+      lastEventId = granted.lastEventId;
+      // 付与が起こした連鎖が使用者・対象を倒した場合は、残りを付与せず判定へ進まない。
+      const afterGrant = revalidateHit(context, working, attackerUnitId, targetUnitId);
+      if (afterGrant.kind === "INTERRUPT") {
+        return { kind: "INTERRUPT", lastEventId };
+      }
+      if (afterGrant.kind === "SKIP") {
+        recordDamageResult(
+          context.damageResults,
+          afterGrant.attacker.battleUnitId,
+          afterGrant.target.battleUnitId,
+          0,
+          context.skillUseId,
+        );
+        return { kind: "SKIP", lastEventId };
+      }
+      beforeCritical = afterGrant;
+    }
+  }
+
   // 会心判定は上の連鎖を反映した最新の使用者状態から行う（連鎖が会心率・会心
   // ダメージのバフを付与・失効させ得るため）。
   // R-CRT-03（DMG-003A）: 攻撃側定義の`critical.mode`と、使用者が持つ会心状態効果
   // （`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`）を実効値へ畳み込んでから判定する。
   // 使用者を同じ最新状態から取り直すのはR-HIT-05の必中付与と同じ理由で、直前の連鎖が
   // これらの効果を付与・失効させ得るためである。
-  const attackerBeforeCritical = afterHitConfirmed.attacker;
+  const attackerBeforeCritical = beforeCritical.attacker;
   const effectiveCriticalMode = resolveEffectiveCriticalMode(
     attackerBeforeCritical,
     profile.criticalMode,

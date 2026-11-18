@@ -153,6 +153,26 @@ export function validateEffectAction(
       }
     }
   }
+  // R-DMG-05 #2a: DAMAGEの命中確定時付与は追撃のonHitEffectsと付与経路を共有するため、
+  // 参照できるkindも同じ集合に限る。
+  if (effectAction.kind === "DAMAGE") {
+    for (const hitConfirmedEffect of effectAction.payload.hitConfirmedEffects ?? []) {
+      const referenced = effectActions.get(hitConfirmedEffect.effectActionDefinitionId);
+      if (referenced === undefined) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "DANGLING_REFERENCE",
+          message: `DAMAGE payload.hitConfirmedEffects references undefined EffectActionDefinition "${hitConfirmedEffect.effectActionDefinitionId}"`,
+        });
+      } else if (!(FOLLOW_UP_ON_HIT_EFFECT_KINDS as readonly string[]).includes(referenced.kind)) {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "TYPE_MISMATCH",
+          message: `DAMAGE payload.hitConfirmedEffects must reference one of ${FOLLOW_UP_ON_HIT_EFFECT_KINDS.join("/")}, but "${hitConfirmedEffect.effectActionDefinitionId}" is a ${referenced.kind}`,
+        });
+      }
+    }
+  }
   // R-STA-01「パーセントポイント加算ステータス」／Q-STA-04（Issue #460）: 会心率・
   // 会心ダメージボーナス・属性相性ボーナスはそれ自体がパーセンテージで表される値であり、
   // 補正もパーセンテージの加減算としてだけ与えられる。`RATIO`（基本値への割合乗算）を

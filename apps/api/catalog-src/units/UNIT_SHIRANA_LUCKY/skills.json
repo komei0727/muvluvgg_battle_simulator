@@ -65,8 +65,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS1_OUTGOING_DOWN" },
-            { "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS1_INCOMING_UP" }
+            {
+              "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS1_OUTGOING_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SHIRANA_LUCKY_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_SHIRANA_LUCKY_AS1_INCOMING_UP",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SHIRANA_LUCKY_AS1_DAMAGE"] }
+            }
           ]
         }
       ]

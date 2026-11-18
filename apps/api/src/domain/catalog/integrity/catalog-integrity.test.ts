@@ -4710,3 +4710,241 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     });
   });
 });
+
+describe("HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE: actions[].hitCondition (R-SKL-06 #4a)", () => {
+  function buildWith(steps: readonly EffectStepDefinitionInput[]) {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS2",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_ENEMY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps,
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "hitCondition AS" },
+    });
+    return () =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, skill],
+        effectActions: [...defs.effectActions, statModAction("ACT_ATK_DOWN")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      });
+  }
+  const enemy = { kind: "BINDING", targetBindingId: "TGT_ENEMY" } as const;
+
+  it("UT-CAT-IDX-127 [R-SKL-06]: accepts a hitCondition referencing a DAMAGE that precedes it in the same ACTION", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+            },
+          ],
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-128 [R-SKL-06]: rejects a hitCondition whose DAMAGE is only resolved after it", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+            },
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+          ],
+        },
+      ]),
+    ).toThrowError(/HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE/);
+  });
+
+  it("UT-CAT-IDX-129 [R-SKL-06]: rejects a hitCondition referencing a non-DAMAGE EffectAction", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_ATK_DOWN" },
+            {
+              effectActionDefinitionId: "ACT_DAMAGE_1",
+              hitCondition: { effectActionDefinitionIds: ["ACT_ATK_DOWN"] },
+            },
+          ],
+        },
+      ]),
+    ).toThrowError(/TYPE_MISMATCH/);
+  });
+
+  it("UT-CAT-IDX-133 [R-SKL-06, R-SKL-08]: an ACTION whose every action carries hitCondition does not definitely record a result for a later LAST_RESULT", () => {
+    expect(
+      buildWith([
+        {
+          kind: "BRANCH",
+          condition: {
+            kind: "TARGET_STATE",
+            target: enemy,
+            field: "HP_RATIO",
+            op: "GTE",
+            value: 0.5,
+          },
+          thenSteps: [
+            {
+              kind: "ACTION",
+              target: enemy,
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+          elseSteps: [],
+        },
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+            },
+          ],
+        },
+        {
+          kind: "BRANCH",
+          condition: { kind: "LAST_RESULT", field: "resultKind", op: "EQ", value: "APPLIED" },
+          thenSteps: [],
+          elseSteps: [],
+        },
+      ]),
+    ).toThrowError(/MISSING_PRECEDING_RESULT/);
+  });
+
+  it("UT-CAT-IDX-134 [R-SKL-06, R-HEAL-01]: rejects a distributed HEAL whose hitCondition references a DAMAGE in the same ACTION, but accepts it from a later ACTION", () => {
+    const evenHeal = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_EVEN_HEAL",
+        kind: "HEAL",
+        payload: { formula: { kind: "CONSTANT", value: 100 }, distribution: "EVEN" },
+      },
+      "effectAction",
+    );
+    const build = (steps: readonly EffectStepDefinitionInput[]) => {
+      const defs = baseDefinitions();
+      return () =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            ...defs.skills,
+            createSkillDefinition({
+              skillDefinitionId: "SKL_AS2",
+              skillType: "AS",
+              cost: { resource: "AP", amount: 1 },
+              resolution: {
+                kind: "IMMEDIATE",
+                targetBindings: [
+                  {
+                    targetBindingId: "TGT_ENEMY",
+                    selector: { kind: "SELECT", side: "ENEMY", count: 2, order: ["DEFAULT"] },
+                  },
+                ],
+                steps,
+              },
+              cooldown: { unit: "ACTION", count: 1 },
+              traits: {},
+              metadata: { displayName: "distribution AS" },
+            }),
+          ],
+          effectActions: [...defs.effectActions, evenHeal],
+          units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        });
+    };
+    const heal = {
+      effectActionDefinitionId: "ACT_EVEN_HEAL",
+      hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+    };
+    const damage = { effectActionDefinitionId: "ACT_DAMAGE_1" };
+
+    expect(build([{ kind: "ACTION", target: enemy, actions: [damage, heal] }])).toThrowError(
+      /UNSUPPORTED_HIT_CONDITION_DISTRIBUTION/,
+    );
+    expect(
+      build([
+        { kind: "ACTION", target: enemy, actions: [damage] },
+        { kind: "ACTION", target: enemy, actions: [heal] },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-130 [R-SKL-06]: rejects a hitCondition referencing an undefined EffectAction", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_MISSING"] },
+            },
+          ],
+        },
+      ]),
+    ).toThrowError(/DANGLING_REFERENCE/);
+  });
+});
+
+describe("DAMAGE hitConfirmedEffects references (R-DMG-05 #2a)", () => {
+  function damageWithHitConfirmed(id: string, referencedId: string): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: id,
+        kind: "DAMAGE",
+        payload: {
+          damageType: "PHYSICAL",
+          formula: { kind: "SKILL_POWER", power: 1 },
+          hitConfirmedEffects: [{ effectActionDefinitionId: referencedId }],
+        },
+      },
+      "effectAction",
+    );
+  }
+
+  function build(extra: readonly EffectActionDefinition[]) {
+    const defs = baseDefinitions();
+    return () => buildCatalogIndex({ ...defs, effectActions: [...defs.effectActions, ...extra] });
+  }
+
+  it("UT-CAT-IDX-131 [R-DMG-05]: accepts hitConfirmedEffects referencing an APPLY_STAT_MOD", () => {
+    expect(
+      build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_HC_MOD"), statModAction("ACT_HC_MOD")]),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-132 [R-DMG-05]: rejects hitConfirmedEffects referencing a missing or unsupported EffectAction", () => {
+    expect(build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_MISSING")])).toThrowError(
+      /DANGLING_REFERENCE/,
+    );
+    expect(build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_DAMAGE_1")])).toThrowError(
+      /TYPE_MISMATCH/,
+    );
+  });
+});

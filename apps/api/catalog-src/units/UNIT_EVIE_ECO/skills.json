@@ -44,7 +44,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_EVIE_ECO_AS1_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_EVIE_ECO_AS1_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -57,6 +57,52 @@ export interface LastResultState {
   current?: LastEffectActionResult;
   lastActionTargetUnitIds: readonly BattleUnitId[];
   lastDamagedTargetUnitIds: readonly BattleUnitId[];
+  /**
+   * R-SKL-06 #4a: このEffectSequence解決で、DAMAGE定義ごとに1ヒット以上命中を受けた
+   * 対象。`lastDamagedTargetUnitIds`と違い直前stepで上書きせず解決全体で積み上げる —
+   * `hitCondition`は列内の別対象や後続stepを挟んでも、その対象自身の命中を参照する
+   * ためである。MISS（全ヒット回避）と対象不在の`SKIPPED`は記録しない。シールド全吸収や
+   * ダメージ無効で0になったヒットも命中であり、`APPLIED`として記録される。
+   *
+   * 値は「攻撃した元の対象 → そのヒットを実際に受けたユニット」。引き寄せ・肩代わり
+   * （R-INT-01/02）が成立すると両者が異なり、命中条件付きの後続効果は後者へ付く。
+   */
+  readonly hitTargetsByDamageAction: Map<
+    EffectActionDefinitionId,
+    Map<BattleUnitId, readonly BattleUnitId[]>
+  >;
+}
+
+/**
+ * R-SKL-06 #4a／R-INT-02第2項: 命中条件付きの適用を、実際に適用する対象ごとの適用へ
+ * 展開する。条件なしならそのまま、参照先DAMAGEのいずれも元の対象に命中していなければ
+ * 空（適用を開始しない）。命中していれば、そのヒットを最終的に受けたユニットへ向け直す
+ * — 肩代わりされた攻撃の後続効果は肩代わり者に付く。
+ */
+function applicationsForHitCondition(
+  application: EffectActionApplication,
+  lastResultState: LastResultState,
+): readonly EffectActionApplication[] {
+  if (application.hitCondition === undefined) {
+    return [application];
+  }
+  const defenders = new Set<BattleUnitId>();
+  for (const damageId of application.hitCondition.effectActionDefinitionIds) {
+    for (const defender of lastResultState.hitTargetsByDamageAction
+      .get(damageId)
+      ?.get(application.targetUnitId) ?? []) {
+      defenders.add(defender);
+    }
+  }
+  return [...defenders].map((defender) =>
+    defender === application.targetUnitId
+      ? application
+      : {
+          ...application,
+          targetUnitId: defender,
+          hits: application.hits.map((hit) => ({ ...hit, targetUnitId: defender })),
+        },
+  );
 }
 
 function lastResultTargetsContext(
@@ -116,6 +162,8 @@ export interface OneApplicationResult {
   readonly lastResult?: LastEffectActionResult;
   /** このapplicationで実際に適用された会心ヒット数（DAMAGE以外は常に0）。 */
   readonly criticalHitCount: number;
+  /** DAMAGEで命中したヒットを実際に受けたユニット（`EffectActionOutcome`と同じ）。 */
+  readonly hitDefenderUnitIds?: readonly BattleUnitId[];
 }
 
 /**
@@ -252,6 +300,9 @@ export function* resolveOneEffectActionApplication(
     interruptedCount: outcome.interruptedCount,
     interrupted: outcome.resultKind === "INTERRUPTED",
     criticalHitCount: outcome.criticalHitCount,
+    ...(outcome.hitDefenderUnitIds !== undefined
+      ? { hitDefenderUnitIds: outcome.hitDefenderUnitIds }
+      : {}),
     lastResult: {
       resultKind: outcome.resultKind,
       effectActionKind: effectAction.kind,
@@ -362,10 +413,51 @@ function* resolveActionApplications(
   context: EffectActionGroupContext,
   lastResultState: LastResultState,
   startEventId: DomainEventId,
+  /**
+   * R-SKL-06 #4a／R-INT-02: `deferredTargetCondition`の適用について、実際の付与先が
+   * そのstepの`targetCondition`を満たすかを、呼び出し時点の最新`box.units`で判定する。
+   */
+  recipientFilter?: (recipient: BattleUnit) => boolean,
 ): StepResolution {
   let lastEventId = startEventId;
   let resolvedCount = 0;
   let resolvedActionCount = 0;
+  // 先送りした`targetCondition`の判定結果を「元の対象×実際の付与先」ごとに保持する。
+  // 同じ対象への`actions`（マーカーと対応する付随デバフ等）は1つの付与分であり、先行
+  // actionの付与が条件の成否を変えても、後続actionだけが欠落してはならない
+  // （`SKL_NINA_ZINA_FRONTRUNNER_AS2`: 刻痕3→4個でも今回の刻痕と2つの低下は揃って付く）。
+  // 別の元の対象から向け直された付与は別の付与分として改めて判定する。
+  const recipientJudgements = new Map<string, boolean>();
+  const passesDeferredTargetCondition = (
+    original: EffectActionApplication,
+    candidate: EffectActionApplication,
+    remember: boolean,
+  ): boolean => {
+    if (candidate.deferredTargetCondition !== true || recipientFilter === undefined) {
+      return true;
+    }
+    const key = `${original.targetUnitId}->${candidate.targetUnitId}`;
+    const judged = recipientJudgements.get(key);
+    if (judged !== undefined) {
+      return judged;
+    }
+    const passes = recipientFilter(requireUnit(box.units, candidate.targetUnitId));
+    if (remember) {
+      recipientJudgements.set(key, passes);
+    }
+    return passes;
+  };
+  // 命中条件で除外・付与先へ展開し、先送りした`targetCondition`を付与先で評価した、
+  // 実際に開始する適用の一覧。`remember`は解決時と、総量を分け合う適用の分母を
+  // 決めるときだけ真にする（それ以外の先読みで、まだその対象の順番が来ていない
+  // 判定を確定させないため）。
+  const recipientsOf = (
+    application: EffectActionApplication,
+    remember: boolean,
+  ): readonly EffectActionApplication[] =>
+    applicationsForHitCondition(application, lastResultState).filter((candidate) =>
+      passesDeferredTargetCondition(application, candidate, remember),
+    );
   const stepActionTargetUnitIds: BattleUnitId[] = [];
   const seenActionTargetUnitIds = new Set<BattleUnitId>();
   const stepDamagedTargetUnitIds: BattleUnitId[] = [];
@@ -447,12 +539,27 @@ function* resolveActionApplications(
     // `includeDefeated`の対象を分母に残す。
     const distributesToDefeatedTargets =
       context.definitions.effectActions.get(definitionId)?.kind === "MODIFY_RESOURCE";
-    const count = applications.filter(
-      (candidate, candidateIndex) =>
-        shareGroupKeys[candidateIndex] === groupKey &&
-        ((distributesToDefeatedTargets && candidate.includeDefeated) ||
-          !isDefeated(requireUnit(box.units, candidate.targetUnitId))),
-    ).length;
+    // R-SKL-06 #4a: 命中条件で除外される対象は受け取らず、肩代わり・引き寄せで向け直した
+    // 付与先が受け取るため、展開後の実際の付与先を数える。同じACTION内の後続対象の命中は
+    // まだ確定していないため、命中条件と分配を同じstepで組み合わせる定義はCatalogロード
+    // 時点で拒否する（`UNSUPPORTED_HIT_CONDITION_DISTRIBUTION`）。
+    //
+    // 総量を分け合う適用は、分母を決めたこの時点で付与先の判定も確定させる。先に配った
+    // 分が`targetCondition`の成否を変えても（回復でHP割合の条件が外れる等）、残りの
+    // 付与先が欠けて総量が分母より少なく配られることがないようにするためである。分配
+    // しない適用では確定させない — 付与分ごとにその対象の順番で判定する規則を保つ。
+    const definition = context.definitions.effectActions.get(definitionId);
+    const distributes =
+      (definition?.kind === "HEAL" && definition.payload.distribution === "EVEN") ||
+      (definition?.kind === "MODIFY_RESOURCE" && definition.payload.operation === "DISTRIBUTE");
+    const count = applications
+      .filter((_, candidateIndex) => shareGroupKeys[candidateIndex] === groupKey)
+      .flatMap((candidate) => recipientsOf(candidate, distributes))
+      .filter(
+        (candidate) =>
+          (distributesToDefeatedTargets && candidate.includeDefeated) ||
+          !isDefeated(requireUnit(box.units, candidate.targetUnitId)),
+      ).length;
     // 呼び出し元は「今まさに適用しようとしている application」の解決直前にだけ
     // これを呼ぶため、その対象自身が数に含まれ`count >= 1`が成り立つ。0での
     // 除算を構造的に防ぐため、それでも0になった場合は1へ丸める。
@@ -462,63 +569,126 @@ function* resolveActionApplications(
   };
 
   for (let index = 0; index < applications.length; index += 1) {
-    const application = applications[index]!;
-    if (isActorDefeated(context, box)) {
-      finalizeStepTargets();
-      return {
-        lastEventId,
-        walkResult: walkInterrupted(
-          resolvedCount,
-          resolvedActionCount,
-          countHits(applications.slice(index)),
-        ),
-      };
-    }
-
-    const applied = yield* resolveOneEffectActionApplication(
-      application,
-      box,
-      context,
-      lastEventId,
-      resolveShareCount(index),
-    );
-    lastEventId = applied.lastEventId;
-    resolvedCount += applied.resolvedCount;
-
-    stepCriticalHitCount += applied.criticalHitCount;
-
-    if (applied.lastResult !== undefined) {
-      lastResultState.current = { ...applied.lastResult, criticalHitCount: stepCriticalHitCount };
-      if (!seenActionTargetUnitIds.has(application.targetUnitId)) {
-        seenActionTargetUnitIds.add(application.targetUnitId);
-        stepActionTargetUnitIds.push(application.targetUnitId);
+    // R-SKL-06 #4a: 命中条件を満たさない適用は`targetCondition`で除外された対象と同じく
+    // 一切開始しない（イベント・直前結果・解決数のいずれにも現れない）。判定は直前の
+    // 適用まで反映した命中履歴で行うため、同じACTION内の先行DAMAGEの結果も見える。
+    // R-INT-02第2項: 肩代わり・引き寄せされた攻撃の後続効果は、実際にヒットを受けた
+    // ユニットへ向け直す（1つの定義上の適用が、受けたユニットごとの適用になる）。
+    const effective = recipientsOf(applications[index]!, true);
+    for (let effectiveIndex = 0; effectiveIndex < effective.length; effectiveIndex += 1) {
+      const application = effective[effectiveIndex]!;
+      const unstartedHits = (): number =>
+        countHits(effective.slice(effectiveIndex + 1)) + countHits(applications.slice(index + 1));
+      if (isActorDefeated(context, box)) {
+        finalizeStepTargets();
+        return {
+          lastEventId,
+          walkResult: walkInterrupted(
+            resolvedCount,
+            resolvedActionCount,
+            countHits([application]) + unstartedHits(),
+          ),
+        };
       }
-      if (
-        applied.lastResult.resultKind === "APPLIED" &&
-        applied.lastResult.effectActionKind === "DAMAGE" &&
-        !seenDamagedTargetUnitIds.has(application.targetUnitId)
-      ) {
-        seenDamagedTargetUnitIds.add(application.targetUnitId);
-        stepDamagedTargetUnitIds.push(application.targetUnitId);
-      }
-    }
 
-    if (applied.interrupted) {
-      finalizeStepTargets();
-      return {
+      const applied = yield* resolveOneEffectActionApplication(
+        application,
+        box,
+        context,
         lastEventId,
-        walkResult: walkInterrupted(
-          resolvedCount,
-          resolvedActionCount,
-          applied.interruptedCount + countHits(applications.slice(index + 1)),
-        ),
-      };
+        resolveShareCount(index),
+      );
+      lastEventId = applied.lastEventId;
+      resolvedCount += applied.resolvedCount;
+
+      stepCriticalHitCount += applied.criticalHitCount;
+
+      if (applied.lastResult !== undefined) {
+        lastResultState.current = {
+          ...applied.lastResult,
+          criticalHitCount: stepCriticalHitCount,
+        };
+        if (!seenActionTargetUnitIds.has(application.targetUnitId)) {
+          seenActionTargetUnitIds.add(application.targetUnitId);
+          stepActionTargetUnitIds.push(application.targetUnitId);
+        }
+        if (
+          applied.lastResult.resultKind === "APPLIED" &&
+          applied.lastResult.effectActionKind === "DAMAGE" &&
+          !seenDamagedTargetUnitIds.has(application.targetUnitId)
+        ) {
+          seenDamagedTargetUnitIds.add(application.targetUnitId);
+          stepDamagedTargetUnitIds.push(application.targetUnitId);
+        }
+        if (
+          applied.lastResult.resultKind === "APPLIED" &&
+          applied.lastResult.effectActionKind === "DAMAGE"
+        ) {
+          const hitTargets =
+            lastResultState.hitTargetsByDamageAction.get(application.effectActionDefinitionId) ??
+            new Map<BattleUnitId, readonly BattleUnitId[]>();
+          const defenders = new Set(hitTargets.get(application.targetUnitId) ?? []);
+          for (const defender of applied.hitDefenderUnitIds ?? [application.targetUnitId]) {
+            defenders.add(defender);
+          }
+          hitTargets.set(application.targetUnitId, [...defenders]);
+          lastResultState.hitTargetsByDamageAction.set(
+            application.effectActionDefinitionId,
+            hitTargets,
+          );
+        }
+      }
+
+      if (applied.interrupted) {
+        finalizeStepTargets();
+        return {
+          lastEventId,
+          walkResult: walkInterrupted(
+            resolvedCount,
+            resolvedActionCount,
+            applied.interruptedCount + unstartedHits(),
+          ),
+        };
+      }
+      resolvedActionCount += 1;
     }
-    resolvedActionCount += 1;
   }
 
   finalizeStepTargets();
   return { lastEventId, walkResult: walkCompleted(resolvedCount, resolvedActionCount) };
+}
+
+/**
+ * R-SKL-08 / Catalog preflight（`MISSING_PRECEDING_RESULT`）: 適用を1件も開始せずに
+ * 解決を終えたACTION（対象0件、または全適用が命中条件で除外）も、SKIPPED結果を直前結果
+ * として記録する。R-SKL-06 #4は対象ごとにactionsを定義順で適用する（対象があれば最後に
+ * 処理されるのは定義順で最後のaction）ため、「代表結果」は定義順で最後のaction
+ * （`actions[0]`ではなく`actions[actions.length - 1]`）を採用し、対象がいた場合の
+ * 処理順と一貫させる。
+ */
+function recordSkippedStepResult(
+  actions: readonly EffectActionReference[],
+  context: EffectActionGroupContext,
+  lastResultState: LastResultState,
+): void {
+  const last = actions[actions.length - 1];
+  const effectAction =
+    last !== undefined
+      ? context.definitions.effectActions.get(last.effectActionDefinitionId)
+      : undefined;
+  if (last !== undefined && effectAction !== undefined) {
+    lastResultState.current = {
+      resultKind: "SKIPPED",
+      effectActionKind: effectAction.kind,
+      effectActionDefinitionId: last.effectActionDefinitionId,
+      targetUnitIds: [],
+      // ヒットを1つも解決していないため会心も0件（`POST_DAMAGE_CRITICAL_BRANCH`、
+      // DMG-003、Issue #196）。
+      criticalHitCount: 0,
+    };
+  }
+  lastResultState.lastActionTargetUnitIds = [];
+  lastResultState.lastDamagedTargetUnitIds = [];
 }
 
 /**
@@ -550,6 +720,7 @@ export function* resolveActionStepBody(
   resolveAfterTiming?: () => {
     readonly satisfied: boolean;
     readonly applications: readonly EffectActionApplication[];
+    readonly recipientFilter?: (recipient: BattleUnit) => boolean;
   },
 ): StepResolution {
   const stepStarting = emitEffectStepStarting(
@@ -596,31 +767,7 @@ export function* resolveActionStepBody(
   }
 
   if (effectiveApplications.length === 0) {
-    // R-SKL-08 / Catalog preflight（`MISSING_PRECEDING_RESULT`）: 対象0件まで
-    // 解決へ到達したACTIONも、仕様どおりSKIPPED結果を直前結果として記録する。
-    // R-SKL-06 #4は対象ごとにactionsを定義順で
-    // 適用する（対象があれば最後に処理されるのは定義順で最後のaction）ため、
-    // 対象0件でも「代表結果」は定義順で最後のaction（`actions[0]`ではなく
-    // `actions[actions.length - 1]`）を採用し、対象がいた場合の処理順と
-    // 一貫させる。
-    const last = actions[actions.length - 1];
-    const effectAction =
-      last !== undefined
-        ? context.definitions.effectActions.get(last.effectActionDefinitionId)
-        : undefined;
-    if (last !== undefined && effectAction !== undefined) {
-      lastResultState.current = {
-        resultKind: "SKIPPED",
-        effectActionKind: effectAction.kind,
-        effectActionDefinitionId: last.effectActionDefinitionId,
-        targetUnitIds: [],
-        // 対象0件のstepはヒットを1つも解決していないため会心も0件
-        // （`POST_DAMAGE_CRITICAL_BRANCH`、DMG-003、Issue #196）。
-        criticalHitCount: 0,
-      };
-    }
-    lastResultState.lastActionTargetUnitIds = [];
-    lastResultState.lastDamagedTargetUnitIds = [];
+    recordSkippedStepResult(actions, context, lastResultState);
     const stepCompleted = emitEffectStepCompleted(stepIndex, 0, context, stepStarting.eventId);
     yield { kind: "EFFECT_RESOLVED", events: [stepCompleted] };
     return { lastEventId: stepCompleted.eventId, walkResult: walkCompleted(0, 0) };
@@ -632,9 +779,15 @@ export function* resolveActionStepBody(
     context,
     lastResultState,
     stepStarting.eventId,
+    resolved?.recipientFilter,
   );
   if (applied.walkResult.interrupted) {
     return applied;
+  }
+  // R-SKL-06 #4a: 対象はいたが全ての適用が命中条件（と付与先の`targetCondition`）で
+  // 除外された場合も、対象0件と同じくSKIPPEDを直前結果として記録する。
+  if (applied.walkResult.resolvedActionCount === 0) {
+    recordSkippedStepResult(actions, context, lastResultState);
   }
 
   const stepCompleted = emitEffectStepCompleted(
@@ -995,6 +1148,7 @@ export function* resolveRawStep(
         const resolveAfterTiming = (): {
           readonly satisfied: boolean;
           readonly applications: readonly EffectActionApplication[];
+          readonly recipientFilter?: (recipient: BattleUnit) => boolean;
         } => {
           const actor = resolutionSourceOf(context, box);
           const triggerContext = {
@@ -1051,7 +1205,28 @@ export function* resolveRawStep(
             triggerContext,
             perTargetFilter,
           );
-          return { satisfied: true, applications };
+          // R-SKL-06 #4a／R-INT-02: 先送りした`targetCondition`は、適用直前の最新状態で
+          // 実際の付与先について評価する（先行する付与が条件の成否を変え得るため）。
+          const lastResultAtStart = lastResultState.current;
+          const recipientFilter =
+            step.targetCondition.kind === "TRUE"
+              ? undefined
+              : (recipient: BattleUnit): boolean =>
+                  buildEffectStepPerTargetFilter(
+                    step,
+                    plan.resolvedBindings,
+                    actor,
+                    box.units,
+                    context.definitions.unitDefinitions,
+                    lastResultAtStart,
+                    lastResultTargets,
+                    triggerContext,
+                  )(recipient);
+          return {
+            satisfied: true,
+            applications,
+            ...(recipientFilter !== undefined ? { recipientFilter } : {}),
+          };
         };
         return yield* resolveActionStepBody(
           stepIndex,

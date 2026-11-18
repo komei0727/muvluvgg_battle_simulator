@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
@@ -93,9 +94,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "前列優先で敵2体に威力90.36で攻撃し、自身が2回行動を終えるまでの間「ご指名」を付与する。「ご指名」は自身が倒れると解除される",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_YIFEI_STORM_AS1" },
     expected: {
+      // ご指名はstepではなく`ACT_YIFEI_STORM_AS1_DAMAGE`の`hitConfirmedEffects`が命中確定時に
+      // 付与する（R-DMG-05 #2a）。EffectActionとしては開始されず、`markers`だけに現れる。
       actions: [
-        { effectActionDefinitionId: "ACT_YIFEI_STORM_AS1_NOMINATION", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_YIFEI_STORM_AS1_NOMINATION", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_YIFEI_STORM_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_YIFEI_STORM_AS1_DAMAGE", targets: ["enemy:left"] },
       ],
@@ -301,7 +302,10 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
       unexecutedEffectActionIds(
         unitEffectActionClosure(snapshot, UNIT_DEFINITION_ID),
         collectedExecutedActionIds(),
-        [],
+        // R-DMG-05 #2a: ご指名はDAMAGEの命中確定時付与で`MarkerApplied`だけを出し、実行集合が
+        // 数える`EffectActionCompleted`/`EffectApplied`を持たない。付与の実績は`-001`の
+        // `markers`と、回避時の不付与は`-005`が実AS経路で検証する。
+        ["ACT_YIFEI_STORM_AS1_NOMINATION"],
       ),
     ).toEqual([]);
   });
@@ -445,5 +449,51 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
     const effective = computeCombatStats(subject, board.definitions.effectActions).combatStats;
     expect(effective.criticalRate).toBeCloseTo(subject.baseCombatStats.criticalRate + 0.15, 10);
     expect(effective.defense).toBe(Math.floor(subject.baseCombatStats.defense * 1.15));
+  });
+
+  it("IT-UNIT-YIFEI-STORM-007 [R-DMG-05, R-SKL-06]: AS1を回避した敵にはご指名を付けず、命中した敵には会心判定の前に付くため、同じASの会心から新規指名でもPS1が出る（SR-310）", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: 1 },
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { appliedEffects: [evasionOf("enemy:front")] },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    });
+    const recorder = new EventRecorder(createBattleId("B_YIFEI_AS1_EVADE"));
+
+    const units = useSkill({
+      units: board.units,
+      definitions: board.definitions,
+      skillId: "SKL_YIFEI_STORM_AS1",
+      random: ALWAYS_CRITICAL,
+      recorder,
+      actionNumber: 1,
+    });
+
+    const nominated = units
+      .filter((unit) => unit.markerStates.some((marker) => String(marker.markerId) === NOMINATION))
+      .map((unit) => unit.battleUnitId);
+    expect(nominated).toEqual(["enemy:left"]);
+    const ps1 = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          event.payload.skillDefinitionId === "SKL_YIFEI_STORM_PS1",
+      );
+    expect(ps1).toHaveLength(1);
+    const ps1Damage = recorder
+      .getEvents()
+      .filter(
+        (event) =>
+          event.eventType === "EffectActionStarting" &&
+          event.payload.effectActionDefinitionId === "ACT_YIFEI_STORM_PS1_DAMAGE",
+      );
+    expect(ps1Damage.map((event) => event.targetUnitIds)).toEqual([["enemy:left"]]);
   });
 });

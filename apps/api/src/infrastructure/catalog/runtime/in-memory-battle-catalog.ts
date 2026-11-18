@@ -66,6 +66,12 @@ export class InMemoryBattleCatalog implements BattleCatalog {
           includeEffectAction(onHitEffect.effectActionDefinitionId);
         }
       }
+      // R-DMG-05 #2a: DAMAGEの命中確定時付与も同じ理由（DAMAGEのpayloadからだけ指される）。
+      if (effectAction.kind === "DAMAGE") {
+        for (const hitConfirmedEffect of effectAction.payload.hitConfirmedEffects ?? []) {
+          includeEffectAction(hitConfirmedEffect.effectActionDefinitionId);
+        }
+      }
     };
 
     const includeSkill = (skillId: SkillDefinitionId): void => {

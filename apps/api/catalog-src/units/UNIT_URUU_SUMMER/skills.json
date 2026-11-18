@@ -68,7 +68,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
           "actions": [
             { "effectActionDefinitionId": "ACT_URUU_SUMMER_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_URUU_SUMMER_AS1_MARKER_SHIOSAI" }
+            {
+              "effectActionDefinitionId": "ACT_URUU_SUMMER_AS1_MARKER_SHIOSAI",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_SUMMER_AS1_DAMAGE"] }
+            }
           ]
         },
         {

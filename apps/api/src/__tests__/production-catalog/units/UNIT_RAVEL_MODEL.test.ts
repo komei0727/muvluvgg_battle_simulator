@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -418,4 +419,33 @@ describe("production Catalog UNIT_RAVEL_MODEL (【気高きランウェイモデ
     expect(instanceCount).toBe(2);
     expect(effectiveValue).toBeCloseTo(baseValue * (1 - 0.3), 10);
   });
+
+  it.each([
+    { label: "既存2＋今回会心", stackCount: 2, critical: true, evaded: false, stunned: true },
+    { label: "既存3＋非会心", stackCount: 3, critical: false, evaded: false, stunned: true },
+    { label: "既存3＋回避", stackCount: 3, critical: true, evaded: true, stunned: false },
+  ])(
+    "IT-UNIT-RAVEL-MODEL-005 [R-SKL-06]: AS2の気絶は$labelで判定する — 会心で付けたターゲットを同じASの気絶判定へ含め、回避した敵へは既存3個でも付けない（SR-388）",
+    ({ stackCount, critical: isCritical, evaded, stunned }) => {
+      const [front, ...others] = enemiesWithTargetMarkers(stackCount);
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAVEL_MODEL_AS2" },
+        board: {
+          ...(isCritical ? ALWAYS_CRITICAL : {}),
+          enemies: [
+            evaded ? { ...front!, state: { appliedEffects: [evasionOf("enemy:front")] } } : front!,
+            ...others,
+          ],
+        },
+        ...(isCritical ? { random: critical() } : {}),
+      });
+
+      const stun = (observation.effectsApplied ?? []).filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_RAVEL_MODEL_AS2_STUN",
+      );
+      expect(stun.map((effect) => effect.unitId)).toEqual(stunned ? ["enemy:front"] : []);
+    },
+  );
 });

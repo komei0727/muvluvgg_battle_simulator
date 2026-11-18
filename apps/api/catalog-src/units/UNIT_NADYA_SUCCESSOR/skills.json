@@ -107,7 +107,10 @@
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED"
                 },
                 {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED"]
+                  }
                 }
               ]
             },
@@ -123,7 +126,12 @@
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                    {
+                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": ["ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED"]
+                      }
+                    }
                   ]
                 }
               ],
@@ -137,7 +145,10 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED"]
+                  }
                 }
               ]
             },
@@ -168,7 +179,13 @@
                   "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DAMAGE"
                 },
                 {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN"
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_SPEED_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": [
+                      "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED",
+                      "ACT_NADYA_SUCCESSOR_AS1_DAMAGE"
+                    ]
+                  }
                 }
               ]
             },
@@ -184,7 +201,15 @@
                   "kind": "ACTION",
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
                   "actions": [
-                    { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF" }
+                    {
+                      "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_DMG_DOWN_DEBUFF",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": [
+                          "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED",
+                          "ACT_NADYA_SUCCESSOR_AS1_DAMAGE"
+                        ]
+                      }
+                    }
                   ]
                 }
               ],
@@ -198,7 +223,13 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK"
+                  "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_AS1_MARK",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": [
+                      "ACT_NADYA_SUCCESSOR_AS1_DAMAGE_BOOSTED",
+                      "ACT_NADYA_SUCCESSOR_AS1_DAMAGE"
+                    ]
+                  }
                 }
               ]
             },

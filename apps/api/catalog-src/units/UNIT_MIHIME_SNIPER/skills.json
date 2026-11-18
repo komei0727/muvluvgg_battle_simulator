@@ -111,7 +111,8 @@
               "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_DAMAGE1"
             },
             {
-              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1"
+              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIHIME_SNIPER_AS1_DAMAGE1"] }
             }
           ]
         },
@@ -137,7 +138,13 @@
               "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_DAMAGE2"
             },
             {
-              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2"
+              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_MIHIME_SNIPER_AS1_DAMAGE1",
+                  "ACT_MIHIME_SNIPER_AS1_DAMAGE2"
+                ]
+              }
             }
           ]
         }
@@ -200,7 +207,8 @@
               "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_DAMAGE1"
             },
             {
-              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_SPD_DOWN"
+              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIHIME_SNIPER_AS2_DAMAGE1"] }
             }
           ]
         },
@@ -215,7 +223,13 @@
               "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_DAMAGE2"
             },
             {
-              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_SPD_DOWN"
+              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_MIHIME_SNIPER_AS2_DAMAGE1",
+                  "ACT_MIHIME_SNIPER_AS2_DAMAGE2"
+                ]
+              }
             }
           ]
         },

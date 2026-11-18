@@ -97,8 +97,14 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN" },
-                { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN" }
+                {
+                  "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_DEF_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_TSUNDERE_AS2_DAMAGE"] }
+                },
+                {
+                  "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_TSUNDERE_AS2_DAMAGE"] }
+                }
               ]
             }
           ],

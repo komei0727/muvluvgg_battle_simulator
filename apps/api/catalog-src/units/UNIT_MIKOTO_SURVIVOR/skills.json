@@ -63,7 +63,12 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE" },
-            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE"]
+              }
+            }
           ]
         },
         {
@@ -71,7 +76,15 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ" },
-            { "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_BASE",
+                  "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ"
+                ]
+              }
+            }
           ]
         }
       ]

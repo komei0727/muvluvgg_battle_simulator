@@ -52,11 +52,6 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_NOMINATION" }]
-        },
-        {
-          "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_DAMAGE" }]
         }
       ]

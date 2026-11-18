@@ -90,10 +90,12 @@
               "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_DMG_DOWN"
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MEIYA_FATED_AS1_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_SPD_DOWN"
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_AS1_SPD_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MEIYA_FATED_AS1_DAMAGE"] }
             }
           ]
         }

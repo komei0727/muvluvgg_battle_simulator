@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -428,5 +429,37 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
     // 敵の4つのうち3つだけが解除され、4つ目と使用者自身のバフは残る。
     expect(removedBy("SKL_SHOUKA_SCHEMER_EX")).toEqual(removedDefUp(3));
     expect(removedBy("SKL_SHOUKA_SCHEMER_AS3")).toEqual(removedDefUp(1));
+  });
+
+  it("IT-UNIT-SHOUKA-SCHEMER-006 [R-SKL-06]: AS2を回避した敵には攻撃力低下を付与しないが、承認済みの敵防御力上昇は命中条件に巻き込まず付与する（SR-027）", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHOUKA_SCHEMER_AS2" },
+      board: {
+        enemies: [
+          { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          {
+            id: "enemy:back",
+            position: { column: "CENTER", row: "BACK" },
+            combatStats: { attack: 2000 },
+            state: { appliedEffects: [evasionOf("enemy:back")] },
+          },
+        ],
+      },
+    });
+
+    expect(observation.actions).toEqual([
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DAMAGE",
+        targets: ["enemy:back"],
+        resultKind: "MISSED",
+      },
+      { effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP", targets: ["enemy:back"] },
+    ]);
+    expect(observation.effectsApplied?.map((effect) => effect.effectActionDefinitionId)).toEqual([
+      "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
+    ]);
   });
 });

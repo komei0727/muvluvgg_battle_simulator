@@ -77,7 +77,14 @@ function walkLastResultDataFlowStep(
           }
         }
       }
-      return definitelyAssigned || step.stepCondition.kind === "TRUE";
+      // R-SKL-06 #4a: `hitCondition`付きの適用は命中が無ければ開始されず結果を残さない。
+      // 対象0件なら`SKIPPED`が記録されるが、対象がいて全actionが命中条件で除外された
+      // 場合は何も記録されないため、条件なしのactionを1つ以上持つ場合だけ確定とする。
+      return (
+        definitelyAssigned ||
+        (step.stepCondition.kind === "TRUE" &&
+          step.actions.some((action) => action.hitCondition === undefined))
+      );
     }
     case "BRANCH": {
       if (!definitelyAssigned) {

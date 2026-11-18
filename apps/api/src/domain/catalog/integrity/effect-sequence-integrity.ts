@@ -4,6 +4,7 @@ import type { EffectActionDefinition } from "../definitions/effect-action-defini
 import type { EffectSequence, EffectStepDefinition } from "../definitions/effect-sequence.js";
 import {
   collectEffectActionReferences,
+  collectEffectSteps,
   EFFECT_STEP_ROOT_PATH,
 } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
@@ -50,6 +51,84 @@ export function validateEffectActionReferences(
  * 一切一致しないsilent no-opになるため、`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`の
  * payload参照と同じ`DANGLING_REFERENCE`で拒否する。
  */
+/**
+ * R-SKL-06 #4a: `actions[].hitCondition.effectActionDefinitionIds`は、同じ
+ * EffectSequenceの定義順（先行順走査）でその参照より前に現れるDAMAGEを指さなければ
+ * ならない。後ろにしか無いDAMAGEや非DAMAGEを指す条件は実行時に常に不成立となり、
+ * 付与が黙って消えるため、ロード時点で拒否する。BRANCHの別枝のように実際には
+ * 先行しない経路でも、定義順で前にあれば受理する（どの枝のDAMAGEかを列挙するのは
+ * 定義側の責務で、実行時は解決済みの命中履歴だけを見る）。
+ */
+export function validateHitConditionReferences(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const preceding = new Set<EffectActionDefinitionId>();
+  for (const ref of collectEffectActionReferences(steps)) {
+    for (const referencedId of ref.hitCondition?.effectActionDefinitionIds ?? []) {
+      const referenced = effectActions.get(referencedId);
+      if (referenced === undefined) {
+        violations.push({
+          targetId: ownerId,
+          rule: "DANGLING_REFERENCE",
+          message: `hitCondition.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+        });
+      } else if (referenced.kind !== "DAMAGE") {
+        violations.push({
+          targetId: ownerId,
+          rule: "TYPE_MISMATCH",
+          message: `hitCondition.effectActionDefinitionIds must reference DAMAGE, but "${referencedId}" is a ${referenced.kind}`,
+        });
+      } else if (!preceding.has(referencedId)) {
+        violations.push({
+          targetId: ownerId,
+          rule: "HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE",
+          message: `hitCondition of "${ref.effectActionDefinitionId}" references DAMAGE "${referencedId}", which is not resolved before it in definition order`,
+        });
+      }
+    }
+    preceding.add(ref.effectActionDefinitionId);
+  }
+  validateHitConditionDistribution(steps, effectActions, ownerId, violations);
+}
+
+/**
+ * R-SKL-06 #4a: 総量を対象数で等分する適用（`HEAL.distribution: EVEN`／
+ * `MODIFY_RESOURCE.operation: DISTRIBUTE`）は、最初の対象へ配る時点で分母を確定する。
+ * 同じACTIONのDAMAGEを命中条件にすると、後続対象の命中がまだ確定しておらず分母を
+ * 決められないため拒否する（先行するACTIONのDAMAGEなら確定済みで受理する）。
+ */
+function validateHitConditionDistribution(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const step of collectEffectSteps(steps, (candidate) =>
+    candidate.kind === "ACTION" ? [candidate] : [],
+  )) {
+    const sameStepIds = new Set(step.actions.map((action) => action.effectActionDefinitionId));
+    for (const action of step.actions) {
+      const definition = effectActions.get(action.effectActionDefinitionId);
+      const distributes =
+        (definition?.kind === "HEAL" && definition.payload.distribution === "EVEN") ||
+        (definition?.kind === "MODIFY_RESOURCE" && definition.payload.operation === "DISTRIBUTE");
+      if (
+        distributes &&
+        action.hitCondition?.effectActionDefinitionIds.some((id) => sameStepIds.has(id)) === true
+      ) {
+        violations.push({
+          targetId: ownerId,
+          rule: "UNSUPPORTED_HIT_CONDITION_DISTRIBUTION",
+          message: `distributed "${action.effectActionDefinitionId}" cannot take a hitCondition on a DAMAGE in the same ACTION step; move it to a later ACTION step`,
+        });
+      }
+    }
+  }
+}
+
 export function validateConditionEffectActionReferences(
   references: readonly EffectActionDefinitionId[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,

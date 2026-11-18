@@ -333,6 +333,22 @@ export interface DamageEventContext {
    * 「1件ごとに`yield`する」規約を持つ。`sourceUnitId`は付与の帰属先（ライダーを
    * 付与したユニット。Memory由来等で不明なら攻撃者へフォールバックする）。
    */
+  /**
+   * R-DMG-05 #2a: DAMAGEの`hitConfirmedEffects`の1件を、最初の命中が確定した対象へ
+   * 付与する。`grantFollowUpOnHitEffect`と同じ理由で呼び出し側が注入し、同じ
+   * 「1件ごとに`yield`する」規約を持つ。未指定なら付与しない。
+   */
+  readonly grantHitConfirmedEffect?: (
+    targetUnitId: BattleUnitId,
+    effectActionDefinitionId: EffectActionDefinitionId,
+    attackerUnitId: BattleUnitId,
+    units: readonly BattleUnit[],
+    parentEventId: DomainEventId,
+  ) => Generator<
+    { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+    { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+    readonly BattleUnit[] | undefined
+  >;
   readonly grantFollowUpOnHitEffect?: (
     targetUnitId: BattleUnitId,
     onHitEffectActionDefinitionId: EffectActionDefinitionId,

@@ -64,8 +64,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_DUAL" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_MARKER" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAIA_SALON_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_MAIA_SALON_AS1_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAIA_SALON_AS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -92,8 +98,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN" },
-            { "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_SPEED_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAIA_SALON_AS2_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAIA_SALON_AS2_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -122,7 +122,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_SANTA_AS2_OUTGOING_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_SANTA_AS2_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -64,7 +64,12 @@
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
               "actions": [
                 { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT" },
-                { "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DMG_DOWN" }
+                {
+                  "effectActionDefinitionId": "ACT_LUNA_HUNGRY_AS1_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_LUNA_HUNGRY_AS1_DAMAGE_CRIT"]
+                  }
+                }
               ]
             },
             {

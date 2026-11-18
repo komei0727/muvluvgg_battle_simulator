@@ -143,7 +143,8 @@
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN"
+              "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SHOUKA_SCHEMER_AS2_DAMAGE"] }
             },
             {
               "effectActionDefinitionId": "ACT_SHOUKA_SCHEMER_AS2_DEF_UP"

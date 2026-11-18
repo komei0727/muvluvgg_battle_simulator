@@ -13319,7 +13319,11 @@
   {
     "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_DAMAGE",
     "kind": "DAMAGE",
-    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.9036 } },
+    "payload": {
+      "damageType": "PHYSICAL",
+      "formula": { "kind": "SKILL_POWER", "power": 0.9036 },
+      "hitConfirmedEffects": [{ "effectActionDefinitionId": "ACT_YIFEI_STORM_AS1_NOMINATION" }]
+    },
     "metadata": { "tags": [] }
   },
   {

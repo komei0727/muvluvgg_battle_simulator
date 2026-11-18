@@ -26,6 +26,7 @@ import {
   type EffectActionGroupContext,
 } from "./effect-action-group-context.js";
 import { buildConsumeEffectDurationHooks } from "./effect-duration-consumption.js";
+import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
 
 /**
  * `combat/`が`lifecycle/`・`effects/`・Catalogの`effectActions`マップへ到達できない
@@ -335,6 +336,23 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
           formula,
           parentEventId,
         ),
+      // R-DMG-05 #2a: 命中確定時付与は追撃のonHitEffectsと同じ付与経路を使う。帰属先は攻撃者。
+      grantHitConfirmedEffect: (
+        targetUnitId,
+        effectActionDefinitionId,
+        attackerUnitId,
+        units,
+        parentEventId,
+      ) =>
+        grantOnHitEffectSteps(
+          context,
+          units,
+          targetUnitId,
+          effectActionDefinitionId,
+          attackerUnitId,
+          undefined,
+          parentEventId,
+        ),
       ...(context.onFactEventForPassiveChain !== undefined
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
@@ -383,6 +401,10 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
     // MISS・対象戦闘不能でスキップされたヒット（`applied === false`）は会心判定自体を
     // 行っていないため数えない（DMG-003）。
     criticalHitCount: damageResult.hits.filter((hit) => hit.applied && hit.isCritical).length,
+    // R-INT-02第2項: 後続の命中条件付き効果は、最終的にダメージを受けた対象へ付ける。
+    hitDefenderUnitIds: [
+      ...new Set(damageResult.hits.filter((hit) => hit.applied).map((hit) => hit.targetUnitId)),
+    ],
     lastEventId: damageResult.lastEventId,
   };
 };
