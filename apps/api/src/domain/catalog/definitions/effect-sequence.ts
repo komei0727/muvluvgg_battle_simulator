@@ -76,9 +76,21 @@ const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector", "optional"] 
  * ダメージ→付与」という順序と元対象を保つためである（stepを分けると列・全体攻撃で
  * 全対象のダメージが先に解決され、付与の順序が変わる）。
  */
-export interface EffectActionHitCondition {
-  readonly effectActionDefinitionIds: readonly EffectActionDefinitionId[];
-}
+export type EffectActionHitCondition =
+  | { readonly effectActionDefinitionIds: readonly EffectActionDefinitionId[] }
+  | {
+      /**
+       * `TRIGGER_SKILL_USE`: このPSを発動させたスキル使用（契機イベントの`skillUseId`）が、
+       * 適用先の対象へ1ヒット以上命中していた場合だけ適用する。PS自身が攻撃しない
+       * 「自身が攻撃した後、その対象へ付与する」PSで、元のASの命中を参照するために使う
+       * （PS自身が攻撃する場合は、元のASではなくそのPSのDAMAGEを
+       * `effectActionDefinitionIds`で参照する）。
+       */
+      readonly scope: HitConditionScope;
+    };
+
+const HIT_CONDITION_SCOPES = ["TRIGGER_SKILL_USE"] as const;
+export type HitConditionScope = (typeof HIT_CONDITION_SCOPES)[number];
 
 export interface EffectActionReference {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
@@ -87,11 +99,14 @@ export interface EffectActionReference {
 
 export interface EffectActionReferenceInput {
   readonly effectActionDefinitionId: string;
-  readonly hitCondition?: { readonly effectActionDefinitionIds?: readonly string[] };
+  readonly hitCondition?: {
+    readonly effectActionDefinitionIds?: readonly string[];
+    readonly scope?: string;
+  };
 }
 
 const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId", "hitCondition"] as const;
-const EFFECT_ACTION_HIT_CONDITION_ALLOWED_KEYS = ["effectActionDefinitionIds"] as const;
+const EFFECT_ACTION_HIT_CONDITION_ALLOWED_KEYS = ["effectActionDefinitionIds", "scope"] as const;
 
 // ---- EffectStepDefinition ----
 
@@ -195,8 +210,21 @@ function createEffectActionHitCondition(
 ): EffectActionHitCondition {
   assertKnownKeys(input, EFFECT_ACTION_HIT_CONDITION_ALLOWED_KEYS, path);
   const ids = input.effectActionDefinitionIds;
+  if (input.scope !== undefined) {
+    if (ids !== undefined) {
+      throw new DomainValidationError(
+        path,
+        "scope and effectActionDefinitionIds are mutually exclusive",
+      );
+    }
+    assertEnumValue(input.scope, HIT_CONDITION_SCOPES, `${path}.scope`);
+    return { scope: input.scope };
+  }
   if (ids === undefined) {
-    throw new DomainValidationError(`${path}.effectActionDefinitionIds`, "is required");
+    throw new DomainValidationError(
+      `${path}.effectActionDefinitionIds`,
+      "is required unless scope is given",
+    );
   }
   assertNonEmptyArray(ids, `${path}.effectActionDefinitionIds`);
   return {

@@ -31,7 +31,8 @@
               "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN"
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_NADYA_SUCCESSOR_EX_DAMAGE"] }
             }
           ]
         },

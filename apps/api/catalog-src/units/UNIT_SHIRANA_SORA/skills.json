@@ -235,7 +235,13 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_OUTGOING_DOWN"
+              "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_OUTGOING_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_SHIRANA_SORA_PS1_DAMAGE_FRONT",
+                  "ACT_SHIRANA_SORA_PS1_DAMAGE_BACK"
+                ]
+              }
             }
           ]
         }

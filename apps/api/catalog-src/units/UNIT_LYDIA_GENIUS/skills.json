@@ -242,7 +242,10 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE" },
             { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_PP_DOWN" },
-            { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LYDIA_GENIUS_PS2_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -17,7 +17,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SIENA_DIVA_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -132,7 +135,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SIENA_DIVA_PS1_DAMAGE"] }
+            }
           ]
         }
       ]

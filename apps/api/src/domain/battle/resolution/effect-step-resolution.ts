@@ -82,9 +82,17 @@ export interface LastResultState {
 function applicationsForHitCondition(
   application: EffectActionApplication,
   lastResultState: LastResultState,
+  context: EffectActionGroupContext,
 ): readonly EffectActionApplication[] {
   if (application.hitCondition === undefined) {
     return [application];
+  }
+  if ("scope" in application.hitCondition) {
+    // 攻撃の後に発動するPSは、肩代わり者ではなく攻撃した元の対象（`TRIGGER_TARGET`と
+    // 同じ単位）へ向かう。DAMAGE参照の命中条件と違い、付与先を向け直さない。
+    return context.triggerSkillUseHitUnitIds?.has(application.targetUnitId) === true
+      ? [application]
+      : [];
   }
   const defenders = new Set<BattleUnitId>();
   for (const damageId of application.hitCondition.effectActionDefinitionIds) {
@@ -455,7 +463,7 @@ function* resolveActionApplications(
     application: EffectActionApplication,
     remember: boolean,
   ): readonly EffectActionApplication[] =>
-    applicationsForHitCondition(application, lastResultState).filter((candidate) =>
+    applicationsForHitCondition(application, lastResultState, context).filter((candidate) =>
       passesDeferredTargetCondition(application, candidate, remember),
     );
   const stepActionTargetUnitIds: BattleUnitId[] = [];

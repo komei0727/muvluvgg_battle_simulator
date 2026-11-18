@@ -1035,7 +1035,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
           "actions": [
             { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION" }
+            {
+              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE"] }
+            }
           ]
         },
         {
@@ -1104,7 +1107,12 @@
             "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_EX_DAMAGE"] }
+            }
+          ]
         },
         {
           "kind": "ACTION",
@@ -1284,7 +1292,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -1495,7 +1506,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_COUNTER" },
-            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_GUARDIAN_PS2_COUNTER"] }
+            }
           ]
         },
         {
@@ -1710,8 +1724,14 @@
             "categories": ["STATUS"]
           },
           "actions": [
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_STUN" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_MAZE_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_EX_DAMAGE_TAKEN_UP",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_MAZE_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -1824,7 +1844,10 @@
           "target": { "kind": "TRIGGER_TARGET" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_POISON",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_MAZE_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -1913,7 +1936,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_NEWYEAR_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -2642,7 +2668,10 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_DAMAGE" },
             { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_PP_ZERO" },
-            { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_TSUNDERE_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -2742,7 +2771,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
+              "hitCondition": { "scope": "TRIGGER_SKILL_USE" }
+            }
+          ]
         }
       ]
     },
@@ -2833,7 +2867,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_GRACE_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -3607,7 +3644,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_EVIE_ECO_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -3803,7 +3843,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_EVIE_KYONSHI_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -3958,7 +4001,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN" }
+            {
+              "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_FEE_ACTOR_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -5325,7 +5371,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_CURRENT_HP" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND" }
+            {
+              "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_PS2_DAMAGE"] }
+            }
           ]
         },
         {
@@ -6706,8 +6755,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -6715,8 +6770,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -7228,7 +7289,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_KEI_JACKKNIFE_EX_SPEED_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KEI_JACKKNIFE_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -7587,7 +7651,14 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_KOKORO_SPORTSDAY_PS2_DAMAGE"]
+                  }
+                }
+              ]
             }
           ],
           "elseSteps": []
@@ -7684,8 +7755,14 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_DAMAGE" },
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_DOWN" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -7876,7 +7953,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE" }
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -8222,7 +8302,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LAURA_MOUNTAIN_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -10309,7 +10392,10 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_DAMAGE" },
             { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_PP_DOWN" },
-            { "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_LYDIA_GENIUS_PS2_HEALING_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LYDIA_GENIUS_PS2_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -11248,7 +11334,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAO_COMMITTEE_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -11256,7 +11345,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAO_COMMITTEE_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -12087,7 +12179,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_MEIYA_FATED_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MEIYA_FATED_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -12882,13 +12977,21 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP" }
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_EX_DAMAGE"] }
+            }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_EX_DAMAGE"] }
+            }
+          ]
         }
       ]
     },
@@ -13041,7 +13144,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_PS2_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -13273,7 +13379,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIHIME_SNIPER_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MIHIME_SNIPER_PS2_SPD_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MIHIME_SNIPER_PS2_SPD_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIHIME_SNIPER_PS2_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -13571,16 +13680,6 @@
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
-        },
-        {
-          "targetBindingId": "TGT_LOW_HP_ENEMIES",
-          "optional": true,
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL",
-            "filters": [{ "kind": "HP_RATIO", "op": "LTE", "value": 0.3 }]
-          }
         }
       ],
       "steps": [
@@ -13589,13 +13688,28 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIRIAM_MAGE_EX_DAMAGE"] }
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE" }]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "targetCondition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.3
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIRIAM_MAGE_EX_DAMAGE"] }
+            }
+          ]
         }
       ]
     },
@@ -13774,7 +13888,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_NADYA_SUCCESSOR_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_NADYA_SUCCESSOR_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -14899,9 +15016,24 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL" }
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            }
           ]
         },
         {
@@ -15629,9 +15761,24 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_STUN" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_STUN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            }
           ]
         },
         {
@@ -15639,8 +15786,18 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
             { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT"]
+              }
+            }
           ]
         }
       ]
@@ -16437,7 +16594,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
           "actions": [
             { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE" }
+            {
+              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_NEWYEAR_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -16445,7 +16605,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
             { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE" }
+            {
+              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_NEWYEAR_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -16878,8 +17041,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_MARK" },
-            { "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DMG_UP_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DMG_UP_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -17048,8 +17217,14 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_MARK" },
-            { "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DMG_UP_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_PS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DMG_UP_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -18072,7 +18247,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_BURN" }
+            {
+              "effectActionDefinitionId": "ACT_SAYA_LONGING_EX_BURN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SAYA_LONGING_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -19111,7 +19289,17 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_OUTGOING_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_SHIRANA_SORA_PS1_OUTGOING_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_SHIRANA_SORA_PS1_DAMAGE_FRONT",
+                  "ACT_SHIRANA_SORA_PS1_DAMAGE_BACK"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -19236,7 +19424,12 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
-              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_ATK_DOWN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_ATK_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_SHOUKA_BEACH_EX_DAMAGE"] }
+                }
+              ]
             }
           ]
         }
@@ -19929,7 +20122,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_SIENA_DIVA_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SIENA_DIVA_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -20044,7 +20240,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_SIENA_DIVA_PS1_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SIENA_DIVA_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -21010,7 +21209,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TARISA_TROUBLEMAKER_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -21188,7 +21390,12 @@
             "markerId": "MARKER_TATIANA_SAGE_OMEN",
             "countCondition": { "op": "GTE", "value": 2 }
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DEBUFF" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_EX_DAMAGE"] }
+            }
+          ]
         },
         {
           "kind": "ACTION",
@@ -21202,7 +21409,12 @@
               "countCondition": { "op": "GTE", "value": 2 }
             }
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_MARK" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_EX_DAMAGE"] }
+            }
+          ]
         }
       ]
     },
@@ -21575,8 +21787,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_SUMMER_PS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_SUMMER_PS1_DAMAGE"] }
+            }
           ]
         },
         {
@@ -22253,7 +22471,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YUI_HEIR_PS1_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -22516,7 +22737,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_DEFENSE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_INCOMING_DMG_UP" }
+            {
+              "effectActionDefinitionId": "ACT_YURIA_JOKER_PS1_INCOMING_DMG_UP",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_JOKER_PS1_DAMAGE"] }
+            }
           ]
         },
         {
@@ -22858,8 +23082,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN" },
-            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_YUKATA_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_YUKATA_EX_DAMAGE"] }
+            }
           ]
         }
       ]

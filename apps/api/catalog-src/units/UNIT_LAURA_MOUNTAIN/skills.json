@@ -17,7 +17,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LAURA_MOUNTAIN_EX_DAMAGE"] }
+            }
           ]
         }
       ]

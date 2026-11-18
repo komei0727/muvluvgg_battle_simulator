@@ -27,8 +27,14 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_DAMAGE" },
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_DOWN" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -219,7 +225,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE" }
+            {
+              "effectActionDefinitionId": "ACT_KOTOHA_DAILY_PS1_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KOTOHA_DAILY_PS1_DAMAGE"] }
+            }
           ]
         }
       ]

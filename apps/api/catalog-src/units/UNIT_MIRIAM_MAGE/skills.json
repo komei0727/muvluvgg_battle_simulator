@@ -9,16 +9,6 @@
         {
           "targetBindingId": "TGT_ALL_ENEMIES",
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
-        },
-        {
-          "targetBindingId": "TGT_LOW_HP_ENEMIES",
-          "optional": true,
-          "selector": {
-            "kind": "SELECT",
-            "side": "ENEMY",
-            "count": "ALL",
-            "filters": [{ "kind": "HP_RATIO", "op": "LTE", "value": 0.3 }]
-          }
         }
       ],
       "steps": [
@@ -27,13 +17,28 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_DOT_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIRIAM_MAGE_EX_DAMAGE"] }
+            }
           ]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOW_HP_ENEMIES" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE" }]
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+          "targetCondition": {
+            "kind": "TARGET_STATE",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+            "field": "HP_RATIO",
+            "op": "LTE",
+            "value": 0.3
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MIRIAM_MAGE_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MIRIAM_MAGE_EX_DAMAGE"] }
+            }
+          ]
         }
       ]
     },

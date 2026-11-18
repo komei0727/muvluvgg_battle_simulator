@@ -1073,6 +1073,30 @@ describe("EffectSequence", () => {
       ).toThrow(DomainValidationError);
     });
 
+    it("UT-CAT-SEQ-049 [R-SKL-06]: maps hitCondition.scope TRIGGER_SKILL_USE onto the action reference", () => {
+      const result = createEffectSequence(
+        hitSequence({ scope: "TRIGGER_SKILL_USE" }) as never,
+        "resolution",
+      );
+      const step = result.steps[0];
+      expect(step?.kind === "ACTION" ? step.actions[1] : undefined).toEqual({
+        effectActionDefinitionId: "ACT_DEBUFF_1",
+        hitCondition: { scope: "TRIGGER_SKILL_USE" },
+      });
+    });
+
+    it("UT-CAT-SEQ-050 [R-SKL-06]: rejects a hitCondition carrying both scope and effectActionDefinitionIds, neither, or an unknown scope", () => {
+      for (const hitCondition of [
+        { scope: "TRIGGER_SKILL_USE", effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+        {},
+        { scope: "SAME_ACTION" },
+      ]) {
+        expect(() =>
+          createEffectSequence(hitSequence(hitCondition) as never, "resolution"),
+        ).toThrow(DomainValidationError);
+      }
+    });
+
     it("UT-CAT-SEQ-048 [R-SKL-06]: rejects an unknown key inside hitCondition", () => {
       expect(() =>
         createEffectSequence(

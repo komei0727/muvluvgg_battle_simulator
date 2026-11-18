@@ -51,7 +51,8 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DEBUFF"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_EX_DAMAGE"] }
             }
           ]
         },
@@ -78,7 +79,8 @@
           },
           "actions": [
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_MARK"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_EX_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_EX_DAMAGE"] }
             }
           ]
         }

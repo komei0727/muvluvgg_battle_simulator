@@ -164,7 +164,14 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_KOKORO_SPORTSDAY_PS2_DAMAGE"]
+                  }
+                }
+              ]
             }
           ],
           "elseSteps": []

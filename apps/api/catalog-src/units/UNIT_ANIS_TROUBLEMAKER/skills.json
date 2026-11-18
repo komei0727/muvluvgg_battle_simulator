@@ -184,7 +184,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
           "actions": [
             { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION" }
+            {
+              "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_PS2_CRIT_PREVENTION",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_ANIS_TROUBLEMAKER_PS2_DAMAGE"] }
+            }
           ]
         },
         {

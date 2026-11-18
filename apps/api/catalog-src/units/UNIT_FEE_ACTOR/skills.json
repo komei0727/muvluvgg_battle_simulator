@@ -26,7 +26,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN" }
+            {
+              "effectActionDefinitionId": "ACT_FEE_ACTOR_EX_BURN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_FEE_ACTOR_EX_DAMAGE"] }
+            }
           ]
         }
       ]

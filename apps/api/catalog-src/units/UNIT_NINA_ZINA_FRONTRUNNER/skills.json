@@ -21,9 +21,24 @@
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN" },
-            { "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL" }
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_NINA_ZINA_FRONTRUNNER_EX_DAMAGE"]
+              }
+            }
           ]
         },
         {

@@ -17,7 +17,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_EVIE_KYONSHI_EX_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_EVIE_KYONSHI_EX_DAMAGE"] }
+            }
           ]
         },
         {

@@ -31,8 +31,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN" },
-            { "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_SPEED_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_YUKATA_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_YURIA_YUKATA_EX_CRIT_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_YUKATA_EX_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -1,7 +1,11 @@
 import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
 import type { ConditionDefinition } from "../definitions/condition-definition.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
-import type { EffectSequence, EffectStepDefinition } from "../definitions/effect-sequence.js";
+import type {
+  EffectActionHitCondition,
+  EffectSequence,
+  EffectStepDefinition,
+} from "../definitions/effect-sequence.js";
 import {
   collectEffectActionReferences,
   collectEffectSteps,
@@ -64,10 +68,24 @@ export function validateHitConditionReferences(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   ownerId: string,
   violations: CatalogIntegrityViolation[],
+  options: { readonly hasTriggeringSkillUse: boolean },
 ): void {
   const preceding = new Set<EffectActionDefinitionId>();
   for (const ref of collectEffectActionReferences(steps)) {
-    for (const referencedId of ref.hitCondition?.effectActionDefinitionIds ?? []) {
+    // `TRIGGER_SKILL_USE`は契機となったスキル使用の命中を参照するため、契機を持たない
+    // AS／EX／Memoryでは常に不成立になり、付与が黙って消える。ロード時点で拒否する。
+    if (
+      ref.hitCondition !== undefined &&
+      "scope" in ref.hitCondition &&
+      !options.hasTriggeringSkillUse
+    ) {
+      violations.push({
+        targetId: ownerId,
+        rule: "UNSUPPORTED_HIT_CONDITION_SCOPE",
+        message: `hitCondition.scope "${ref.hitCondition.scope}" of "${ref.effectActionDefinitionId}" is only supported in a PS`,
+      });
+    }
+    for (const referencedId of hitConditionDamageIds(ref.hitCondition)) {
       const referenced = effectActions.get(referencedId);
       if (referenced === undefined) {
         violations.push({
@@ -117,7 +135,7 @@ function validateHitConditionDistribution(
         (definition?.kind === "MODIFY_RESOURCE" && definition.payload.operation === "DISTRIBUTE");
       if (
         distributes &&
-        action.hitCondition?.effectActionDefinitionIds.some((id) => sameStepIds.has(id)) === true
+        hitConditionDamageIds(action.hitCondition).some((id) => sameStepIds.has(id))
       ) {
         violations.push({
           targetId: ownerId,
@@ -127,6 +145,14 @@ function validateHitConditionDistribution(
       }
     }
   }
+}
+
+function hitConditionDamageIds(
+  hitCondition: EffectActionHitCondition | undefined,
+): readonly EffectActionDefinitionId[] {
+  return hitCondition !== undefined && "effectActionDefinitionIds" in hitCondition
+    ? hitCondition.effectActionDefinitionIds
+    : [];
 }
 
 export function validateConditionEffectActionReferences(

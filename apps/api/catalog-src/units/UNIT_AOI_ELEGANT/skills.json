@@ -45,7 +45,12 @@
             "target": { "kind": "BINDING", "targetBindingId": "TGT_COLUMN" },
             "markerId": "MARKER_AOI_ELEGANT_UKIASHI"
           },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_EX_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_EX_DAMAGE"] }
+            }
+          ]
         },
         {
           "kind": "ACTION",
@@ -225,7 +230,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_PS1_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_PS1_DAMAGE"] }
+            }
           ]
         }
       ]

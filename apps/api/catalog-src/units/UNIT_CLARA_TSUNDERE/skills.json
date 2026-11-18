@@ -27,7 +27,10 @@
           "actions": [
             { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_DAMAGE" },
             { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_PP_ZERO" },
-            { "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CLARA_TSUNDERE_EX_DAMAGE"] }
+            }
           ]
         }
       ]
@@ -127,7 +130,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "TRIGGER_TARGET" },
-          "actions": [{ "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
+              "hitCondition": { "scope": "TRIGGER_SKILL_USE" }
+            }
+          ]
         }
       ]
     },

@@ -26,8 +26,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -35,8 +41,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT" }
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_EX_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_EX_DAMAGE"] }
+            }
           ]
         }
       ]
