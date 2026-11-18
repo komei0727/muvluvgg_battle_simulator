@@ -9609,7 +9609,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -9621,7 +9624,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10639,7 +10645,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "scope": "ACTION" }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -11371,7 +11380,10 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
