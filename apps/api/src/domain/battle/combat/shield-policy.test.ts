@@ -12,7 +12,7 @@ import { effectKindKeyFromDefinitionId } from "../model/applied-effect.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { createBattleUnitId } from "../../shared/ids.js";
-import { createEffectInstanceId } from "../../shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../shared/event-ids.js";
 import {
   createEffectActionDefinitionId,
   createUnitDefinitionId,
@@ -68,6 +68,7 @@ function shieldEffect(
       shieldType: shield.shieldType,
       remaining: shield.remaining ?? amount,
       ...(shield.decay !== undefined ? { decay: shield.decay } : {}),
+      ...(shield.grantedActionId !== undefined ? { grantedActionId: shield.grantedActionId } : {}),
     },
     duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
     appliedTurnNumber: 1,
@@ -229,6 +230,35 @@ describe("shield decay over time (SHIELD_DECAY_OVER_TIME, DMG-004)", () => {
     const result = decayActionShields([holder], holder.battleUnitId, holder.battleUnitId, "EN");
     expect(result.change!.shieldType).toBe("EN");
     expect(shieldPoolsOf(result.units[0]!.appliedEffects).untyped).toBe(100);
+  });
+
+  it("UT-R-SHD-01-022: does not decay a shield on the completion of the action that granted it, only from the holder's next action", () => {
+    const grantingActionId = createActionId("B_1:action:1");
+    const holder = unitWithShields([
+      shieldEffect(10000, { shieldType: null, decay, grantedActionId: grantingActionId }),
+    ]);
+    const holderId = holder.battleUnitId;
+
+    expect(shieldDecayHolders([holder], holderId, grantingActionId)).toEqual([]);
+    expect(shieldDecayPools([holder], holderId, holderId, grantingActionId)).toEqual([]);
+    expect(
+      decayActionShields([holder], holderId, holderId, null, grantingActionId).change,
+    ).toBeUndefined();
+
+    let units: readonly BattleUnit[] = [holder];
+    const remaining: number[] = [];
+    for (let action = 2; action <= 5; action++) {
+      const step = decayActionShields(
+        units,
+        holderId,
+        holderId,
+        null,
+        createActionId(`B_1:action:${action}`),
+      );
+      units = step.units;
+      remaining.push(step.change!.poolAfter);
+    }
+    expect(remaining).toEqual([7500, 5000, 2500, 0]);
   });
 
   it("UT-R-SHD-01-012: reports the whole pool total per pool, including same-pool instances that do not decay", () => {

@@ -138,6 +138,11 @@ export interface ShieldState {
   readonly remaining: number;
   /** `SHIELD_DECAY_OVER_TIME`: 宣言がある場合だけ持つ、行動ごとの漸減。 */
   readonly decay?: ShieldDecayDefinition;
+  /**
+   * R-SHD-01: `decay`を持つシールドを行動の中で付与した場合の、その行動ID。付与した
+   * 行動自身の完了では漸減させない（「1行動に付き」は付与後の行動から数える）。
+   */
+  readonly grantedActionId?: ActionId;
 }
 
 /**

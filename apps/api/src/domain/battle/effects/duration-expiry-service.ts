@@ -11,7 +11,12 @@ import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectExpirationReason } from "../events/domain-event.js";
-import type { ConsumptionChange, EffectDurationChange } from "../model/applied-effect-duration.js";
+import {
+  decrementGrantingSkillUseDurations,
+  type ConsumptionChange,
+  type DecrementEffectDurationsResult,
+  type EffectDurationChange,
+} from "../model/applied-effect-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -290,4 +295,63 @@ export function expireEffects(
     step = steps.next(step.value.units);
   }
   return step.value;
+}
+
+/**
+ * 付与した期間そのものの終了（`timeLimit.countGrantSkillUse`／行動外の
+ * `countGrantAction`）で求めた減算`decrement`を確定させる。`EffectDurationReduced`を
+ * 発行し、`context.onFactEventForPassiveChain`があれば1件ずつ通知してから、0になった
+ * ものを失効させる（失効の通知は`expireEffects`が行う）。減算が無ければ何も発行しない。
+ */
+export function settleGrantScopeDecrement(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  decrement: DecrementEffectDurationsResult,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  if (decrement.changes.length === 0) {
+    return { units, lastEventId: parentEventId };
+  }
+  let working = decrement.units;
+  const reducedEventsStart = context.recorder.getEvents().length;
+  const lastEventId = emitEffectDurationReducedEvents(
+    context,
+    working,
+    decrement.changes,
+    parentEventId,
+  );
+  if (context.onFactEventForPassiveChain !== undefined) {
+    for (const event of context.recorder.getEvents().slice(reducedEventsStart)) {
+      working = context.onFactEventForPassiveChain(event, working);
+    }
+  }
+  const seeds: ExpirationSeed[] = decrement.changes
+    .filter((change) => change.after === 0)
+    .map((change) => ({
+      battleUnitId: change.battleUnitId,
+      effectInstanceId: change.effectInstanceId,
+      reason: "TIME_LIMIT",
+    }));
+  return expireEffects(context, working, seeds, effectActions, lastEventId);
+}
+
+/**
+ * `timeLimit.countGrantSkillUse`: スキル使用`endingSkillUseId`の効果処理の末尾、完了イベントの
+ * 発行前に、その使用で付与した「このスキル中のみ」の効果を減算し、0になったものを失効させる。
+ */
+export function endGrantingSkillUseDurations(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  endingSkillUseId: SkillUseId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  return settleGrantScopeDecrement(
+    context,
+    units,
+    decrementGrantingSkillUseDurations(units, endingSkillUseId),
+    effectActions,
+    parentEventId,
+  );
 }

@@ -186,8 +186,15 @@ export function effectCategoriesOf(
       return new Set<EffectImmunityCategory>([definition.payload.polarity ?? "BUFF"]);
     case "APPLY_MARKER":
       return new Set<EffectImmunityCategory>(["MARKER"]);
+    case "APPLY_STAT_MOD":
+      // 効果量0の補正（呼応0個で0%になる防御低下等）は保持者を強化も弱化もしないため、
+      // バフ・デバフのどちらにも数えない。BUFF数の照会やバフ付与を契機にするPSへ
+      // 載せないためである。
+      return effect.magnitude === 0
+        ? new Set<EffectImmunityCategory>()
+        : new Set<EffectImmunityCategory>([polarity]);
     default:
-      // APPLY_STAT_MOD等の継続ステータス補正は符号付きmagnitudeで判定する。
+      // その他の継続補正は符号付きmagnitudeで判定する。
       return new Set<EffectImmunityCategory>([polarity]);
   }
 }

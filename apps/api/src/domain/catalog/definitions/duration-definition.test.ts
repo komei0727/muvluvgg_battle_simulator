@@ -479,6 +479,51 @@ describe("DurationDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-DUR-041 [R-EFF-04]: maps timeLimit.countGrantAction on an ACTION-unit timeLimit with any owner", () => {
+    expect(
+      createDurationDefinition(
+        { timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true } },
+        "duration",
+        undefined,
+      ).timeLimit,
+    ).toEqual({ unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true });
+    expect(
+      createDurationDefinition(
+        { timeLimit: { unit: "ACTION", count: 1, countGrantAction: true } },
+        "duration",
+        undefined,
+      ).timeLimit,
+    ).toEqual({ unit: "ACTION", count: 1, countGrantAction: true });
+  });
+
+  it("UT-CAT-DUR-042 [R-EFF-04]: maps timeLimit.countGrantSkillUse on a SKILL_USE-unit timeLimit", () => {
+    expect(
+      createDurationDefinition(
+        { timeLimit: { unit: "SKILL_USE", count: 1, countGrantSkillUse: true } },
+        "duration",
+        undefined,
+      ).timeLimit,
+    ).toEqual({ unit: "SKILL_USE", count: 1, countGrantSkillUse: true });
+  });
+
+  it("UT-CAT-DUR-043 [R-EFF-04]: rejects a grant-scope flag that does not match its unit or is not true", () => {
+    const invalid = [
+      { unit: "TURN", count: 1, countGrantAction: true },
+      { unit: "SKILL_USE", count: 1, countGrantAction: true },
+      { unit: "ACTION", count: 1, countGrantSkillUse: true },
+      { unit: "SKILL_USE", count: 1, countGrantTurn: true },
+      { unit: "ACTION", count: 1, countGrantAction: false },
+      { unit: "SKILL_USE", count: 1, countGrantSkillUse: false },
+      // 行動外の付与は付与した解決フェーズを持たないため、1回で終わる効果に限る。
+      { unit: "ACTION", count: 2, owner: "BATTLE", countGrantAction: true },
+    ];
+    for (const timeLimit of invalid) {
+      expect(() => createDurationDefinition({ timeLimit }, "duration", undefined)).toThrow(
+        DomainValidationError,
+      );
+    }
+  });
+
   it("UT-CAT-DUR-037 [R-EFF-07]: accepts consumption.damageType and scope on NEXT_*_ATTACK kinds", () => {
     const incoming = createDurationDefinition(
       { consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 3, damageType: "EN" } },

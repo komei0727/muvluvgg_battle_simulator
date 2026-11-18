@@ -34,6 +34,7 @@ import {
 } from "../model/applied-effect-duration.js";
 import {
   emitEffectDurationReducedEvents,
+  endGrantingSkillUseDurations,
   expireEffects,
   expireEffectsSteps,
   type ExpirationSeed,
@@ -541,6 +542,28 @@ export function resolveSkillUse(
   // 発行より前 — この解決自身のcounterであり、行動全体の`resolutionScopeId`
   // 単位で破棄する`finalizeResolutionScope`とは異なるscope）。
   working = passiveRuntime.finalizeEffectSequenceResolution(skillUseId);
+
+  // `timeLimit.countGrantSkillUse`: 「このスキル中のみ」の補正は効果処理の末尾で消す。
+  // 完了イベントより前に置くのは、完了を契機にする後段フェーズのPS（保留分を含む）へ
+  // 補正を持ち越さないため。中断で打ち切った使用もスキルの終了として扱う。
+  const grantScopeEnd = endGrantingSkillUseDurations(
+    {
+      recorder,
+      turnNumber,
+      cycleNumber,
+      actionId,
+      skillUseId,
+      resolutionScopeId: actionScope,
+      rootEventId: actionStarted.eventId,
+      onFactEventForPassiveChain: (event, unitsForChain) =>
+        passiveRuntime.onFactEvent(event, unitsForChain).units,
+    },
+    working,
+    skillUseId,
+    definitions.effectActions,
+    recorder.getEvents().at(-1)?.eventId ?? skillUseStarted.eventId,
+  );
+  working = grantScopeEnd.units;
 
   // Issue #217設計方針B: `SkillUseInterrupted`/`SkillUseCompleted`の選択は
   // `effectResult.outcome.status`（実際に解決が最後まで進んだか、使用者戦闘

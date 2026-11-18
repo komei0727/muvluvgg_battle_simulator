@@ -1654,7 +1654,7 @@ decay:
 | `ratio`    | number                                   | `0 < ratio <= 1`。**付与時最大値**に対する1行動あたりの減少割合            |
 | `owner`    | enum（`DurationTimeLimit.owner` と同じ） | 省略時 `EFFECT_TARGET`。「誰の行動で減らすか」を R-EFF-04 と同じ規約で解決 |
 
-raw原文の例は `SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）「シールドは1行動に付き最大値の25%減少する」。基準はその時点の残量ではなく付与時最大値であるため等差で減り、`ratio: 0.25` なら4行動でちょうど枯渇する。減少そのものは `ShieldConsumed`（`reason: DECAY`）として記録し、0になったインスタンスは `EffectExpired`（`reason: SHIELD_DEPLETED`）で失効する — 失効経路は時間制限（`TIME_LIMIT`）と共有するため、R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる。
+raw原文の例は `SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）「シールドは1行動に付き最大値の25%減少する」。基準はその時点の残量ではなく付与時最大値であるため等差で減り、`ratio: 0.25` なら4行動でちょうど枯渇する。シールドを付与した行動そのものの完了では減らさず、ownerの次の行動完了から数える（R-SHD-01、Issue #829）。減少そのものは `ShieldConsumed`（`reason: DECAY`）として記録し、0になったインスタンスは `EffectExpired`（`reason: SHIELD_DEPLETED`）で失効する — 失効経路は時間制限（`TIME_LIMIT`）と共有するため、R-EFF-09 の `linkedEffectGroupId` カスケードと CombatStat 再計算も同じ振る舞いになる。
 
 ### APPLY_DAMAGE_LINK
 
@@ -2546,6 +2546,14 @@ duration:
 ### timeLimit.countGrantTurn
 
 `unit: TURN` だけに宣言できる `true`（省略可、`false` は受理しない）。R-EFF-06 #2 の例外で、付与されたターンの終了時にも残り回数を減らす。ターン開始時に付与して「そのターンの間」だけ効かせる効果を `{ unit: TURN, count: 1, countGrantTurn: true }` で表す（省略した `{ unit: TURN, count: 1 }` は次のターンの終了時まで残る）。
+
+### timeLimit.countGrantAction
+
+`unit: ACTION` だけに宣言できる `true`（省略可、`false` は受理しない）。`count: 1` とだけ組み合わせられる。R-EFF-04 #2 の例外で、付与された行動の完了時に、行動者・ownerを問わず残り回数を減らす。敵の攻撃行動を契機に付与し「その行動が終了するまで」効かせる引き寄せ・肩代わり・軽減・反射・防御補正を `{ unit: ACTION, count: 1, owner: BATTLE, countGrantAction: true }` で表す（省略すると、付与した行動の次に完了する誰かの行動まで残る）。行動の外（戦闘開始時・ターン開始時・ターン終了時）で付与した場合は、付与した解決フェーズの終了時に減らす。フェーズは効果へ記録しないため、2回目以降の減算契機を区別できず `count: 1` に限る。
+
+### timeLimit.countGrantSkillUse
+
+`unit: SKILL_USE` だけに宣言できる `true`（省略可、`false` は受理しない）。付与したスキル使用（AS/EX/PS）の効果処理の末尾、完了イベントの発行前に、行動者・ownerを問わず残り回数を減らす。「このスキル中のみ」「一時的に」と書かれ、そのスキルの攻撃だけを強化・弱化する補正を `{ unit: SKILL_USE, count: 1, countGrantSkillUse: true }` で表す。完了イベントを契機にするPSや次の行動へは持ち越さない。中断したスキル使用もスキルの終了として扱う。
 
 ### timeLimit.owner
 

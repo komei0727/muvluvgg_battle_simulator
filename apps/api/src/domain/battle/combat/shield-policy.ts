@@ -332,15 +332,15 @@ export interface ShieldDecayResult {
  *
  * `decrementActionEffectDurations`と同じく、0になったインスタンスをこの関数自身は
  * 除去しない（`EffectExpired`発行・除去・カスケードは呼び出し側の責務）。
- * 付与された当該行動を除外する`grantedActionId`相当の扱いは持たない — 漸減は
- * R-EFF-04の残り回数ではなく効果量そのものの変化であり、R-EFF-04 #2の「付与された
- * 当該行動では減らさない」規則はシールド量には及ばないためである。
+ * シールドを付与した行動そのものの完了では減らさない（`ShieldState.grantedActionId`）。
+ * 「1行動に付き」は付与後の行動から数え、付与したEX自身の終了で最大値を割り込ませない。
  */
 export function decayActionShields(
   units: readonly BattleUnit[],
   actingUnitId: BattleUnitId,
   holderUnitId: BattleUnitId,
   shieldType: DamageType | null,
+  currentActionId?: ActionId,
 ): ShieldDecayResult {
   const holder = units.find((unit) => unit.battleUnitId === holderUnitId);
   if (holder === undefined) {
@@ -354,11 +354,12 @@ export function decayActionShields(
   let absorbed = 0;
   const nextEffects = holder.appliedEffects.map((effect) => {
     const shield = effect.shield;
-    if (shield?.decay === undefined || shield.remaining <= 0 || shield.shieldType !== shieldType) {
-      return effect;
-    }
-    const owner = resolveDecayOwnerUnitId(effect);
-    if (owner !== "BATTLE" && owner !== actingUnitId) {
+    if (
+      shield?.decay === undefined ||
+      shield.remaining <= 0 ||
+      shield.shieldType !== shieldType ||
+      !decaysOnAction(effect, actingUnitId, currentActionId)
+    ) {
       return effect;
     }
     const step = Math.max(1, truncateFraction(effect.magnitude * shield.decay.ratio));
@@ -398,9 +399,10 @@ export function decayActionShields(
 export function shieldDecayHolders(
   units: readonly BattleUnit[],
   actingUnitId: BattleUnitId,
+  currentActionId?: ActionId,
 ): readonly BattleUnitId[] {
   return units
-    .filter((unit) => decayablePoolsOf(unit, actingUnitId).length > 0)
+    .filter((unit) => decayablePoolsOf(unit, actingUnitId, currentActionId).length > 0)
     .map((unit) => unit.battleUnitId);
 }
 
@@ -415,23 +417,42 @@ export function shieldDecayPools(
   units: readonly BattleUnit[],
   actingUnitId: BattleUnitId,
   holderUnitId: BattleUnitId,
+  currentActionId?: ActionId,
 ): readonly (DamageType | null)[] {
   const holder = units.find((unit) => unit.battleUnitId === holderUnitId);
-  return holder === undefined ? [] : decayablePoolsOf(holder, actingUnitId);
+  return holder === undefined ? [] : decayablePoolsOf(holder, actingUnitId, currentActionId);
+}
+
+/**
+ * `actingUnitId`の行動`currentActionId`の完了で`effect`のシールドが漸減するか。owner
+ * （`decay.owner`）の行動であり、かつシールドを付与した行動そのものではないこと。
+ */
+function decaysOnAction(
+  effect: AppliedEffect,
+  actingUnitId: BattleUnitId,
+  currentActionId: ActionId | undefined,
+): boolean {
+  const owner = resolveDecayOwnerUnitId(effect);
+  if (owner !== "BATTLE" && owner !== actingUnitId) {
+    return false;
+  }
+  const grantedActionId = effect.shield?.grantedActionId;
+  return grantedActionId === undefined || grantedActionId !== currentActionId;
 }
 
 function decayablePoolsOf(
   holder: BattleUnit,
   actingUnitId: BattleUnitId,
+  currentActionId: ActionId | undefined,
 ): readonly (DamageType | null)[] {
   const pools: (DamageType | null)[] = [];
   for (const effect of holder.appliedEffects) {
     const shield = effect.shield;
-    if (shield?.decay === undefined || shield.remaining <= 0) {
-      continue;
-    }
-    const owner = resolveDecayOwnerUnitId(effect);
-    if (owner !== "BATTLE" && owner !== actingUnitId) {
+    if (
+      shield?.decay === undefined ||
+      shield.remaining <= 0 ||
+      !decaysOnAction(effect, actingUnitId, currentActionId)
+    ) {
       continue;
     }
     if (!pools.includes(shield.shieldType)) {

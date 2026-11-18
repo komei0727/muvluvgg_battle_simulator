@@ -2171,11 +2171,11 @@ const effectAppliedDetailsSchema = {
     // 分類（`domain-event.ts`の`EffectApplied.effectKind`/`categories`）。
     // `TriggerDefinition`の`EVENT_PAYLOAD`が「デバフが付与された際」等を表現する
     // ために必須で、R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ。
+    // 効果量0の能力値補正（呼応0個の防御低下など）はどの分類にも属さず空配列になる。
     effectKind: { type: "string", enum: EFFECT_ACTION_KIND_ENUM },
     categories: {
       type: "array",
       items: { type: "string", enum: EFFECT_CATEGORY_ENUM },
-      minItems: 1,
     },
     magnitude: { type: "number" },
     // TGT-004フェーズ3（Issue #167、R-ACTN-03）: `APPLY_STATUS`由来の付与だけが持つ

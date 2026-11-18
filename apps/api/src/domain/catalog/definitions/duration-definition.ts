@@ -37,7 +37,25 @@ const DURATION_ALLOWED_KEYS = [
   "reapply",
   "removeOnSourceDefeated",
 ] as const;
-const TIME_LIMIT_ALLOWED_KEYS = ["unit", "count", "owner", "countGrantTurn"] as const;
+const TIME_LIMIT_ALLOWED_KEYS = [
+  "unit",
+  "count",
+  "owner",
+  "countGrantTurn",
+  "countGrantAction",
+  "countGrantSkillUse",
+] as const;
+
+/**
+ * 付与した期間そのものの終了も1回と数えるフラグと、そのフラグが意味を持つ単位。
+ * 減算の契機はそれぞれの単位の終了時だけなので、他の単位へ宣言しても評価する経路が無い。
+ */
+const GRANT_SCOPE_FLAG_UNITS = {
+  countGrantTurn: "TURN",
+  countGrantAction: "ACTION",
+  countGrantSkillUse: "SKILL_USE",
+} as const;
+type GrantScopeFlag = keyof typeof GRANT_SCOPE_FLAG_UNITS;
 const CONSUMPTION_ALLOWED_KEYS = ["kind", "maxCount", "damageType", "scope"] as const;
 const EXPIRATION_ALLOWED_KEYS = ["conditions"] as const;
 const REAPPLY_ALLOWED_KEYS = ["existingRemaining", "count"] as const;
@@ -78,6 +96,19 @@ export interface DurationTimeLimit {
    * 付与ターンの終了時に失効）を表す。`unit: TURN`でしか意味を持たない。
    */
   readonly countGrantTurn?: true;
+  /**
+   * R-EFF-04 #2の例外。`true`なら付与された行動の完了時にも、ownerを問わず減算する。
+   * 敵の攻撃行動を契機に付与し、その行動の終了で消える保護を表す。行動の外（戦闘開始時・
+   * ターン開始時・ターン終了時）で付与した場合は、その解決フェーズの終了で減らす。
+   * `count: 1`とだけ組み合わせられる。
+   */
+  readonly countGrantAction?: true;
+  /**
+   * `true`なら付与したスキル使用（AS/EX/PS）の終了時、完了イベントの発行前に、
+   * ownerを問わず減算する。「このスキル中のみ」の補正（`count: 1`）を表し、
+   * 完了イベントを契機にする後続のPSや次の行動へ持ち越さない。
+   */
+  readonly countGrantSkillUse?: true;
 }
 
 /**
@@ -204,6 +235,8 @@ export interface DurationTimeLimitInput {
   readonly count: number;
   readonly owner?: string;
   readonly countGrantTurn?: boolean;
+  readonly countGrantAction?: boolean;
+  readonly countGrantSkillUse?: boolean;
 }
 
 export interface DurationConsumptionInput {
@@ -239,33 +272,44 @@ function createTimeLimit(input: DurationTimeLimitInput, path: string): DurationT
   assertKnownKeys(input, TIME_LIMIT_ALLOWED_KEYS, path);
   assertEnumValue(input.unit, DURATION_TIME_UNITS, `${path}.unit`);
   assertInteger(input.count, `${path}.count`, { min: 1 });
-  const countGrantTurn = createCountGrantTurn(input, path);
+  const grantScopeFlags = createGrantScopeFlags(input, path);
   if (input.owner === undefined) {
-    return { unit: input.unit, count: input.count, ...countGrantTurn };
+    return { unit: input.unit, count: input.count, ...grantScopeFlags };
   }
   assertEnumValue(input.owner, DURATION_OWNERS, `${path}.owner`);
-  return { unit: input.unit, count: input.count, owner: input.owner, ...countGrantTurn };
+  return { unit: input.unit, count: input.count, owner: input.owner, ...grantScopeFlags };
 }
 
 /**
- * 付与ターンを数えるのはターン終了時の減算（R-EFF-06）だけなので、`TURN`以外の
- * 単位へ宣言しても評価する経路が無い。`false`は省略と同じ意味になり宣言の
- * 揺れを生むだけなので、`true`だけを受理する。
+ * `false`は省略と同じ意味になり宣言の揺れを生むだけなので、`true`だけを受理する。
  */
-function createCountGrantTurn(
+function createGrantScopeFlags(
   input: DurationTimeLimitInput,
   path: string,
-): { readonly countGrantTurn?: true } {
-  if (input.countGrantTurn === undefined) {
-    return {};
+): { readonly [Flag in GrantScopeFlag]?: true } {
+  const flags: { [Flag in GrantScopeFlag]?: true } = {};
+  for (const flag of Object.keys(GRANT_SCOPE_FLAG_UNITS) as GrantScopeFlag[]) {
+    const value = input[flag];
+    if (value === undefined) {
+      continue;
+    }
+    if (value !== true) {
+      throw new DomainValidationError(`${path}.${flag}`, "must be true when present");
+    }
+    if (input.unit !== GRANT_SCOPE_FLAG_UNITS[flag]) {
+      throw new DomainValidationError(
+        `${path}.${flag}`,
+        `requires unit ${GRANT_SCOPE_FLAG_UNITS[flag]}`,
+      );
+    }
+    // 行動の外で付与した場合は付与した解決フェーズの終了で減らすが、フェーズは効果へ
+    // 記録しないため、2回目以降の減算契機を区別できない。1回で終わる効果に限る。
+    if (flag === "countGrantAction" && input.count !== 1) {
+      throw new DomainValidationError(`${path}.${flag}`, "requires count 1");
+    }
+    flags[flag] = true;
   }
-  if (input.countGrantTurn !== true) {
-    throw new DomainValidationError(`${path}.countGrantTurn`, "must be true when present");
-  }
-  if (input.unit !== "TURN") {
-    throw new DomainValidationError(`${path}.countGrantTurn`, "requires unit TURN");
-  }
-  return { countGrantTurn: true };
+  return flags;
 }
 
 function createReapply(

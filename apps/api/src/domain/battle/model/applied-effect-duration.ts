@@ -49,11 +49,15 @@ export function resolveTimeLimitOwnerUnitId(effect: AppliedEffect): BattleUnitId
   return owner === "EFFECT_SOURCE" ? (effect.sourceUnitId ?? "BATTLE") : effect.targetUnitId;
 }
 
+function isOwnedBy(effect: AppliedEffect, actingUnitId: BattleUnitId): boolean {
+  const owner = resolveTimeLimitOwnerUnitId(effect);
+  return owner === "BATTLE" || owner === actingUnitId;
+}
+
 function decrementDurations(
   units: readonly BattleUnit[],
   unit: "ACTION" | "TURN" | "SKILL_USE",
   isEligible: (effect: AppliedEffect) => boolean,
-  wasGrantedInCurrentScope: (effect: AppliedEffect) => boolean,
 ): DecrementEffectDurationsResult {
   const changes: EffectDurationChange[] = [];
   const nextUnits = units.map((battleUnit) => {
@@ -64,7 +68,6 @@ function decrementDurations(
         timeLimit?.unit !== unit ||
         effect.duration.timeLimitRemaining === undefined ||
         effect.duration.timeLimitRemaining <= 0 ||
-        wasGrantedInCurrentScope(effect) ||
         !isEligible(effect)
       ) {
         return effect;
@@ -91,7 +94,9 @@ function decrementDurations(
  * 呼ぶ。`timeLimit.owner`が解決する具体的なユニットが`actingUnitId`と一致する
  * （`BATTLE`はどのユニットの行動でも一致する）行動単位効果のうち、今回完了した
  * 行動中に付与されたもの（`grantedActionId === currentActionId`）を除く各
- * インスタンスの残り回数を1減らす。0になったインスタンスもこの関数自身は
+ * インスタンスの残り回数を1減らす。`timeLimit.countGrantAction`を宣言した効果は
+ * 例外で、今回完了した行動中に付与されたものを行動者・ownerを問わず1減らす
+ * （敵の攻撃行動を契機に付与し、その行動の終了で消える保護）。0になったインスタンスもこの関数自身は
  * 除去しない — 失効処理（`EffectExpired`発行・除去・CombatStat再計算・
  * linkedEffectGroupカスケード）は呼び出し側の責務。
  */
@@ -100,14 +105,32 @@ export function decrementActionEffectDurations(
   actingUnitId: BattleUnitId,
   currentActionId: ActionId,
 ): DecrementEffectDurationsResult {
+  return decrementDurations(units, "ACTION", (effect) => {
+    // R-EFF-04 #2: 付与した行動では減らさない。`countGrantAction`はその例外で、
+    // 付与した行動の完了は行動者がownerでなくても1回と数える。
+    if (effect.duration.grantedActionId === currentActionId) {
+      return effect.duration.definition.timeLimit?.countGrantAction === true;
+    }
+    return isOwnedBy(effect, actingUnitId);
+  });
+}
+
+/**
+ * `timeLimit.countGrantAction`の行動外版: 戦闘開始時・ターン開始時・ターン終了時など、
+ * 行動を持たない解決フェーズの終了時に呼ぶ。行動の外で付与された（`grantedActionId`を
+ * 持たない）`countGrantAction`の効果を1減らす。`countGrantAction`は`count: 1`に限るため、
+ * そのフェーズで付与されたものだけがここまで残っている。0になったインスタンスの失効は
+ * 呼び出し側の責務。
+ */
+export function decrementOutOfActionGrantDurations(
+  units: readonly BattleUnit[],
+): DecrementEffectDurationsResult {
   return decrementDurations(
     units,
     "ACTION",
-    (effect) => {
-      const owner = resolveTimeLimitOwnerUnitId(effect);
-      return owner === "BATTLE" || owner === actingUnitId;
-    },
-    (effect) => effect.duration.grantedActionId === currentActionId,
+    (effect) =>
+      effect.duration.grantedActionId === undefined &&
+      effect.duration.definition.timeLimit?.countGrantAction === true,
   );
 }
 
@@ -130,11 +153,29 @@ export function decrementSkillUseEffectDurations(
   return decrementDurations(
     units,
     "SKILL_USE",
-    (effect) => {
-      const owner = resolveTimeLimitOwnerUnitId(effect);
-      return owner === "BATTLE" || owner === actingUnitId;
-    },
-    (effect) => effect.duration.grantedSkillUseId === currentSkillUseId,
+    (effect) =>
+      effect.duration.grantedSkillUseId !== currentSkillUseId && isOwnedBy(effect, actingUnitId),
+  );
+}
+
+/**
+ * `timeLimit.countGrantSkillUse`: スキル使用`endingSkillUseId`の効果処理を終えたとき、
+ * 完了イベント（`SkillUseCompleted`/`PassiveResolved`等）の発行前に呼ぶ。その使用中に
+ * 付与された`countGrantSkillUse`の効果だけを、行動者・ownerを問わず1減らす。
+ * 完了イベントを契機にするPSや次の行動へ「このスキル中のみ」の補正を持ち越さないため、
+ * 完了後の`decrementSkillUseEffectDurations`より前に置く（そちらは付与した使用の分を
+ * 減らさないので二重には減らない）。0になったインスタンスの失効は呼び出し側の責務。
+ */
+export function decrementGrantingSkillUseDurations(
+  units: readonly BattleUnit[],
+  endingSkillUseId: SkillUseId,
+): DecrementEffectDurationsResult {
+  return decrementDurations(
+    units,
+    "SKILL_USE",
+    (effect) =>
+      effect.duration.grantedSkillUseId === endingSkillUseId &&
+      effect.duration.definition.timeLimit?.countGrantSkillUse === true,
   );
 }
 
@@ -228,8 +269,7 @@ export function decrementTurnEffectDurations(
   return decrementDurations(
     units,
     "TURN",
-    () => true,
-    (effect) => isSkippedAtGrantTurnEnd(effect.duration, currentTurnNumber),
+    (effect) => !isSkippedAtGrantTurnEnd(effect.duration, currentTurnNumber),
   );
 }
 
