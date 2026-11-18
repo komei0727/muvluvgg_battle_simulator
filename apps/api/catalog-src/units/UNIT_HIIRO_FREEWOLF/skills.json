@@ -242,7 +242,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_CURRENT_HP" },
           "actions": [
             { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND" }
+            {
+              "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS2_MARKER_BRAND",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_PS2_DAMAGE"] }
+            }
           ]
         },
         {

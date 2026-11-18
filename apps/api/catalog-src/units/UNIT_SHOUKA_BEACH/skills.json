@@ -52,7 +52,12 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_TARGET" },
-              "actions": [{ "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_ATK_DOWN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_SHOUKA_BEACH_EX_ATK_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_SHOUKA_BEACH_EX_DAMAGE"] }
+                }
+              ]
             }
           ]
         }

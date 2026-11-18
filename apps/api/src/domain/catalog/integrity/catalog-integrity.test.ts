@@ -4948,3 +4948,67 @@ describe("DAMAGE hitConfirmedEffects references (R-DMG-05 #2a)", () => {
     );
   });
 });
+
+describe("UNSUPPORTED_HIT_CONDITION_SCOPE: hitCondition.scope TRIGGER_SKILL_USE (R-SKL-06 #4a)", () => {
+  function triggerScopedSkill(skillType: "AS" | "PS"): SkillDefinition {
+    return createSkillDefinition({
+      skillDefinitionId: "SKL_TRIGGER_HIT",
+      skillType,
+      cost: skillType === "PS" ? { resource: "PP", amount: 1 } : { resource: "AP", amount: 1 },
+      ...(skillType === "PS"
+        ? {
+            triggers: [
+              {
+                eventType: "SkillUseCompleted",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ENEMY",
+              },
+            ],
+          }
+        : {}),
+      resolution: {
+        kind: "IMMEDIATE",
+        steps: [
+          {
+            kind: "ACTION",
+            target: skillType === "PS" ? { kind: "TRIGGER_TARGET" } : { kind: "SELF" },
+            actions: [
+              {
+                effectActionDefinitionId: "ACT_ATK_DOWN",
+                hitCondition: { scope: "TRIGGER_SKILL_USE" },
+              },
+            ],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "trigger-scoped hitCondition" },
+    });
+  }
+  function build(skillType: "AS" | "PS") {
+    const defs = baseDefinitions();
+    return () =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, triggerScopedSkill(skillType)],
+        effectActions: [...defs.effectActions, statModAction("ACT_ATK_DOWN")],
+        units: [
+          unit("UNIT_001", {
+            ...(skillType === "PS"
+              ? { passive: ["SKL_TRIGGER_HIT"] }
+              : { active: ["SKL_AS1", "SKL_TRIGGER_HIT"] }),
+          }),
+        ],
+      });
+  }
+
+  it("UT-CAT-IDX-135 [R-SKL-06]: accepts scope TRIGGER_SKILL_USE on a PS", () => {
+    expect(build("PS")).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-136 [R-SKL-06]: rejects scope TRIGGER_SKILL_USE outside a PS, which has no triggering skill use", () => {
+    expect(build("AS")).toThrowError(/UNSUPPORTED_HIT_CONDITION_SCOPE/);
+  });
+});

@@ -103,6 +103,8 @@ import {
 } from "../triggering/resolve-passive-chain.js";
 import type { PassiveResolutionStackEntry } from "../triggering/passive-resolution-stack.js";
 import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
+import { collectEffectActionReferences } from "../../catalog/definitions/effect-step-walk.js";
+import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 
 /**
@@ -567,6 +569,27 @@ export class PassiveActivationRuntime {
    */
   private skillUseIdOfCausingEvent(event: TriggerCandidateEvent): SkillUseId | undefined {
     return this.skillUseIdOf.get(this.eventIdOf(event));
+  }
+
+  /**
+   * R-SKL-06 #4a（`hitCondition.scope: TRIGGER_SKILL_USE`）: 原因イベントが属する
+   * スキル使用が1ヒット以上命中させたユニット。`HitConfirmed`はMISS（回避）の
+   * ヒットでは発行されず、シールド全吸収・ダメージ無効のヒットでは発行されるため、
+   * 共通の命中条件（MISSだけを不成立にする）と同じ単位になる。記録済みイベントを
+   * 走査するため、その条件を持つPSの発動時だけ呼ぶ。
+   */
+  private hitUnitIdsOfCausingSkillUse(event: TriggerCandidateEvent): ReadonlySet<BattleUnitId> {
+    const skillUseId = this.skillUseIdOfCausingEvent(event);
+    const hit = new Set<BattleUnitId>();
+    if (skillUseId === undefined) {
+      return hit;
+    }
+    for (const recorded of this.context.recorder.getEvents()) {
+      if (recorded.eventType === "HitConfirmed" && recorded.skillUseId === skillUseId) {
+        hit.add(recorded.payload.targetUnitId);
+      }
+    }
+    return hit;
   }
 
   /**
@@ -1640,6 +1663,9 @@ export class PassiveActivationRuntime {
       damageResults: this.damageResults,
       ...(this.context.exercise !== undefined ? { exercise: this.context.exercise } : {}),
       ...triggerContext,
+      ...(usesTriggerSkillUseHitCondition(skill)
+        ? { triggerSkillUseHitUnitIds: this.hitUnitIdsOfCausingSkillUse(event) }
+        : {}),
     };
 
     // R-TEX-06 #8: PSのEffectSequenceも`R-ATM-02`の3フェーズを持つため、攻撃前観測
@@ -1868,4 +1894,11 @@ export class PassiveActivationRuntime {
 
     return { interrupted: outcome.status === "INTERRUPTED" };
   }
+}
+
+function usesTriggerSkillUseHitCondition(skill: SkillDefinition): boolean {
+  const steps = skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [];
+  return collectEffectActionReferences(steps).some(
+    (ref) => ref.hitCondition !== undefined && "scope" in ref.hitCondition,
+  );
 }

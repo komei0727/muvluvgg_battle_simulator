@@ -30,10 +30,12 @@
               "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_MARK"
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_EX_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DMG_UP_DEBUFF"
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DMG_UP_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_EX_DAMAGE"] }
             }
           ]
         }
@@ -312,10 +314,12 @@
               "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_MARK"
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_PS1_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DMG_UP_DEBUFF"
+              "effectActionDefinitionId": "ACT_RAVEL_MODEL_PS1_DMG_UP_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAVEL_MODEL_PS1_DAMAGE"] }
             }
           ]
         }

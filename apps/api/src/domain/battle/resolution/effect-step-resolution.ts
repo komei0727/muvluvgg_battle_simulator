@@ -82,9 +82,17 @@ export interface LastResultState {
 function applicationsForHitCondition(
   application: EffectActionApplication,
   lastResultState: LastResultState,
+  context: EffectActionGroupContext,
 ): readonly EffectActionApplication[] {
   if (application.hitCondition === undefined) {
     return [application];
+  }
+  if ("scope" in application.hitCondition) {
+    // 契機のスキル使用の命中は、肩代わりの向け直し前の対象（`HitConfirmed`の対象）で
+    // 記録する。`TRIGGER_TARGET`が指すのも元の対象であり、同じ単位で照合する。
+    return context.triggerSkillUseHitUnitIds?.has(application.targetUnitId) === true
+      ? [application]
+      : [];
   }
   const defenders = new Set<BattleUnitId>();
   for (const damageId of application.hitCondition.effectActionDefinitionIds) {
@@ -455,7 +463,7 @@ function* resolveActionApplications(
     application: EffectActionApplication,
     remember: boolean,
   ): readonly EffectActionApplication[] =>
-    applicationsForHitCondition(application, lastResultState).filter((candidate) =>
+    applicationsForHitCondition(application, lastResultState, context).filter((candidate) =>
       passesDeferredTargetCondition(application, candidate, remember),
     );
   const stepActionTargetUnitIds: BattleUnitId[] = [];

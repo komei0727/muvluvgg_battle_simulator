@@ -120,7 +120,10 @@
           "target": { "kind": "TRIGGER_SOURCE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_COUNTER" },
-            { "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_AOI_GUARDIAN_PS2_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_GUARDIAN_PS2_COUNTER"] }
+            }
           ]
         },
         {

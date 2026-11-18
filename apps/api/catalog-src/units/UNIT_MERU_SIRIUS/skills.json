@@ -26,13 +26,21 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP" }
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_DMG_UP",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_EX_DAMAGE"] }
+            }
           ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
-          "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_EX_DAMAGE"] }
+            }
+          ]
         }
       ]
     },
@@ -185,7 +193,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS2_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MERU_SIRIUS_PS2_DAMAGE"] }
+            }
           ]
         }
       ]

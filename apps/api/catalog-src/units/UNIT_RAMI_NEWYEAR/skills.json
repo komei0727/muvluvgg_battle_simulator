@@ -46,7 +46,8 @@
               "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE"
+              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_NEWYEAR_EX_DAMAGE"] }
             }
           ]
         },
@@ -61,7 +62,8 @@
               "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE"
+              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_EX_FREEZE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_NEWYEAR_EX_DAMAGE"] }
             }
           ]
         }

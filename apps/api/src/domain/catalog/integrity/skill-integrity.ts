@@ -149,6 +149,7 @@ export function validateSkill(
       effectActions,
       skill.skillDefinitionId,
       violations,
+      { hasTriggeringSkillUse: skill.skillType === "PS" },
     );
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
     validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);

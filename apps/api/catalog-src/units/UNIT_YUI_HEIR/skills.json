@@ -330,7 +330,8 @@
               "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DMG_DOWN"
+              "effectActionDefinitionId": "ACT_YUI_HEIR_PS1_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YUI_HEIR_PS1_DAMAGE"] }
             }
           ]
         }

@@ -32,7 +32,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAO_COMMITTEE_EX_DAMAGE"] }
+            }
           ]
         },
         {
@@ -40,7 +43,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
             { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_MAO_COMMITTEE_EX_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_MAO_COMMITTEE_EX_DAMAGE"] }
+            }
           ]
         },
         {

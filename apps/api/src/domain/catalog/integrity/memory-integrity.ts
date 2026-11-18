@@ -323,6 +323,7 @@ export function validateMemory(
       effectActions,
       memory.memoryDefinitionId,
       violations,
+      { hasTriggeringSkillUse: false },
     );
   }
   validateMemorySourceUnitIndependence(memory, effectActions, violations);

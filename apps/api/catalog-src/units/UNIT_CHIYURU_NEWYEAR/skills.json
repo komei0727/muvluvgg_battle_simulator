@@ -17,7 +17,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_EX_POISON",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_NEWYEAR_EX_DAMAGE"] }
+            }
           ]
         },
         {

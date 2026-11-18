@@ -32,9 +32,24 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_STUN" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_STUN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_MAIN"]
+              }
+            }
           ]
         },
         {
@@ -42,8 +57,18 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
           "actions": [
             { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_OLGA_NADYA_BOND_EX_DEF_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_OLGA_NADYA_BOND_EX_DAMAGE_ADJACENT"]
+              }
+            }
           ]
         }
       ]

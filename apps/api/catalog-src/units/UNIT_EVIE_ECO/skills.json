@@ -17,7 +17,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_EVIE_ECO_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_EVIE_ECO_EX_DAMAGE"] }
+            }
           ]
         }
       ]

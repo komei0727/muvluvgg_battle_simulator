@@ -17,6 +17,7 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
@@ -137,17 +138,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_AS1_HEAL",
           targets: ["ally:subject"],
         },
+        // `TRIGGER_TARGET` は契機イベントの `targetUnitIds` 全体（回復stepの自身を含む）を
+        // 指すが、低下はAS1が命中させた対象だけに付く（R-SKL-06 #4a、SR-046）。
         {
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
           targets: ["enemy:front"],
-        },
-        // 原文は「自身が攻撃した対象」だが、`TRIGGER_TARGET` は契機イベントの
-        // `targetUnitIds` 全体を指す。AS1は回復stepで自身も対象に含めるため、
-        // PS1の防御力低下はクララ自身へも乗る（`targetSelector: ENEMY` は
-        // 候補化の判定にしか使われず、`TRIGGER_TARGET` の解決先を絞らない）。
-        {
-          effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
-          targets: ["ally:subject"],
         },
       ],
       // 180×4ヒット = 720 の40%。「与えたダメージ」はこのEffectSequence解決で
@@ -157,12 +152,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         "enemy:front": -720,
       },
       effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
-          magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
@@ -303,10 +292,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_CLARA_TSUNDERE_PS1",
     intent:
-      "自身がアクティブスキルで攻撃した後に発動。自身が攻撃した対象が次に行動を終えるまでの間、防御力を30%低下させる(重複可)",
+      "(命中条件): 自身がアクティブスキルで攻撃した後に発動するが、防御力低下はそのASが命中させた対象だけに付く。命中の無い完了イベントでは発動してもPP・CTを使うだけ",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_CLARA_TSUNDERE_PS1",
+      // 合成した完了イベントには、同じスキル使用の`HitConfirmed`が記録されていない。
       trigger: skillUseCompleted({
         actor: "ally:subject",
         targets: ["enemy:back"],
@@ -315,20 +305,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       triggeredBy: "ally:subject",
     },
     expected: {
-      actions: [
-        {
-          effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
-          targets: ["enemy:back"],
-        },
-      ],
-      effectsApplied: [
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
-          magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -627,4 +603,41 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
       10,
     );
   });
+
+  it.each([
+    { skillDefinitionId: "SKL_CLARA_TSUNDERE_AS1", evadedHits: undefined, debuffed: false },
+    { skillDefinitionId: "SKL_CLARA_TSUNDERE_AS1", evadedHits: 3, debuffed: true },
+    { skillDefinitionId: "SKL_CLARA_TSUNDERE_AS2", evadedHits: undefined, debuffed: false },
+  ])(
+    "IT-UNIT-CLARA-TSUNDERE-008 [R-SKL-06] (SR-046): $skillDefinitionId の攻撃を敵が回避（先頭$evadedHitsヒット、未指定は全ヒット）したとき、PS1は発動しても防御力低下は契機ASが1ヒット以上命中した対象にだけ付く",
+    ({ skillDefinitionId, evadedHits, debuffed }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId },
+        board: {
+          enemies: [
+            {
+              id: "enemy:front",
+              position: { column: "CENTER", row: "FRONT" },
+              state: { appliedEffects: [evasionOf("enemy:front", evadedHits)] },
+            },
+            { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+            { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+          ],
+        },
+      });
+
+      const defDown = (observation.effectsApplied ?? []).filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
+      );
+      expect(defDown.map((effect) => effect.unitId)).toEqual(debuffed ? ["enemy:front"] : []);
+      // PS1そのものは攻撃の完了で発動し、命中の有無に依らずPP・クールタイムを使う。
+      expect(observation.cooldowns).toContainEqual({
+        unitId: "ally:subject",
+        skillDefinitionId: "SKL_CLARA_TSUNDERE_PS1",
+        remaining: 1,
+      });
+    },
+  );
 });

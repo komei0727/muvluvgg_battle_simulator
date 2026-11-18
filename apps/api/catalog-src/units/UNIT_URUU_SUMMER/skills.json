@@ -123,8 +123,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
           "actions": [
             { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN_MARKER" },
-            { "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_SUMMER_PS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_URUU_SUMMER_PS1_DEF_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_URUU_SUMMER_PS1_DAMAGE"] }
+            }
           ]
         },
         {

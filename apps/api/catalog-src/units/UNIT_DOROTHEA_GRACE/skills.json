@@ -22,7 +22,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_DOROTHEA_GRACE_EX_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_GRACE_EX_DAMAGE"] }
+            }
           ]
         },
         {

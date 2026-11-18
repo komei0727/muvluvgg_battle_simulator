@@ -31,7 +31,8 @@
               "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN"
+              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_EX_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TARISA_TROUBLEMAKER_EX_DAMAGE"] }
             }
           ]
         },

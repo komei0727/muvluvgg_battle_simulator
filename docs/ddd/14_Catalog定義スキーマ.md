@@ -689,6 +689,21 @@ actions:
 
 命中はシールド全吸収・ダメージ無効による0ダメージを含み、全ヒット回避（MISS）だけが不成立になる。命中履歴は対象ごと・DAMAGE定義ごとにEffectSequence解決全体で積み上がるため、同じACTION内で先に解決したDAMAGEも、先行stepのDAMAGEも参照できる（詳細はR-SKL-06）。
 
+PS自身が攻撃せず、契機となったASの命中対象へだけ付与するPS（`SKL_CLARA_TSUNDERE_PS1`「自身が攻撃した対象」）は、`effectActionDefinitionIds`の代わりに`scope: TRIGGER_SKILL_USE`を指定する（Issue #826）。
+
+```yaml
+actions:
+  - effectActionDefinitionId: ACT_CLARA_TSUNDERE_PS1_DEF_DOWN
+    hitCondition:
+      scope: TRIGGER_SKILL_USE
+```
+
+| フィールド           | 型   | 必須 | 制約                                                                                                                                                                                                                                                                                                                                          |
+| -------------------- | ---- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hitCondition.scope` | enum | —    | `TRIGGER_SKILL_USE`のみ。`effectActionDefinitionIds`と排他（どちらか一方が必須）。このPSを発動させたイベントが属するスキル使用が、適用先の対象へ1ヒット以上命中させていた場合だけ適用する。契機のスキル使用を持たないAS／EX／Memoryでは常に不成立になるため、PS以外での指定はCatalogロード時点で拒否する（`UNSUPPORTED_HIT_CONDITION_SCOPE`） |
+
+PS自身が攻撃する反撃・追撃PSは`scope`を使わず、そのPSのDAMAGEを`effectActionDefinitionIds`で参照する — 元のASの命中をPS自身の命中として使わないためである。
+
 ### BRANCH
 
 ```yaml
