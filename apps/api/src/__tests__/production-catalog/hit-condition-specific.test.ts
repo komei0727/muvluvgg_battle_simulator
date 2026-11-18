@@ -6,7 +6,13 @@ import {
   hitRolls,
   type HitRoll,
 } from "../../testing/production-unit/evasion.js";
-import type { AppliedEffect } from "../../domain/battle/model/applied-effect.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../domain/battle/model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
 import {
   PRODUCTION_CATALOG_DIR,
   observeSkillUse,
@@ -515,6 +521,82 @@ describe("カースの新規付与と既存カースの清算（SR-297）", () =
       "ACT_HARRIET_SAGE_AS1_PP_ZERO",
       "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
     ]);
+  });
+
+  /** 使用者（ハリエット）の攻撃を`covererId`が全量肩代わりする状態（R-INT-02）。 */
+  const coveredBy = (covererId: string): AppliedEffect => {
+    const definitionId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    return {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId(covererId),
+      targetUnitId: createBattleUnitId("ally:subject"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId(covererId),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  };
+
+  it("IT-CAT-HITCOND-028 [R-SKL-06, R-INT-02] SR-297: 攻撃範囲外の肩代わり者が4個目のカースを受けたら、その肩代わり者を清算する", () => {
+    const observation = observe("UNIT_HARRIET_SAGE", "SKL_HARRIET_SAGE_AS1", ["PLAIN"], {
+      subject: { state: { appliedEffects: [coveredBy("enemy:far")] } },
+      enemies: [
+        // 前列中央に隣接する敵はいない（攻撃は前列中央の1回だけ）。
+        enemy("enemy:front", FRONT),
+        {
+          id: "enemy:far",
+          position: { column: "RIGHT", row: "BACK" },
+          markers: [{ markerId: "MARKER_CURSE", stackCount: 3 }],
+          state: { currentPp: 4 },
+        },
+      ],
+    });
+
+    expect(observation.hpDeltas?.["enemy:front"]).toBeUndefined();
+    expect(observation.hpDeltas?.["enemy:far"]).toBeLessThan(0);
+    const onFar = executed(observation)
+      .filter((action) => action.endsWith("@enemy:far"))
+      .map((action) => action.replace("@enemy:far", ""));
+    expect(onFar).toEqual([
+      "ACT_HARRIET_SAGE_AS1_MARKER",
+      "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+      "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+      "ACT_HARRIET_SAGE_AS1_PP_ZERO",
+      "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
+    ]);
+    // 元の対象（カースなし）は清算しない。
+    expect(executed(observation).filter((action) => action.endsWith("@enemy:front"))).toEqual([
+      "ACT_HARRIET_SAGE_AS1_DAMAGE@enemy:front",
+    ]);
+  });
+
+  it("IT-CAT-HITCOND-029 [R-SKL-06, R-INT-02] SR-297: 肩代わりされた元の対象が既存カース4個なら、元の対象も清算する", () => {
+    const observation = observe("UNIT_HARRIET_SAGE", "SKL_HARRIET_SAGE_AS1", ["PLAIN"], {
+      subject: { state: { appliedEffects: [coveredBy("enemy:far")] } },
+      enemies: [
+        enemy("enemy:front", FRONT, { markers: [{ markerId: "MARKER_CURSE", stackCount: 4 }] }),
+        { id: "enemy:far", position: { column: "RIGHT", row: "BACK" } },
+      ],
+    });
+
+    expect(executed(observation).filter((action) => action.endsWith("@enemy:front"))).toEqual([
+      "ACT_HARRIET_SAGE_AS1_DAMAGE@enemy:front",
+      "ACT_HARRIET_SAGE_AS1_PP_ZERO@enemy:front",
+      "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE@enemy:front",
+    ]);
+    // 肩代わり者は新規カース1個だけで、清算しない。
+    expect(
+      executed(observation).filter((action) => action.startsWith("ACT_HARRIET_SAGE_AS1_PP_ZERO")),
+    ).toEqual(["ACT_HARRIET_SAGE_AS1_PP_ZERO@enemy:front"]);
   });
 });
 

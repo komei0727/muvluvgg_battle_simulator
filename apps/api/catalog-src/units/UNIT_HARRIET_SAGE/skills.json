@@ -119,6 +119,46 @@
             { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO" },
             { "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE" }
           ]
+        },
+        {
+          "kind": "ACTION",
+          "targetCondition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "markerId": "MARKER_CURSE",
+            "countCondition": { "op": "GTE", "value": 4 }
+          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "targetCondition": {
+            "kind": "TARGET_HAS_MARKER",
+            "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+            "markerId": "MARKER_CURSE",
+            "countCondition": { "op": "GTE", "value": 4 }
+          },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_PP_ZERO",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_HARRIET_SAGE_AS1_DAMAGE"] }
+            }
+          ]
         }
       ]
     },
