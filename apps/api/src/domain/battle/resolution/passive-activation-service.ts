@@ -16,9 +16,9 @@ import {
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   emitEffectDurationReducedEvents,
-  endGrantingSkillUseDurations,
   expireEffects,
   settleGrantScopeDecrement,
+  settleGrantScopeDecrementSteps,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
 import {
@@ -27,6 +27,7 @@ import {
 } from "../effects/break-resolution-service.js";
 import type { BreakDeferral } from "../model/break-deferral.js";
 import {
+  decrementGrantingSkillUseDurations,
   decrementOutOfActionGrantDurations,
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
@@ -1771,8 +1772,8 @@ export class PassiveActivationRuntime {
 
     // `timeLimit.countGrantSkillUse`: 「このPS中のみ」の補正は完了イベントの前に消す
     // （AS/EXの`resolveSkillUse`と同じ位置）。候補は検出だけ行い発動は後段フェーズへ回す。
-    const grantScopeEventsStart = this.context.recorder.getEvents().length;
-    const grantScopeEnd = endGrantingSkillUseDurations(
+    // 1インスタンスの失効ごとに保留キューへ検出させてから次へ進む（R-ATM-01）。
+    const grantScopeSteps = settleGrantScopeDecrementSteps(
       {
         recorder: this.context.recorder,
         turnNumber: this.context.turnNumber,
@@ -1783,15 +1784,20 @@ export class PassiveActivationRuntime {
         rootEventId: this.context.rootEventId,
       },
       this.units,
-      skillUseId,
+      decrementGrantingSkillUseDurations(this.units, skillUseId),
       this.context.definitions.effectActions,
       lastEventId,
     );
-    this.units = grantScopeEnd.units;
-    lastEventId = grantScopeEnd.lastEventId;
-    for (const event of this.context.recorder.getEvents().slice(grantScopeEventsStart)) {
-      yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(event) };
+    let grantScopeStep = grantScopeSteps.next();
+    while (!grantScopeStep.done) {
+      this.units = grantScopeStep.value.units;
+      for (const event of grantScopeStep.value.events) {
+        yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(event) };
+      }
+      grantScopeStep = grantScopeSteps.next(this.units);
     }
+    this.units = grantScopeStep.value.units;
+    lastEventId = grantScopeStep.value.lastEventId;
 
     // 設計方針B: `PassiveInterrupted`/`PassiveResolved`の選択は
     // `outcome.status`（実際に解決が最後まで進んだか、PS所有者戦闘不能で

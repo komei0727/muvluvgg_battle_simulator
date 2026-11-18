@@ -289,43 +289,62 @@ export function expireEffects(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ExpireEffectsResult {
-  const steps = expireEffectsSteps(context, units, seeds, effectActions, parentEventId);
+  return driveExpirySteps(
+    context,
+    expireEffectsSteps(context, units, seeds, effectActions, parentEventId),
+  );
+}
+
+/**
+ * 期間イベントのステップを最後まで駆動する。1ステップ（1インスタンスの失効とCombatStat
+ * 再計算、または減算イベント列）ごとに、次へ進む前に`onFactEventForPassiveChain`へ通知する。
+ * callbackが無い呼び出し側は、記録されたイベント列を自分でまとめて扱う。
+ */
+function driveExpirySteps(
+  context: ExpireEffectsContext,
+  steps: Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined>,
+): ExpireEffectsResult {
   let step = steps.next();
   while (!step.done) {
-    step = steps.next(step.value.units);
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
   }
   return step.value;
 }
 
 /**
  * 付与した期間そのものの終了（`timeLimit.countGrantSkillUse`／行動外の
- * `countGrantAction`）で求めた減算`decrement`を確定させる。`EffectDurationReduced`を
- * 発行し、`context.onFactEventForPassiveChain`があれば1件ずつ通知してから、0になった
- * ものを失効させる（失効の通知は`expireEffects`が行う）。減算が無ければ何も発行しない。
+ * `countGrantAction`）で求めた減算`decrement`を確定させるステップ列。まず
+ * `EffectDurationReduced`をまとめて1ステップとして返し、続いて0になったものを1件ずつ
+ * 失効させる（`expireEffectsSteps`）。減算が無ければ何も発行しない。
  */
-export function settleGrantScopeDecrement(
+export function* settleGrantScopeDecrementSteps(
   context: ExpireEffectsContext,
   units: readonly BattleUnit[],
   decrement: DecrementEffectDurationsResult,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
-): ExpireEffectsResult {
+): Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined> {
   if (decrement.changes.length === 0) {
     return { units, lastEventId: parentEventId };
   }
-  let working = decrement.units;
   const reducedEventsStart = context.recorder.getEvents().length;
   const lastEventId = emitEffectDurationReducedEvents(
     context,
-    working,
+    decrement.units,
     decrement.changes,
     parentEventId,
   );
-  if (context.onFactEventForPassiveChain !== undefined) {
-    for (const event of context.recorder.getEvents().slice(reducedEventsStart)) {
-      working = context.onFactEventForPassiveChain(event, working);
-    }
-  }
+  const injected = yield {
+    events: context.recorder.getEvents().slice(reducedEventsStart),
+    units: decrement.units,
+  };
+  const working = injected ?? decrement.units;
   const seeds: ExpirationSeed[] = decrement.changes
     .filter((change) => change.after === 0)
     .map((change) => ({
@@ -333,12 +352,28 @@ export function settleGrantScopeDecrement(
       effectInstanceId: change.effectInstanceId,
       reason: "TIME_LIMIT",
     }));
-  return expireEffects(context, working, seeds, effectActions, lastEventId);
+  return yield* expireEffectsSteps(context, working, seeds, effectActions, lastEventId);
+}
+
+/** `settleGrantScopeDecrementSteps`を`onFactEventForPassiveChain`（あれば）で駆動する。 */
+export function settleGrantScopeDecrement(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  decrement: DecrementEffectDurationsResult,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  return driveExpirySteps(
+    context,
+    settleGrantScopeDecrementSteps(context, units, decrement, effectActions, parentEventId),
+  );
 }
 
 /**
  * `timeLimit.countGrantSkillUse`: スキル使用`endingSkillUseId`の効果処理の末尾、完了イベントの
  * 発行前に、その使用で付与した「このスキル中のみ」の効果を減算し、0になったものを失効させる。
+ * ステップごとの通知を呼び出し側のdriverへ委ねる経路（PS連鎖の内部）は
+ * `settleGrantScopeDecrementSteps`と`decrementGrantingSkillUseDurations`を直接使う。
  */
 export function endGrantingSkillUseDurations(
   context: ExpireEffectsContext,
