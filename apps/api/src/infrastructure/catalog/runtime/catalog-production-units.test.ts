@@ -664,7 +664,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 攻撃後効果とBUFF解除を命中条件へ移行し、`SKL_SAYA_BUNNY_AS1`の低下を第2撃の後へ、
     // `SKL_MAIA_SALON_EX`の敵全体の速度低下を単体攻撃の命中分岐の中へ移した（Issue #827）。
     // 新規・削除したUnit・Skill・EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-18.5");
+    // `2026-11-18.6` は効果の期間を宣言した時計（戦闘中永続・付与ターン末・契機の敵行動末・
+    // 付与したスキル使用の末・受け手の次行動末）へ揃えた（Issue #829）。差分は`effects.json`だけで、
+    // 新規・削除したUnit・Skill・EffectActionはない。
+    expect(catalog.catalogRevision).toBe("2026-11-18.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

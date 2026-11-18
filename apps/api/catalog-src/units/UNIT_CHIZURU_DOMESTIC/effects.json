@@ -84,10 +84,7 @@
       "linkRate": 0.35,
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "TURN",
-          "count": 1
-        }
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
       },
       "polarity": "BUFF"
     },

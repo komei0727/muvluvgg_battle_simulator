@@ -121,7 +121,7 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "TURN", "count": 1 },
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
         "expiration": {
           "conditions": [
             {

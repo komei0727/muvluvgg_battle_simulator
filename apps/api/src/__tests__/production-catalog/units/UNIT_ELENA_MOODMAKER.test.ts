@@ -505,17 +505,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         "enemy:left": -514,
         "enemy:back": -514,
       },
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_PS2_ATK_UP",
-          magnitude: 0.6,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
-          },
-        },
-      ],
       resources: [
         {
           unitId: "ally:subject",

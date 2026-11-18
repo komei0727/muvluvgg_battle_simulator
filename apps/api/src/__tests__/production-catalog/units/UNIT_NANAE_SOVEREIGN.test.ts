@@ -213,14 +213,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       markersRemoved: [{ unitId: "ally:subject", markerId: KOUSEI, stackCount: 1 }],
       // ATK_UPはこの行動の間持続するため（`timeLimit: {unit:ACTION, count:1}`）、
       // 観測時点ではまだ失効していない。
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_EX_ATK_UP",
-          magnitude: 0.25,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
       effectsRemoved: [
         {
           unitId: "ally:subject",
@@ -311,13 +303,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_REDIRECT",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_COVER",
           magnitude: 1,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
       ],
       // PP: PS1消費(-1)→PS2消費(-1)→PS2の+2加算で4へ戻る（収支0）。

@@ -129,7 +129,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
           magnitude: 0.05,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
     },
@@ -188,13 +188,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_ATK_DOWN",
           magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
           magnitude: 0.05,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -227,7 +227,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
           magnitude: 0.05,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -413,7 +413,7 @@ describe("production Catalog UNIT_SHOUKA_SCHEMER (【風紀委員会の策謀家
         unitId: "enemy:front",
         effectActionDefinitionId: "ACT_SHOUKA_SCHEMER_AS2_DEF_UP",
         magnitude: 0.05,
-        timeLimit: { unit: "ACTION", count: 1 },
+        timeLimit: { unit: "BATTLE", count: 1 },
       }));
     const removedBy = (skillDefinitionId: string) =>
       observeSkillUse({

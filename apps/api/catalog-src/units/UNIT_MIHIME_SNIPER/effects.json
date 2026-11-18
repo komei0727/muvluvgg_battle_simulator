@@ -67,10 +67,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
     "metadata": {
@@ -92,10 +89,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
     "metadata": {
@@ -131,10 +125,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
     "metadata": {
@@ -184,10 +175,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
     "metadata": {
@@ -209,10 +197,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
     "metadata": {

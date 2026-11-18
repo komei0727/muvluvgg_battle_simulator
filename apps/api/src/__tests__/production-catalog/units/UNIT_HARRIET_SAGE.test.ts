@@ -338,19 +338,19 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL",
           magnitude: 0.105,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL",
           magnitude: 0.105,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "ally:back",
           effectActionDefinitionId: "ACT_HARRIET_SAGE_PS1_CONTINUOUS_HEAL",
           magnitude: 0.105,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
       ],
       resources: [

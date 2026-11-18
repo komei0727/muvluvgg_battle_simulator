@@ -13,7 +13,10 @@
         "max": -0.75
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -37,7 +40,10 @@
         "max": -0.35
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -71,7 +77,10 @@
         "max": -0.35
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },

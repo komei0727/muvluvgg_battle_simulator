@@ -1089,7 +1089,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.2 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -1309,7 +1312,10 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_MAXHP" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      },
       "polarity": "BUFF"
     },
     "metadata": { "tags": [] }
@@ -1556,10 +1562,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": {
-        "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" }
-      }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -1802,7 +1805,10 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      },
       "polarity": "DEBUFF"
     },
     "metadata": { "tags": [] }
@@ -1813,7 +1819,10 @@
     "payload": {
       "linkTo": { "kind": "BINDING", "targetBindingId": "TGT_NEAREST" },
       "linkRate": 0.35,
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      },
       "polarity": "DEBUFF"
     },
     "metadata": { "tags": [] }
@@ -1972,7 +1981,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.6 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2032,7 +2044,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -2047,7 +2059,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -2724,7 +2736,7 @@
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "TURN", "count": 1 },
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
         "expiration": {
           "conditions": [
             {
@@ -3708,7 +3720,7 @@
       "categories": ["DEBUFF"],
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       },
       "maxBlocks": null
     },
@@ -3734,7 +3746,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -3747,7 +3759,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -3762,7 +3774,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -4820,7 +4832,10 @@
     "kind": "APPLY_STATUS",
     "payload": {
       "status": "STEALTH",
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -4836,7 +4851,10 @@
         "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.2 }
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -5515,7 +5533,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -5530,7 +5548,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -5549,7 +5567,7 @@
       "allowRecursiveReflect": false,
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -7577,7 +7595,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -35 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -7589,7 +7607,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -35 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -7607,7 +7625,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -20 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -7631,7 +7649,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -20 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -7643,7 +7661,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -35 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -8232,7 +8250,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.25 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8330,7 +8351,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -8345,7 +8366,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -9749,7 +9770,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10484,6 +10508,7 @@
       "formula": { "kind": "CONSTANT", "value": -0.75 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true },
         "dispellable": true,
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "scope": "ACTION" }
       }
@@ -11707,7 +11732,7 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -11956,7 +11981,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.3 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -11968,7 +11993,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.05 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -12090,7 +12115,10 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.1 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "timeLimit": { "unit": "ACTION", "count": 1 }, "dispellable": true }
+      "duration": {
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true },
+        "dispellable": true
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -12122,7 +12150,10 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "NON_STACKABLE" },
-      "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
+      "duration": {
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
+        "dispellable": true
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -12134,7 +12165,10 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -0.5 },
       "stacking": { "mode": "NON_STACKABLE" },
-      "duration": { "timeLimit": { "unit": "TURN", "count": 1 }, "dispellable": true }
+      "duration": {
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
+        "dispellable": true
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13153,7 +13187,7 @@
       "probability": 0.75,
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "TURN", "count": 1 },
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 3 }
       }
     },
@@ -13168,7 +13202,7 @@
       "healAfterSurvival": null,
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "TURN", "count": 1 },
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true },
         "consumption": { "kind": "LETHAL_DAMAGE", "maxCount": 1 }
       }
     },
@@ -13182,7 +13216,10 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.1 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13194,7 +13231,10 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "NON_STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "TURN", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13493,7 +13533,10 @@
         "direction": "HIGHER_HP_IS_MAX"
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "SKILL_USE", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13655,7 +13698,10 @@
         "max": -0.75
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13679,7 +13725,10 @@
         "max": -0.35
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -13713,7 +13762,10 @@
         "max": -0.35
       },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
+      }
     },
     "metadata": { "tags": [] }
   },

@@ -224,13 +224,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
           magnitude: 0.35,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_NEAREST",
           magnitude: 0.35,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
       ],
       resources: [

@@ -111,19 +111,19 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
           magnitude: -35,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:left",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2",
           magnitude: -20,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1",
           magnitude: -35,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -164,25 +164,25 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
           magnitude: -35,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
           magnitude: -20,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:left",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
           magnitude: -20,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
           magnitude: -20,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -219,7 +219,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
           magnitude: -35,
-          timeLimit: { unit: "ACTION", count: 1 },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       effectsApplied: [
@@ -314,19 +314,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
           magnitude: -35,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
-          },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN",
           magnitude: -20,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
-          },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -371,19 +365,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
           magnitude: -35,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
-          },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN1",
           magnitude: -35,
-          timeLimit: {
-            unit: "ACTION",
-            count: 1,
-          },
+          timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
       resources: [
@@ -482,7 +470,7 @@ describe("production Catalog UNIT_MIHIME_SNIPER (【稀代の狙撃手】珠瀬�
         unitId: "ally:subject",
         effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
         magnitude: -35,
-        timeLimit: { unit: "ACTION", count: 1 },
+        timeLimit: { unit: "BATTLE", count: 1 },
       })),
     );
     // 解除されなかった1件は行動速度へ効いたままになる（実効値まで戻らない）。

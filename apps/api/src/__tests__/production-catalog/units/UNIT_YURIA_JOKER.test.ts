@@ -166,26 +166,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 呼応4個の前列（防御力500→350）は(1000-350)×1.56=1014。呼応0個は分岐なしで
       // (1000-500)×1.56=780。
       hpDeltas: { "enemy:front": -1014, "enemy:left": -780, "enemy:back": -780 },
-      effectsApplied: [
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_YURIA_JOKER_EX_DEF_DOWN",
-          magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        {
-          unitId: "enemy:left",
-          effectActionDefinitionId: "ACT_YURIA_JOKER_EX_DEF_DOWN",
-          magnitude: -0,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_YURIA_JOKER_EX_DEF_DOWN",
-          magnitude: -0,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
     },
   },
   {
@@ -203,14 +183,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_YURIA_JOKER_AS1_MARKER", targets: ["ally:subject"] },
       ],
       hpDeltas: { "enemy:left": -1450 },
-      effectsApplied: [
-        {
-          unitId: "enemy:left",
-          effectActionDefinitionId: "ACT_YURIA_JOKER_AS1_DEF_DOWN",
-          magnitude: -0.14,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
       // 呼応付与はダメージ計算の後: enemy:leftは4→5、自身は0→1。
       markers: [
         { unitId: "ally:subject", markerId: RESONANCE, stackCount: 1 },
@@ -242,14 +214,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_YURIA_JOKER_AS2_DAMAGE", targets: ["enemy:left"] },
       ],
       hpDeltas: { "enemy:left": -1629 },
-      effectsApplied: [
-        {
-          unitId: "enemy:left",
-          effectActionDefinitionId: "ACT_YURIA_JOKER_AS2_DEF_DOWN",
-          magnitude: -0.14,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

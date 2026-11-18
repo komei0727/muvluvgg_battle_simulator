@@ -128,14 +128,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_EVIE_ECO_PS1_REDIRECT",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_EVIE_ECO_PS1_COVER",
           // `damageShareRate: 1`（肩代わり者が防御側そのものになる）が magnitude に載る。
           magnitude: 1,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
       ],
       resources: [

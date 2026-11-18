@@ -292,6 +292,7 @@
         "mode": "STACKABLE"
       },
       "duration": {
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true },
         "dispellable": true,
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1, "scope": "ACTION" }
       }

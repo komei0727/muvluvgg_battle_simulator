@@ -163,7 +163,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
           magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          timeLimit: { unit: "ACTION", count: 1 },
         },
       ],
       resources: [
@@ -228,7 +228,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
           magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          timeLimit: { unit: "ACTION", count: 1 },
         },
       ],
       resources: [
@@ -274,7 +274,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN",
           magnitude: -0.3,
-          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+          timeLimit: { unit: "ACTION", count: 1 },
         },
       ],
       resources: [
@@ -472,11 +472,10 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
     ).toEqual([]);
   });
 
-  it("IT-UNIT-CLARA-TSUNDERE-004 [R-EFF-04] (R-EFF-04): PS1の防御力低下は`owner: EFFECT_SOURCE`なので、効果を保持している敵ではなく**付与したクララ自身**の行動終了で減り、0で失効して防御力が戻る", () => {
-    // 付与そのものと `timeLimit: { unit: ACTION, count: 1, owner: EFFECT_SOURCE }`
-    // の宣言は `-001` のAS1行が持つ。ここが引き受けるのは、その `owner` が実際に
-    // 誰の行動終了を指すか — `EFFECT_TARGET`（既定）との差は保持者以外の行動を
-    // 跨がないと現れない（`IT-UNIT-DOROTHEA-PIONEER-005` が既定側を持つ）。
+  it("IT-UNIT-CLARA-TSUNDERE-004 [R-EFF-04] (R-EFF-04): PS1の防御力低下は効果を受けた敵自身の次の行動終了で失効する — 付与したクララが先に行動しても残り、0で失効して防御力が戻る", () => {
+    // SR-046: 期間を数えるのは付与者ではなく効果対象。付与そのものと
+    // `timeLimit: { unit: ACTION, count: 1 }`（owner は既定の EFFECT_TARGET）の宣言は
+    // `-001` のAS1行が持つ。ここが引き受けるのは、誰の行動終了で減るか。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const granted = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_CLARA_TSUNDERE_PS1_DEF_DOWN", target: "ENEMY" },
@@ -487,16 +486,16 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
         units: granted,
         definitions: board.definitions,
         steps: [
-          { kind: "ACTION_END", actor: "enemy:front" },
-          { kind: "ACTION_END", actor: "enemy:left" },
           { kind: "ACTION_END", actor: "ally:subject" },
+          { kind: "ACTION_END", actor: "enemy:left" },
+          { kind: "ACTION_END", actor: "enemy:front" },
         ],
         watch: [{ unitId: "enemy:front", stat: "defense" }],
       }).steps,
     ).toEqual([
-      // 保持者自身の行動終了では減らない（既定の `EFFECT_TARGET` ならここで失効する）。
+      // 付与したクララ自身の行動終了では減らない。
       {
-        step: "ACTION_END(enemy:front)",
+        step: "ACTION_END(ally:subject)",
         remaining: { "enemy:front/ACT_CLARA_TSUNDERE_PS1_DEF_DOWN": 1 },
       },
       {
@@ -504,7 +503,7 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
         remaining: { "enemy:front/ACT_CLARA_TSUNDERE_PS1_DEF_DOWN": 1 },
       },
       {
-        step: "ACTION_END(ally:subject)",
+        step: "ACTION_END(enemy:front)",
         remaining: {},
         expired: [
           {
