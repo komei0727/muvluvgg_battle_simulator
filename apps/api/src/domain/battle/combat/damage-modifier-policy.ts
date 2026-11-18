@@ -8,6 +8,7 @@ import type { JsonPrimitive } from "../../catalog/definitions/condition-definiti
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
+import { markerStackTotal } from "../model/marker-state.js";
 import {
   heldAttributes,
   hitPointRatio,
@@ -67,9 +68,9 @@ function stateFieldValue(unit: BattleUnit, field: DamageModStateField): JsonPrim
   }
 }
 
-/** R-EFF-10: 同じmarkerIdのインスタンスは対象ごとに常に1つだけ存在する。未所持は0スタック扱い。 */
+/** R-EFF-10: 同じmarkerIdの全付与分の合計。未所持は0スタック扱い。 */
 function markerStackCount(unit: BattleUnit, markerId: MarkerId): number {
-  return unit.markerStates.find((state) => state.markerId === markerId)?.stackCount ?? 0;
+  return markerStackTotal(unit.markerStates, markerId) ?? 0;
 }
 
 function referencedUnit(

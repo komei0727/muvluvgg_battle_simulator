@@ -18,6 +18,7 @@ import {
   validateEffectAction,
   validateEffectKindKeyGroups,
   validateLinkedEffectGroupScopes,
+  validateMarkerStackPolicies,
 } from "./effect-action-integrity.js";
 import { validateMemory } from "./memory-integrity.js";
 import { validateSkill } from "./skill-integrity.js";
@@ -113,6 +114,7 @@ export function buildCatalogIndex(definitions: CatalogDefinitions): CatalogIndex
   // 見終えてから一度だけ検証する。
   validateEffectKindKeyGroups(effectActions, violations);
   validateLinkedEffectGroupScopes(effectActions, violations);
+  validateMarkerStackPolicies(effectActions, violations);
   for (const skill of skills.values()) {
     validateSkill(skill, effectActions, violations);
   }

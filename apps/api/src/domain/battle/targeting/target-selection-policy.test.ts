@@ -1145,6 +1145,50 @@ describe("resolveTargets", () => {
       expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("TWO")]);
     });
 
+    it("UT-TGT-002-039 [R-EFF-10]: HAS_MARKER countCondition and MARKER_COUNT order total every grant instance of the same markerId", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const markerId = createMarkerId("MARKER_TAG");
+      const twoGrants = unit(
+        "TWO_GRANTS",
+        "ENEMY",
+        { column: "LEFT", row: "FRONT" },
+        {
+          markerStates: [
+            marker(markerId, 1),
+            { ...marker(markerId, 1), markerInstanceId: createMarkerInstanceId("mi-second") },
+          ],
+        },
+      );
+      const oneGrant = unit(
+        "ONE_GRANT",
+        "ENEMY",
+        { column: "RIGHT", row: "FRONT" },
+        { markerStates: [marker(markerId, 1)] },
+      );
+
+      const filtered = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: "ALL",
+          filters: [{ kind: "HAS_MARKER", markerId, countCondition: { op: "GTE", value: 2 } }],
+        }),
+        actor,
+        [actor, twoGrants, oneGrant],
+      );
+      const ordered = resolveTargets(
+        selector({
+          side: "ENEMY",
+          count: 1,
+          order: [{ kind: "MARKER_COUNT", markerId, direction: "DESC" }],
+        }),
+        actor,
+        [actor, oneGrant, twoGrants],
+      );
+
+      expect(filtered.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("TWO_GRANTS")]);
+      expect(ordered.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("TWO_GRANTS")]);
+    });
+
     it("UT-TGT-002-003: HP_RATIO filter compares currentHp/maximumHp", () => {
       const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
       const low = unit(

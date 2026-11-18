@@ -1,7 +1,11 @@
 import { DomainValidationError } from "../../../shared/errors.js";
-import type {
-  EffectActionApplicationInput,
-  EffectActionResolution,
+import { durationOf } from "../../../catalog/integrity/effect-action-inspection.js";
+import { hasLinkedParentForGrant } from "../../model/linked-effect-group.js";
+import { requireUnit } from "../action-resolution-shared.js";
+import {
+  settledOutcome,
+  type EffectActionApplicationInput,
+  type EffectActionResolution,
 } from "./effect-action-handler.js";
 import { resolveDamage } from "./damage-effect-action.js";
 import { resolveHeal } from "./heal-effect-action.js";
@@ -40,6 +44,17 @@ export function* resolveEffectActionByKind(
   input: EffectActionApplicationInput,
 ): EffectActionResolution {
   const effectAction = input.effectAction;
+  const duration = durationOf(effectAction);
+  if (
+    duration !== undefined &&
+    !hasLinkedParentForGrant(
+      requireUnit(input.box.units, input.application.targetUnitId),
+      duration,
+      input.context.skillUseId,
+    )
+  ) {
+    return settledOutcome(input, input.startingEventId, "SKIPPED");
+  }
   switch (effectAction.kind) {
     case "DAMAGE":
       return yield* resolveDamage({ ...input, effectAction });

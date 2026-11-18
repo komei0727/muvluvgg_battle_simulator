@@ -12,6 +12,7 @@ import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, MarkerRemovalReason } from "../events/domain-event.js";
 import type { MarkerDurationChange, MarkerStackDecayChange } from "../model/marker-duration.js";
+import type { MarkerState } from "../model/marker-state.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId, MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -285,11 +286,12 @@ export interface ReduceMarkerStackResult {
 
 /**
  * M7-001（Issue #181、`REMOVE_EFFECTS_COUNT_LIMIT`）: `REMOVE_MARKER`の`count`指定に
- * よる部分解除。対象が`markerId`のMarkerを`count`スタック分だけ失う。残スタックが
- * 0以下になる場合は`removeMarkers`でインスタンスごと除去し（`MarkerRemoved`、
- * reason `REMOVED`、R-EFF-09カスケードを含む）、正の残スタックが残る場合は
- * `MarkerUpdated`（policyを持たないスタック減算、`domain-event.ts`の`MarkerUpdated`
- * コメントの統合方針に従う）を発行する。対象Markerを所持しない場合はno-op。
+ * よる部分解除。対象が`markerId`のMarkerを付与の古い順に`count`スタック分だけ失う
+ * （R-EFF-10）。使い切った付与分は`removeMarkers`でインスタンスごと除去し
+ * （`MarkerRemoved`、reason `REMOVED`、その付与分の連動グループだけへR-EFF-09の
+ * カスケード）、最後の付与分に正の残スタックが残る場合は`MarkerUpdated`（policyを
+ * 持たないスタック減算、`domain-event.ts`の`MarkerUpdated`コメントの統合方針に従う）を
+ * 発行する。対象Markerを所持しない場合はno-op。
  */
 export function reduceMarkerStack(
   context: RemoveMarkersContext,
@@ -300,15 +302,28 @@ export function reduceMarkerStack(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ReduceMarkerStackResult {
-  const steps = reduceMarkerStackSteps(
+  return driveStepsWithCallback(
     context,
-    units,
-    targetUnitId,
-    markerId,
-    count,
-    effectActions,
-    parentEventId,
+    reduceMarkerStackSteps(
+      context,
+      units,
+      targetUnitId,
+      markerId,
+      count,
+      effectActions,
+      parentEventId,
+    ),
   );
+}
+
+function driveStepsWithCallback(
+  context: RemoveMarkersContext,
+  steps: Generator<
+    LinkedGroupCascadeStep,
+    ReduceMarkerStackResult,
+    readonly BattleUnit[] | undefined
+  >,
+): ReduceMarkerStackResult {
   let step = steps.next();
   while (!step.done) {
     let currentUnits = step.value.units;
@@ -320,6 +335,41 @@ export function reduceMarkerStack(
     step = steps.next(currentUnits);
   }
   return step.value;
+}
+
+/**
+ * R-EFF-10: `count`を持たない`REMOVE_MARKER`。対象が保持する同じ`markerId`の付与分を
+ * すべて1つの除去バッチとして除去する（各付与分の連動グループへR-EFF-09のカスケード）。
+ * 対象Markerを所持しない場合はno-op。
+ */
+export function* removeAllMarkerGrantsSteps(
+  context: RemoveMarkersContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  markerId: MarkerId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): Generator<LinkedGroupCascadeStep, ReduceMarkerStackResult, readonly BattleUnit[] | undefined> {
+  const grants = requireUnit(units, targetUnitId).markerStates.filter(
+    (marker) => marker.markerId === markerId,
+  );
+  if (grants.length === 0) {
+    return { units, lastEventId: parentEventId, changed: false };
+  }
+  const result = yield* removeMarkersSteps(
+    context,
+    units,
+    grants.map(
+      (grant): MarkerRemovalSeed => ({
+        battleUnitId: targetUnitId,
+        markerInstanceId: grant.markerInstanceId,
+        reason: "REMOVED",
+      }),
+    ),
+    effectActions,
+    parentEventId,
+  );
+  return { units: result.units, lastEventId: result.lastEventId, changed: true };
 }
 
 /**
@@ -337,33 +387,61 @@ export function* reduceMarkerStackSteps(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): Generator<LinkedGroupCascadeStep, ReduceMarkerStackResult, readonly BattleUnit[] | undefined> {
-  const target = requireUnit(units, targetUnitId);
-  const existing = target.markerStates.find((marker) => marker.markerId === markerId);
-  if (existing === undefined) {
+  const grants = requireUnit(units, targetUnitId).markerStates.filter(
+    (marker) => marker.markerId === markerId,
+  );
+  if (grants.length === 0) {
     return { units, lastEventId: parentEventId, changed: false };
   }
 
-  const stackAfter = existing.stackCount - count;
-  if (stackAfter <= 0) {
-    const result = yield* removeMarkersSteps(
-      context,
-      units,
-      [
-        {
-          battleUnitId: targetUnitId,
-          markerInstanceId: existing.markerInstanceId,
-          reason: "REMOVED",
-        },
-      ],
-      effectActions,
-      parentEventId,
-    );
-    return { units: result.units, lastEventId: result.lastEventId, changed: true };
+  // 付与の古い順に、使い切る付与分を除去seedへ、途中で尽きた付与分を部分減算へ振り分ける。
+  const exhausted: MarkerRemovalSeed[] = [];
+  let remaining = count;
+  let partial: { readonly grant: MarkerState; readonly stackAfter: number } | undefined;
+  for (const grant of grants) {
+    if (remaining <= 0) {
+      break;
+    }
+    if (grant.stackCount <= remaining) {
+      exhausted.push({
+        battleUnitId: targetUnitId,
+        markerInstanceId: grant.markerInstanceId,
+        reason: "REMOVED",
+      });
+      remaining -= grant.stackCount;
+    } else {
+      partial = { grant, stackAfter: grant.stackCount - remaining };
+      remaining = 0;
+    }
   }
+
+  let currentUnits = units;
+  let lastEventId = parentEventId;
+  if (exhausted.length > 0) {
+    const removed = yield* removeMarkersSteps(
+      context,
+      currentUnits,
+      exhausted,
+      effectActions,
+      lastEventId,
+    );
+    currentUnits = removed.units;
+    lastEventId = removed.lastEventId;
+  }
+  if (partial === undefined) {
+    return { units: currentUnits, lastEventId, changed: true };
+  }
+  const existing = requireUnit(currentUnits, targetUnitId).markerStates.find(
+    (marker) => marker.markerInstanceId === partial.grant.markerInstanceId,
+  );
+  if (existing === undefined) {
+    return { units: currentUnits, lastEventId, changed: true };
+  }
+  const stackAfter = partial.stackAfter;
 
   const stackReductionEventsStart = context.recorder.getEvents().length;
   const nextMarker = { ...existing, stackCount: stackAfter };
-  const nextUnits = units.map((unit) =>
+  const nextUnits = currentUnits.map((unit) =>
     unit.battleUnitId === targetUnitId
       ? {
           ...unit,
@@ -381,7 +459,7 @@ export function* reduceMarkerStackSteps(
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     resolutionScopeId: context.resolutionScopeId,
-    parentEventId,
+    parentEventId: lastEventId,
     rootEventId: context.rootEventId,
     sourceUnitId: targetUnitId,
     targetUnitIds: [targetUnitId],

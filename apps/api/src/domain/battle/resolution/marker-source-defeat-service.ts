@@ -18,7 +18,7 @@ export interface DefeatEventSource {
  * R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: `UnitDefeated`
  * （通常戦闘の戦闘不能）または`UnitBroken`（戦術演習のブレイク、R-TEX-07 #3、
  * Issue #694）に対して、`duration.removeOnSourceDefeated`を宣言し、かつ付与者
- * （`MarkerState.sourceUnitId`＝直近の付与者）が戦闘不能／ブレイクしたユニットで
+ * （付与分ごとの`MarkerState.sourceUnitId`）が戦闘不能／ブレイクしたユニットで
  * ある`MarkerState`を除去対象として列挙する。`SKL_AOI_ELEGANT_AS1`（百花繚乱）の
  * raw原文「「高揚」は付与者が倒れると同時に解除される」、`SKL_LAYLA_NURSE_TEX_PS1`
  * （アナライザ・フォーカス）の「「観察」は付与者が倒れると解除される」を表す。

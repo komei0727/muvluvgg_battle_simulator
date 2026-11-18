@@ -1,6 +1,6 @@
 import type { EffectDurationState } from "./applied-effect.js";
 import { buildInitialDurationState } from "./applied-effect.js";
-import type { ActionId, MarkerInstanceId } from "../../shared/event-ids.js";
+import type { ActionId, MarkerInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { Side } from "../../shared/side.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
@@ -14,10 +14,8 @@ import {
 /**
  * `05_ドメインモデル.md`「MarkerState」/R-EFF-10: ユニットへ付与された固有状態
  * （raw固有スタック、専用印、条件参照用状態）を汎用Markerとして表す。
- * `AppliedEffect`と異なり、同じ`markerId`を持つインスタンスは対象ごとに常に
- * 1つだけ存在する — 複数の付与元から同じMarkerが付与された場合もスタック数を
- * 1つの`MarkerState`へ積み上げる（`sourceUnitId`は直近の付与者を表す監査用の値で、
- * インスタンス識別には使わない）。`duration`は`AppliedEffect`と同じ
+ * 同じ`markerId`でも付与ごとに別のインスタンス（付与分）を持ち、付与元・期限を
+ * 付与分ごとに保持する（所持数は`markerStackTotal`で合計する）。`duration`は`AppliedEffect`と同じ
  * `EffectDurationState`を再利用する（`DurationDefinition`のtimeLimit/
  * consumption/expiration/linkedEffectGroupがMarkerにもそのまま適用される、
  * R-EFF-09「同じlinkedEffectGroupIdを持つAppliedEffectとMarkerStateは親子連動
@@ -27,7 +25,7 @@ export interface MarkerState {
   readonly markerInstanceId: MarkerInstanceId;
   readonly markerId: MarkerId;
   /**
-   * 直近の付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
+   * この付与分の付与者の戦闘ユニットID。R-MEM-04（M7-008、Issue #176）: Memory の
    * `triggeredEffects` 由来の付与だけは具体的な付与者ユニットを持たないため
    * `undefined`になり、代わりに`sourceSide`（そのMemoryを指定した陣営）を持つ
    * （`AppliedEffect.sourceUnitId`/`10_API設計.md`の`MarkerStateResponse.sourceUnitId?`も
@@ -77,6 +75,21 @@ export function markerSourceFields(
     : { sourceSide: source.sourceSide };
 }
 
+/**
+ * R-EFF-09: `SKILL_USE`範囲の親Markerは自身の付与分を連動の識別子にする
+ * （`linked-effect-group.ts`の`ownLinkedGroupAnchor`と同じ値）。`model/`内の依存を
+ * 一方向に保つため、キー表現だけをここで組み立てる。
+ */
+export function markerAnchorOf(
+  definition: DurationDefinition,
+  markerInstanceId: MarkerInstanceId,
+): { readonly linkedGroupAnchor?: string } {
+  return definition.linkedEffectGroupScope === "SKILL_USE" &&
+    definition.linkedEffectGroupRole === "PARENT"
+    ? { linkedGroupAnchor: `M:${markerInstanceId}` }
+    : {};
+}
+
 /** R-EFF-10: 新規Markerインスタンスをスタック1で組み立てる（ADD/KEEP_EXISTING/REFRESH/REPLACEのいずれも、既存Markerが無い場合はこの初期状態から始まる）。 */
 export function buildInitialMarkerState(
   markerInstanceId: MarkerInstanceId,
@@ -85,7 +98,11 @@ export function buildInitialMarkerState(
   targetUnitId: BattleUnitId,
   stackMax: number | null,
   durationDefinition: DurationDefinition,
-  context: { readonly actionId?: ActionId; readonly turnNumber: number },
+  context: {
+    readonly actionId?: ActionId;
+    readonly skillUseId?: SkillUseId;
+    readonly turnNumber: number;
+  },
   decay?: MarkerStackDecayDefinition,
 ): MarkerState {
   return {
@@ -95,7 +112,10 @@ export function buildInitialMarkerState(
     targetUnitId,
     stackCount: 1,
     stackMax,
-    duration: buildInitialDurationState(durationDefinition, context),
+    duration: buildInitialDurationState(durationDefinition, {
+      ...context,
+      ...markerAnchorOf(durationDefinition, markerInstanceId),
+    }),
     decayingStackCount: decay !== undefined ? 1 : 0,
     ...(decay !== undefined ? { decay } : {}),
   };
@@ -108,10 +128,26 @@ export function clampMarkerStack(stackCount: number, stackMax: number | null): n
 }
 
 /**
+ * R-EFF-10: 同じ`markerId`の全付与分のスタック数合計。付与分は付与ごとに別インスタンス
+ * のため、所持数は常に合計で読む。1つも所持しなければ`undefined`。
+ */
+export function markerStackTotal(
+  markerStates: readonly MarkerState[],
+  markerId: MarkerId,
+): number | undefined {
+  let total: number | undefined;
+  for (const state of markerStates) {
+    if (state.markerId === markerId) {
+      total = (total ?? 0) + state.stackCount;
+    }
+  }
+  return total;
+}
+
+/**
  * 参照マーカー（単一または`markerIds`による複数）のスタック数合計。いずれも
  * 所持していなければ`undefined`を返す — `TARGET_HAS_MARKER`は不所持を
  * `countCondition`に関わらず不成立とするため、0スタックと区別する必要がある。
- * R-EFF-10により同じmarkerIdのインスタンスは対象ごとに高々1つである。
  */
 export function heldMarkerStackTotal(
   markerStates: readonly MarkerState[],
@@ -119,9 +155,9 @@ export function heldMarkerStackTotal(
 ): number | undefined {
   let total: number | undefined;
   for (const markerId of referencedMarkerIds(reference)) {
-    const held = markerStates.find((state) => state.markerId === markerId);
+    const held = markerStackTotal(markerStates, markerId);
     if (held !== undefined) {
-      total = (total ?? 0) + held.stackCount;
+      total = (total ?? 0) + held;
     }
   }
   return total;

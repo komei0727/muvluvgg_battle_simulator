@@ -108,7 +108,7 @@ export interface EffectStateResponseBody {
 export interface MarkerStateResponseBody {
   readonly markerInstanceId: string;
   readonly markerId: string;
-  /** 直近の付与者。R-MEM-04のMemory由来Markerは代わりに`sourceSide`を持つ。 */
+  /** この付与分の付与者。R-MEM-04のMemory由来Markerは代わりに`sourceSide`を持つ。 */
   readonly sourceUnitId?: string;
   /** R-MEM-04（REL-008、Issue #263）: Memory由来Markerだけが持つ付与元の陣営。 */
   readonly sourceSide?: string;

@@ -2424,31 +2424,43 @@ describe("buildCatalogIndex", () => {
     }
   });
 
-  it("UT-R-EFF-09-036 [R-EFF-09]: rejects linkedEffectGroupScope SKILL_USE on APPLY_MARKER, since re-applications stack into one MarkerState that keeps a single SkillUseId", () => {
-    const skillUseScopedMarker = createEffectActionDefinition(
-      {
-        effectActionDefinitionId: "ACT_MARKER_SKILL_USE_SCOPE",
-        kind: "APPLY_MARKER",
-        payload: {
-          markerId: "MARKER_TEST",
-          stack: { policy: "ADD", max: null },
-          duration: {
-            dispellable: true,
-            linkedEffectGroupId: "GROUP_SET",
-            linkedEffectGroupScope: "SKILL_USE",
+  it("UT-R-EFF-09-036 [R-EFF-09, R-EFF-10]: accepts linkedEffectGroupScope SKILL_USE on an ADD/KEEP_EXISTING APPLY_MARKER and rejects it on REFRESH/REPLACE, which rebuild the grant in place", () => {
+    const markerWith = (id: string, policy: string, markerId: string) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId,
+            stack: { policy, max: null },
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: `GROUP_${id}`,
+              linkedEffectGroupScope: "SKILL_USE",
+            },
           },
         },
-      },
-      "effectAction",
-    );
+        "effectAction",
+      );
+    const markers = [
+      markerWith("ACT_MARKER_ADD", "ADD", "MARKER_A"),
+      markerWith("ACT_MARKER_KEEP", "KEEP_EXISTING", "MARKER_B"),
+      markerWith("ACT_MARKER_REFRESH", "REFRESH", "MARKER_C"),
+      markerWith("ACT_MARKER_REPLACE", "REPLACE", "MARKER_D"),
+    ];
 
     const defs = baseDefinitions();
     try {
       buildCatalogIndex({
         ...defs,
-        skills: [...defs.skills, asSkill("SKL_AS2", "ACT_MARKER_SKILL_USE_SCOPE")],
-        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
-        effectActions: [...defs.effectActions, skillUseScopedMarker],
+        skills: [
+          ...defs.skills,
+          ...markers.map((marker, index) =>
+            asSkill(`SKL_AS${index + 2}`, marker.effectActionDefinitionId),
+          ),
+        ],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2", "SKL_AS3"] })],
+        effectActions: [...defs.effectActions, ...markers],
       });
       expect.unreachable();
     } catch (error) {
@@ -2457,7 +2469,42 @@ describe("buildCatalogIndex", () => {
         err.violations
           .filter((v) => v.rule === "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE")
           .map((v) => v.targetId),
-      ).toEqual(["ACT_MARKER_SKILL_USE_SCOPE"]);
+      ).toEqual(["ACT_MARKER_REFRESH", "ACT_MARKER_REPLACE"]);
+    }
+  });
+
+  it("UT-R-EFF-10-057 [R-EFF-10]: rejects a markerId granted both by ADD and by REFRESH/REPLACE, since ADD keeps several grants that REFRESH/REPLACE cannot address", () => {
+    const markerWith = (id: string, policy: string) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: "MARKER_MIXED",
+            stack: { policy, max: null },
+            duration: { dispellable: true, linkedEffectGroupId: null },
+          },
+        },
+        "effectAction",
+      );
+    const markers = [
+      markerWith("ACT_MIXED_ADD", "ADD"),
+      markerWith("ACT_MIXED_KEEP", "KEEP_EXISTING"),
+      markerWith("ACT_MIXED_REPLACE", "REPLACE"),
+    ];
+
+    const defs = baseDefinitions();
+    try {
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, ...markers],
+      });
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations.filter((v) => v.rule === "MIXED_MARKER_STACK_POLICY").map((v) => v.targetId),
+      ).toEqual(["ACT_MIXED_REPLACE"]);
     }
   });
 

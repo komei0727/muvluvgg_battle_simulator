@@ -344,7 +344,7 @@ export function grantSourceOf(
 }
 
 /**
- * `MarkerState`はR-EFF-10「直近の付与者」を必ず1つ持つ（`MarkerSource`のexactly-one
+ * `MarkerState`はR-EFF-10の付与分ごとに付与者を必ず1つ持つ（`MarkerSource`のexactly-one
  * union）。スキル解決は`actorUnitId`を、Memory解決（R-MEM-04）は`sourceSide`を必ず持つ
  * ため実際には両方欠落しないが、`grantSourceOf`の型はそれを保証しない。付与元不明の
  * Markerを黙って作らないよう、この境界で明確に拒否する。

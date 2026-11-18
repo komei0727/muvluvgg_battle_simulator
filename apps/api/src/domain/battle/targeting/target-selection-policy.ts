@@ -1,4 +1,4 @@
-import { heldMarkerStackTotal } from "../model/marker-state.js";
+import { heldMarkerStackTotal, markerStackTotal } from "../model/marker-state.js";
 import type { MarkerReference } from "../../catalog/definitions/marker-reference.js";
 import {
   cumulativeDamageDealtOf,
@@ -239,15 +239,15 @@ function matchesFilter(
     case "UNIT_DEFINITION":
       return candidate.unitDefinitionId === filter.unitDefinitionId;
     case "HAS_MARKER": {
-      const marker = candidate.markerStates.find((state) => state.markerId === filter.markerId);
-      if (marker === undefined) {
+      const stackTotal = markerStackTotal(candidate.markerStates, filter.markerId);
+      if (stackTotal === undefined) {
         return false;
       }
       if (filter.countCondition === undefined) {
         return true;
       }
       return compareNumeric(
-        marker.stackCount,
+        stackTotal,
         filter.countCondition.op as "GT" | "GTE" | "LT" | "LTE" | "EQ" | "NEQ",
         filter.countCondition.value,
       );

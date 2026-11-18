@@ -1,7 +1,7 @@
 import { applyMarker } from "../../effects/marker-apply-service.js";
 import {
   reduceMarkerStackSteps,
-  removeMarkersSteps,
+  removeAllMarkerGrantsSteps,
 } from "../../effects/marker-removal-service.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import {
@@ -73,14 +73,15 @@ export const resolveRemoveMarker: SteppedEffectActionHandler<"REMOVE_MARKER"> = 
   // 所持判定は先行イベントのPS連鎖を反映した`box.units`から取る — 上の通知で対象の
   // Markerが既に解除されていた場合、この解除はno-op（SKIPPED）になる。
   const target = requireUnit(box.units, application.targetUnitId);
-  const existingMarker = target.markerStates.find(
+  const holdsMarker = target.markerStates.some(
     (marker) => marker.markerId === effectAction.payload.markerId,
   );
-  if (existingMarker === undefined) {
+  if (!holdsMarker) {
     return settledOutcome(input, startingEventId, "SKIPPED");
   }
 
-  // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: `count`があれば指定スタック数だけ部分解除。
+  // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: `count`があれば付与の古い順に指定スタック数だけ
+  // 部分解除し、無ければ同じ`markerId`の付与分をすべて解除する（R-EFF-10）。
   const removalGen =
     effectAction.payload.count !== undefined
       ? reduceMarkerStackSteps(
@@ -92,24 +93,15 @@ export const resolveRemoveMarker: SteppedEffectActionHandler<"REMOVE_MARKER"> = 
           context.definitions.effectActions,
           startingEventId,
         )
-      : removeMarkersSteps(
+      : removeAllMarkerGrantsSteps(
           removalContext,
           box.units,
-          [
-            {
-              battleUnitId: application.targetUnitId,
-              markerInstanceId: existingMarker.markerInstanceId,
-              reason: "REMOVED",
-            },
-          ],
+          application.targetUnitId,
+          effectAction.payload.markerId,
           context.definitions.effectActions,
           startingEventId,
         );
   const removal = yield* driveRemovalSteps(input, removalGen);
   cursor.notifyPending();
-  return settledOutcome(
-    input,
-    removal.lastEventId,
-    "changed" in removal && !removal.changed ? "SKIPPED" : "APPLIED",
-  );
+  return settledOutcome(input, removal.lastEventId, removal.changed ? "APPLIED" : "SKIPPED");
 };
