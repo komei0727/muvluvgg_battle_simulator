@@ -1031,4 +1031,55 @@ describe("EffectSequence", () => {
       ).toThrow(DomainValidationError);
     });
   });
+
+  describe("actions[].hitCondition (R-SKL-06 #4a)", () => {
+    const hitSequence = (hitCondition: unknown) => ({
+      targetBindings: [
+        {
+          targetBindingId: "TGT_PRIMARY",
+          selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+        },
+      ],
+      steps: [
+        {
+          kind: "ACTION",
+          target: { kind: "BINDING", targetBindingId: "TGT_PRIMARY" },
+          actions: [
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+            { effectActionDefinitionId: "ACT_DEBUFF_1", hitCondition },
+          ],
+        },
+      ],
+    });
+
+    it("UT-CAT-SEQ-046 [R-SKL-06]: maps hitCondition.effectActionDefinitionIds onto the action reference", () => {
+      const result = createEffectSequence(
+        hitSequence({ effectActionDefinitionIds: ["ACT_DAMAGE_1"] }) as never,
+        "resolution",
+      );
+      const step = result.steps[0];
+      expect(step?.kind === "ACTION" ? step.actions : undefined).toEqual([
+        { effectActionDefinitionId: "ACT_DAMAGE_1" },
+        {
+          effectActionDefinitionId: "ACT_DEBUFF_1",
+          hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+        },
+      ]);
+    });
+
+    it("UT-CAT-SEQ-047 [R-SKL-06]: rejects an empty hitCondition.effectActionDefinitionIds", () => {
+      expect(() =>
+        createEffectSequence(hitSequence({ effectActionDefinitionIds: [] }) as never, "resolution"),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-048 [R-SKL-06]: rejects an unknown key inside hitCondition", () => {
+      expect(() =>
+        createEffectSequence(
+          hitSequence({ effectActionDefinitionIds: ["ACT_DAMAGE_1"], minHits: 2 }) as never,
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

@@ -93,7 +93,10 @@
               "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION"
+              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS1_CRIT_PREVENTION",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_TARISA_TROUBLEMAKER_AS1_DAMAGE"]
+              }
             }
           ]
         }
@@ -141,7 +144,10 @@
               "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS2_ATK_DOWN"
+              "effectActionDefinitionId": "ACT_TARISA_TROUBLEMAKER_AS2_ATK_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_TARISA_TROUBLEMAKER_AS2_DAMAGE"]
+              }
             }
           ]
         }

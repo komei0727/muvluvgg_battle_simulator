@@ -16,7 +16,7 @@ import type {
 import type { DomainEventId } from "../../shared/event-ids.js";
 import { consumeAndExpire, driveRemovalSteps, findUnit } from "./damage-hit-chain.js";
 import { removeFreezeEffectSteps } from "./damage-effect-expiry.js";
-import { observeHitSteps } from "./damage-hit-observation.js";
+import { observeHitSteps, type HitConfirmedGrant } from "./damage-hit-observation.js";
 import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
 import { applyConfirmedDamageSteps } from "./damage-hit-point-application.js";
 import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
@@ -131,6 +131,17 @@ export function* applyDamageActionSteps(
   // サブユニット追加ヒット（R-SUB-02）の中断も表せるよう`interruptedCount`とは別に持つ。
   let interrupted = false;
   let lastEventId = context.parentEventId;
+  // R-DMG-05 #2a: 命中確定時付与は対象ごとに1回。このDAMAGE適用の全ヒットで共有する。
+  const hitConfirmedEffects = damageAction.payload.hitConfirmedEffects;
+  const hitConfirmedGrant: HitConfirmedGrant | undefined =
+    hitConfirmedEffects !== undefined
+      ? {
+          effectActionDefinitionIds: hitConfirmedEffects.map(
+            (effect) => effect.effectActionDefinitionId,
+          ),
+          grantedTargetUnitIds: new Set(),
+        }
+      : undefined;
 
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
@@ -206,6 +217,7 @@ export function* applyDamageActionSteps(
         piercing: composePiercing(damageAction.payload.piercing, currentAttacker),
       },
       lastEventId,
+      hitConfirmedGrant,
     );
     lastEventId = observation.lastEventId;
     if (observation.kind === "INTERRUPT") {

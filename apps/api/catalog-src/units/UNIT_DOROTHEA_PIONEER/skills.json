@@ -88,10 +88,12 @@
               "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF"
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_PIONEER_AS1_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER"
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_PIONEER_AS1_DAMAGE"] }
             }
           ]
         }
@@ -139,7 +141,8 @@
               "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN"
+              "effectActionDefinitionId": "ACT_DOROTHEA_PIONEER_AS2_DEF_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_DOROTHEA_PIONEER_AS2_DAMAGE"] }
             }
           ]
         }

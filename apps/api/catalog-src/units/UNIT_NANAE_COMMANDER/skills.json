@@ -112,7 +112,14 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-              "actions": [{ "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_STUN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_STUN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_NANAE_COMMANDER_AS2_DAMAGE"]
+                  }
+                }
+              ]
             }
           ],
           "elseSteps": []
@@ -120,7 +127,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_OTHERS" },
-          "actions": [{ "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_ATK_DOWN" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_NANAE_COMMANDER_AS2_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_NANAE_COMMANDER_AS2_DAMAGE"] }
+            }
+          ]
         }
       ]
     },

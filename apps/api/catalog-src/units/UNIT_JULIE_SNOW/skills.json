@@ -192,7 +192,8 @@
               "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DOT"
+              "effectActionDefinitionId": "ACT_JULIE_SNOW_AS2_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_JULIE_SNOW_AS2_DAMAGE"] }
             }
           ]
         },

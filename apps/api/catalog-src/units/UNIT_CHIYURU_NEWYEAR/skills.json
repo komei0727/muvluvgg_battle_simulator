@@ -69,7 +69,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS1_HEAL_BLOCK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_NEWYEAR_AS1_DAMAGE"] }
+            }
           ]
         },
         {
@@ -101,7 +104,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_ATK_DOWN" }
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_NEWYEAR_AS2_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_NEWYEAR_AS2_DAMAGE"] }
+            }
           ]
         }
       ]

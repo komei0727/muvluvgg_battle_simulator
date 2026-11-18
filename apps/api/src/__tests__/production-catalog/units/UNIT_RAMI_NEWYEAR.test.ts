@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
@@ -593,5 +594,35 @@ describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニュー�
       outgoingDamageMultiplier: pierced.calculated.outgoingDamageMultiplier,
       finalDamage: 600,
     });
+  });
+
+  it("IT-UNIT-RAMI-NEWYEAR-005 [R-SKL-06]: AS2の横一列攻撃で、回避した敵には与ダメージ低下を付与せず、同じ列で命中した敵にだけ付与する（SR-006）", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_NEWYEAR_AS2" },
+      board: {
+        enemies: [
+          {
+            id: "enemy:front",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { appliedEffects: [evasionOf("enemy:front")] },
+          },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+        ],
+      },
+    });
+
+    expect(observation.actions).toEqual([
+      {
+        effectActionDefinitionId: "ACT_RAMI_NEWYEAR_AS2_DAMAGE",
+        targets: ["enemy:front"],
+        resultKind: "MISSED",
+      },
+      { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_AS2_DAMAGE", targets: ["enemy:left"] },
+      { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN", targets: ["enemy:left"] },
+    ]);
+    expect(observation.effectsApplied?.map((effect) => effect.unitId)).toEqual(["enemy:left"]);
   });
 });

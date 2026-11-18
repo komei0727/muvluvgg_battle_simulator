@@ -71,7 +71,12 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-          "actions": [{ "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_MARKER" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_YURIA_JOKER_AS1_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_JOKER_AS1_DAMAGE"] }
+            }
+          ]
         },
         {
           "kind": "ACTION",

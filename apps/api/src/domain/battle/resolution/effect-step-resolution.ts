@@ -57,6 +57,29 @@ export interface LastResultState {
   current?: LastEffectActionResult;
   lastActionTargetUnitIds: readonly BattleUnitId[];
   lastDamagedTargetUnitIds: readonly BattleUnitId[];
+  /**
+   * R-SKL-06 #4a: このEffectSequence解決で、DAMAGE定義ごとに1ヒット以上命中を受けた
+   * 対象。`lastDamagedTargetUnitIds`と違い直前stepで上書きせず解決全体で積み上げる —
+   * `hitCondition`は列内の別対象や後続stepを挟んでも、その対象自身の命中を参照する
+   * ためである。MISS（全ヒット回避）と対象不在の`SKIPPED`は記録しない。シールド全吸収や
+   * ダメージ無効で0になったヒットも命中であり、`APPLIED`として記録される。
+   */
+  readonly hitTargetsByDamageAction: Map<EffectActionDefinitionId, Set<BattleUnitId>>;
+}
+
+/** R-SKL-06 #4a: `hitCondition`の参照先DAMAGEのいずれかから、この対象が命中を受けたか。 */
+function satisfiesHitCondition(
+  application: EffectActionApplication,
+  lastResultState: LastResultState,
+): boolean {
+  if (application.hitCondition === undefined) {
+    return true;
+  }
+  return application.hitCondition.effectActionDefinitionIds.some(
+    (damageId) =>
+      lastResultState.hitTargetsByDamageAction.get(damageId)?.has(application.targetUnitId) ===
+      true,
+  );
 }
 
 function lastResultTargetsContext(
@@ -463,6 +486,12 @@ function* resolveActionApplications(
 
   for (let index = 0; index < applications.length; index += 1) {
     const application = applications[index]!;
+    // R-SKL-06 #4a: 命中条件を満たさない適用は`targetCondition`で除外された対象と同じく
+    // 一切開始しない（イベント・直前結果・解決数のいずれにも現れない）。判定は直前の
+    // 適用まで反映した命中履歴で行うため、同じACTION内の先行DAMAGEの結果も見える。
+    if (!satisfiesHitCondition(application, lastResultState)) {
+      continue;
+    }
     if (isActorDefeated(context, box)) {
       finalizeStepTargets();
       return {
@@ -500,6 +529,19 @@ function* resolveActionApplications(
       ) {
         seenDamagedTargetUnitIds.add(application.targetUnitId);
         stepDamagedTargetUnitIds.push(application.targetUnitId);
+      }
+      if (
+        applied.lastResult.resultKind === "APPLIED" &&
+        applied.lastResult.effectActionKind === "DAMAGE"
+      ) {
+        const hitTargets =
+          lastResultState.hitTargetsByDamageAction.get(application.effectActionDefinitionId) ??
+          new Set<BattleUnitId>();
+        hitTargets.add(application.targetUnitId);
+        lastResultState.hitTargetsByDamageAction.set(
+          application.effectActionDefinitionId,
+          hitTargets,
+        );
       }
     }
 

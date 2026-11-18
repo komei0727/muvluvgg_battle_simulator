@@ -121,7 +121,14 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
-              "actions": [{ "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_ANIS_TROUBLEMAKER_AS2_POISON",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_ANIS_TROUBLEMAKER_AS2_DAMAGE"]
+                  }
+                }
+              ]
             }
           ],
           "elseSteps": []

@@ -26,6 +26,7 @@ import {
   type EffectActionGroupContext,
 } from "./effect-action-group-context.js";
 import { buildConsumeEffectDurationHooks } from "./effect-duration-consumption.js";
+import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
 
 /**
  * `combat/`が`lifecycle/`・`effects/`・Catalogの`effectActions`マップへ到達できない
@@ -333,6 +334,23 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
           targetUnitId,
           effectActionDefinitionId,
           formula,
+          parentEventId,
+        ),
+      // R-DMG-05 #2a: 命中確定時付与は追撃のonHitEffectsと同じ付与経路を使う。帰属先は攻撃者。
+      grantHitConfirmedEffect: (
+        targetUnitId,
+        effectActionDefinitionId,
+        attackerUnitId,
+        units,
+        parentEventId,
+      ) =>
+        grantOnHitEffectSteps(
+          context,
+          units,
+          targetUnitId,
+          effectActionDefinitionId,
+          attackerUnitId,
+          undefined,
           parentEventId,
         ),
       ...(context.onFactEventForPassiveChain !== undefined

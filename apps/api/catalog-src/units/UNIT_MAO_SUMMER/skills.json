@@ -126,7 +126,12 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
-              "actions": [{ "effectActionDefinitionId": "ACT_MAO_SUMMER_AS2_STUN" }]
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_MAO_SUMMER_AS2_STUN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_MAO_SUMMER_AS2_DAMAGE"] }
+                }
+              ]
             }
           ],
           "elseSteps": []

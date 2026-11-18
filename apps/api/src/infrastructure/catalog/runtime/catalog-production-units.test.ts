@@ -653,7 +653,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-11-18.1` は新規Memory 1件（`MEM_NEW_PATH_FOR_THE_WORLD`、世界は今、新たな道を
     // 描いて、Issue #820）の追加。対象順 `SLOWEST` を初めて production Catalog で使用する。
     // 差分は `memories.json`・`effects.json` だけ。
-    expect(catalog.catalogRevision).toBe("2026-11-18.1");
+    // `2026-11-18.2` は一般ASの攻撃後効果を対象別の命中条件（`hitCondition`）へ移行し、
+    // `ACT_YIFEI_STORM_AS1_DAMAGE` のご指名を命中確定時付与へ移した（Issue #825）。
+    // 新規・削除したUnit・Skill・EffectActionはない。
+    expect(catalog.catalogRevision).toBe("2026-11-18.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

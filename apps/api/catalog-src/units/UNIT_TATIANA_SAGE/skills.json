@@ -126,13 +126,16 @@
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAZZLE"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DAZZLE",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS1_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS1_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS1_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS1_DAMAGE"] }
             }
           ]
         },
@@ -223,16 +226,20 @@
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_RATE_DOWN"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_RATE_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS2_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_DMG_DOWN"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_CRIT_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS2_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_MARK"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS2_DAMAGE"] }
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DOT"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS2_DOT",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS2_DAMAGE"] }
             }
           ]
         },
@@ -313,7 +320,8 @@
               "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS3_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS3_MARK"
+              "effectActionDefinitionId": "ACT_TATIANA_SAGE_AS3_MARK",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_TATIANA_SAGE_AS3_DAMAGE"] }
             }
           ]
         }

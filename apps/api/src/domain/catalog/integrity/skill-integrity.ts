@@ -22,6 +22,7 @@ import {
   validateConditionEffectActionReferences,
   validateDamageLinkBindingReferences,
   validateEffectActionReferences,
+  validateHitConditionReferences,
   validateGrantedByScope,
   validateMixedStepTargetSetCondition,
 } from "./effect-sequence-integrity.js";
@@ -143,6 +144,12 @@ export function validateSkill(
       : [skill.resolution];
   for (const sequence of sequences) {
     validateLastResultDataFlow(sequence.steps, skill.skillDefinitionId, violations);
+    validateHitConditionReferences(
+      sequence.steps,
+      effectActions,
+      skill.skillDefinitionId,
+      violations,
+    );
     validateMixedStepTargetSetCondition(sequence.steps, skill.skillDefinitionId, violations);
     validateBranchTargetStateUnboundedReference(sequence, skill.skillDefinitionId, violations);
     validateDamageLinkBindingReferences(

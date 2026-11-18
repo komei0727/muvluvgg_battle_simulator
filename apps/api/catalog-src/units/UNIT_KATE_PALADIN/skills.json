@@ -209,7 +209,12 @@
                   "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_ATK" },
                   "actions": [
                     { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_DAMAGE" },
-                    { "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET" }
+                    {
+                      "effectActionDefinitionId": "ACT_KATE_PALADIN_AS2_STUN_TARGET",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": ["ACT_KATE_PALADIN_AS2_DAMAGE"]
+                      }
+                    }
                   ]
                 }
               ]

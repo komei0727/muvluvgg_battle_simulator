@@ -110,8 +110,14 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LILY_HERO_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_LILY_HERO_AS2_SPEED_DOWN" },
-            { "effectActionDefinitionId": "ACT_LILY_HERO_AS2_STUN" }
+            {
+              "effectActionDefinitionId": "ACT_LILY_HERO_AS2_SPEED_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LILY_HERO_AS2_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_LILY_HERO_AS2_STUN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_LILY_HERO_AS2_DAMAGE"] }
+            }
           ]
         }
       ]

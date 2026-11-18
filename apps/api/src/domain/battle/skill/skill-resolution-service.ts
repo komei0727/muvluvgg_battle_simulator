@@ -15,6 +15,7 @@ import {
   type TargetSetResolver,
 } from "./effect-step-condition-evaluator.js";
 import type {
+  EffectActionHitCondition,
   EffectActionReference,
   EffectSequence,
   EffectStepDefinition,
@@ -63,6 +64,11 @@ export interface EffectActionApplication {
    * and default to `false` for the same reason.
    */
   readonly includeDefeated: boolean;
+  /**
+   * R-SKL-06 #4a: 参照元`EffectActionReference.hitCondition`。適用直前に、この対象が
+   * 同じEffectSequence解決で参照先DAMAGEから1ヒット以上命中を受けたかを確かめる。
+   */
+  readonly hitCondition?: EffectActionHitCondition;
 }
 
 /** R-SKL-06 #1〜#2: ACTION stepの条件評価結果と、満たされた場合の適用一覧（即時解決済み）。 */
@@ -353,6 +359,7 @@ export function resolveActionStepApplications(
         effectActionDefinitionId: actionRef.effectActionDefinitionId,
         includeDefeated,
         hits,
+        ...(actionRef.hitCondition !== undefined ? { hitCondition: actionRef.hitCondition } : {}),
       });
     }
   }

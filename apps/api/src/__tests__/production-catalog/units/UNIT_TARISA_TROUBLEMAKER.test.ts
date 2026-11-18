@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
@@ -904,4 +905,42 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
       reconstruct(initialSnapshotFor(board.units, { include: ["effects"] }), recorder.recorder),
     ).toEqual(initialSnapshotFor(applied, { include: ["effects"] }));
   });
+
+  it.each([
+    { evadedHits: 3, debuffed: false },
+    { evadedHits: 2, debuffed: true },
+    { evadedHits: 1, debuffed: true },
+    { evadedHits: 0, debuffed: true },
+  ])(
+    "IT-UNIT-TARISA-TROUBLEMAKER-011 [R-SKL-06]: AS2の3ヒットのうち先頭$evadedHitsヒットを回避した対象への攻撃力低下は、1ヒット以上命中したときだけ付く（SR-092）",
+    ({ evadedHits, debuffed }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_TARISA_TROUBLEMAKER_AS2" },
+        board: {
+          enemies: [
+            {
+              id: "enemy:front",
+              position: { column: "CENTER", row: "FRONT" },
+              state: {
+                appliedEffects: evadedHits === 0 ? [] : [evasionOf("enemy:front", evadedHits)],
+              },
+            },
+            { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+            { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+          ],
+        },
+      });
+
+      const atkDown = (observation.effectsApplied ?? []).filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_TARISA_TROUBLEMAKER_AS2_ATK_DOWN",
+      );
+      expect(atkDown.map((effect) => effect.unitId)).toEqual(debuffed ? ["enemy:front"] : []);
+      // 1ヒット54.6×5=273。命中したヒット数だけHPが減る。
+      expect(observation.hpDeltas?.["enemy:front"]).toBe(
+        evadedHits === 3 ? undefined : -273 * (3 - evadedHits),
+      );
+    },
+  );
 });

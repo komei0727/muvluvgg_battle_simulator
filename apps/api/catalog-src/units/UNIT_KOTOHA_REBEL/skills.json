@@ -242,7 +242,10 @@
                   "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED"
                 },
                 {
-                  "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN"
+                  "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED"]
+                  }
                 }
               ]
             }
@@ -273,7 +276,13 @@
                       "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_DMG_3HIT"
                     },
                     {
-                      "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN"
+                      "effectActionDefinitionId": "ACT_KOTOHA_REBEL_AS2_TARGET_DMG_DOWN",
+                      "hitCondition": {
+                        "effectActionDefinitionIds": [
+                          "ACT_KOTOHA_REBEL_AS2_DMG_3HIT_BOOSTED",
+                          "ACT_KOTOHA_REBEL_AS2_DMG_3HIT"
+                        ]
+                      }
                     }
                   ]
                 }

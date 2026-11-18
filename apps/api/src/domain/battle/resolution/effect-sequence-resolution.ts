@@ -176,6 +176,7 @@ export function* resolveEffectSequencePlan(
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
     lastDamagedTargetUnitIds: [],
+    hitTargetsByDamageAction: new Map(),
   };
   let lastEventId = context.parentEventId;
   let resolvedCount = 0;

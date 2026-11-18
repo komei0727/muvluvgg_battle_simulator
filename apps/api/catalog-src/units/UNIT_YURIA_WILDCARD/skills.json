@@ -82,7 +82,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN" }
+            {
+              "effectActionDefinitionId": "ACT_YURIA_WILDCARD_AS1_BURN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_YURIA_WILDCARD_AS1_DAMAGE"] }
+            }
           ]
         }
       ]

@@ -100,6 +100,16 @@ export interface DamagePayload {
   };
   readonly damageModifiers: readonly FormulaDefinition[];
   readonly link: { readonly enabled: boolean };
+  /**
+   * R-DMG-05 #2a: 対象ごとに最初の命中が確定した時点（`HitConfirmed`の連鎖解決後・
+   * 会心判定前）で、その対象へ定義順に付与する効果。回避された対象には付与しない。
+   * 付与後に解決する同じ攻撃の会心判定・会心契機PSが、付与済みの効果を参照できる
+   * （production例: `ACT_YIFEI_STORM_AS1_DAMAGE`の「ご指名」→同じASの会心でPS1）。
+   * 参照できるkindは`FOLLOW_UP_ON_HIT_EFFECT_KINDS`と同じで、付与経路も共有する。
+   */
+  readonly hitConfirmedEffects?: readonly {
+    readonly effectActionDefinitionId: EffectActionDefinitionId;
+  }[];
 }
 
 /**

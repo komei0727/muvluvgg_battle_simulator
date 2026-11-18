@@ -56,7 +56,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
           "actions": [
             { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF" }
+            {
+              "effectActionDefinitionId": "ACT_SUIRAN_CHAOS_AS1_DEBUFF",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_SUIRAN_CHAOS_AS1_DAMAGE"] }
+            }
           ]
         }
       ]

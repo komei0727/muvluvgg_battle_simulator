@@ -50,6 +50,48 @@ export function validateEffectActionReferences(
  * 一切一致しないsilent no-opになるため、`EFFECT_IMMUNITY`/`REMOVE_EFFECTS`の
  * payload参照と同じ`DANGLING_REFERENCE`で拒否する。
  */
+/**
+ * R-SKL-06 #4a: `actions[].hitCondition.effectActionDefinitionIds`は、同じ
+ * EffectSequenceの定義順（先行順走査）でその参照より前に現れるDAMAGEを指さなければ
+ * ならない。後ろにしか無いDAMAGEや非DAMAGEを指す条件は実行時に常に不成立となり、
+ * 付与が黙って消えるため、ロード時点で拒否する。BRANCHの別枝のように実際には
+ * 先行しない経路でも、定義順で前にあれば受理する（どの枝のDAMAGEかを列挙するのは
+ * 定義側の責務で、実行時は解決済みの命中履歴だけを見る）。
+ */
+export function validateHitConditionReferences(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const preceding = new Set<EffectActionDefinitionId>();
+  for (const ref of collectEffectActionReferences(steps)) {
+    for (const referencedId of ref.hitCondition?.effectActionDefinitionIds ?? []) {
+      const referenced = effectActions.get(referencedId);
+      if (referenced === undefined) {
+        violations.push({
+          targetId: ownerId,
+          rule: "DANGLING_REFERENCE",
+          message: `hitCondition.effectActionDefinitionIds references undefined EffectActionDefinition "${referencedId}"`,
+        });
+      } else if (referenced.kind !== "DAMAGE") {
+        violations.push({
+          targetId: ownerId,
+          rule: "TYPE_MISMATCH",
+          message: `hitCondition.effectActionDefinitionIds must reference DAMAGE, but "${referencedId}" is a ${referenced.kind}`,
+        });
+      } else if (!preceding.has(referencedId)) {
+        violations.push({
+          targetId: ownerId,
+          rule: "HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE",
+          message: `hitCondition of "${ref.effectActionDefinitionId}" references DAMAGE "${referencedId}", which is not resolved before it in definition order`,
+        });
+      }
+    }
+    preceding.add(ref.effectActionDefinitionId);
+  }
+}
+
 export function validateConditionEffectActionReferences(
   references: readonly EffectActionDefinitionId[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,

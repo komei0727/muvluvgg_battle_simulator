@@ -4710,3 +4710,144 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
     });
   });
 });
+
+describe("HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE: actions[].hitCondition (R-SKL-06 #4a)", () => {
+  function buildWith(steps: readonly EffectStepDefinitionInput[]) {
+    const defs = baseDefinitions();
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_AS2",
+      skillType: "AS",
+      cost: { resource: "AP", amount: 1 },
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: "TGT_ENEMY",
+            selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["DEFAULT"] },
+          },
+        ],
+        steps,
+      },
+      cooldown: { unit: "ACTION", count: 1 },
+      traits: {},
+      metadata: { displayName: "hitCondition AS" },
+    });
+    return () =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, skill],
+        effectActions: [...defs.effectActions, statModAction("ACT_ATK_DOWN")],
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+      });
+  }
+  const enemy = { kind: "BINDING", targetBindingId: "TGT_ENEMY" } as const;
+
+  it("UT-CAT-IDX-127 [R-SKL-06]: accepts a hitCondition referencing a DAMAGE that precedes it in the same ACTION", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+            },
+          ],
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-128 [R-SKL-06]: rejects a hitCondition whose DAMAGE is only resolved after it", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_DAMAGE_1"] },
+            },
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+          ],
+        },
+      ]),
+    ).toThrowError(/HIT_CONDITION_WITHOUT_PRECEDING_DAMAGE/);
+  });
+
+  it("UT-CAT-IDX-129 [R-SKL-06]: rejects a hitCondition referencing a non-DAMAGE EffectAction", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_ATK_DOWN" },
+            {
+              effectActionDefinitionId: "ACT_DAMAGE_1",
+              hitCondition: { effectActionDefinitionIds: ["ACT_ATK_DOWN"] },
+            },
+          ],
+        },
+      ]),
+    ).toThrowError(/TYPE_MISMATCH/);
+  });
+
+  it("UT-CAT-IDX-130 [R-SKL-06]: rejects a hitCondition referencing an undefined EffectAction", () => {
+    expect(
+      buildWith([
+        {
+          kind: "ACTION",
+          target: enemy,
+          actions: [
+            { effectActionDefinitionId: "ACT_DAMAGE_1" },
+            {
+              effectActionDefinitionId: "ACT_ATK_DOWN",
+              hitCondition: { effectActionDefinitionIds: ["ACT_MISSING"] },
+            },
+          ],
+        },
+      ]),
+    ).toThrowError(/DANGLING_REFERENCE/);
+  });
+});
+
+describe("DAMAGE hitConfirmedEffects references (R-DMG-05 #2a)", () => {
+  function damageWithHitConfirmed(id: string, referencedId: string): EffectActionDefinition {
+    return createEffectActionDefinition(
+      {
+        effectActionDefinitionId: id,
+        kind: "DAMAGE",
+        payload: {
+          damageType: "PHYSICAL",
+          formula: { kind: "SKILL_POWER", power: 1 },
+          hitConfirmedEffects: [{ effectActionDefinitionId: referencedId }],
+        },
+      },
+      "effectAction",
+    );
+  }
+
+  function build(extra: readonly EffectActionDefinition[]) {
+    const defs = baseDefinitions();
+    return () => buildCatalogIndex({ ...defs, effectActions: [...defs.effectActions, ...extra] });
+  }
+
+  it("UT-CAT-IDX-131 [R-DMG-05]: accepts hitConfirmedEffects referencing an APPLY_STAT_MOD", () => {
+    expect(
+      build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_HC_MOD"), statModAction("ACT_HC_MOD")]),
+    ).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-132 [R-DMG-05]: rejects hitConfirmedEffects referencing a missing or unsupported EffectAction", () => {
+    expect(build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_MISSING")])).toThrowError(
+      /DANGLING_REFERENCE/,
+    );
+    expect(build([damageWithHitConfirmed("ACT_DMG_HC", "ACT_DAMAGE_1")])).toThrowError(
+      /TYPE_MISMATCH/,
+    );
+  });
+});

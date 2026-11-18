@@ -3023,4 +3023,47 @@ describe("EffectActionDefinition", () => {
       }
     });
   });
+
+  describe("DAMAGE hitConfirmedEffects (R-DMG-05 #2a)", () => {
+    const damageWith = (hitConfirmedEffects: unknown) => ({
+      effectActionDefinitionId: "ACT_DAMAGE_NOMINATE",
+      kind: "DAMAGE",
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 0.9036 },
+        hitConfirmedEffects,
+      },
+    });
+
+    it("UT-CAT-ACT-149 [R-DMG-05]: maps DAMAGE hitConfirmedEffects in declaration order and omits the field when absent", () => {
+      const result = createEffectActionDefinition(
+        damageWith([{ effectActionDefinitionId: "ACT_NOMINATION" }]),
+        "effectAction",
+      );
+      expect(result.kind === "DAMAGE" && result.payload.hitConfirmedEffects).toEqual([
+        { effectActionDefinitionId: "ACT_NOMINATION" },
+      ]);
+      const plain = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DAMAGE_PLAIN",
+          kind: "DAMAGE",
+          payload: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+        },
+        "effectAction",
+      );
+      expect(plain.kind === "DAMAGE" && "hitConfirmedEffects" in plain.payload).toBe(false);
+    });
+
+    it("UT-CAT-ACT-150 [R-DMG-05]: rejects an empty, duplicated, or malformed hitConfirmedEffects", () => {
+      for (const invalid of [
+        [],
+        [{ effectActionDefinitionId: "ACT_X" }, { effectActionDefinitionId: "ACT_X" }],
+        [{ effectActionDefinitionId: "ACT_X", extra: true }],
+      ]) {
+        expect(() =>
+          createEffectActionDefinition(damageWith(invalid) as never, "effectAction"),
+        ).toThrow(DomainValidationError);
+      }
+    });
+  });
 });

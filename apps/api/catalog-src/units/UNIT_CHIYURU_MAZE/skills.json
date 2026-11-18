@@ -156,7 +156,8 @@
               },
               "actions": [
                 {
-                  "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON"
+                  "effectActionDefinitionId": "ACT_CHIYURU_MAZE_AS1_POISON",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_CHIYURU_MAZE_AS1_DAMAGE"] }
                 }
               ]
             }

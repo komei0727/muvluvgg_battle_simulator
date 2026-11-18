@@ -122,6 +122,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "piercing",
     "damageModifiers",
     "link",
+    "hitConfirmedEffects",
   ],
   HEAL: ["formula", "overheal", "distribution"],
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "evaluation", "duration"],
@@ -632,6 +633,34 @@ function createFollowUpOnHitEffects(
   return result;
 }
 
+/**
+ * R-DMG-05 #2a: DAMAGEの命中確定時付与。追撃の`onHitEffects`と同じ要素形を持ち、
+ * 同じ定義の重複は二重付与になり宣言者の意図と黙ってずれるため拒否する。
+ */
+function createDamageHitConfirmedEffects(
+  raw: unknown,
+  path: string,
+): readonly { readonly effectActionDefinitionId: EffectActionDefinitionId }[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  assertNonEmptyArray(raw, path);
+  const result = (raw as readonly unknown[]).map((entry, i) => {
+    const typed = entry as { effectActionDefinitionId?: string };
+    assertKnownKeys(typed, FOLLOW_UP_ATTACK_ON_HIT_EFFECT_ALLOWED_KEYS, `${path}[${i}]`);
+    return {
+      effectActionDefinitionId: createEffectActionDefinitionId(
+        requireField(typed.effectActionDefinitionId, `${path}[${i}].effectActionDefinitionId`),
+        `${path}[${i}].effectActionDefinitionId`,
+      ),
+    };
+  });
+  if (new Set(result.map((entry) => entry.effectActionDefinitionId)).size !== result.length) {
+    throw new DomainValidationError(path, "must not contain duplicates");
+  }
+  return result;
+}
+
 function createPayload(
   kind: EffectActionKind,
   payload: Record<string, unknown>,
@@ -714,6 +743,10 @@ function createPayload(
         assertBoolean(linkRaw.enabled, `${path}.link.enabled`);
         linkEnabled = linkRaw.enabled;
       }
+      const hitConfirmedEffects = createDamageHitConfirmedEffects(
+        payload["hitConfirmedEffects"],
+        `${path}.hitConfirmedEffects`,
+      );
       return {
         kind: "DAMAGE",
         payload: {
@@ -728,6 +761,7 @@ function createPayload(
             createFormulaDefinition(f, `${path}.damageModifiers[${i}]`, undefined),
           ),
           link: { enabled: linkEnabled },
+          ...(hitConfirmedEffects !== undefined ? { hitConfirmedEffects } : {}),
         },
       };
     }

@@ -90,7 +90,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_FARTHEST" },
           "actions": [
             { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN" }
+            {
+              "effectActionDefinitionId": "ACT_KARINA_DOWNER_AS2_ATKDOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_KARINA_DOWNER_AS2_DAMAGE"] }
+            }
           ]
         }
       ]

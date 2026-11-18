@@ -25,6 +25,7 @@ import {
   validateConditionEffectActionReferences,
   validateDamageLinkBindingReferences,
   validateEffectActionReferences,
+  validateHitConditionReferences,
   validateGrantedByScope,
   validateMixedStepTargetSetCondition,
 } from "./effect-sequence-integrity.js";
@@ -312,6 +313,12 @@ export function validateMemory(
       violations,
     );
     validateEffectActionReferences(
+      triggeredEffect.effectSequence.steps,
+      effectActions,
+      memory.memoryDefinitionId,
+      violations,
+    );
+    validateHitConditionReferences(
       triggeredEffect.effectSequence.steps,
       effectActions,
       memory.memoryDefinitionId,

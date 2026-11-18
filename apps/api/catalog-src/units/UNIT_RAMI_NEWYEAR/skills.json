@@ -184,7 +184,8 @@
               "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS2_DAMAGE"
             },
             {
-              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN"
+              "effectActionDefinitionId": "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_NEWYEAR_AS2_DAMAGE"] }
             }
           ]
         }

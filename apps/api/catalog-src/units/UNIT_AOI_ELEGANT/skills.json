@@ -81,7 +81,10 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_HP" },
           "actions": [
             { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_DAMAGE" },
-            { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI" }
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_UKIASHI",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_AS1_DAMAGE"] }
+            }
           ]
         },
         {
@@ -97,10 +100,22 @@
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_HIGHEST_HP" },
               "actions": [
-                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI" },
-                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU" },
-                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN" },
-                { "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT" }
+                {
+                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_CLEAR_UKIASHI",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_AS1_DAMAGE"] }
+                },
+                {
+                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_AS1_DAMAGE"] }
+                },
+                {
+                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_AS1_DAMAGE"] }
+                },
+                {
+                  "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
+                  "hitCondition": { "effectActionDefinitionIds": ["ACT_AOI_ELEGANT_AS1_DAMAGE"] }
+                }
               ]
             }
           ],
@@ -164,12 +179,32 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_AOI_ELEGANT_AS2_DAMAGE",
+                  "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE"
+                ]
+              }
+            }
+          ]
         },
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
-          "actions": [{ "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER" }]
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_AOI_ELEGANT_AS2_MARKER",
+              "hitCondition": {
+                "effectActionDefinitionIds": [
+                  "ACT_AOI_ELEGANT_AS2_DAMAGE",
+                  "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

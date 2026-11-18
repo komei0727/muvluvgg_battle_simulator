@@ -67,15 +67,31 @@ const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector", "optional"] 
 
 // ---- EffectActionReference (within an ACTION step) ----
 
+/**
+ * R-SKL-06 #4a: このEffectActionを、適用先の対象が同じEffectSequence解決の中で
+ * 先行して解決された`effectActionDefinitionIds`（DAMAGE）のいずれかから
+ * 1ヒット以上命中を受けた場合だけ適用する。全ヒットを回避した対象には適用しない。
+ *
+ * stepを分けずにaction参照へ持たせるのは、同じACTION内の「対象ごとに
+ * ダメージ→付与」という順序と元対象を保つためである（stepを分けると列・全体攻撃で
+ * 全対象のダメージが先に解決され、付与の順序が変わる）。
+ */
+export interface EffectActionHitCondition {
+  readonly effectActionDefinitionIds: readonly EffectActionDefinitionId[];
+}
+
 export interface EffectActionReference {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
+  readonly hitCondition?: EffectActionHitCondition;
 }
 
 export interface EffectActionReferenceInput {
   readonly effectActionDefinitionId: string;
+  readonly hitCondition?: { readonly effectActionDefinitionIds?: readonly string[] };
 }
 
-const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId"] as const;
+const EFFECT_ACTION_REFERENCE_ALLOWED_KEYS = ["effectActionDefinitionId", "hitCondition"] as const;
+const EFFECT_ACTION_HIT_CONDITION_ALLOWED_KEYS = ["effectActionDefinitionIds"] as const;
 
 // ---- EffectStepDefinition ----
 
@@ -166,6 +182,26 @@ function createEffectActionReference(
     effectActionDefinitionId: createEffectActionDefinitionId(
       input.effectActionDefinitionId,
       `${path}.effectActionDefinitionId`,
+    ),
+    ...(input.hitCondition !== undefined
+      ? { hitCondition: createEffectActionHitCondition(input.hitCondition, `${path}.hitCondition`) }
+      : {}),
+  };
+}
+
+function createEffectActionHitCondition(
+  input: NonNullable<EffectActionReferenceInput["hitCondition"]>,
+  path: string,
+): EffectActionHitCondition {
+  assertKnownKeys(input, EFFECT_ACTION_HIT_CONDITION_ALLOWED_KEYS, path);
+  const ids = input.effectActionDefinitionIds;
+  if (ids === undefined) {
+    throw new DomainValidationError(`${path}.effectActionDefinitionIds`, "is required");
+  }
+  assertNonEmptyArray(ids, `${path}.effectActionDefinitionIds`);
+  return {
+    effectActionDefinitionIds: ids.map((id, index) =>
+      createEffectActionDefinitionId(id, `${path}.effectActionDefinitionIds[${index}]`),
     ),
   };
 }
