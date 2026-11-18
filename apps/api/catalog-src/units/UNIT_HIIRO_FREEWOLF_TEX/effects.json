@@ -44,6 +44,9 @@
       "stack": { "policy": "ADD", "max": 8 },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": { "unit": "BATTLE", "count": 1 }
       }
     },
@@ -58,7 +61,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -71,7 +79,12 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -145,26 +158,6 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT",
       "count": 1
-    },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_TEX_PS1_REMOVE_ATK_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_TEX_AS1_ATK_UP"],
-      "maxRemovals": 1
-    },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_TEX_PS1_REMOVE_CRIT_DMG_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_TEX_AS1_CRIT_DMG_UP"],
-      "maxRemovals": 1
     },
     "metadata": { "tags": [] }
   },

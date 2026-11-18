@@ -49,6 +49,7 @@
         },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_TEX_EX_DEF_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -77,7 +78,8 @@
           "owner": "EFFECT_SOURCE"
         },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_TEX_EX_DEF_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {

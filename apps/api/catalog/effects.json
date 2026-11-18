@@ -588,6 +588,7 @@
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -605,7 +606,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -627,7 +629,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -2642,7 +2645,13 @@
     "payload": {
       "markerId": "MARKER_CURSE",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2657,7 +2666,9 @@
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
-        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -2673,7 +2684,9 @@
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
-        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -2809,7 +2822,13 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2822,7 +2841,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2835,7 +2859,12 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2892,26 +2921,6 @@
     "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT", "count": 1 },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_AS1_ATK_UP"],
-      "maxRemovals": 1
-    },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP"],
-      "maxRemovals": 1
-    },
     "metadata": { "tags": [] }
   },
   {
@@ -2979,7 +2988,13 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -2992,7 +3007,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -3005,7 +3025,12 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -3062,26 +3087,6 @@
     "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_TEX_PS1_REMOVE_MARKER",
     "kind": "REMOVE_MARKER",
     "payload": { "markerId": "MARKER_HIIRO_FREEWOLF_TEX_FIGHTING_SPIRIT", "count": 1 },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_TEX_PS1_REMOVE_ATK_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_TEX_AS1_ATK_UP"],
-      "maxRemovals": 1
-    },
-    "metadata": { "tags": [] }
-  },
-  {
-    "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_TEX_PS1_REMOVE_CRIT_DMG_UP",
-    "kind": "REMOVE_EFFECTS",
-    "payload": {
-      "categories": ["SPECIFIC_EFFECT"],
-      "effectActionDefinitionIds": ["ACT_HIIRO_FREEWOLF_TEX_AS1_CRIT_DMG_UP"],
-      "maxRemovals": 1
-    },
     "metadata": { "tags": [] }
   },
   {
@@ -4209,7 +4214,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -4227,7 +4232,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "KOTOHA_DAILY_EX_EX_GAIN_DOWN_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4756,13 +4761,14 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_LAYLA_NURSE_KANSATSU",
-      "stack": { "policy": "REPLACE", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "removeOnSourceDefeated": true,
         "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4779,7 +4785,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4794,7 +4801,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "LAYLA_NURSE_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4895,13 +4903,14 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_LAYLA_NURSE_TEX_KANSATSU",
-      "stack": { "policy": "REPLACE", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "removeOnSourceDefeated": true,
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4918,7 +4927,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -4933,7 +4943,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6412,7 +6423,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6429,7 +6441,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6446,7 +6459,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6462,7 +6476,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6639,7 +6654,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_TEX_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6656,7 +6672,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_TEX_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6673,7 +6690,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_TEX_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -6689,7 +6707,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 2 },
         "linkedEffectGroupId": "MAO_SUMMER_TEX_EX_KAIHOUKAN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7165,7 +7184,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7180,7 +7200,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7196,7 +7217,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7209,6 +7231,9 @@
       "probability": 0.5,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
       },
@@ -7227,7 +7252,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7243,7 +7269,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -7254,7 +7281,13 @@
     "payload": {
       "status": "GUARANTEED_HIT",
       "probability": 1,
-      "duration": { "dispellable": false, "consumption": { "kind": "OUTGOING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "consumption": { "kind": "OUTGOING_HIT", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7263,8 +7296,14 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_MERU_BESIDE_MAGOKORO_TIMED",
-      "stack": { "policy": "REFRESH", "max": 1 },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "stack": { "policy": "ADD", "max": null },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7275,7 +7314,13 @@
       "direction": "INCOMING",
       "formula": { "kind": "CONSTANT", "value": 0.1 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7287,7 +7332,13 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": -0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7299,6 +7350,9 @@
       "probability": 0.5,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "consumption": { "kind": "INCOMING_HIT", "maxCount": 2 }
       },
@@ -7314,7 +7368,13 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.0625 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7326,7 +7386,13 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.1 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "ACTION", "count": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -7336,7 +7402,13 @@
     "payload": {
       "status": "GUARANTEED_HIT",
       "probability": 1,
-      "duration": { "dispellable": false, "consumption": { "kind": "OUTGOING_HIT", "maxCount": 2 } }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "consumption": { "kind": "OUTGOING_HIT", "maxCount": 2 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -8290,7 +8362,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8303,7 +8376,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -8320,7 +8394,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8477,7 +8552,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_TEX_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8490,7 +8566,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_TEX_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -8507,7 +8584,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_TEX_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8596,13 +8674,13 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
-      "stack": { "policy": "REFRESH", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -8621,7 +8699,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8638,7 +8716,7 @@
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -8699,7 +8777,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -8717,7 +8795,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8734,7 +8812,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8776,7 +8854,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -8792,7 +8870,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -8826,7 +8904,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -8845,7 +8923,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8863,7 +8941,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8879,13 +8957,13 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF",
-      "stack": { "policy": "REFRESH", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -8904,7 +8982,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -8921,7 +8999,7 @@
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -8982,7 +9060,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -9000,7 +9078,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9017,7 +9095,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9076,7 +9154,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -9095,7 +9173,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9113,7 +9191,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9228,6 +9306,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_EX_DEF_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -9245,7 +9324,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_EX_DEF_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9458,6 +9538,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_TEX_EX_DEF_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -9475,7 +9556,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "OLGA_NADYA_BOND_TEX_EX_DEF_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -9743,7 +9825,7 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_OLGA_VETERAN_VIGILANCE",
-      "stack": { "policy": "REFRESH", "max": null },
+      "stack": { "policy": "ADD", "max": null },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }
@@ -10110,7 +10192,13 @@
     "payload": {
       "markerId": "MARKER_RAVEL_MODEL_TARGET",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10124,6 +10212,9 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
@@ -10209,7 +10300,13 @@
     "payload": {
       "markerId": "MARKER_RAVEL_MODEL_TARGET",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -10223,6 +10320,9 @@
       "stacking": { "mode": "STACKABLE" },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
@@ -12439,7 +12539,7 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
-      "stack": { "policy": "REPLACE", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 3 } }
     },
     "metadata": { "tags": [] }
@@ -12545,7 +12645,7 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
-      "stack": { "policy": "REPLACE", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "metadata": { "tags": [] }
@@ -12812,7 +12912,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -12829,7 +12930,8 @@
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
         "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -13120,6 +13222,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "URUU_SUMMER_PS1_DEF_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -13137,7 +13240,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "URUU_SUMMER_PS1_DEF_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -14428,15 +14532,14 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "decay": {
-        "unit": "ACTION",
-        "amount": 1,
-        "linkedEffects": [
-          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
-          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
-        ]
-      },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "decay": { "unit": "ACTION", "amount": 1 },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MEM_FATHERS_AND_MY_WISH_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -14446,15 +14549,14 @@
     "payload": {
       "markerId": "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT",
       "stack": { "policy": "ADD", "max": 8 },
-      "decay": {
-        "unit": "ACTION",
-        "amount": 1,
-        "linkedEffects": [
-          "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
-          "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP"
-        ]
-      },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "decay": { "unit": "ACTION", "amount": 1 },
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MEM_FATHERS_AND_MY_WISH_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
+        "timeLimit": { "unit": "BATTLE", "count": 1 }
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -14467,7 +14569,12 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MEM_FATHERS_AND_MY_WISH_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -14480,7 +14587,12 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE", "max": 8 },
-      "duration": { "dispellable": true }
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "MEM_FATHERS_AND_MY_WISH_FIGHTING_SPIRIT_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },

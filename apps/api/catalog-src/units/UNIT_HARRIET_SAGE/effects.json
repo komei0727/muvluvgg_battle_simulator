@@ -27,7 +27,13 @@
     "payload": {
       "markerId": "MARKER_CURSE",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "BATTLE", "count": 1 },
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
+      }
     },
     "metadata": { "tags": [] }
   },
@@ -42,7 +48,9 @@
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
-        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -58,7 +66,9 @@
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
-        "linkedEffectGroupId": "HARRIET_CURSE_LINK"
+        "linkedEffectGroupId": "HARRIET_CURSE_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }

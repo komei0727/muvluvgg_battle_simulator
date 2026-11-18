@@ -24,6 +24,9 @@
       },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "BATTLE",
           "count": 1
@@ -49,6 +52,9 @@
       },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": {
           "kind": "NEXT_INCOMING_ATTACK",
           "maxCount": 1
@@ -219,6 +225,9 @@
       },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "BATTLE",
           "count": 1
@@ -244,6 +253,9 @@
       },
       "duration": {
         "dispellable": true,
+        "linkedEffectGroupId": "RAVEL_MODEL_TARGET_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": {
           "kind": "NEXT_INCOMING_ATTACK",
           "maxCount": 1

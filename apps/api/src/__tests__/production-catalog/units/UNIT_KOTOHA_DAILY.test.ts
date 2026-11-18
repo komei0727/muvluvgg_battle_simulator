@@ -368,7 +368,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
 /** EXのEX獲得減少デバフを敵前列へ付与した状態を、実定義で前提として作る。 */
 const EX_GAIN_DOWN_PRECEDING: readonly PrecedingAction[] = [
   { effectActionDefinitionId: "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN_MARKER", target: "ENEMY" },
-  { effectActionDefinitionId: "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN", target: "ENEMY" },
+  {
+    effectActionDefinitionId: "ACT_KOTOHA_DAILY_EX_EX_GAIN_DOWN",
+    target: "ENEMY",
+    withPrevious: true,
+  },
 ];
 
 describe("production Catalog UNIT_KOTOHA_DAILY (【歩む先に新たな日常を】コトハ)", () => {

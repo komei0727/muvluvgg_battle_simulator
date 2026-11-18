@@ -731,8 +731,9 @@ describe("production Catalog UNIT_ANIS_SWEETDEVIL_TEX (【渚のスイートデ�
     expect(activatedPassiveSkillIds(second.chain)).toEqual(["SKL_ANIS_SWEETDEVIL_TEX_PS3"]);
 
     const subject = second.units.find((unit) => unit.battleUnitId === "ally:subject")!;
-    // 汐風は解除されないまま3+3＝6段まで伸びる（`stack ADD` / `max: null`）。
-    expect(subject.markerStates.find((marker) => marker.markerId === SHIOKAZE)?.stackCount).toBe(6);
+    // 汐風は解除されないまま3+3＝6個まで増える（`stack ADD` / `max: null`、付与分ごとの
+    // インスタンス — R-EFF-10）。
+    expect(subject.markerStates.filter((marker) => marker.markerId === SHIOKAZE)).toHaveLength(6);
     // 軽減は上書きではなく別インスタンスで、消費回数もそれぞれ3のまま独立している。
     expect(
       reductionsOf(second.units).map((effect) => ({

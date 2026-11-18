@@ -13,13 +13,13 @@
     "kind": "APPLY_MARKER",
     "payload": {
       "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_EX_DEBUFF",
-      "stack": { "policy": "REFRESH", "max": 1 },
+      "stack": { "policy": "ADD", "max": null },
       "duration": {
         "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -38,7 +38,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -55,7 +55,7 @@
         "timeLimit": { "unit": "ACTION", "count": 2, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -122,7 +122,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -140,7 +140,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -157,7 +157,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -199,7 +199,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -215,7 +215,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_PS1_GUARD_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -252,7 +252,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -271,7 +271,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -289,7 +289,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1 },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }

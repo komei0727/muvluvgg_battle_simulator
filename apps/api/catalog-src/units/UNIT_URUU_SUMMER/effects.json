@@ -70,6 +70,7 @@
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "URUU_SUMMER_PS1_DEF_DOWN_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -87,7 +88,8 @@
         "dispellable": true,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
         "linkedEffectGroupId": "URUU_SUMMER_PS1_DEF_DOWN_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }

@@ -970,8 +970,16 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const units = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_DEBUFF_MARKER", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL", target: "ENEMY" },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_DOWN",
+        target: "ENEMY",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_EX_ATK_BUFF_SEAL",
+        target: "ENEMY",
+        withPrevious: true,
+      },
     ]);
     const debuffed = units.find((unit) =>
       unit.markerStates.some(
@@ -1117,6 +1125,7 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       {
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_PS1_DEBUFF_IMMUNITY_ALLY",
         target: "ALLY",
+        withPrevious: true,
       },
     ]);
     const guarded = units.find((unit) =>

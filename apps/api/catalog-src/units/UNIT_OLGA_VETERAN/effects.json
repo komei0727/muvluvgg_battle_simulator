@@ -142,7 +142,7 @@
     "payload": {
       "markerId": "MARKER_OLGA_VETERAN_VIGILANCE",
       "stack": {
-        "policy": "REFRESH",
+        "policy": "ADD",
         "max": null
       },
       "duration": {

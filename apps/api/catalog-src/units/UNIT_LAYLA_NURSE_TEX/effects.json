@@ -66,8 +66,8 @@
     "payload": {
       "markerId": "MARKER_LAYLA_NURSE_TEX_KANSATSU",
       "stack": {
-        "policy": "REPLACE",
-        "max": 1
+        "policy": "ADD",
+        "max": null
       },
       "duration": {
         "dispellable": true,
@@ -78,7 +78,8 @@
         },
         "removeOnSourceDefeated": true,
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -106,7 +107,8 @@
           "owner": "EFFECT_SOURCE"
         },
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -129,7 +131,8 @@
           "owner": "EFFECT_SOURCE"
         },
         "linkedEffectGroupId": "LAYLA_NURSE_TEX_PS1_KANSATSU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {

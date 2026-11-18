@@ -766,7 +766,7 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
     ]);
   });
 
-  it("IT-UNIT-MERU-BESIDE-004: every 「真心」-derived definition is non-dispellable; only the battle-long variant links its buffs to the Marker, the PS1 variant expires after 2 actions", () => {
+  it("IT-UNIT-MERU-BESIDE-004 [R-EFF-09, R-EFF-10]: every 「真心」-derived definition is non-dispellable; both variants link the effects of each grant to that grant's Marker, and the PS1 variant expires after 2 actions", () => {
     const durations = Object.fromEntries(
       MAGOKORO_EFFECT_ACTION_IDS.map((id) => [id, durationOf(id)]),
     );
@@ -775,12 +775,28 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
       dispellable: false,
       linkedEffectGroupId: "MERU_BESIDE_MAGOKORO_LINK",
       linkedEffectGroupRole: "PARENT",
+      linkedEffectGroupScope: "SKILL_USE",
     });
     expect(durations["ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER"]).toEqual({
       dispellable: false,
-      linkedEffectGroupId: null,
       timeLimit: { unit: "ACTION", count: 2 },
+      linkedEffectGroupId: "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+      linkedEffectGroupRole: "PARENT",
+      linkedEffectGroupScope: "SKILL_USE",
     });
+    // 回避・必中も付与分の子にする（独自の消費で失効しても親は残る — R-EFF-09）。
+    for (const [id, duration] of Object.entries(durations)) {
+      if (id.endsWith("_MARKER")) {
+        continue;
+      }
+      expect(duration).toMatchObject({
+        linkedEffectGroupId: id.includes("_TIMED_")
+          ? "MERU_BESIDE_MAGOKORO_TIMED_LINK"
+          : "MERU_BESIDE_MAGOKORO_LINK",
+        linkedEffectGroupRole: "CHILD",
+        linkedEffectGroupScope: "SKILL_USE",
+      });
+    }
   });
 
   it("IT-UNIT-MERU-BESIDE-006: AS1's shield lasts until the caster finishes one action and is removed when the caster is defeated", () => {
@@ -861,7 +877,12 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
   it("IT-UNIT-MERU-BESIDE-007 [R-HIT-02, R-HIT-04]: the front-row 「真心」 evasion evades at 50% per hit, is consumed only by the hits it actually evades, and expires after evading two", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const holding = applyPrecedingActions(board, [
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        target: "SELF",
+        withPrevious: true,
+      },
     ]);
     const attacked = observeLifecycleDamageProbe({
       definitions: board.definitions,
@@ -911,9 +932,19 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
   it("IT-UNIT-MERU-BESIDE-008 [R-HIT-05, R-EFF-07]: the back-row 「真心」 guaranteed hit makes the holder's first two confirmed hits ignore evasion, is consumed per outgoing hit, and the third hit can be evaded again", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const holding = applyPrecedingActions(board, [
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT", target: "SELF" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT",
+        target: "SELF",
+        withPrevious: true,
+      },
       // 攻撃される側に回避を持たせ、必中が実際に回避を止めたことを観測できるようにする。
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "ENEMY" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_EVASION",
+        target: "ENEMY",
+        withPrevious: true,
+      },
     ]);
     const attacked = observeLifecycleDamageProbe({
       definitions: board.definitions,
@@ -969,11 +1000,27 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const holding = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_DMG_DOWN",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION",
+        target: "SELF",
+        withPrevious: true,
+      },
       { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_FRONT_HEAL_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
     ]);
     const observation = observeEffectExpiry({
       definitions: board.definitions,
@@ -1028,12 +1075,32 @@ describe("production Catalog UNIT_MERU_BESIDE (【隣歩む想い】桃園める
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const holding = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_MARKER", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_CRIT_DMG_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_DMG_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_BACK_GUARANTEED_HIT",
+        target: "SELF",
+        withPrevious: true,
+      },
       { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_MARKER", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_HEAL_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_MAGOKORO_TIMED_FRONT_EVASION",
+        target: "SELF",
+        withPrevious: true,
+      },
       // 解除が実際に走ったことの対照: 解除可能な通常のバフ。
       { effectActionDefinitionId: "ACT_MERU_BESIDE_PS1_ATK_UP", target: "SELF" },
     ]);
