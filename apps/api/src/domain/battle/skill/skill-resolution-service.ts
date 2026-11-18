@@ -69,6 +69,12 @@ export interface EffectActionApplication {
    * 同じEffectSequence解決で参照先DAMAGEから1ヒット以上命中を受けたかを確かめる。
    */
   readonly hitCondition?: EffectActionHitCondition;
+  /**
+   * R-SKL-06 #4a／R-INT-02: `true`ならこの適用は計画時の`targetCondition`で除外していない。
+   * 命中条件付きの適用は肩代わり・引き寄せで付与先が変わり得るため、`targetCondition`は
+   * 解決側が適用直前に実際の付与先で評価する。
+   */
+  readonly deferredTargetCondition?: boolean;
 }
 
 /** R-SKL-06 #1〜#2: ACTION stepの条件評価結果と、満たされた場合の適用一覧（即時解決済み）。 */
@@ -335,14 +341,20 @@ export function resolveActionStepApplications(
     lastResultTargets,
     triggerContext,
   );
-  const targets =
-    perTargetFilter === undefined ? resolvedTargets : resolvedTargets.filter(perTargetFilter);
   const applications: EffectActionApplication[] = [];
 
   // R-SKL-02: 対象は束縛順に処理する。
-  for (const target of targets) {
+  for (const target of resolvedTargets) {
+    const passesTargetCondition = perTargetFilter === undefined || perTargetFilter(target);
     // EffectStep ACTION: EffectActionDefinitionを定義順に適用する（05_ドメインモデル.md）。
     for (const actionRef of step.actions) {
+      // R-SKL-06 #4a／R-INT-02: 命中条件付きの適用は付与先が肩代わり者へ変わり得るため、
+      // ここでは除外せず、解決側が実際の付与先で`targetCondition`を評価する。
+      const deferTargetCondition =
+        perTargetFilter !== undefined && actionRef.hitCondition !== undefined;
+      if (!passesTargetCondition && !deferTargetCondition) {
+        continue;
+      }
       const effectAction = effectActions.get(actionRef.effectActionDefinitionId);
       const hitCount = hitCountOf(actionRef.effectActionDefinitionId, effectAction, target);
       // R-SKL-03: 各ヒットを独立して定義順に処理する。
@@ -360,6 +372,7 @@ export function resolveActionStepApplications(
         includeDefeated,
         hits,
         ...(actionRef.hitCondition !== undefined ? { hitCondition: actionRef.hitCondition } : {}),
+        ...(deferTargetCondition ? { deferredTargetCondition: true } : {}),
       });
     }
   }

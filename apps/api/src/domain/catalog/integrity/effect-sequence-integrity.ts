@@ -4,6 +4,7 @@ import type { EffectActionDefinition } from "../definitions/effect-action-defini
 import type { EffectSequence, EffectStepDefinition } from "../definitions/effect-sequence.js";
 import {
   collectEffectActionReferences,
+  collectEffectSteps,
   EFFECT_STEP_ROOT_PATH,
 } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
@@ -89,6 +90,42 @@ export function validateHitConditionReferences(
       }
     }
     preceding.add(ref.effectActionDefinitionId);
+  }
+  validateHitConditionDistribution(steps, effectActions, ownerId, violations);
+}
+
+/**
+ * R-SKL-06 #4a: 総量を対象数で等分する適用（`HEAL.distribution: EVEN`／
+ * `MODIFY_RESOURCE.operation: DISTRIBUTE`）は、最初の対象へ配る時点で分母を確定する。
+ * 同じACTIONのDAMAGEを命中条件にすると、後続対象の命中がまだ確定しておらず分母を
+ * 決められないため拒否する（先行するACTIONのDAMAGEなら確定済みで受理する）。
+ */
+function validateHitConditionDistribution(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  ownerId: string,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const step of collectEffectSteps(steps, (candidate) =>
+    candidate.kind === "ACTION" ? [candidate] : [],
+  )) {
+    const sameStepIds = new Set(step.actions.map((action) => action.effectActionDefinitionId));
+    for (const action of step.actions) {
+      const definition = effectActions.get(action.effectActionDefinitionId);
+      const distributes =
+        (definition?.kind === "HEAL" && definition.payload.distribution === "EVEN") ||
+        (definition?.kind === "MODIFY_RESOURCE" && definition.payload.operation === "DISTRIBUTE");
+      if (
+        distributes &&
+        action.hitCondition?.effectActionDefinitionIds.some((id) => sameStepIds.has(id)) === true
+      ) {
+        violations.push({
+          targetId: ownerId,
+          rule: "UNSUPPORTED_HIT_CONDITION_DISTRIBUTION",
+          message: `distributed "${action.effectActionDefinitionId}" cannot take a hitCondition on a DAMAGE in the same ACTION step; move it to a later ACTION step`,
+        });
+      }
+    }
   }
 }
 

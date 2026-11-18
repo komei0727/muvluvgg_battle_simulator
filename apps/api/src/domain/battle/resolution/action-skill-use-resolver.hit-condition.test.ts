@@ -32,6 +32,7 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
   const DAMAGE_ID = "ACT_TEST_HIT_DAMAGE";
   const DEBUFF_ID = "ACT_TEST_HIT_ATK_DOWN";
   const SELF_BUFF_ID = "ACT_TEST_HIT_SELF_BUFF";
+  const SHARED_HEAL_ID = "ACT_TEST_HIT_SHARED_HEAL";
   const EVADE = 0.1;
   const HIT = 0.9;
 
@@ -162,6 +163,14 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
       damage(hitCount, hitConfirmedEffectIds),
       statMod(DEBUFF_ID, -20),
       statMod(SELF_BUFF_ID, 10),
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: SHARED_HEAL_ID,
+          kind: "HEAL",
+          payload: { formula: { kind: "CONSTANT", value: 100 }, distribution: "EVEN" },
+        },
+        "effectAction",
+      ),
     ];
     const attackerDefinition = testUnitDefinition("UNIT_TEST_ATTACKER");
     const enemyDefinition = testUnitDefinition("UNIT_TEST_ENEMY");
@@ -369,6 +378,56 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
 
     expect(debuffCountOf(units, "enemy:1")).toBe(0);
     expect(debuffCountOf(units, "enemy:2")).toBe(0);
+  });
+
+  it.each([
+    // 被弾後: 肩代わりされた enemy:1 は無傷（HP割合1.0）、2攻撃を受けた enemy:2 は0.8。
+    { label: "the original target passes but the coverer fails", op: "GTE", enemy2Debuffs: 0 },
+    { label: "the original target fails but the coverer passes", op: "LTE", enemy2Debuffs: 2 },
+  ] as const)(
+    "UT-R-SKL-06-086 [R-SKL-06, R-INT-02]: targetCondition of a redirected hit-conditioned follow-up is judged on the unit that actually receives it ($label)",
+    ({ op, enemy2Debuffs }) => {
+      const { units } = run(
+        [
+          { kind: "ACTION", target: ENEMIES, actions: [{ effectActionDefinitionId: DAMAGE_ID }] },
+          {
+            kind: "ACTION",
+            target: ENEMIES,
+            targetCondition: {
+              kind: "TARGET_STATE",
+              target: ENEMIES,
+              field: "HP_RATIO",
+              op,
+              value: 0.95,
+            },
+            actions: [hitConditioned(DEBUFF_ID)],
+          },
+        ],
+        1,
+        [HIT, HIT],
+        1000,
+        undefined,
+        [],
+        [coverOfFirstEnemyBySecond()],
+      );
+
+      expect(debuffCountOf(units, "enemy:1")).toBe(0);
+      expect(debuffCountOf(units, "enemy:2")).toBe(enemy2Debuffs);
+    },
+  );
+
+  it("UT-R-SKL-06-087 [R-SKL-06, R-HEAL-01]: an EVEN-distributed hit-conditioned heal splits its total only among the targets that were actually hit", () => {
+    const { units } = run(
+      [
+        { kind: "ACTION", target: ENEMIES, actions: [{ effectActionDefinitionId: DAMAGE_ID }] },
+        { kind: "ACTION", target: ENEMIES, actions: [hitConditioned(SHARED_HEAL_ID)] },
+      ],
+      1,
+      [EVADE, HIT],
+    );
+
+    // enemy:2 だけが被弾（1000→900）。総量100を命中した1体で受け取る。
+    expect(units.find((u) => u.battleUnitId === "enemy:2")!.currentHp).toBe(1000);
   });
 
   describe("DAMAGE hitConfirmedEffects (R-DMG-05 #2a)", () => {

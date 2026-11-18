@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
 import { findMarkersRemovedOnSourceDefeat } from "../../../domain/battle/resolution/marker-source-defeat-service.js";
 import { removeMarkers } from "../../../domain/battle/effects/marker-removal-service.js";
 import { collectLinkedGroupCascade } from "../../../domain/battle/model/linked-effect-group.js";
@@ -1189,5 +1194,50 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     const attack = rideStandInAttack({ ...options, battleId: "B_NINA_ZINA_PS2_ATTACK" });
     expect(ps2Activations(attack.recorder)).toHaveLength(1);
     expect(subjectOf(attack.units).currentPp).toBe(board.subject.currentPp - 1);
+  });
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-012 [R-SKL-06, R-INT-02]: AS2の前列への攻撃を刻痕4個の後列が肩代わりしても、刻痕4個以上へは新規付与しない上限を実際の付与先で判定する（SR-412）", () => {
+    const coverId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    const cover: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: coverId,
+      kindKey: effectKindKeyFromDefinitionId(coverId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("enemy:back"),
+      targetUnitId: createBattleUnitId("ally:subject"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId("enemy:back"),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2" },
+      board: {
+        subject: { state: { appliedEffects: [cover] } },
+        enemies: [
+          { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          {
+            id: "enemy:back",
+            position: { column: "CENTER", row: "BACK" },
+            markers: [{ markerId: SCAR, stackCount: 4 }],
+          },
+        ],
+      },
+    });
+
+    // 前列2体への攻撃はどちらも後列が受ける。後列は刻痕4個のため上限で新規付与なし。
+    expect(observation.hpDeltas?.["enemy:front"]).toBeUndefined();
+    expect(observation.hpDeltas?.["enemy:left"]).toBeUndefined();
+    expect(observation.markers ?? []).toEqual([]);
+    expect(observation.effectsApplied ?? []).toEqual([]);
   });
 });
