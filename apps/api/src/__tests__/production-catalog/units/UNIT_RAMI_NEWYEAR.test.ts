@@ -1,4 +1,11 @@
 import { describe, expect, it } from "vitest";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
 import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
@@ -624,5 +631,41 @@ describe("production Catalog UNIT_RAMI_NEWYEAR (【大吉ハッピーニュー�
       { effectActionDefinitionId: "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN", targets: ["enemy:left"] },
     ]);
     expect(observation.effectsApplied?.map((effect) => effect.unitId)).toEqual(["enemy:left"]);
+  });
+
+  it("IT-UNIT-RAMI-NEWYEAR-006 [R-SKL-06, R-INT-02]: AS2で前列中央への攻撃を列外の後列が肩代わりすると、与ダメージ低下は元の対象ではなく肩代わりした後列に付く", () => {
+    const coverId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    const cover: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: coverId,
+      kindKey: effectKindKeyFromDefinitionId(coverId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("enemy:back"),
+      targetUnitId: createBattleUnitId("ally:subject"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId("enemy:back"),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_RAMI_NEWYEAR_AS2" },
+      board: { subject: { state: { appliedEffects: [cover] } } },
+    });
+
+    const debuffed = (observation.effectsApplied ?? [])
+      .filter((effect) => effect.effectActionDefinitionId === "ACT_RAMI_NEWYEAR_AS2_DMG_DOWN")
+      .map((effect) => effect.unitId)
+      .sort();
+    // 肩代わりは攻撃1回ごとに成立するため、列の2体への攻撃をどちらも後列が受ける。
+    expect(debuffed).toEqual(["enemy:back", "enemy:back"]);
+    expect(observation.hpDeltas?.["enemy:front"]).toBeUndefined();
   });
 });

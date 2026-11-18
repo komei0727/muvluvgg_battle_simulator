@@ -401,6 +401,10 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
     // MISS・対象戦闘不能でスキップされたヒット（`applied === false`）は会心判定自体を
     // 行っていないため数えない（DMG-003）。
     criticalHitCount: damageResult.hits.filter((hit) => hit.applied && hit.isCritical).length,
+    // R-INT-02第2項: 後続の命中条件付き効果は、最終的にダメージを受けた対象へ付ける。
+    hitDefenderUnitIds: [
+      ...new Set(damageResult.hits.filter((hit) => hit.applied).map((hit) => hit.targetUnitId)),
+    ],
     lastEventId: damageResult.lastEventId,
   };
 };

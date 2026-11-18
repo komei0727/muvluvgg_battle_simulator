@@ -16,6 +16,7 @@ import type { StatusKind } from "../../../catalog/definitions/catalog-enums.js";
 import type { DomainEventId } from "../../../shared/event-ids.js";
 import type { BattleDomainEvent, EffectActionResultKind } from "../../events/domain-event.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
+import type { BattleUnitId } from "../../../shared/ids.js";
 import {
   eventContextOf,
   findActorUnit,
@@ -42,6 +43,11 @@ export interface EffectActionOutcome {
   readonly interruptedCount: number;
   /** このapplicationで実際に適用された会心ヒット数（DAMAGE以外は常に0）。 */
   readonly criticalHitCount: number;
+  /**
+   * R-SKL-06 #4a／R-INT-02: DAMAGEで命中したヒットを実際に受けたユニット（引き寄せ・
+   * 肩代わり後の防御側、初出順・重複なし）。DAMAGE以外は持たない。
+   */
+  readonly hitDefenderUnitIds?: readonly BattleUnitId[];
   /**
    * `EffectActionCompleted.parentEventId`が指すべきイベント。`EffectActionStarting`
    * 固定ではなく、そのkindが実際に記録した最後のイベント（`DamageApplied`/

@@ -63,22 +63,45 @@ export interface LastResultState {
    * `hitCondition`は列内の別対象や後続stepを挟んでも、その対象自身の命中を参照する
    * ためである。MISS（全ヒット回避）と対象不在の`SKIPPED`は記録しない。シールド全吸収や
    * ダメージ無効で0になったヒットも命中であり、`APPLIED`として記録される。
+   *
+   * 値は「攻撃した元の対象 → そのヒットを実際に受けたユニット」。引き寄せ・肩代わり
+   * （R-INT-01/02）が成立すると両者が異なり、命中条件付きの後続効果は後者へ付く。
    */
-  readonly hitTargetsByDamageAction: Map<EffectActionDefinitionId, Set<BattleUnitId>>;
+  readonly hitTargetsByDamageAction: Map<
+    EffectActionDefinitionId,
+    Map<BattleUnitId, readonly BattleUnitId[]>
+  >;
 }
 
-/** R-SKL-06 #4a: `hitCondition`の参照先DAMAGEのいずれかから、この対象が命中を受けたか。 */
-function satisfiesHitCondition(
+/**
+ * R-SKL-06 #4a／R-INT-02第2項: 命中条件付きの適用を、実際に適用する対象ごとの適用へ
+ * 展開する。条件なしならそのまま、参照先DAMAGEのいずれも元の対象に命中していなければ
+ * 空（適用を開始しない）。命中していれば、そのヒットを最終的に受けたユニットへ向け直す
+ * — 肩代わりされた攻撃の後続効果は肩代わり者に付く。
+ */
+function applicationsForHitCondition(
   application: EffectActionApplication,
   lastResultState: LastResultState,
-): boolean {
+): readonly EffectActionApplication[] {
   if (application.hitCondition === undefined) {
-    return true;
+    return [application];
   }
-  return application.hitCondition.effectActionDefinitionIds.some(
-    (damageId) =>
-      lastResultState.hitTargetsByDamageAction.get(damageId)?.has(application.targetUnitId) ===
-      true,
+  const defenders = new Set<BattleUnitId>();
+  for (const damageId of application.hitCondition.effectActionDefinitionIds) {
+    for (const defender of lastResultState.hitTargetsByDamageAction
+      .get(damageId)
+      ?.get(application.targetUnitId) ?? []) {
+      defenders.add(defender);
+    }
+  }
+  return [...defenders].map((defender) =>
+    defender === application.targetUnitId
+      ? application
+      : {
+          ...application,
+          targetUnitId: defender,
+          hits: application.hits.map((hit) => ({ ...hit, targetUnitId: defender })),
+        },
   );
 }
 
@@ -139,6 +162,8 @@ export interface OneApplicationResult {
   readonly lastResult?: LastEffectActionResult;
   /** このapplicationで実際に適用された会心ヒット数（DAMAGE以外は常に0）。 */
   readonly criticalHitCount: number;
+  /** DAMAGEで命中したヒットを実際に受けたユニット（`EffectActionOutcome`と同じ）。 */
+  readonly hitDefenderUnitIds?: readonly BattleUnitId[];
 }
 
 /**
@@ -275,6 +300,9 @@ export function* resolveOneEffectActionApplication(
     interruptedCount: outcome.interruptedCount,
     interrupted: outcome.resultKind === "INTERRUPTED",
     criticalHitCount: outcome.criticalHitCount,
+    ...(outcome.hitDefenderUnitIds !== undefined
+      ? { hitDefenderUnitIds: outcome.hitDefenderUnitIds }
+      : {}),
     lastResult: {
       resultKind: outcome.resultKind,
       effectActionKind: effectAction.kind,
@@ -485,78 +513,89 @@ function* resolveActionApplications(
   };
 
   for (let index = 0; index < applications.length; index += 1) {
-    const application = applications[index]!;
     // R-SKL-06 #4a: 命中条件を満たさない適用は`targetCondition`で除外された対象と同じく
     // 一切開始しない（イベント・直前結果・解決数のいずれにも現れない）。判定は直前の
     // 適用まで反映した命中履歴で行うため、同じACTION内の先行DAMAGEの結果も見える。
-    if (!satisfiesHitCondition(application, lastResultState)) {
-      continue;
-    }
-    if (isActorDefeated(context, box)) {
-      finalizeStepTargets();
-      return {
+    // R-INT-02第2項: 肩代わり・引き寄せされた攻撃の後続効果は、実際にヒットを受けた
+    // ユニットへ向け直す（1つの定義上の適用が、受けたユニットごとの適用になる）。
+    const effective = applicationsForHitCondition(applications[index]!, lastResultState);
+    for (let effectiveIndex = 0; effectiveIndex < effective.length; effectiveIndex += 1) {
+      const application = effective[effectiveIndex]!;
+      const unstartedHits = (): number =>
+        countHits(effective.slice(effectiveIndex + 1)) + countHits(applications.slice(index + 1));
+      if (isActorDefeated(context, box)) {
+        finalizeStepTargets();
+        return {
+          lastEventId,
+          walkResult: walkInterrupted(
+            resolvedCount,
+            resolvedActionCount,
+            countHits([application]) + unstartedHits(),
+          ),
+        };
+      }
+
+      const applied = yield* resolveOneEffectActionApplication(
+        application,
+        box,
+        context,
         lastEventId,
-        walkResult: walkInterrupted(
-          resolvedCount,
-          resolvedActionCount,
-          countHits(applications.slice(index)),
-        ),
-      };
-    }
+        resolveShareCount(index),
+      );
+      lastEventId = applied.lastEventId;
+      resolvedCount += applied.resolvedCount;
 
-    const applied = yield* resolveOneEffectActionApplication(
-      application,
-      box,
-      context,
-      lastEventId,
-      resolveShareCount(index),
-    );
-    lastEventId = applied.lastEventId;
-    resolvedCount += applied.resolvedCount;
+      stepCriticalHitCount += applied.criticalHitCount;
 
-    stepCriticalHitCount += applied.criticalHitCount;
-
-    if (applied.lastResult !== undefined) {
-      lastResultState.current = { ...applied.lastResult, criticalHitCount: stepCriticalHitCount };
-      if (!seenActionTargetUnitIds.has(application.targetUnitId)) {
-        seenActionTargetUnitIds.add(application.targetUnitId);
-        stepActionTargetUnitIds.push(application.targetUnitId);
+      if (applied.lastResult !== undefined) {
+        lastResultState.current = {
+          ...applied.lastResult,
+          criticalHitCount: stepCriticalHitCount,
+        };
+        if (!seenActionTargetUnitIds.has(application.targetUnitId)) {
+          seenActionTargetUnitIds.add(application.targetUnitId);
+          stepActionTargetUnitIds.push(application.targetUnitId);
+        }
+        if (
+          applied.lastResult.resultKind === "APPLIED" &&
+          applied.lastResult.effectActionKind === "DAMAGE" &&
+          !seenDamagedTargetUnitIds.has(application.targetUnitId)
+        ) {
+          seenDamagedTargetUnitIds.add(application.targetUnitId);
+          stepDamagedTargetUnitIds.push(application.targetUnitId);
+        }
+        if (
+          applied.lastResult.resultKind === "APPLIED" &&
+          applied.lastResult.effectActionKind === "DAMAGE"
+        ) {
+          const hitTargets =
+            lastResultState.hitTargetsByDamageAction.get(application.effectActionDefinitionId) ??
+            new Map<BattleUnitId, readonly BattleUnitId[]>();
+          const defenders = new Set(hitTargets.get(application.targetUnitId) ?? []);
+          for (const defender of applied.hitDefenderUnitIds ?? [application.targetUnitId]) {
+            defenders.add(defender);
+          }
+          hitTargets.set(application.targetUnitId, [...defenders]);
+          lastResultState.hitTargetsByDamageAction.set(
+            application.effectActionDefinitionId,
+            hitTargets,
+          );
+        }
       }
-      if (
-        applied.lastResult.resultKind === "APPLIED" &&
-        applied.lastResult.effectActionKind === "DAMAGE" &&
-        !seenDamagedTargetUnitIds.has(application.targetUnitId)
-      ) {
-        seenDamagedTargetUnitIds.add(application.targetUnitId);
-        stepDamagedTargetUnitIds.push(application.targetUnitId);
-      }
-      if (
-        applied.lastResult.resultKind === "APPLIED" &&
-        applied.lastResult.effectActionKind === "DAMAGE"
-      ) {
-        const hitTargets =
-          lastResultState.hitTargetsByDamageAction.get(application.effectActionDefinitionId) ??
-          new Set<BattleUnitId>();
-        hitTargets.add(application.targetUnitId);
-        lastResultState.hitTargetsByDamageAction.set(
-          application.effectActionDefinitionId,
-          hitTargets,
-        );
-      }
-    }
 
-    if (applied.interrupted) {
-      finalizeStepTargets();
-      return {
-        lastEventId,
-        walkResult: walkInterrupted(
-          resolvedCount,
-          resolvedActionCount,
-          applied.interruptedCount + countHits(applications.slice(index + 1)),
-        ),
-      };
+      if (applied.interrupted) {
+        finalizeStepTargets();
+        return {
+          lastEventId,
+          walkResult: walkInterrupted(
+            resolvedCount,
+            resolvedActionCount,
+            applied.interruptedCount + unstartedHits(),
+          ),
+        };
+      }
+      resolvedActionCount += 1;
     }
-    resolvedActionCount += 1;
   }
 
   finalizeStepTargets();

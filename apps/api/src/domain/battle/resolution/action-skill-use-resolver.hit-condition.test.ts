@@ -140,6 +140,7 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
     enemyHp = 1000,
     hitConfirmedEffectIds?: readonly string[],
     firstEnemyExtraEffects: readonly AppliedEffect[] = [],
+    attackerEffects: readonly AppliedEffect[] = [],
   ): { units: readonly BattleUnit[]; events: readonly BattleDomainEvent[] } {
     const attacker = {
       ...testBattleUnit({
@@ -148,6 +149,7 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
         combatStats: { attack: 100, defense: 10, maximumHp: 1000, criticalRate: 0 },
       }),
       currentAp: 2,
+      appliedEffects: attackerEffects,
     };
     const firstEnemy = enemyUnit("enemy:1", "LEFT", enemyHp);
     const units = [
@@ -303,6 +305,70 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
     const shielded = units.find((u) => u.battleUnitId === "enemy:1")!;
     expect(shielded.currentHp).toBe(1000);
     expect(debuffedEnemies(units)).toEqual(["enemy:1"]);
+  });
+
+  /** R-INT-02: 攻撃側が保持する、`enemy:1`への攻撃を`enemy:2`が全量肩代わりする状態。 */
+  function coverOfFirstEnemyBySecond(): AppliedEffect {
+    const coverId = createEffectActionDefinitionId("ACT_TEST_HIT_COVER");
+    return {
+      effectInstanceId: createEffectInstanceId("COVER_ally:attacker"),
+      effectActionDefinitionId: coverId,
+      kindKey: effectKindKeyFromDefinitionId(coverId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("enemy:2"),
+      targetUnitId: createBattleUnitId("ally:attacker"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId("enemy:2"),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+  }
+
+  function debuffCountOf(units: readonly BattleUnit[], unitId: string): number {
+    return units
+      .find((u) => u.battleUnitId === unitId)!
+      .appliedEffects.filter(
+        (e) => e.effectActionDefinitionId === createEffectActionDefinitionId(DEBUFF_ID),
+      ).length;
+  }
+
+  it("UT-R-SKL-06-084 [R-SKL-06, R-INT-02]: when the attack on a target is covered by another unit, the hit-conditioned follow-up goes to the unit that actually took the hit, not the original target", () => {
+    // enemy:1 への攻撃は enemy:2 が肩代わりする。enemy:2 自身への攻撃は通常どおり。
+    const { units } = run(
+      sameStep,
+      1,
+      [HIT, HIT],
+      1000,
+      undefined,
+      [],
+      [coverOfFirstEnemyBySecond()],
+    );
+
+    expect(units.find((u) => u.battleUnitId === "enemy:1")!.currentHp).toBe(1000);
+    expect(debuffCountOf(units, "enemy:1")).toBe(0);
+    // 肩代わりした攻撃の分と、自身への攻撃の分で2つ。
+    expect(debuffCountOf(units, "enemy:2")).toBe(2);
+  });
+
+  it("UT-R-SKL-06-085 [R-SKL-06, R-INT-02]: a covered attack that the original target evaded entirely gives the follow-up to nobody", () => {
+    const { units } = run(
+      sameStep,
+      1,
+      [EVADE, EVADE],
+      1000,
+      undefined,
+      [],
+      [coverOfFirstEnemyBySecond()],
+    );
+
+    expect(debuffCountOf(units, "enemy:1")).toBe(0);
+    expect(debuffCountOf(units, "enemy:2")).toBe(0);
   });
 
   describe("DAMAGE hitConfirmedEffects (R-DMG-05 #2a)", () => {
