@@ -5,6 +5,7 @@ import {
   type AdditionalAttackHitSpec,
 } from "./additional-attack-hit.js";
 import type { DamageEventContext, DamageHitOutcome, DamageStep } from "./damage-event-context.js";
+import { unitForCalculation } from "./damage-hit-chain.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
@@ -64,9 +65,11 @@ export function* applyAttackBonusAttacksSteps(
     return { lastEventId, interrupted: false };
   }
   const holder = working.get(attackerUnitId);
-  const bonuses = (holder?.appliedEffects ?? []).filter(
-    (effect) => effect.isAttackDamageBonus === true,
-  );
+  // R-EFF-07: 同じstepの別の攻撃が使い切って失効を待っている追加攻撃バフは、この攻撃では
+  // 誘発しない。
+  const bonuses = (
+    holder === undefined ? [] : unitForCalculation(context, holder).appliedEffects
+  ).filter((effect) => effect.isAttackDamageBonus === true);
   if (bonuses.length === 0) {
     // 追加攻撃バフを保持していなければ未解決の追加攻撃も存在しない。
     return { lastEventId, interrupted: false };

@@ -93,7 +93,12 @@ export function* absorbBeforeHitPointsSteps(
     if (holder === undefined) {
       break;
     }
-    const absorption = absorbFromShieldPool(holder, remaining, shieldType);
+    const absorption = absorbFromShieldPool(
+      holder,
+      remaining,
+      shieldType,
+      context.suspendedEffectInstanceIds,
+    );
     if (absorption.change === undefined) {
       continue;
     }

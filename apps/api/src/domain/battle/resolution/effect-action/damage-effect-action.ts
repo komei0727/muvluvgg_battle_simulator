@@ -28,7 +28,10 @@ import {
   skillTypeOf,
   type EffectActionGroupContext,
 } from "./effect-action-group-context.js";
-import { buildConsumeEffectDurationHooks } from "./effect-duration-consumption.js";
+import {
+  buildConsumeEffectDurationHooks,
+  suspendedEffectInstanceIdsFor,
+} from "./effect-duration-consumption.js";
 import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
 
 /**
@@ -204,24 +207,22 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
 }
 
 /**
- * R-EFF-07: 同じstepの別のDAMAGEが使い切った攻撃側の効果を除き、能力値を計算し直した
- * 攻撃側を返すview。除く効果が無ければ`undefined`（攻撃側をそのまま使う）。
+ * R-EFF-07: 同じstepの別の攻撃が使い切って失効を待っている効果（この攻撃は消費していない
+ * もの）を除き、能力値を計算し直したユニットを返すview。攻撃側・被攻撃側の別を問わない。
+ * 除く効果を保持していなければユニットをそのまま返す。
  */
-function attackerViewWithout(
-  suspendedEffectInstanceIds: ReadonlySet<EffectInstanceId> | undefined,
+function unitViewWithout(
+  suspendedEffectInstanceIds: ReadonlySet<EffectInstanceId>,
   context: EffectActionGroupContext,
-): ((attacker: BattleUnit) => BattleUnit) | undefined {
-  if (suspendedEffectInstanceIds === undefined || suspendedEffectInstanceIds.size === 0) {
-    return undefined;
-  }
-  return (attacker) => {
-    const appliedEffects = attacker.appliedEffects.filter(
+): (unit: BattleUnit) => BattleUnit {
+  return (unit) => {
+    const appliedEffects = unit.appliedEffects.filter(
       (effect) => !suspendedEffectInstanceIds.has(effect.effectInstanceId),
     );
-    if (appliedEffects.length === attacker.appliedEffects.length) {
-      return attacker;
+    if (appliedEffects.length === unit.appliedEffects.length) {
+      return unit;
     }
-    const withoutSuspended = { ...attacker, appliedEffects };
+    const withoutSuspended = { ...unit, appliedEffects };
     return {
       ...withoutSuspended,
       combatStats: computeCombatStats(
@@ -274,19 +275,16 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   // 扱わない。
   const targetAlreadyDefeated =
     !application.includeDefeated && isDefeated(requireUnit(box.units, application.targetUnitId));
-  const {
-    consumeEffectDuration,
-    finalizeConsumedEffectDurations,
-    finalizeConsumedEffectDurationsExceptHeldBy,
-  } = buildConsumeEffectDurationHooks(context, input.attack?.scope);
-  // R-EFF-07: 範囲攻撃は対象ごとの適用にまたがる1回の攻撃のため、攻撃側が使い切った効果の
-  // 失効はその攻撃の最後の適用まで待つ（途中で失効させると2体目以降に補正が乗らない）。
-  // 被攻撃側の効果はこの対象への適用で役目を終えるため、ここで失効させる。
+  const { consumeEffectDuration, finalizeConsumedEffectDurations } =
+    buildConsumeEffectDurationHooks(context, input.attack?.scope);
+  // R-EFF-07: 範囲攻撃は対象ごとの適用にまたがる1回の攻撃のため、消費で0になった効果の
+  // 失効はその攻撃の最後の適用まで待つ（途中で失効させると2体目以降・肩代わりの2回目に
+  // 効かない）。その間、同じstepの別のDAMAGEの計算からは除く。
   const finalizesAttack = input.attack === undefined || input.attack.final;
-  const finalize = finalizesAttack
-    ? finalizeConsumedEffectDurations
-    : finalizeConsumedEffectDurationsExceptHeldBy(currentActor.battleUnitId);
-  const attackerView = attackerViewWithout(input.attack?.suspendedEffectInstanceIds, context);
+  const suspendedEffectInstanceIds =
+    input.attack === undefined
+      ? new Set<EffectInstanceId>()
+      : suspendedEffectInstanceIdsFor(input.attack.scope);
   const skillType = skillTypeOf(context);
   const damageGen = applyDamageActionSteps(
     currentActor,
@@ -301,8 +299,13 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       // R-CFS-02（DMG-009）: 混乱はASの攻撃だけに働く。
       ...(skillType !== undefined ? { skillType } : {}),
       consumeEffectDuration,
-      finalizeConsumedEffectDurations: finalize,
-      ...(attackerView !== undefined ? { attackerView } : {}),
+      ...(finalizesAttack ? { finalizeConsumedEffectDurations } : {}),
+      ...(suspendedEffectInstanceIds.size > 0
+        ? {
+            suspendedEffectInstanceIds,
+            unitView: unitViewWithout(suspendedEffectInstanceIds, context),
+          }
+        : {}),
       includeDefeated: application.includeDefeated,
       // R-TEX-02／R-TEX-03: 演習状態とブレイク解決hookは`eventContextOf`が組で載せる
       // （上の spread に含まれる）。ここで個別に足すと片方だけ渡す配線ミスを許してしまう。

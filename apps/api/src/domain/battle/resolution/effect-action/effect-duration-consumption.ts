@@ -9,6 +9,7 @@ import type { ConsumptionKind } from "../../../catalog/definitions/catalog-enums
 import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
+import type { EffectInstanceId } from "../../../shared/event-ids.js";
 
 /**
  * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は「効果ownerが次に攻撃/攻撃対象に
@@ -30,18 +31,60 @@ const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set(
 /**
  * R-EFF-07: 1回の攻撃（1 DAMAGE EffectAction参照の全対象・全ヒット）の間で共有する
  * `NEXT_*_ATTACK`消費の状態。ACTION stepは対象ごとに`actions`を並べて解決するため、
- * 同じ攻撃が複数の適用（対象）にまたがる。消費の記録と遅延失効を適用ごとに閉じると、
- * 最初の対象の解決後に効果が失効して2体目以降に補正が乗らない。
+ * 同じ攻撃が複数の適用（対象）にまたがり、別のDAMAGE（別の攻撃）の適用と交互に進む。
+ *
+ * 消費で0になったインスタンスは、それを消費した攻撃の全適用が終わるまで失効させず
+ * （肩代わりで同じ保持者が同じ攻撃を何度受けても効く）、その間は消費していない攻撃からは
+ * 見えなくする（{@link suspendedEffectInstanceIdsFor}）。失効は、そのインスタンスを消費した
+ * 攻撃のうち最後に終わったものの終了時に行う。
  */
 export interface AttackConsumptionScope {
   /** この攻撃で既に1回分消費したインスタンス（`保持ユニット|インスタンスID`）。 */
   readonly consumedInstanceKeys: Set<string>;
-  /** 消費で0になり、この攻撃の終了まで失効を遅らせているインスタンス。 */
+  /** 消費で0になり、失効を待っているインスタンス。 */
   readonly pendingExpirySeeds: ExpirationSeed[];
+  /** 同じstepで解決する攻撃（自身を含む）。失効の引き継ぎと非表示の判定に使う。 */
+  readonly siblings: AttackConsumptionScope[];
+  finished: boolean;
 }
 
-export function createAttackConsumptionScope(): AttackConsumptionScope {
-  return { consumedInstanceKeys: new Set(), pendingExpirySeeds: [] };
+/** `siblings`を渡すと、同じstepの攻撃としてそこへ加わる。 */
+export function createAttackConsumptionScope(
+  siblings: AttackConsumptionScope[] = [],
+): AttackConsumptionScope {
+  const scope: AttackConsumptionScope = {
+    consumedInstanceKeys: new Set(),
+    pendingExpirySeeds: [],
+    siblings,
+    finished: false,
+  };
+  siblings.push(scope);
+  return scope;
+}
+
+function instanceKeyOf(seed: {
+  readonly battleUnitId: BattleUnitId;
+  readonly effectInstanceId: EffectInstanceId;
+}): string {
+  return `${seed.battleUnitId}|${seed.effectInstanceId}`;
+}
+
+/**
+ * R-EFF-07: この攻撃の計算から除く効果。同じstepの攻撃が使い切って失効を待っている
+ * インスタンスのうち、この攻撃自身は消費していないもの。
+ */
+export function suspendedEffectInstanceIdsFor(
+  scope: AttackConsumptionScope,
+): ReadonlySet<EffectInstanceId> {
+  const suspended = new Set<EffectInstanceId>();
+  for (const sibling of scope.siblings) {
+    for (const seed of sibling.pendingExpirySeeds) {
+      if (!scope.consumedInstanceKeys.has(instanceKeyOf(seed))) {
+        suspended.add(seed.effectInstanceId);
+      }
+    }
+  }
+  return suspended;
 }
 
 /**
@@ -71,10 +114,7 @@ function waitsForActionCompletion(
  * 属するkindは、同じ攻撃（`attackScope`）の中で各インスタンスを1回だけ消費し、0になった
  * インスタンスは即座には失効させず`attackScope.pendingExpirySeeds`へ貯める。
  * `finalizeConsumedEffectDurations`がそれをまとめて失効させる。呼び出し側は攻撃の最後の
- * 適用で`finalizeConsumedEffectDurations`を、途中の適用で
- * `finalizeConsumedEffectDurationsExceptHeldBy(攻撃側)`を渡す。被攻撃側が保持する効果は
- * その対象への適用が終われば同じ攻撃で再び使われないため、後続の対象を待たずに失効させ、
- * 同じ対象への別のDAMAGE（別の攻撃）へ持ち越さない。
+ * 適用でだけ`finalizeConsumedEffectDurations`を渡す。
  *
  * `APPLY_STATUS`もR-EFF-07の`STATUS_BLOCKED`消費で`consumeEffectDuration`だけを使う。
  */
@@ -86,9 +126,6 @@ export function buildConsumeEffectDurationHooks(
   readonly finalizeConsumedEffectDurations: NonNullable<
     DamageEventContext["finalizeConsumedEffectDurations"]
   >;
-  readonly finalizeConsumedEffectDurationsExceptHeldBy: (
-    keptHolderUnitId: BattleUnitId,
-  ) => NonNullable<DamageEventContext["finalizeConsumedEffectDurations"]>;
   readonly beginNextAttack: NonNullable<DamageEventContext["beginNextAttack"]>;
 } {
   let attackScope = initialAttackScope;
@@ -123,7 +160,7 @@ export function buildConsumeEffectDurationHooks(
       const seeds: ExpirationSeed[] = [];
       for (const plannedChange of planned.changes) {
         // 多段ヒットの2ヒット目以降・2体目以降の対象は、同じ攻撃の続きであり新たな1回ではない。
-        const attackKey = `${plannedChange.battleUnitId}|${plannedChange.effectInstanceId}`;
+        const attackKey = instanceKeyOf(plannedChange);
         if (perAttack && attackScope.consumedInstanceKeys.has(attackKey)) {
           continue;
         }
@@ -186,39 +223,45 @@ export function buildConsumeEffectDurationHooks(
       return { units: expiry.units, lastEventId: expiry.lastEventId };
     };
 
-  const finalizeWhere = (
-    expiresNow: (seed: ExpirationSeed) => boolean,
-  ): NonNullable<DamageEventContext["finalizeConsumedEffectDurations"]> =>
-    function* (units, parentEventId) {
-      const pending = attackScope.pendingExpirySeeds;
-      const seeds = pending.filter(expiresNow);
-      if (seeds.length === 0) {
-        return { units, lastEventId: parentEventId };
-      }
-      const kept = pending.filter((seed) => !expiresNow(seed));
-      pending.splice(0, pending.length, ...kept);
-      const expiry = yield* expireEffectsSteps(
-        eventContext,
-        units,
-        seeds,
-        context.definitions.effectActions,
-        parentEventId,
+  // 攻撃の終了。失効を待つインスタンスのうち、まだ終わっていない同じstepの攻撃も消費して
+  // いるもの（その攻撃の残りの適用でも効く）は、その攻撃へ失効を引き継ぐ。
+  const finalizeConsumedEffectDurations: NonNullable<
+    DamageEventContext["finalizeConsumedEffectDurations"]
+  > = function* (units, parentEventId) {
+    const scope = attackScope;
+    scope.finished = true;
+    const pending = scope.pendingExpirySeeds.splice(0, scope.pendingExpirySeeds.length);
+    const seeds: ExpirationSeed[] = [];
+    for (const seed of pending) {
+      const heir = scope.siblings.find(
+        (sibling) =>
+          sibling !== scope &&
+          !sibling.finished &&
+          sibling.consumedInstanceKeys.has(instanceKeyOf(seed)),
       );
-      return { units: expiry.units, lastEventId: expiry.lastEventId };
-    };
-  const finalizeConsumedEffectDurations = finalizeWhere(() => true);
-  const finalizeConsumedEffectDurationsExceptHeldBy = (keptHolderUnitId: BattleUnitId) =>
-    finalizeWhere((seed) => seed.battleUnitId !== keptHolderUnitId);
+      if (heir === undefined) {
+        seeds.push(seed);
+      } else {
+        heir.pendingExpirySeeds.push(seed);
+      }
+    }
+    if (seeds.length === 0) {
+      return { units, lastEventId: parentEventId };
+    }
+    const expiry = yield* expireEffectsSteps(
+      eventContext,
+      units,
+      seeds,
+      context.definitions.effectActions,
+      parentEventId,
+    );
+    return { units: expiry.units, lastEventId: expiry.lastEventId };
+  };
 
   // 前の攻撃の遅延失効は呼び出し側が`finalizeConsumedEffectDurations`で確定済み。
   const beginNextAttack = (): void => {
     attackScope = createAttackConsumptionScope();
   };
 
-  return {
-    consumeEffectDuration,
-    finalizeConsumedEffectDurations,
-    finalizeConsumedEffectDurationsExceptHeldBy,
-    beginNextAttack,
-  };
+  return { consumeEffectDuration, finalizeConsumedEffectDurations, beginNextAttack };
 }

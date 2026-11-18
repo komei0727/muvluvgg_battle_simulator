@@ -556,6 +556,204 @@ describe("applyEffectActionGroups", () => {
     expect(consumptionChanges(recorder)).toEqual([["down-1", 1, 0]]);
   });
 
+  it("UT-R-EFF-07-025 [R-EFF-07][R-INT-02]: a unit covering two targets of the same DAMAGE keeps its one-attack shield for both covered applications", () => {
+    const shieldId = createEffectActionDefinitionId("ACT_ONE_ATTACK_SHIELD");
+    const shieldDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+    };
+    const shield: EffectActionDefinition = {
+      kind: "APPLY_SHIELD",
+      effectActionDefinitionId: shieldId,
+      metadata: { tags: [] },
+      payload: { formula: { kind: "CONSTANT", value: 1000 }, duration: shieldDuration },
+    };
+    const coverId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    const coverer = unit("COVERER", "ENEMY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("shield-1"),
+          effectActionDefinitionId: shieldId,
+          kindKey: effectKindKeyFromDefinitionId(shieldId),
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("COVERER"),
+          targetUnitId: createBattleUnitId("COVERER"),
+          magnitude: 1000,
+          categories: ["SHIELD"],
+          shield: { shieldType: null, remaining: 1000 },
+          duration: { definition: shieldDuration, consumptionRemaining: 1 },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    // 攻撃者の攻撃を`COVERER`が全量肩代わりする（R-INT-02）。
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("cover-1"),
+          effectActionDefinitionId: coverId,
+          kindKey: effectKindKeyFromDefinitionId(coverId),
+          duplicate: true,
+          sourceUnitId: createBattleUnitId("COVERER"),
+          targetUnitId: createBattleUnitId("ACTOR"),
+          magnitude: 0,
+          categories: ["DEBUFF"],
+          cover: {
+            covererUnitId: createBattleUnitId("COVERER"),
+            damageShareRate: 1,
+            guardRate: 0,
+            actionKinds: ["DAMAGE"],
+          },
+          duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const front = unit("FRONT", "ENEMY");
+    const back = unit("BACK", "ENEMY");
+    const attack = damageAction("ACT_ATTACK", 1);
+    const { recorder, result } = resolveAttackSteps(
+      [actor, front, back, coverer],
+      [attack, shield],
+      [attackStep(0, [attack], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    const absorbed = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "ShieldConsumed")
+      .map((e) => (e.payload as { absorbed: number }).absorbed);
+    expect(absorbed).toEqual([10, 10]);
+    expect(consumptionChanges(recorder)).toEqual([["shield-1", 1, 0]]);
+    const finalCoverer = result.units.find((u) => u.battleUnitId === coverer.battleUnitId)!;
+    expect(finalCoverer.currentHp).toEqual(coverer.currentHp);
+    expect(finalCoverer.appliedEffects).toEqual([]);
+  });
+
+  it("UT-R-EFF-07-026 [R-EFF-07]: an outgoing buff with two uses, used once by each of two DAMAGE actions, still covers every target of both", () => {
+    const atkBuff = consumedStatMod("ACT_ATK_BUFF", "ATTACK", 0.4, {
+      kind: "NEXT_OUTGOING_ATTACK",
+      maxCount: 2,
+    });
+    const actor = unit("ACTOR", "ALLY", {
+      combatStats: { ...unit("A", "ALLY").combatStats, attack: 28 },
+      appliedEffects: [consumedInstance("buff-1", atkBuff, createBattleUnitId("ACTOR"), 2)],
+    });
+    const front = unit("FRONT", "ENEMY");
+    const back = unit("BACK", "ENEMY");
+    const first = damageAction("ACT_FIRST", 1);
+    const second = damageAction("ACT_SECOND", 1);
+    const { recorder, result } = resolveAttackSteps(
+      [actor, front, back],
+      [first, second, atkBuff],
+      [attackStep(0, [first, second], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    const attackerAttacks = recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageCalculated")
+      .map((e) => (e.payload as { attackerAttack: number }).attackerAttack);
+    expect(attackerAttacks).toEqual([28, 28, 28, 28]);
+    expect(consumptionChanges(recorder)).toEqual([
+      ["buff-1", 2, 1],
+      ["buff-1", 1, 0],
+    ]);
+    const finalActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(finalActor.appliedEffects).toEqual([]);
+  });
+
+  it("UT-R-EFF-07-027 [R-EFF-07][R-DMG-06]: a bonus attack hit is part of its own DAMAGE — an outgoing next-attack modifier used by the first DAMAGE does not reach the second DAMAGE's bonus hits", () => {
+    const damageUpId = createEffectActionDefinitionId("ACT_DMG_UP");
+    const damageUpDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+    };
+    const damageUp: EffectActionDefinition = {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: damageUpId,
+      metadata: { tags: [] },
+      payload: {
+        direction: "OUTGOING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 1 },
+        stacking: { mode: "STACKABLE" },
+        duration: damageUpDuration,
+      },
+    };
+    const bonusId = createEffectActionDefinitionId("ACT_ATTACK_DAMAGE_BONUS");
+    const bonus: EffectActionDefinition = {
+      kind: "APPLY_ATTACK_DAMAGE_BONUS",
+      effectActionDefinitionId: bonusId,
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 5 },
+        duration: {
+          timeLimit: { unit: "BATTLE", count: 1 },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const actorUnitId = createBattleUnitId("ACTOR");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("dmg-up-1"),
+          effectActionDefinitionId: damageUpId,
+          kindKey: effectKindKeyFromDefinitionId(damageUpId),
+          duplicate: true,
+          sourceUnitId: actorUnitId,
+          targetUnitId: actorUnitId,
+          magnitude: 1,
+          categories: ["BUFF"],
+          damageModifier: { direction: "OUTGOING", damageType: null },
+          duration: { definition: damageUpDuration, consumptionRemaining: 1 },
+          appliedTurnNumber: 1,
+        },
+        {
+          effectInstanceId: createEffectInstanceId("bonus-1"),
+          effectActionDefinitionId: bonusId,
+          kindKey: effectKindKeyFromDefinitionId(bonusId),
+          duplicate: true,
+          sourceUnitId: actorUnitId,
+          targetUnitId: actorUnitId,
+          magnitude: 5,
+          categories: ["BUFF"],
+          isAttackDamageBonus: true,
+          duration: {
+            definition: {
+              timeLimit: { unit: "BATTLE", count: 1 },
+              dispellable: true,
+              linkedEffectGroupId: null,
+            },
+            timeLimitRemaining: 1,
+          },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const front = unit("FRONT", "ENEMY");
+    const back = unit("BACK", "ENEMY");
+    const first = damageAction("ACT_FIRST", 1);
+    const second = damageAction("ACT_SECOND", 1);
+    const { recorder } = resolveAttackSteps(
+      [actor, front, back],
+      [first, second, damageUp, bonus],
+      [attackStep(0, [first, second], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    const bonusDamages = recorder
+      .getEvents()
+      .filter(
+        (e) =>
+          e.eventType === "DamageCalculated" &&
+          (e.payload as { effectActionDefinitionId: string }).effectActionDefinitionId === bonusId,
+      )
+      .map((e) => (e.payload as { finalDamage: number }).finalDamage);
+    expect(bonusDamages).toEqual([10, 5, 10, 5]);
+  });
+
   it("UT-R-EFF-07-021 [R-EFF-07]: an ACTION-scoped consumption stays (at 0) through later attacks of the same action instead of expiring at the end of the first attack", () => {
     const atkBuff = consumedStatMod("ACT_ATK_BUFF", "ATTACK", 0.4, {
       kind: "NEXT_OUTGOING_ATTACK",

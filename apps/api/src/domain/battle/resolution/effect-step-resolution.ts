@@ -18,7 +18,7 @@ import type {
   EffectStepDefinition,
 } from "../../catalog/definitions/effect-sequence.js";
 import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
-import type { DomainEventId, EffectInstanceId } from "../../shared/event-ids.js";
+import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
@@ -589,6 +589,7 @@ function* resolveActionApplications(
   // R-EFF-07: 同じDAMAGE参照の適用（対象ごと）は全体で1回の攻撃。分配グループと同じ
   // 参照単位のキーで消費状態を共有し、その参照の最後の適用で遅延させた失効を確定する。
   const attackScopes = new Map<string, AttackConsumptionScope>();
+  const stepAttacks: AttackConsumptionScope[] = [];
   const lastIndexByGroup = new Map<string, number>();
   shareGroupKeys.forEach((groupKey, index) => lastIndexByGroup.set(groupKey, index));
   const attackOf = (
@@ -596,29 +597,18 @@ function* resolveActionApplications(
     isLastRecipient: boolean,
   ): EffectActionApplicationInput["attack"] => {
     const groupKey = shareGroupKeys[index]!;
-    const scope = attackScopes.get(groupKey) ?? createAttackConsumptionScope();
+    const scope = attackScopes.get(groupKey) ?? createAttackConsumptionScope(stepAttacks);
     attackScopes.set(groupKey, scope);
-    const suspendedEffectInstanceIds = new Set<EffectInstanceId>();
-    for (const [otherKey, other] of attackScopes) {
-      if (otherKey === groupKey) {
-        continue;
-      }
-      for (const seed of other.pendingExpirySeeds) {
-        if (seed.battleUnitId === context.actorUnitId) {
-          suspendedEffectInstanceIds.add(seed.effectInstanceId);
-        }
-      }
-    }
-    return {
-      scope,
-      final: isLastRecipient && lastIndexByGroup.get(groupKey) === index,
-      suspendedEffectInstanceIds,
-    };
+    return { scope, final: isLastRecipient && lastIndexByGroup.get(groupKey) === index };
   };
   // 攻撃の最後の適用が開始されなかった場合（命中条件で除外・使用者の戦闘不能で中断）も、
-  // 0になった効果を次の攻撃へ持ち越さないよう、stepの終わりで失効させる。
+  // 0になった効果を次の攻撃へ持ち越さないよう、stepの終わりで失効させる。stepが終われば
+  // どの攻撃も続かないため、先に全攻撃を終了扱いにして失効の引き継ぎ先を無くす。
   const flushAttackScopes = function* (): Generator<EffectResolutionStep, void, void> {
-    for (const scope of attackScopes.values()) {
+    for (const scope of stepAttacks) {
+      scope.finished = true;
+    }
+    for (const scope of stepAttacks) {
       if (scope.pendingExpirySeeds.length === 0) {
         continue;
       }

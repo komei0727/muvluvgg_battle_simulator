@@ -183,12 +183,16 @@ export interface DamageEventContext {
    * 呼び出し側が注入する。未指定、または遅延対象が無ければ何もしない。
    */
   /**
-   * R-EFF-07: このヒットの計算に使う攻撃側。同じACTION stepの別のDAMAGE（別の攻撃）が
-   * 使い切り、その攻撃の最後の対象まで失効を待っている攻撃側の効果を除いた姿を返す。
-   * 計算（命中・会心・貫通・与ダメージ補正・ダメージ式）でだけ使い、`working`へは
-   * 書き戻さない。未指定なら攻撃側そのもの。
+   * R-EFF-07: 同じACTION stepの別のDAMAGE（別の攻撃）が使い切り、その攻撃の終了まで失効を
+   * 待っている効果のうち、この攻撃が消費していないもの。この攻撃の計算と吸収には参加させない。
    */
-  readonly attackerView?: (attacker: BattleUnit) => BattleUnit;
+  readonly suspendedEffectInstanceIds?: ReadonlySet<EffectInstanceId>;
+  /**
+   * R-EFF-07: {@link suspendedEffectInstanceIds}を除いて能力値を計算し直したユニット。
+   * 攻撃側・防御側の命中・回避・会心・貫通・補正・ダメージ式・無効の判定でだけ使い、
+   * `working`へは書き戻さない。未指定ならユニットそのもの。
+   */
+  readonly unitView?: (unit: BattleUnit) => BattleUnit;
   /**
    * R-EFF-07: 以後のヒットを新しい1回の攻撃として数え始める。1つの`DamageEventContext`で
    * 複数の攻撃を順に解決する呼び出し（追撃ライダーごとの追撃、R-FUP-01）が、前の攻撃の

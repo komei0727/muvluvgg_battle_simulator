@@ -25,12 +25,9 @@ export function findUnit(
   return unit;
 }
 
-/** R-EFF-07: このヒットの計算に使う攻撃側（{@link DamageEventContext.attackerView}）。 */
-export function attackerForCalculation(
-  context: DamageEventContext,
-  attacker: BattleUnit,
-): BattleUnit {
-  return context.attackerView?.(attacker) ?? attacker;
+/** R-EFF-07: このヒットの計算に使うユニット（{@link DamageEventContext.unitView}）。 */
+export function unitForCalculation(context: DamageEventContext, unit: BattleUnit): BattleUnit {
+  return context.unitView?.(unit) ?? unit;
 }
 
 /**

@@ -9,7 +9,7 @@ import { resolveEffectiveAccuracyMode, resolveEvasion } from "./hit-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import {
-  attackerForCalculation,
+  unitForCalculation,
   consumeAndExpire,
   driveRemovalSteps,
   findUnit,
@@ -151,8 +151,8 @@ export function* observeHitSteps(
     );
     return { kind: "SKIP", lastEventId };
   }
-  const attackerAfterTiming = attackerForCalculation(context, afterTiming.attacker);
-  const targetAfterTiming = afterTiming.target;
+  const attackerAfterTiming = unitForCalculation(context, afterTiming.attacker);
+  const targetAfterTiming = unitForCalculation(context, afterTiming.target);
 
   // R-HIT-02/R-HIT-04: 対象の有効な回避効果を判定する（暗闇/R-HIT-03は
   // `resolveEffectSequencePlan`のスキル使用単位ゲートで既に判定済み — MISSに
@@ -303,7 +303,7 @@ export function* observeHitSteps(
   // （`CRITICAL_GUARANTEE`/`CRITICAL_PREVENTION`）を実効値へ畳み込んでから判定する。
   // 使用者を同じ最新状態から取り直すのはR-HIT-05の必中付与と同じ理由で、直前の連鎖が
   // これらの効果を付与・失効させ得るためである。
-  const attackerBeforeCritical = attackerForCalculation(context, beforeCritical.attacker);
+  const attackerBeforeCritical = unitForCalculation(context, beforeCritical.attacker);
   const effectiveCriticalMode = resolveEffectiveCriticalMode(
     attackerBeforeCritical,
     profile.criticalMode,
