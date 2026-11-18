@@ -754,6 +754,62 @@ describe("applyEffectActionGroups", () => {
     expect(bonusDamages).toEqual([10, 5, 10, 5]);
   });
 
+  it("UT-R-EFF-07-028 [R-EFF-07][R-DMG-05]: the DamageWillBeApplied snapshot records only the modifiers effective for its own DAMAGE, matching DamageCalculated", () => {
+    const damageUpId = createEffectActionDefinitionId("ACT_DMG_UP");
+    const damageUpDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: null,
+      consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+    };
+    const damageUp: EffectActionDefinition = {
+      kind: "APPLY_DAMAGE_MOD",
+      effectActionDefinitionId: damageUpId,
+      metadata: { tags: [] },
+      payload: {
+        direction: "OUTGOING",
+        damageType: null,
+        formula: { kind: "CONSTANT", value: 1 },
+        stacking: { mode: "STACKABLE" },
+        duration: damageUpDuration,
+      },
+    };
+    const actorUnitId = createBattleUnitId("ACTOR");
+    const actor = unit("ACTOR", "ALLY", {
+      appliedEffects: [
+        {
+          effectInstanceId: createEffectInstanceId("dmg-up-1"),
+          effectActionDefinitionId: damageUpId,
+          kindKey: effectKindKeyFromDefinitionId(damageUpId),
+          duplicate: true,
+          sourceUnitId: actorUnitId,
+          targetUnitId: actorUnitId,
+          magnitude: 1,
+          categories: ["BUFF"],
+          damageModifier: { direction: "OUTGOING", damageType: null },
+          duration: { definition: damageUpDuration, consumptionRemaining: 1 },
+          appliedTurnNumber: 1,
+        },
+      ],
+    });
+    const front = unit("FRONT", "ENEMY");
+    const back = unit("BACK", "ENEMY");
+    const first = damageAction("ACT_FIRST", 1);
+    const second = damageAction("ACT_SECOND", 1);
+    const { recorder } = resolveAttackSteps(
+      [actor, front, back],
+      [first, second, damageUp],
+      [attackStep(0, [first, second], [front.battleUnitId, back.battleUnitId], 1)],
+    );
+
+    const outgoingOf = (eventType: "DamageWillBeApplied" | "DamageCalculated") =>
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === eventType)
+        .map((e) => (e.payload as { outgoingDamageMultiplier: number }).outgoingDamageMultiplier);
+    expect(outgoingOf("DamageCalculated")).toEqual([2, 1, 2, 1]);
+    expect(outgoingOf("DamageWillBeApplied")).toEqual([2, 1, 2, 1]);
+  });
+
   it("UT-R-EFF-07-021 [R-EFF-07]: an ACTION-scoped consumption stays (at 0) through later attacks of the same action instead of expiring at the end of the first attack", () => {
     const atkBuff = consumedStatMod("ACT_ATK_BUFF", "ATTACK", 0.4, {
       kind: "NEXT_OUTGOING_ATTACK",

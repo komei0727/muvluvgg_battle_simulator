@@ -362,9 +362,10 @@ export function* observeHitSteps(
   const willBeAppliedEventsStart = context.recorder.getEvents().length;
   // R-DMG-04（DMG-002）: この時点の集計結果をsnapshotとして載せる。
   // 下の連鎖が軽減効果を付け外しし得るため、確定値は`DamageCalculated`側で改めて集計する。
+  // R-EFF-07: snapshotもこの攻撃で有効な効果だけで集計する（`DamageCalculated`と揃える）。
   const willBeAppliedMultipliers = composeDamageModifiers({
-    attacker: afterCriticalCheck.attacker,
-    defender: afterCriticalCheck.target,
+    attacker: unitForCalculation(context, afterCriticalCheck.attacker),
+    defender: unitForCalculation(context, afterCriticalCheck.target),
     damageType: profile.damageType,
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
   });
