@@ -572,11 +572,13 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * R-SKL-06 #4a（`hitCondition.scope: TRIGGER_SKILL_USE`）: 原因イベントが属する
-   * スキル使用が1ヒット以上命中させたユニット。`HitConfirmed`はMISS（回避）の
-   * ヒットでは発行されず、シールド全吸収・ダメージ無効のヒットでは発行されるため、
-   * 共通の命中条件（MISSだけを不成立にする）と同じ単位になる。記録済みイベントを
-   * 走査するため、その条件を持つPSの発動時だけ呼ぶ。
+   * R-SKL-06 #4a（`hitCondition.scope: TRIGGER_SKILL_USE`）: 原因イベントが属するスキル使用が
+   * 1ヒット以上命中させた元の対象。`HitConfirmed`はMISS（回避）のヒットでは発行されず、
+   * シールド全吸収・ダメージ無効のヒットでは発行されるため、共通の命中条件（MISSだけを
+   * 不成立にする）と同じ単位になる。`HitConfirmed`は防御介入の評価より前に発行されるため、
+   * 肩代わり・引き寄せされた攻撃でも攻撃した元の対象が記録される — 攻撃の後に発動する
+   * PSは、肩代わり者ではなく元の対象へ向かう。記録済みイベントを走査するため、その条件を
+   * 持つPSの発動時だけ呼ぶ。
    */
   private hitUnitIdsOfCausingSkillUse(event: TriggerCandidateEvent): ReadonlySet<BattleUnitId> {
     const skillUseId = this.skillUseIdOfCausingEvent(event);

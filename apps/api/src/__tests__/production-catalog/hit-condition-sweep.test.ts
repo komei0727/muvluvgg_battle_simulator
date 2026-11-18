@@ -65,6 +65,11 @@ function use(
 describe("production hitCondition sweep (R-SKL-06 #4a)", () => {
   it("IT-CAT-HITCOND-000: the production Catalog declares hitCondition on general AS follow-up effects", () => {
     expect(HIT_CONDITIONED.length).toBeGreaterThanOrEqual(50);
+    // 正例（命中時に条件付き効果が開始される）の確認が全件スキップされていないこと。
+    // 分岐・`targetCondition`の外に置いた命中条件付き効果は大半のスキルが持つ。
+    expect(
+      HIT_CONDITIONED.filter((entry) => entry.hasTopLevelConditioned).length,
+    ).toBeGreaterThanOrEqual(50);
   });
 
   it.each(HIT_CONDITIONED.map((entry) => [entry.skillDefinitionId, entry] as const))(

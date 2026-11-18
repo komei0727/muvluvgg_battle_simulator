@@ -137,7 +137,7 @@ export interface EffectActionGroupContext {
   readonly triggerEventPayload?: Readonly<Record<string, unknown>>;
   /**
    * R-SKL-06 #4a: このPSを発動させたスキル使用（契機イベントの`skillUseId`）が
-   * 1ヒット以上命中させたユニット（命中確定時の対象）。`hitCondition.scope:
+   * 1ヒット以上命中させた元の対象（肩代わり・引き寄せの向け直し前）。`hitCondition.scope:
    * TRIGGER_SKILL_USE`だけが参照する。契機がスキル使用に属さない場合、AS/EX使用、
    * Memory由来の解決では`undefined`のままで、その条件は常に不成立になる。
    */

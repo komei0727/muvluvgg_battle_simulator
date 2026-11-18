@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createSkillDefinitionId,
+} from "../../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
 import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
 import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
 import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
-import { createActionId } from "../../../domain/shared/event-ids.js";
-import { createBattleId } from "../../../domain/shared/ids.js";
+import { createActionId, createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleId, createBattleUnitId } from "../../../domain/shared/ids.js";
 import {
   loadProductionSnapshot,
   noMissNoCrit,
@@ -638,6 +645,54 @@ describe("production Catalog UNIT_CLARA_TSUNDERE (【正々堂々なミス・ツ
         skillDefinitionId: "SKL_CLARA_TSUNDERE_PS1",
         remaining: 1,
       });
+    },
+  );
+
+  it.each([
+    { skillDefinitionId: "SKL_CLARA_TSUNDERE_AS1", asDebuffs: [] as readonly string[] },
+    {
+      skillDefinitionId: "SKL_CLARA_TSUNDERE_AS2",
+      asDebuffs: ["ACT_CLARA_TSUNDERE_AS2_DEF_DOWN", "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN"],
+    },
+  ])(
+    "IT-UNIT-CLARA-TSUNDERE-009 [R-SKL-06, R-INT-02] (SR-046): $skillDefinitionId の攻撃を後列が肩代わりしても、攻撃の後に発動するPS1の防御力低下は肩代わりした後列ではなく元の対象へ付く（AS自身の命中条件付き低下は肩代わりした後列へ付く）",
+    ({ skillDefinitionId, asDebuffs }) => {
+      const coverId = createEffectActionDefinitionId("ACT_TEST_COVER");
+      const cover: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("TEST_COVER"),
+        effectActionDefinitionId: coverId,
+        kindKey: effectKindKeyFromDefinitionId(coverId),
+        duplicate: true,
+        sourceUnitId: createBattleUnitId("enemy:back"),
+        targetUnitId: createBattleUnitId("ally:subject"),
+        magnitude: 0,
+        categories: ["DEBUFF"],
+        cover: {
+          covererUnitId: createBattleUnitId("enemy:back"),
+          damageShareRate: 1,
+          guardRate: 0,
+          actionKinds: ["DAMAGE"],
+        },
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId },
+        board: { subject: { state: { appliedEffects: [cover] } } },
+      });
+
+      const holders = (effectActionDefinitionId: string) =>
+        (observation.effectsApplied ?? [])
+          .filter((effect) => effect.effectActionDefinitionId === effectActionDefinitionId)
+          .map((effect) => effect.unitId);
+      expect(observation.hpDeltas?.["enemy:front"]).toBeUndefined();
+      expect(observation.hpDeltas?.["enemy:back"]).toBeLessThan(0);
+      for (const id of asDebuffs) {
+        expect(holders(id)).toEqual(["enemy:back"]);
+      }
+      expect(holders("ACT_CLARA_TSUNDERE_PS1_DEF_DOWN")).toEqual(["enemy:front"]);
     },
   );
 });

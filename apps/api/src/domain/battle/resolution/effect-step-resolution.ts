@@ -88,8 +88,8 @@ function applicationsForHitCondition(
     return [application];
   }
   if ("scope" in application.hitCondition) {
-    // 契機のスキル使用の命中は、肩代わりの向け直し前の対象（`HitConfirmed`の対象）で
-    // 記録する。`TRIGGER_TARGET`が指すのも元の対象であり、同じ単位で照合する。
+    // 攻撃の後に発動するPSは、肩代わり者ではなく攻撃した元の対象（`TRIGGER_TARGET`と
+    // 同じ単位）へ向かう。DAMAGE参照の命中条件と違い、付与先を向け直さない。
     return context.triggerSkillUseHitUnitIds?.has(application.targetUnitId) === true
       ? [application]
       : [];

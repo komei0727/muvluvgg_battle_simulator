@@ -28,8 +28,9 @@ function collect(
     switch (step.kind) {
       case "ACTION": {
         // `targetCondition`付きstep（浮足・状態異常を持つ対象だけ等）は既定盤面で
-        // 対象が居ないため、分岐の中と同じく「必ず起きる」側に数えない。
-        const unconditionalStep = topLevel && step.targetCondition === undefined;
+        // 対象が居ないため、分岐の中と同じく「必ず起きる」側に数えない。省略した
+        // `targetCondition`はCatalog読み込み時に`TRUE`へ正規化される。
+        const unconditionalStep = topLevel && step.targetCondition.kind === "TRUE";
         for (const action of step.actions) {
           if (
             action.hitCondition !== undefined &&
