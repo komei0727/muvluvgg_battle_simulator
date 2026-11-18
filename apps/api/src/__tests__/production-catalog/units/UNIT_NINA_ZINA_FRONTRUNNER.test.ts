@@ -1240,4 +1240,41 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
     expect(observation.markers ?? []).toEqual([]);
     expect(observation.effectsApplied ?? []).toEqual([]);
   });
+
+  it.each([
+    { existing: 3, expectedScars: 4, debuffed: true },
+    { existing: 4, expectedScars: 4, debuffed: false },
+  ])(
+    "IT-UNIT-NINA-ZINA-FRONTRUNNER-013 [R-SKL-06]: AS2は刻痕$existing個の敵へ命中すると、今回の刻痕と対応する攻撃力−8%・与ダメージ−5%を同じ判定でまとめて付与するか、まとめて付与しない（SR-412）",
+    ({ existing, expectedScars, debuffed }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_NINA_ZINA_FRONTRUNNER_AS2" },
+        // 敵は前列中央の1体だけにし、刻痕最少選択と横一列の対象をその1体に固定する。
+        board: {
+          enemies: [
+            {
+              id: "enemy:front",
+              position: { column: "CENTER", row: "FRONT" },
+              markers: [{ markerId: SCAR, stackCount: existing }],
+            },
+          ],
+        },
+      });
+
+      const scarAfter =
+        observation.markers?.find(
+          (marker) => marker.unitId === "enemy:front" && marker.markerId === SCAR,
+        )?.stackCount ?? existing;
+      expect(scarAfter).toBe(expectedScars);
+      expect(
+        (observation.effectsApplied ?? []).map((effect) => effect.effectActionDefinitionId).sort(),
+      ).toEqual(
+        debuffed
+          ? ["ACT_NINA_ZINA_FRONTRUNNER_SCAR_ATK_DOWN", "ACT_NINA_ZINA_FRONTRUNNER_SCAR_DMG_DOWN"]
+          : [],
+      );
+    },
+  );
 });

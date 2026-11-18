@@ -422,14 +422,40 @@ function* resolveActionApplications(
   let lastEventId = startEventId;
   let resolvedCount = 0;
   let resolvedActionCount = 0;
+  // 先送りした`targetCondition`の判定結果を「元の対象×実際の付与先」ごとに保持する。
+  // 同じ対象への`actions`（マーカーと対応する付随デバフ等）は1つの付与分であり、先行
+  // actionの付与が条件の成否を変えても、後続actionだけが欠落してはならない
+  // （`SKL_NINA_ZINA_FRONTRUNNER_AS2`: 刻痕3→4個でも今回の刻痕と2つの低下は揃って付く）。
+  // 別の元の対象から向け直された付与は別の付与分として改めて判定する。
+  const recipientJudgements = new Map<string, boolean>();
+  const passesDeferredTargetCondition = (
+    original: EffectActionApplication,
+    candidate: EffectActionApplication,
+    remember: boolean,
+  ): boolean => {
+    if (candidate.deferredTargetCondition !== true || recipientFilter === undefined) {
+      return true;
+    }
+    const key = `${original.targetUnitId}->${candidate.targetUnitId}`;
+    const judged = recipientJudgements.get(key);
+    if (judged !== undefined) {
+      return judged;
+    }
+    const passes = recipientFilter(requireUnit(box.units, candidate.targetUnitId));
+    if (remember) {
+      recipientJudgements.set(key, passes);
+    }
+    return passes;
+  };
   // 命中条件で除外・付与先へ展開し、先送りした`targetCondition`を付与先で評価した、
-  // 実際に開始する適用の一覧。
-  const recipientsOf = (application: EffectActionApplication): readonly EffectActionApplication[] =>
-    applicationsForHitCondition(application, lastResultState).filter(
-      (candidate) =>
-        candidate.deferredTargetCondition !== true ||
-        recipientFilter === undefined ||
-        recipientFilter(requireUnit(box.units, candidate.targetUnitId)),
+  // 実際に開始する適用の一覧。`remember`は解決時だけ真にする（分配の分母を数える
+  // 先読みで、まだその対象の順番が来ていない判定を確定させないため）。
+  const recipientsOf = (
+    application: EffectActionApplication,
+    remember: boolean,
+  ): readonly EffectActionApplication[] =>
+    applicationsForHitCondition(application, lastResultState).filter((candidate) =>
+      passesDeferredTargetCondition(application, candidate, remember),
     );
   const stepActionTargetUnitIds: BattleUnitId[] = [];
   const seenActionTargetUnitIds = new Set<BattleUnitId>();
@@ -518,7 +544,7 @@ function* resolveActionApplications(
     // 時点で拒否する（`UNSUPPORTED_HIT_CONDITION_DISTRIBUTION`）。
     const count = applications
       .filter((_, candidateIndex) => shareGroupKeys[candidateIndex] === groupKey)
-      .flatMap((candidate) => recipientsOf(candidate))
+      .flatMap((candidate) => recipientsOf(candidate, false))
       .filter(
         (candidate) =>
           (distributesToDefeatedTargets && candidate.includeDefeated) ||
@@ -538,7 +564,7 @@ function* resolveActionApplications(
     // 適用まで反映した命中履歴で行うため、同じACTION内の先行DAMAGEの結果も見える。
     // R-INT-02第2項: 肩代わり・引き寄せされた攻撃の後続効果は、実際にヒットを受けた
     // ユニットへ向け直す（1つの定義上の適用が、受けたユニットごとの適用になる）。
-    const effective = recipientsOf(applications[index]!);
+    const effective = recipientsOf(applications[index]!, true);
     for (let effectiveIndex = 0; effectiveIndex < effective.length; effectiveIndex += 1) {
       const application = effective[effectiveIndex]!;
       const unstartedHits = (): number =>
