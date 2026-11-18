@@ -90,6 +90,16 @@ describe("effectCategoriesOf", () => {
     expect([...categories]).toEqual(["BUFF"]);
   });
 
+  it("UT-R-EFF-02-031: classifies a zero-magnitude APPLY_STAT_MOD as neither BUFF nor DEBUFF", () => {
+    for (const magnitude of [0, -0]) {
+      const categories = effectCategoriesOf(
+        effect({ magnitude }),
+        statModDefinition("ACT_DEF_DOWN_BY_MARKERS"),
+      );
+      expect([...categories]).toEqual([]);
+    }
+  });
+
   it("UT-R-EFF-02-002: classifies a negative-magnitude APPLY_STAT_MOD as DEBUFF", () => {
     const categories = effectCategoriesOf(
       effect({ magnitude: -0.3 }),

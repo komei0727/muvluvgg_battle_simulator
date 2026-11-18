@@ -17,6 +17,8 @@ import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   emitEffectDurationReducedEvents,
   expireEffects,
+  settleGrantScopeDecrement,
+  settleGrantScopeDecrementSteps,
   type ExpirationSeed,
 } from "../effects/duration-expiry-service.js";
 import {
@@ -25,6 +27,8 @@ import {
 } from "../effects/break-resolution-service.js";
 import type { BreakDeferral } from "../model/break-deferral.js";
 import {
+  decrementGrantingSkillUseDurations,
+  decrementOutOfActionGrantDurations,
   decrementSkillUseEffectDurations,
   reapplySkillUseDurationDecrement,
 } from "../model/applied-effect-duration.js";
@@ -1171,12 +1175,35 @@ export class PassiveActivationRuntime {
     if (units !== undefined) {
       this.units = units;
     }
+    // `timeLimit.countGrantAction`: 行動の外（戦闘開始時・ターン開始時・ターン終了時）で
+    // 付与した効果には完了を待つ行動が無いため、付与した解決フェーズの終了で減らす。
+    // 行動内のスコープでは行動の完了処理（`action-completion.ts`）が既に減らしている。
+    let scopeCursor = cursor;
+    if (this.context.actionId === undefined) {
+      const settled = settleGrantScopeDecrement(
+        {
+          recorder: this.context.recorder,
+          turnNumber: this.context.turnNumber,
+          cycleNumber: this.context.cycleNumber,
+          resolutionScopeId: this.context.resolutionScopeId,
+          rootEventId: this.context.rootEventId,
+          onFactEventForPassiveChain: (event, unitsForChain) =>
+            this.onFactEvent(event, unitsForChain).units,
+        },
+        this.units,
+        decrementOutOfActionGrantDurations(this.units),
+        this.context.definitions.effectActions,
+        cursor,
+      );
+      this.units = settled.units;
+      scopeCursor = settled.lastEventId;
+    }
     const result = finalizeResolutionScopeService(
       this.resolutionScopeLifecycleContext(),
       this.context.definitions.unitDefinitions,
       this.context.definitions.skillDefinitions,
       this.units,
-      cursor,
+      scopeCursor,
       (event, currentUnits) => this.onFactEvent(event, currentUnits),
     );
     this.units = result.units;
@@ -1742,6 +1769,35 @@ export class PassiveActivationRuntime {
       yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(recorded) };
       lastEventId = recorded.eventId;
     }
+
+    // `timeLimit.countGrantSkillUse`: 「このPS中のみ」の補正は完了イベントの前に消す
+    // （AS/EXの`resolveSkillUse`と同じ位置）。候補は検出だけ行い発動は後段フェーズへ回す。
+    // 1インスタンスの失効ごとに保留キューへ検出させてから次へ進む（R-ATM-01）。
+    const grantScopeSteps = settleGrantScopeDecrementSteps(
+      {
+        recorder: this.context.recorder,
+        turnNumber: this.context.turnNumber,
+        cycleNumber: this.context.cycleNumber,
+        ...(this.context.actionId !== undefined ? { actionId: this.context.actionId } : {}),
+        skillUseId,
+        resolutionScopeId: this.context.resolutionScopeId,
+        rootEventId: this.context.rootEventId,
+      },
+      this.units,
+      decrementGrantingSkillUseDurations(this.units, skillUseId),
+      this.context.definitions.effectActions,
+      lastEventId,
+    );
+    let grantScopeStep = grantScopeSteps.next();
+    while (!grantScopeStep.done) {
+      this.units = grantScopeStep.value.units;
+      for (const event of grantScopeStep.value.events) {
+        yield { kind: "DEFERRED_EVENT", event: this.toTriggerEvent(event) };
+      }
+      grantScopeStep = grantScopeSteps.next(this.units);
+    }
+    this.units = grantScopeStep.value.units;
+    lastEventId = grantScopeStep.value.lastEventId;
 
     // 設計方針B: `PassiveInterrupted`/`PassiveResolved`の選択は
     // `outcome.status`（実際に解決が最後まで進んだか、PS所有者戦闘不能で

@@ -223,10 +223,7 @@
       },
       "duration": {
         "dispellable": true,
-        "timeLimit": {
-          "unit": "ACTION",
-          "count": 1
-        }
+        "timeLimit": { "unit": "SKILL_USE", "count": 1, "countGrantSkillUse": true }
       }
     },
     "metadata": {

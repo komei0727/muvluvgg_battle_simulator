@@ -427,7 +427,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_SHOUKA_BEACH_TEX_PS1_DEF_UP",
           magnitude: 0.085,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
       ],
       resources: [

@@ -294,6 +294,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ROSIE_CAMPAIGN_PS3_DMG_DOWN",
           magnitude: -0.75,
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
           consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
       ],

@@ -180,14 +180,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         "enemy:front": -843,
         "enemy:back": -702,
       },
-      effectsApplied: [
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_CHIYURU_MAZE_AS1_DEF_DOWN",
-          magnitude: -0.2,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

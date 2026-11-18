@@ -147,20 +147,20 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           // 反射量は反射のたびに「直前に受けたダメージ」から評価し直すため、
           // 付与時の`magnitude`は0のままになる。
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_LUNA_HUNGRY_PS1_REDIRECT",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_LUNA_HUNGRY_PS1_COVER",
           // 肩代わり率100%（ダメージを全部引き受ける）。
           magnitude: 1,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
       ],
       resources: [

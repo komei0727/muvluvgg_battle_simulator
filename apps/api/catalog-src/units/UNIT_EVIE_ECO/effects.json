@@ -49,7 +49,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }
@@ -64,7 +64,7 @@
       "appliesTo": { "actionKinds": ["DAMAGE"] },
       "duration": {
         "dispellable": true,
-        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE" }
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "BATTLE", "countGrantAction": true }
       }
     },
     "metadata": { "tags": [] }

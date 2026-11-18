@@ -254,12 +254,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       effectsApplied: [
         {
           unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_ATK_UP",
-          magnitude: 0.3,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        {
-          unitId: "ally:subject",
           effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT",
           magnitude: 1500,
           timeLimit: { unit: "ACTION", count: 2 },
@@ -648,17 +642,7 @@ describe("production Catalog UNIT_OLGA_VETERAN (【歴戦の鉄母】オルガ�
         { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_SUBUNIT", targets: ["ally:subject"] },
       ],
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_OLGA_VETERAN_PS1_ATK_UP",
-          magnitude: 0.3,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        grantedSubUnit,
-        grantedSubUnit,
-        grantedSubUnit,
-      ],
+      effectsApplied: [grantedSubUnit, grantedSubUnit, grantedSubUnit],
       effectsRemoved: [
         {
           unitId: "ally:subject",

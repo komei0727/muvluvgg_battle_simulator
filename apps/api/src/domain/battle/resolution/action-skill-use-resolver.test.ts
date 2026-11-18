@@ -1506,4 +1506,263 @@ describe("resolveSkillUse", () => {
     expect(observationIndex).toBeGreaterThanOrEqual(0);
     expect(firstStepIndex).toBeGreaterThan(observationIndex);
   });
+  it("UT-R-EFF-01-071 (countGrantSkillUse): each in-skill effect's EffectExpired reaches PS detection, and the reacting PS fires after the skill use completes", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_GRANT_SCOPE");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_GRANT_SCOPE");
+    const inSkill = (id: string): EffectActionDefinition => ({
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId(id),
+      metadata: { tags: [] },
+      payload: {
+        status: "STEALTH",
+        duration: {
+          timeLimit: { unit: "SKILL_USE", count: 1, countGrantSkillUse: true },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    });
+    const first = inSkill("ACT_IN_SKILL_1");
+    const second = inSkill("ACT_IN_SKILL_2");
+    const base = selfStatusSkill("SKL_IN_SKILL", "ACT_IN_SKILL_1");
+    const skill: SkillDefinition = {
+      ...base,
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [
+              { effectActionDefinitionId: first.effectActionDefinitionId },
+              { effectActionDefinitionId: second.effectActionDefinitionId },
+            ],
+          },
+        ],
+      },
+    };
+    const psOnExpiry: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_ON_IN_SKILL_EXPIRY"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "EffectExpired",
+          category: "FACT",
+          sourceSelector: "ANY",
+          targetSelector: "ANY",
+          condition: { kind: "TRUE" },
+        },
+      ],
+      counterUpdates: [],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "PSOnInSkillExpiry", tags: [] },
+    };
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [psOnExpiry.skillDefinitionId]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([[psOnExpiry.skillDefinitionId, psOnExpiry]]),
+      new Map([
+        [first.effectActionDefinitionId, first],
+        [second.effectActionDefinitionId, second],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const types = events.map((event) => event.eventType);
+    const expired = events.filter((event) => event.eventType === "EffectExpired");
+    expect(expired).toHaveLength(2);
+    // 失効はスキル使用の完了イベントより前、それを契機にするPSは完了後の後段フェーズで発動する。
+    const completedAt = types.indexOf("SkillUseCompleted");
+    expect(events.indexOf(expired.at(-1)!)).toBeLessThan(completedAt);
+    const activations = events.filter(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          psOnExpiry.skillDefinitionId,
+    );
+    expect(activations.length).toBeGreaterThan(0);
+    expect(events.indexOf(activations[0]!)).toBeGreaterThan(completedAt);
+  });
+  it("UT-R-EFF-01-072 (countGrantSkillUse): an in-PS effect expires before PassiveResolved, and a PS reacting to that EffectExpired fires afterwards", () => {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR_PS_GRANT_SCOPE");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY_PS_GRANT_SCOPE");
+    const inPs: EffectActionDefinition = {
+      kind: "APPLY_STATUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_IN_PS"),
+      metadata: { tags: [] },
+      payload: {
+        status: "STEALTH",
+        duration: {
+          timeLimit: { unit: "SKILL_USE", count: 1, countGrantSkillUse: true },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const hit = damageEffectAction("ACT_HIT_PS_GRANT_SCOPE");
+    const attackSkill = trivialAttackSkill("SKL_ATTACK_PS_GRANT_SCOPE", "ACT_HIT_PS_GRANT_SCOPE");
+    const passive = (
+      id: string,
+      trigger: SkillDefinition["triggers"][number],
+      actions: readonly string[],
+    ): SkillDefinition => ({
+      skillDefinitionId: createSkillDefinitionId(id),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [trigger],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps:
+          actions.length === 0
+            ? []
+            : [
+                {
+                  kind: "ACTION",
+                  stepCondition: { kind: "TRUE" },
+                  targetCondition: { kind: "TRUE" },
+                  target: { kind: "SELF" },
+                  actions: actions.map((action) => ({
+                    effectActionDefinitionId: createEffectActionDefinitionId(action),
+                  })),
+                },
+              ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: id, tags: [] },
+    });
+    const grantingPs = passive(
+      "SKL_PS_GRANTS_IN_PS",
+      {
+        eventType: "SkillUseCompleted",
+        category: "FACT",
+        sourceSelector: "SELF",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+      ["ACT_IN_PS"],
+    );
+    const reactingPs = passive(
+      "SKL_PS_ON_IN_PS_EXPIRY",
+      {
+        eventType: "EffectExpired",
+        category: "FACT",
+        sourceSelector: "ANY",
+        targetSelector: "ANY",
+        condition: { kind: "TRUE" },
+      },
+      [],
+    );
+    const actor = unit("ACTOR", "ALLY", {
+      unitDefinitionId: actorUnitDefinitionId,
+      currentAp: 3,
+      currentPp: 3,
+    });
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [
+          actorUnitDefinitionId,
+          unitDefinitionOf(actorUnitDefinitionId, [
+            grantingPs.skillDefinitionId,
+            reactingPs.skillDefinitionId,
+          ]),
+        ],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map([
+        [grantingPs.skillDefinitionId, grantingPs],
+        [reactingPs.skillDefinitionId, reactingPs],
+      ]),
+      new Map([
+        [inPs.effectActionDefinitionId, inPs],
+        [hit.effectActionDefinitionId, hit],
+      ]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    const result = resolveSkillUse(
+      actor,
+      attackSkill,
+      "AS",
+      "AS",
+      [actor, enemy],
+      definitions,
+      new SequenceRandomSource([]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const expiredAt = events.findIndex((event) => event.eventType === "EffectExpired");
+    const resolvedAt = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveResolved" &&
+        (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          grantingPs.skillDefinitionId,
+    );
+    const reactedAt = events.findIndex(
+      (event) =>
+        event.eventType === "PassiveActivated" &&
+        (event.payload as { skillDefinitionId: string }).skillDefinitionId ===
+          reactingPs.skillDefinitionId,
+    );
+    expect(expiredAt).toBeGreaterThan(-1);
+    expect(expiredAt).toBeLessThan(resolvedAt);
+    expect(reactedAt).toBeGreaterThan(resolvedAt);
+    const actorAfter = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+    expect(actorAfter.appliedEffects).toEqual([]);
+  });
 });

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   consumeEffectDurations,
   decrementActionEffectDurations,
+  decrementGrantingSkillUseDurations,
+  decrementOutOfActionGrantDurations,
   decrementSkillUseEffectDurations,
   decrementTurnEffectDurations,
   reapplySkillUseDurationDecrement,
@@ -167,6 +169,46 @@ describe("decrementActionEffectDurations", () => {
     expect(result.changes).toHaveLength(0);
     const updated = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     expect(updated.appliedEffects[0]!.duration.timeLimitRemaining).toBe(2);
+  });
+
+  it("UT-R-EFF-04-022 (R-EFF-04 #2 countGrantAction): decrements on the completion of the granting action whoever acted, and leaves other actions to the owner rule", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const enemy = unit("enemy-1");
+    const grantingActionId = createActionId("B_1:action:1");
+    const definition: DurationDefinition = {
+      timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_TARGET", countGrantAction: true },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    const effect = effectOn(target, source, definition, {
+      duration: { definition, timeLimitRemaining: 1, grantedActionId: grantingActionId },
+    });
+    target = withEffects(target, [effect]);
+
+    // 付与した行動の行動者（敵）は owner（保持者）ではないが、付与した行動の完了で減る。
+    const granting = decrementActionEffectDurations(
+      [source, target, enemy],
+      enemy.battleUnitId,
+      grantingActionId,
+    );
+    expect(granting.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: effect.effectInstanceId,
+        unit: "ACTION",
+        before: 1,
+        after: 0,
+      },
+    ]);
+
+    // 別の行動では通常どおり owner の行動だけが減らす。
+    const otherAction = decrementActionEffectDurations(
+      [source, target, enemy],
+      enemy.battleUnitId,
+      createActionId("B_1:action:2"),
+    );
+    expect(otherAction.changes).toHaveLength(0);
   });
 
   it("UT-R-EFF-04-006 (R-EFF-04 #3/#4): decrements by 1 when the owner (EFFECT_TARGET) completes a later action, not on other units' actions", () => {
@@ -372,6 +414,94 @@ describe("decrementActionEffectDurations", () => {
     );
 
     expect(result.changes).toHaveLength(0);
+  });
+});
+
+describe("decrementOutOfActionGrantDurations", () => {
+  it("UT-R-EFF-04-023 (R-EFF-04 countGrantAction outside an action): decrements only countGrantAction effects granted outside any action", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const scoped: DurationDefinition = {
+      timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    const plain: DurationDefinition = {
+      timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    const outside = effectOn(target, source, scoped, {
+      duration: { definition: scoped, timeLimitRemaining: 1 },
+    });
+    const insideAction = effectOn(target, source, scoped, {
+      duration: {
+        definition: scoped,
+        timeLimitRemaining: 1,
+        grantedActionId: createActionId("B_1:action:1"),
+      },
+    });
+    const withoutFlag = effectOn(target, source, plain, {
+      duration: { definition: plain, timeLimitRemaining: 1 },
+    });
+    target = withEffects(target, [outside, insideAction, withoutFlag]);
+
+    const result = decrementOutOfActionGrantDurations([source, target]);
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: outside.effectInstanceId,
+        unit: "ACTION",
+        before: 1,
+        after: 0,
+      },
+    ]);
+  });
+});
+
+describe("decrementGrantingSkillUseDurations", () => {
+  it("UT-R-EFF-01-070 (countGrantSkillUse): decrements only the countGrantSkillUse effects granted in the ending skill use, regardless of owner", () => {
+    const source = unit("source-1");
+    let target = unit("target-1");
+    const endingSkillUseId = createSkillUseId("B_1:skill-use:1");
+    const scoped: DurationDefinition = {
+      timeLimit: { unit: "SKILL_USE", count: 1, countGrantSkillUse: true },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    const plain: DurationDefinition = {
+      timeLimit: { unit: "SKILL_USE", count: 1 },
+      dispellable: true,
+      linkedEffectGroupId: null,
+    };
+    // owner は既定の EFFECT_TARGET（保持者）だが、付与したのは別ユニットのスキル使用。
+    const grantedHere = effectOn(target, source, scoped, {
+      duration: { definition: scoped, timeLimitRemaining: 1, grantedSkillUseId: endingSkillUseId },
+    });
+    const grantedElsewhere = effectOn(target, source, scoped, {
+      duration: {
+        definition: scoped,
+        timeLimitRemaining: 1,
+        grantedSkillUseId: createSkillUseId("B_1:skill-use:0"),
+      },
+    });
+    const withoutFlag = effectOn(target, source, plain, {
+      duration: { definition: plain, timeLimitRemaining: 1, grantedSkillUseId: endingSkillUseId },
+    });
+    target = withEffects(target, [grantedHere, grantedElsewhere, withoutFlag]);
+
+    const result = decrementGrantingSkillUseDurations([source, target], endingSkillUseId);
+
+    expect(result.changes).toEqual([
+      {
+        battleUnitId: target.battleUnitId,
+        effectInstanceId: grantedHere.effectInstanceId,
+        unit: "SKILL_USE",
+        before: 1,
+        after: 0,
+      },
+    ]);
   });
 });
 

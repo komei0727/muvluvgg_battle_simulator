@@ -87,12 +87,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: { "enemy:front": -1200, "enemy:left": -140 },
       effectsApplied: [
         {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_ATK_UP",
-          magnitude: 0.1,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_SIENA_DIVA_EX_STUN",
           magnitude: 0,
@@ -218,12 +212,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: { "enemy:front": -140, "enemy:left": -140 },
       effectsApplied: [
         {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_ATK_UP",
-          magnitude: 0.1,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-        {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS1_STUN",
           magnitude: 0,
@@ -295,37 +283,37 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
           magnitude: 0.15,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
           magnitude: 0.15,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "ally:back",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ALLY_CRIT_UP",
           magnitude: 0.15,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN",
           magnitude: -0.5,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "enemy:left",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN",
           magnitude: -0.5,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_SIENA_DIVA_PS2_ENEMY_CRITDMG_DOWN",
           magnitude: -0.5,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
       ],
       resources: [

@@ -269,14 +269,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_LAYLA_NURSE_TEX_PS3_STEALTH",
           magnitude: 0,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
           statusKind: "STEALTH",
         },
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_LAYLA_NURSE_TEX_PS3_THRESHOLD_DMG_DOWN",
           magnitude: -0.65,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
       ],
       resources: [

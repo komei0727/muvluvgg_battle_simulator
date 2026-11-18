@@ -11,7 +11,12 @@ import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { BattleDomainEvent, EffectExpirationReason } from "../events/domain-event.js";
-import type { ConsumptionChange, EffectDurationChange } from "../model/applied-effect-duration.js";
+import {
+  decrementGrantingSkillUseDurations,
+  type ConsumptionChange,
+  type DecrementEffectDurationsResult,
+  type EffectDurationChange,
+} from "../model/applied-effect-duration.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type {
@@ -284,10 +289,104 @@ export function expireEffects(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   parentEventId: DomainEventId,
 ): ExpireEffectsResult {
-  const steps = expireEffectsSteps(context, units, seeds, effectActions, parentEventId);
+  return driveExpirySteps(
+    context,
+    expireEffectsSteps(context, units, seeds, effectActions, parentEventId),
+  );
+}
+
+/**
+ * 期間イベントのステップを最後まで駆動する。1ステップ（1インスタンスの失効とCombatStat
+ * 再計算、または減算イベント列）ごとに、次へ進む前に`onFactEventForPassiveChain`へ通知する。
+ * callbackが無い呼び出し側は、記録されたイベント列を自分でまとめて扱う。
+ */
+function driveExpirySteps(
+  context: ExpireEffectsContext,
+  steps: Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined>,
+): ExpireEffectsResult {
   let step = steps.next();
   while (!step.done) {
-    step = steps.next(step.value.units);
+    let currentUnits = step.value.units;
+    if (context.onFactEventForPassiveChain !== undefined) {
+      for (const event of step.value.events) {
+        currentUnits = context.onFactEventForPassiveChain(event, currentUnits);
+      }
+    }
+    step = steps.next(currentUnits);
   }
   return step.value;
+}
+
+/**
+ * 付与した期間そのものの終了（`timeLimit.countGrantSkillUse`／行動外の
+ * `countGrantAction`）で求めた減算`decrement`を確定させるステップ列。まず
+ * `EffectDurationReduced`をまとめて1ステップとして返し、続いて0になったものを1件ずつ
+ * 失効させる（`expireEffectsSteps`）。減算が無ければ何も発行しない。
+ */
+export function* settleGrantScopeDecrementSteps(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  decrement: DecrementEffectDurationsResult,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): Generator<LinkedGroupCascadeStep, ExpireEffectsResult, readonly BattleUnit[] | undefined> {
+  if (decrement.changes.length === 0) {
+    return { units, lastEventId: parentEventId };
+  }
+  const reducedEventsStart = context.recorder.getEvents().length;
+  const lastEventId = emitEffectDurationReducedEvents(
+    context,
+    decrement.units,
+    decrement.changes,
+    parentEventId,
+  );
+  const injected = yield {
+    events: context.recorder.getEvents().slice(reducedEventsStart),
+    units: decrement.units,
+  };
+  const working = injected ?? decrement.units;
+  const seeds: ExpirationSeed[] = decrement.changes
+    .filter((change) => change.after === 0)
+    .map((change) => ({
+      battleUnitId: change.battleUnitId,
+      effectInstanceId: change.effectInstanceId,
+      reason: "TIME_LIMIT",
+    }));
+  return yield* expireEffectsSteps(context, working, seeds, effectActions, lastEventId);
+}
+
+/** `settleGrantScopeDecrementSteps`を`onFactEventForPassiveChain`（あれば）で駆動する。 */
+export function settleGrantScopeDecrement(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  decrement: DecrementEffectDurationsResult,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  return driveExpirySteps(
+    context,
+    settleGrantScopeDecrementSteps(context, units, decrement, effectActions, parentEventId),
+  );
+}
+
+/**
+ * `timeLimit.countGrantSkillUse`: スキル使用`endingSkillUseId`の効果処理の末尾、完了イベントの
+ * 発行前に、その使用で付与した「このスキル中のみ」の効果を減算し、0になったものを失効させる。
+ * ステップごとの通知を呼び出し側のdriverへ委ねる経路（PS連鎖の内部）は
+ * `settleGrantScopeDecrementSteps`と`decrementGrantingSkillUseDurations`を直接使う。
+ */
+export function endGrantingSkillUseDurations(
+  context: ExpireEffectsContext,
+  units: readonly BattleUnit[],
+  endingSkillUseId: SkillUseId,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  parentEventId: DomainEventId,
+): ExpireEffectsResult {
+  return settleGrantScopeDecrement(
+    context,
+    units,
+    decrementGrantingSkillUseDurations(units, endingSkillUseId),
+    effectActions,
+    parentEventId,
+  );
 }

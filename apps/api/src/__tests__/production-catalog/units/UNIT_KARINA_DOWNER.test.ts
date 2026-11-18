@@ -313,26 +313,26 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_SELF_IMMUNITY",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_ATTACKER_ATKDOWN",
           magnitude: -0.25,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:back",
           effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_REDIRECT",
           magnitude: 0,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:back",
           // 肩代わり率（`damageShareRate`）がそのまま`magnitude`へ載る。
           effectActionDefinitionId: "ACT_KARINA_DOWNER_PS1_COVER",
           magnitude: 1,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
         {
           unitId: "enemy:back",

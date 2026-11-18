@@ -97,14 +97,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       // HP割合50%の対象では最高値-50%の半分＝-25%。防御力500が375へ落ちた状態で
       // (1000-375)×243.8% を撃つ。
-      effectsApplied: [
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_YUI_HEIR_EX_DEF_DOWN",
-          magnitude: -0.25,
-          timeLimit: { unit: "SKILL_USE", count: 1 },
-        },
-      ],
       effectsRemoved: [
         {
           unitId: "enemy:front",
@@ -499,14 +491,6 @@ describe("production Catalog UNIT_YUI_HEIR (【譜代武家・篁家次期当主
       ],
       // `-001` のEX行と同じ 1523。吸収体を3件へ増やしてもHPへ届く量が変わらない。
       hpDeltas: { "enemy:front": -1523 },
-      effectsApplied: [
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_YUI_HEIR_EX_DEF_DOWN",
-          magnitude: -0.25,
-          timeLimit: { unit: "SKILL_USE", count: 1 },
-        },
-      ],
       effectsRemoved: [
         {
           unitId: "enemy:front",

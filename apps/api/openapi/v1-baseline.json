@@ -9730,8 +9730,7 @@
                                         "SUBUNIT",
                                         "SPECIFIC_EFFECT"
                                       ]
-                                    },
-                                    "minItems": 1
+                                    }
                                   },
                                   "magnitude": {
                                     "type": "number"
@@ -22756,8 +22755,7 @@
                                         "SUBUNIT",
                                         "SPECIFIC_EFFECT"
                                       ]
-                                    },
-                                    "minItems": 1
+                                    }
                                   },
                                   "magnitude": {
                                     "type": "number"
@@ -36710,8 +36708,7 @@
                                         "SUBUNIT",
                                         "SPECIFIC_EFFECT"
                                       ]
-                                    },
-                                    "minItems": 1
+                                    }
                                   },
                                   "magnitude": {
                                     "type": "number"

@@ -214,14 +214,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 攻撃力1000×1.25=1250。(1250-500)×1.06=795。
       hpDeltas: { "enemy:front": -795, "enemy:left": -795, "enemy:back": -795 },
       markersRemoved: [{ unitId: "ally:subject", markerId: KOUSEI, stackCount: 1 }],
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_ATK_UP",
-          magnitude: 0.25,
-          timeLimit: { unit: "ACTION", count: 1 },
-        },
-      ],
       effectsRemoved: [
         {
           unitId: "ally:subject",
@@ -332,7 +324,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_PS1_GUARD",
           magnitude: -0.5,
-          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE" },
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
         },
       ],
       // PP: PS1消費(-1)→PS2消費(-1)→PS2の+2加算で4へ戻る（収支0）。

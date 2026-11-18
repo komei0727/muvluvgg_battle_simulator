@@ -63,7 +63,10 @@ export const resolveApplyShield: EffectActionHandler<"APPLY_SHIELD"> = (
           shieldType: effectAction.payload.shieldType ?? null,
           remaining: magnitude,
           ...(effectAction.payload.decay !== undefined
-            ? { decay: effectAction.payload.decay }
+            ? {
+                decay: effectAction.payload.decay,
+                ...(context.actionId !== undefined ? { grantedActionId: context.actionId } : {}),
+              }
             : {}),
         },
         durationDefinition: effectAction.payload.duration,

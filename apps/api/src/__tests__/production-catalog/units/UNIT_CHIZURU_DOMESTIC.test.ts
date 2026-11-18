@@ -168,7 +168,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK",
           magnitude: 0.35,
-          timeLimit: { unit: "TURN", count: 1 },
+          timeLimit: { unit: "TURN", count: 1, countGrantTurn: true },
         },
       ],
       resources: [

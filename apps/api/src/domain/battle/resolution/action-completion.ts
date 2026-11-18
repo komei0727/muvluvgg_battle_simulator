@@ -293,11 +293,22 @@ export function recordActionCompletion(
   // `EFFECT_SOURCE`の場合は1回の行動完了で複数の保持者が同時に漸減しうるため、
   // まとめて変更してから通知すると、先頭の`ShieldConsumed`に反応するPSが
   // 他の保持者まで変更済みの状態を観測してしまう。
-  for (const holderId of shieldDecayHolders(working, context.actorUnitId)) {
+  for (const holderId of shieldDecayHolders(working, context.actorUnitId, context.actionId)) {
     // プールの並びは保持者ごとに先に確定させ、実際の減少量だけをそのつど最新の
     // `working`から求める（`shieldDecayPools`のコメント参照）。
-    for (const shieldType of shieldDecayPools(working, context.actorUnitId, holderId)) {
-      const decay = decayActionShields(working, context.actorUnitId, holderId, shieldType);
+    for (const shieldType of shieldDecayPools(
+      working,
+      context.actorUnitId,
+      holderId,
+      context.actionId,
+    )) {
+      const decay = decayActionShields(
+        working,
+        context.actorUnitId,
+        holderId,
+        shieldType,
+        context.actionId,
+      );
       if (decay.change === undefined) {
         continue;
       }

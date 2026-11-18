@@ -323,7 +323,14 @@ export interface ObservedEffect {
   readonly effectActionDefinitionId: string;
   readonly magnitude: number;
   /** `duration.definition` から写した宣言（`timeLimit`/`consumption` が無ければ省略）。 */
-  readonly timeLimit?: { readonly unit: string; readonly count: number; readonly owner?: string };
+  readonly timeLimit?: {
+    readonly unit: string;
+    readonly count: number;
+    readonly owner?: string;
+    readonly countGrantTurn?: true;
+    readonly countGrantAction?: true;
+    readonly countGrantSkillUse?: true;
+  };
   readonly consumption?: { readonly kind: string; readonly maxCount: number };
   readonly statusKind?: string;
 }
@@ -429,6 +436,14 @@ function effectSummaries(units: readonly BattleUnit[]): readonly ObservedEffect[
                 ...(definition.timeLimit.owner === undefined
                   ? {}
                   : { owner: definition.timeLimit.owner }),
+                // 付与した期間そのものの終了も数えるか（どの時計で終わるか）を表に載せる。
+                ...(definition.timeLimit.countGrantTurn === true ? { countGrantTurn: true } : {}),
+                ...(definition.timeLimit.countGrantAction === true
+                  ? { countGrantAction: true }
+                  : {}),
+                ...(definition.timeLimit.countGrantSkillUse === true
+                  ? { countGrantSkillUse: true }
+                  : {}),
               },
             }),
         ...(definition.consumption === undefined
