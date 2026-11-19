@@ -98,7 +98,12 @@ export function* grantOnHitEffectSteps(
           target,
           allUnits: units,
           ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
-          lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
+          lastResults: damageResultsFor(
+            context.damageResults,
+            attackerUnitId,
+            context.skillUseId,
+            context.triggerSkillUseId,
+          ),
         });
   const blockingImmunity = findBlockingImmunity(
     target,

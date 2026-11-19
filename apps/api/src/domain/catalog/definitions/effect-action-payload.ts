@@ -110,6 +110,14 @@ export interface DamagePayload {
   readonly hitConfirmedEffects?: readonly {
     readonly effectActionDefinitionId: EffectActionDefinitionId;
   }[];
+  /**
+   * R-SKL-08: このDAMAGEで対象を撃破した後も、同じ対象への残りヒットを命中・会心判定と
+   * ダメージ計算まで処理し、計算ダメージを`SUM_DAMAGE_*`へ記録する（HP・シールドへは
+   * 適用せず、被弾・撃破イベントも発行しない）。「4ヒットの合計の40%を回復」のように
+   * 撃破後のヒットまで合計へ含める固有例外だけが`true`を宣言する。省略時は`false`で、
+   * 多段の途中撃破は残りヒットをスキップする（R-ACTN-01 #2）。
+   */
+  readonly continueHitsAfterTargetDefeated?: true;
 }
 
 /**

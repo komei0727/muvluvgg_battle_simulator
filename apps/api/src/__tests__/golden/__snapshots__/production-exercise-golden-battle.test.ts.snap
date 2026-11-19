@@ -458,28 +458,28 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 434818,
+      "cumulativeScoreAtBreak": 435778,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 960067,
+      "cumulativeScoreAtBreak": 961118,
       "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "sourceUnitId": "ally:2",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1577793,
+      "cumulativeScoreAtBreak": 1582299,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 2275405,
+      "cumulativeScoreAtBreak": 2286928,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 5,
@@ -550,7 +550,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 4,
     "UNIT_REVIVED": 4,
   },
-  "totalScore": 2585081,
+  "totalScore": 2596604,
 }
 `;
 
@@ -770,28 +770,28 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 536575,
+      "cumulativeScoreAtBreak": 537974,
       "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "sourceUnitId": "ally:3",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 1203568,
+      "cumulativeScoreAtBreak": 1204967,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1956820,
+      "cumulativeScoreAtBreak": 1958219,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 4,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 2818266,
+      "cumulativeScoreAtBreak": 2819665,
       "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "sourceUnitId": "ally:3",
       "turnNumber": 5,
@@ -862,7 +862,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 4,
     "UNIT_REVIVED": 4,
   },
-  "totalScore": 2828915,
+  "totalScore": 2830314,
 }
 `;
 
@@ -1098,28 +1098,28 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "breaks": [
     {
       "breakNumber": 1,
-      "cumulativeScoreAtBreak": 405834,
+      "cumulativeScoreAtBreak": 405835,
       "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "sourceUnitId": "ally:3",
       "turnNumber": 1,
     },
     {
       "breakNumber": 2,
-      "cumulativeScoreAtBreak": 958354,
+      "cumulativeScoreAtBreak": 958356,
       "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "sourceUnitId": "ally:2",
       "turnNumber": 2,
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1544875,
+      "cumulativeScoreAtBreak": 1546738,
       "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "sourceUnitId": "ally:2",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 2208105,
+      "cumulativeScoreAtBreak": 2212820,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 4,
@@ -1187,7 +1187,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 4,
     "UNIT_REVIVED": 4,
   },
-  "totalScore": 2666689,
+  "totalScore": 2680864,
 }
 `;
 

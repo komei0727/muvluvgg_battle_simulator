@@ -18,7 +18,7 @@ import type { ResourceKind } from "../../catalog/definitions/catalog-enums.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import type { DomainEventId, SkillUseId } from "../../shared/event-ids.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
   markBreakPendingIfDeferred,
@@ -31,6 +31,8 @@ export interface ModifyResourceEventContext extends ResourceChangeRecordContext 
   readonly parentEventId: DomainEventId;
   readonly sourceUnitId: BattleUnitId;
   readonly damageResults?: DamageResultRegistry;
+  /** R-SKL-08: `TRIGGER_SKILL_USE_DAMAGE_*`の鍵（PSを発動させたスキル使用）。 */
+  readonly triggerSkillUseId?: SkillUseId;
   readonly onFactEventForPassiveChain?: (
     event: BattleDomainEvent,
     units: readonly BattleUnit[],
@@ -213,6 +215,7 @@ export function* applyModifyResourceActionSteps(
                       context.damageResults,
                       actor.battleUnitId,
                       context.skillUseId,
+                      context.triggerSkillUseId,
                     ),
                   }
                 : {}),

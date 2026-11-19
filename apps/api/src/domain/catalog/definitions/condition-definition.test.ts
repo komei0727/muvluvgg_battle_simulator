@@ -1301,3 +1301,33 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
     }
   });
 });
+
+describe("TRIGGER_SKILL_USE_DAMAGE (R-SKL-08)", () => {
+  it("UT-CAT-COND-074 [R-SKL-08]: maps field DEALT/RECEIVED with a numeric comparison", () => {
+    expect(
+      createConditionDefinition(
+        { kind: "TRIGGER_SKILL_USE_DAMAGE", field: "DEALT", op: "LTE", value: 10 },
+        "condition",
+        undefined,
+      ),
+    ).toEqual({ kind: "TRIGGER_SKILL_USE_DAMAGE", field: "DEALT", op: "LTE", value: 10 });
+  });
+
+  it("UT-CAT-COND-075 [R-SKL-08]: rejects an unknown field, a non-numeric value, and unknown keys", () => {
+    for (const input of [
+      { kind: "TRIGGER_SKILL_USE_DAMAGE", field: "HEALED", op: "LTE", value: 10 },
+      { kind: "TRIGGER_SKILL_USE_DAMAGE", field: "DEALT", op: "LTE", value: "10" },
+      {
+        kind: "TRIGGER_SKILL_USE_DAMAGE",
+        field: "DEALT",
+        op: "LTE",
+        value: 10,
+        target: { kind: "SELF" },
+      },
+    ]) {
+      expect(() => createConditionDefinition(input as never, "condition", undefined)).toThrow(
+        DomainValidationError,
+      );
+    }
+  });
+});

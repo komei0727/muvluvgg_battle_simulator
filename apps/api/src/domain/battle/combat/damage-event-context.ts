@@ -298,6 +298,12 @@ export interface DamageEventContext {
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
   /**
+   * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE_*`）: このPSを発動させた原因イベントが属する
+   * スキル使用の`SkillUseId`。元攻撃全体で与えた・受けたダメージの合計を引く鍵になる。
+   * AS/EX使用・Memory由来の解決や、スキル使用に属さない契機では`undefined`。
+   */
+  readonly triggerSkillUseId?: SkillUseId;
+  /**
    * R-STS-03（凍結解除）＋R-EFF-09（`linkedEffectGroupId`カスケード）: 呼び出し側
    * （`lifecycle/`、`combat/`は`effects/`へ依存できないため）が注入する、凍結除去の完全な
    * 処理（`FreezeRemoved`発行、同グループの未失効子効果があれば`duration-expiry-service.ts`

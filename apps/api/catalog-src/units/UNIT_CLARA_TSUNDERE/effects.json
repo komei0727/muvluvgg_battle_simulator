@@ -32,7 +32,8 @@
     "payload": {
       "damageType": "PHYSICAL",
       "formula": { "kind": "SKILL_POWER", "power": 0.3614 },
-      "hitCount": 4
+      "hitCount": 4,
+      "continueHitsAfterTargetDefeated": true
     },
     "metadata": { "tags": [] }
   },

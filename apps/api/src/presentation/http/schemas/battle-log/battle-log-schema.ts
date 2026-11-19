@@ -273,6 +273,7 @@ export const CONDITION_KIND_ENUM = [
   "ATTRIBUTE_ADVANTAGE",
   "SELECTED_TARGET_STATE",
   "TRIGGER_SKILL_USE_HIT",
+  "TRIGGER_SKILL_USE_DAMAGE",
 ] as const;
 /**
  * `EffectActionStarting.kind`／`EffectApplied.effectKind`。値集合の正本はDomainの

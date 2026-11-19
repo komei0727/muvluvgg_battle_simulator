@@ -1625,7 +1625,9 @@ export class PassiveActivationRuntime {
     const processedTargetUnitIds = usesTriggerPrimaryTarget(skill)
       ? this.processedTargetUnitIdsOfCausingSkillUse(event)
       : undefined;
+    const triggerSkillUseId = this.skillUseIdOfCausingEvent(event);
     const triggerContext: TriggerContext = {
+      ...(triggerSkillUseId !== undefined ? { triggerSkillUseId } : {}),
       ...(event.sourceUnitId !== undefined ? { triggerSourceUnitId: event.sourceUnitId } : {}),
       ...(event.targetUnitIds !== undefined ? { triggerTargetUnitIds: event.targetUnitIds } : {}),
       ...(processedTargetUnitIds !== undefined

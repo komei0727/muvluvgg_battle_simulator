@@ -145,6 +145,9 @@ export function resolveFollowUpAttacksAfterSkillUse(
       ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
       : {}),
     ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+    ...(context.triggerSkillUseId !== undefined
+      ? { triggerSkillUseId: context.triggerSkillUseId }
+      : {}),
   };
 
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));

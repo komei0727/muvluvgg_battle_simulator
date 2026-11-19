@@ -271,6 +271,15 @@ export function conditionContainsTriggerSkillUseHit(condition: ConditionDefiniti
   return conditionContainsKind(condition, "TRIGGER_SKILL_USE_HIT");
 }
 
+/**
+ * R-SKL-08: `TRIGGER_SKILL_USE_DAMAGE`を評価できるのはPSのresolution stepだけで、
+ * 契機スキル使用のダメージ合計を渡す経路は他に無い（trigger条件・`activationCondition`は
+ * 元攻撃の効果処理中に評価され得るため、合計が確定していない）。
+ */
+export function conditionContainsTriggerSkillUseDamage(condition: ConditionDefinition): boolean {
+  return conditionContainsKind(condition, "TRIGGER_SKILL_USE_DAMAGE");
+}
+
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるか。 */
 export function conditionReferencesLastResult(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
@@ -306,6 +315,7 @@ export function conditionRequiresSourceUnit(condition: ConditionDefinition): boo
     case "ATTRIBUTE_ADVANTAGE":
     case "SELECTED_TARGET_STATE":
     case "TRIGGER_SKILL_USE_HIT":
+    case "TRIGGER_SKILL_USE_DAMAGE":
       return true;
     case "ALIVE_UNIT_COUNT":
       return condition.excludeSelf === true;

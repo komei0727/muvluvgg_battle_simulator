@@ -159,11 +159,18 @@ export function createFormulaSourceReference(
  * `SUM_*` (G-10, Issue #44) sums every `DAMAGE` result produced so far within
  * the current `EffectSequence` execution, unlike `LAST_*` which only looks at
  * the immediately preceding one.
+ *
+ * `TRIGGER_SKILL_USE_*` sums the DAMAGE results the evaluating unit dealt/received
+ * within the skill use that caused the current PS activation (R-SKL-08). A PS
+ * resolves only after that skill use finished its effect processing (R-ATM-01),
+ * so the sum covers the whole original attack and never the PS's own damage.
  */
 export const LAST_RESULT_REFERENCE_KINDS = [
   "LAST_DAMAGE_DEALT",
   "LAST_DAMAGE_RECEIVED",
   "SUM_DAMAGE_DEALT",
   "SUM_DAMAGE_RECEIVED",
+  "TRIGGER_SKILL_USE_DAMAGE_DEALT",
+  "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
 ] as const;
 export type LastResultReference = (typeof LAST_RESULT_REFERENCE_KINDS)[number];

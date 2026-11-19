@@ -676,7 +676,12 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 緋色PS1・オルガPS1を不発にした（Issue #831、戦術演習版の同じスキルを含む）。壬姫AS1の
     // 2体目・白奈AS2のシールド先・緋色AS1の横列解除も直した。新規・削除したUnit・Skill・
     // EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-19.3");
+    // `2026-11-19.4` は吸収・反撃・低ダメージ条件を元の攻撃全体の計算ダメージ合計へ揃えた
+    // （Issue #832）。ステラPS2・葵PS2・ココロPS1の反撃は契機のスキル使用で受けた合計、
+    // オルガAS2・唯依AS1の吸収は当該スキルで与えた合計、タリサPS1の「10以下」は契機の
+    // スキル使用で与えた合計で判定し、クララAS1は撃破後も4ヒットを計算する。新規・削除した
+    // Unit・Skill・EffectActionはない。
+    expect(catalog.catalogRevision).toBe("2026-11-19.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

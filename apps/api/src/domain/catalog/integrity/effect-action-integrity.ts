@@ -8,6 +8,7 @@ import {
   collectConditionEffectActionReferences,
   conditionContainsSelectedTargetState,
   conditionContainsTriggerSkillUseHit,
+  conditionContainsTriggerSkillUseDamage,
   triggerScopedConditionKindIn,
 } from "./condition-inspection.js";
 import { durationOf } from "./effect-action-inspection.js";
@@ -90,6 +91,19 @@ export function validateEffectAction(
       targetId: effectAction.effectActionDefinitionId,
       rule: "TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER",
       message: `a TRIGGER_SKILL_USE_HIT condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+    });
+  }
+  if (
+    duration !== undefined &&
+    [
+      ...(duration.expiration?.conditions ?? []),
+      ...(duration.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger.condition),
+    ].some(conditionContainsTriggerSkillUseDamage)
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL",
+      message: `a TRIGGER_SKILL_USE_DAMAGE condition is only evaluable while a PS resolves its steps — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
     });
   }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {

@@ -50,6 +50,9 @@ export const resolveModifyResource: SteppedEffectActionHandler<"MODIFY_RESOURCE"
         // Memory由来の解決はR-MEM-04に従って拒否する。
         sourceUnitId: actor.battleUnitId,
         ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+        ...(context.triggerSkillUseId !== undefined
+          ? { triggerSkillUseId: context.triggerSkillUseId }
+          : {}),
         ...(context.onFactEventForPassiveChain !== undefined
           ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
           : {}),

@@ -3066,4 +3066,32 @@ describe("EffectActionDefinition", () => {
       }
     });
   });
+
+  describe("DAMAGE continueHitsAfterTargetDefeated (R-SKL-08)", () => {
+    const damageWith = (continueHitsAfterTargetDefeated: unknown) => ({
+      effectActionDefinitionId: "ACT_DAMAGE_QUAD",
+      kind: "DAMAGE",
+      payload: {
+        damageType: "PHYSICAL",
+        formula: { kind: "SKILL_POWER", power: 0.3614 },
+        hitCount: 4,
+        continueHitsAfterTargetDefeated,
+      },
+    });
+
+    it("UT-CAT-ACT-151 [R-SKL-08]: maps continueHitsAfterTargetDefeated: true and omits the field for false", () => {
+      const declared = createEffectActionDefinition(damageWith(true), "effectAction");
+      expect(declared.kind === "DAMAGE" && declared.payload.continueHitsAfterTargetDefeated).toBe(
+        true,
+      );
+      const off = createEffectActionDefinition(damageWith(false), "effectAction");
+      expect(off.kind === "DAMAGE" && "continueHitsAfterTargetDefeated" in off.payload).toBe(false);
+    });
+
+    it("UT-CAT-ACT-152 [R-SKL-08]: rejects a non-boolean continueHitsAfterTargetDefeated", () => {
+      expect(() =>
+        createEffectActionDefinition(damageWith("yes") as never, "effectAction"),
+      ).toThrow(DomainValidationError);
+    });
+  });
 });

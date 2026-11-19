@@ -22,7 +22,10 @@ import {
 } from "./damage-hit-chain.js";
 import { removeFreezeEffectSteps } from "./damage-effect-expiry.js";
 import { observeHitSteps, type HitConfirmedGrant } from "./damage-hit-observation.js";
-import { resolveDefensiveInterventionsSteps } from "./damage-defensive-intervention.js";
+import {
+  resolveDefensiveInterventionsSteps,
+  type DefensiveInterventionResolution,
+} from "./damage-defensive-intervention.js";
 import { applyConfirmedDamageSteps } from "./damage-hit-point-application.js";
 import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
 import { applySubUnitAdditionalDamageSteps } from "./sub-unit-additional-damage.js";
@@ -148,6 +151,14 @@ export function* applyDamageActionSteps(
         }
       : undefined;
 
+  // R-SKL-08（`continueHitsAfterTargetDefeated`）: このDAMAGEの途中で撃破された対象だけを
+  // 残りヒットの計算対象に残す。開始時点で既に戦闘不能な対象は従来どおりスキップする。
+  const aliveAtStart = new Set(
+    hits
+      .map((hit) => hit.targetUnitId)
+      .filter((id) => !isDefeated(findUnit(working, id, "hits[].targetUnitId"))),
+  );
+
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
     const currentAttacker = findUnit(working, attacker.battleUnitId, "attacker.battleUnitId");
@@ -161,8 +172,17 @@ export function* applyDamageActionSteps(
     }
 
     const target = findUnit(working, hit.targetUnitId, "hits[].targetUnitId");
+    // 撃破後の計算専用ヒット: 命中・会心判定とダメージ計算までを行い、計算ダメージを
+    // 合計へ記録するだけでHP・シールドへは適用しない（撃破・被弾イベントを重複させない）。
+    const calculationOnly =
+      damageAction.payload.continueHitsAfterTargetDefeated === true &&
+      isDefeated(target) &&
+      aliveAtStart.has(hit.targetUnitId);
+    const hitContext: DamageEventContext = calculationOnly
+      ? { ...context, includeDefeated: true }
+      : context;
 
-    if (!(context.includeDefeated ?? false) && isDefeated(target)) {
+    if (!calculationOnly && !(context.includeDefeated ?? false) && isDefeated(target)) {
       outcomes.push(skip(hit));
       // R-SKL-08: 対象不在で適用されなかったこのヒットも「同じ解決スコープ内の直前結果」に
       // なる。以前の成功したDAMAGE結果を透けて見せ続けないよう0として記録する
@@ -202,7 +222,7 @@ export function* applyDamageActionSteps(
     // `HitConfirmed`→会心判定→`CriticalCheckResolved`→`DamageWillBeApplied`）は、
     // サブユニット追加ダメージ（R-SUB-02）と共有する`observeHitSteps`が解決する。
     const observation = yield* observeHitSteps(
-      context,
+      hitContext,
       working,
       random,
       attacker.battleUnitId,
@@ -241,18 +261,29 @@ export function* applyDamageActionSteps(
     // R-INT-01（DMG-006）: `DamageWillBeApplied`の後・ダメージ確定前に防御介入を規定順で
     // 評価する。引き寄せ・肩代わりはこのヒットの防御側そのものを差し替えるため、以降の
     // 計算・吸収・HP適用はすべて`defenderUnitId`を使う。
-    const intervention = yield* resolveDefensiveInterventionsSteps(
-      context,
-      working,
-      attacker.battleUnitId,
-      hit.targetUnitId,
-      {
-        effectActionDefinitionId: damageAction.effectActionDefinitionId,
-        hitIndex: hit.hitIndex,
-        damageType: damageAction.payload.damageType,
-      },
-      lastEventId,
-    );
+    // 撃破後の計算専用ヒットは対象を差し替えない（肩代わり・引き寄せで生存ユニットへ
+    // 実ダメージを向けない）。リンク・反射も元ダメージを適用しないため発生しない。
+    const intervention: DefensiveInterventionResolution = calculationOnly
+      ? {
+          kind: "RESOLVED",
+          defenderUnitId: hit.targetUnitId,
+          guardRate: 0,
+          damageLinks: [],
+          reflects: [],
+          lastEventId,
+        }
+      : yield* resolveDefensiveInterventionsSteps(
+          context,
+          working,
+          attacker.battleUnitId,
+          hit.targetUnitId,
+          {
+            effectActionDefinitionId: damageAction.effectActionDefinitionId,
+            hitIndex: hit.hitIndex,
+            damageType: damageAction.payload.damageType,
+          },
+          lastEventId,
+        );
     lastEventId = intervention.lastEventId;
     if (intervention.kind === "INTERRUPT") {
       interruptedCount = hits.length - i;
@@ -317,6 +348,7 @@ export function* applyDamageActionSteps(
         context.damageResults,
         attackerBeforeDamage.battleUnitId,
         context.skillUseId,
+        context.triggerSkillUseId,
       ),
       ...(context.triggerSourceUnitId !== undefined
         ? {
@@ -486,6 +518,25 @@ export function* applyDamageActionSteps(
     });
 
     let lastEventIdBeforeHp = damageCalculated.eventId;
+
+    if (calculationOnly) {
+      recordDamageResult(
+        context.damageResults,
+        attacker.battleUnitId,
+        hit.targetUnitId,
+        damageResult.finalDamage,
+        context.skillUseId,
+      );
+      lastEventId = damageCalculated.eventId;
+      outcomes.push({
+        targetUnitId: hit.targetUnitId,
+        hitIndex: hit.hitIndex,
+        applied: true,
+        isCritical: critical.isCritical,
+        damage: damageResult.finalDamage,
+      });
+      continue;
+    }
 
     // R-DMG-07: 軽減を実際に適用したインスタンスだけを、このヒットで`INCOMING_HIT`消費
     // する。一括消費（R-EFF-07、`applyConfirmedDamageSteps`末尾）は閾値付き補正を常に

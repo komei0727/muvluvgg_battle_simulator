@@ -135,7 +135,12 @@ export function* applyOneAdditionalAttackHitSteps(
     target,
     allUnits: Array.from(working.values()),
     ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
-    lastResults: damageResultsFor(context.damageResults, attackerUnitId, context.skillUseId),
+    lastResults: damageResultsFor(
+      context.damageResults,
+      attackerUnitId,
+      context.skillUseId,
+      context.triggerSkillUseId,
+    ),
   };
   const damageModifierMultipliers = composeDamageModifiers({
     attacker,

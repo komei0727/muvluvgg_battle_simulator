@@ -3,6 +3,7 @@ import { evasionOf } from "../../../testing/production-unit/evasion.js";
 import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import type { DamageResultRegistry } from "../../../domain/battle/skill/formula-evaluator.js";
 import {
   createEffectActionDefinitionId,
   createMarkerId,
@@ -406,15 +407,17 @@ function grantAtkUp(count: number): readonly PrecedingAction[] {
 const PROBE_ACTION_ID = "ACT_TEST_TARISA_TEN_DAMAGE";
 
 /**
- * PS1の条件付きstep（`calculatedDamage <= 10`）を成立させる、自身からの実攻撃。
- * 契機イベントは合成せず実ダメージpipelineに出させる。威力を引数に取るのは、
+ * PS1の条件付きstep（契機スキル使用の与ダメージ合計 `<= 10`）を成立させる、自身からの
+ * 実攻撃。契機イベントは合成せず実ダメージpipelineに出させる。威力を引数に取るのは、
  * 前提として攻撃力バフを積むと同じ威力でも与ダメージが10を超えてしまうため。
+ * `damageResults`はPS連鎖と同じregistryを渡す — 合計はこのregistryから読まれる。
  */
 function strikeForCondition(
   chain: PassiveChain,
   units: readonly BattleUnit[],
   power: number,
   expectedDamage: number,
+  damageResults: DamageResultRegistry,
 ) {
   const attacker = units.find((unit) => unit.battleUnitId === "ally:subject")!;
   const struck = applyDamageAction(
@@ -454,7 +457,7 @@ function strikeForCondition(
       parentEventId: chain.rootEventId,
       skillDefinitionId: createSkillDefinitionId("SKL_TEST_TARISA_PROBE"),
       skillType: "AS",
-      damageResults: new Map(),
+      damageResults,
     },
   );
   const triggerEvent = chain.eventsOfType("DamageApplied").at(-1)!;
@@ -559,19 +562,20 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     ).toBe(cappedAttack);
   });
 
-  it("IT-UNIT-TARISA-TROUBLEMAKER-006 [R-SKL-06] (R-SKL-06): 条件付きstepは契機イベントのpayload（`calculatedDamage`）で分かれ、無条件stepと同じ1回の発動の中で解決される。公開差分だけからも同じ段数へ復元できる", () => {
+  it("IT-UNIT-TARISA-TROUBLEMAKER-006 [R-SKL-06] (R-SKL-06): 条件付きstepは契機スキル使用の与ダメージ合計（`TRIGGER_SKILL_USE_DAMAGE`）で分かれ、無条件stepと同じ1回の発動の中で解決される。公開差分だけからも同じ段数へ復元できる", () => {
     // `-001` の表は「どちらの腕が走ったか」を見る。ここは同じ発動の中で、無条件の
     // +1が新しい付与分を作り（`MarkerApplied`）、条件付きの-3が古い付与分から3つを
     // 外す（`MarkerRemoved`×3）ことと、その公開差分だけで最終個数が再構成できることを見る。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, HOLDS_FIVE_SPIRIT);
+    const damageResults: DamageResultRegistry = new Map();
     const chain = openPassiveChain({
       definitions: board.definitions,
       actorUnitId: "ally:subject",
       battleId: "B_TARISA_PAYLOAD",
-      damageResults: new Map(),
+      damageResults,
     });
     // 攻撃力1000・防御力500の盤面で威力2%＝ちょうど10ダメージ（条件は `LTE 10`）。
-    const struck = strikeForCondition(chain, board.units, 0.02, 10);
+    const struck = strikeForCondition(chain, board.units, 0.02, 10, damageResults);
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 
     const heldBefore = board.units
@@ -659,14 +663,16 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     expect(before.markerStates.map((marker) => marker.stackCount)).toEqual([1, 1]);
     expect(before.combatStats.attack).toBeCloseTo(1000 * (1 + 0.025 * 2), 9);
 
+    const damageResults: DamageResultRegistry = new Map();
+
     const chain = openPassiveChain({
       definitions: board.definitions,
       actorUnitId: "ally:subject",
       battleId: "B_TARISA_CASCADE",
-      damageResults: new Map(),
+      damageResults,
     });
     // 攻撃力が+5%されているため、威力1%で 550 × 1% ＝ 5ダメージ（条件は `LTE 10`）。
-    const struck = strikeForCondition(chain, baseline, 0.01, 5);
+    const struck = strikeForCondition(chain, baseline, 0.01, 5, damageResults);
     const eventsBefore = chain.recorder.getEvents().length;
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 
@@ -750,13 +756,14 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
       { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
       { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
     ]);
+    const damageResults: DamageResultRegistry = new Map();
     const chain = openPassiveChain({
       definitions,
       actorUnitId: "ally:subject",
       battleId: "B_TARISA_CASCADE_NOTIFY",
-      damageResults: new Map(),
+      damageResults,
     });
-    const struck = strikeForCondition(chain, baseline, 0.02, 10);
+    const struck = strikeForCondition(chain, baseline, 0.02, 10, damageResults);
     const eventsBefore = chain.recorder.getEvents().length;
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 

@@ -191,7 +191,7 @@ function lastResultValue(
   if (value === undefined) {
     throw new DomainValidationError(
       path,
-      `sourceResult "${key}" has no recorded value in the evaluation context (LAST_DAMAGE_* requires a prior DAMAGE result in this resolution scope; SUM_DAMAGE_* requires the evaluation to happen inside an EffectSequence resolution, G-10/RES-003A)`,
+      `sourceResult "${key}" has no recorded value in the evaluation context (LAST_DAMAGE_* requires a prior DAMAGE result in this resolution scope; SUM_DAMAGE_* requires the evaluation to happen inside an EffectSequence resolution, G-10/RES-003A; TRIGGER_SKILL_USE_DAMAGE_* requires a PS activated by an event that belongs to a skill use, R-SKL-08)`,
     );
   }
   return value;
@@ -245,14 +245,26 @@ export type DamageResultRegistry = Map<BattleUnitId, DamageResultRegistryEntry>;
  * EffectSequenceの外（`continuous-heal-service.ts`の継続回復など）から呼ばれた
  * 場合はキー自体を含めず、`SUM_*`を参照するFormulaを`evaluateFormula`が明確な
  * 例外で拒否できるようにする（暗黙の0にしない）。
+ *
+ * `triggerSkillUseId`（PSを発動させた原因イベントが属するスキル使用）を渡した場合だけ
+ * `TRIGGER_SKILL_USE_DAMAGE_*`を含める。PSは契機のスキル使用の効果処理が終わってから
+ * 解決される（R-ATM-01）ため、この累計は元攻撃全体（全DAMAGE・全ヒット・その攻撃に
+ * 属するサブユニット追加）になり、PS自身の反撃（別の`SkillUseId`）は混ざらない。
  */
 export function damageResultsFor(
   registry: DamageResultRegistry | undefined,
   unitId: BattleUnitId,
   effectSequenceId?: SkillUseId,
+  triggerSkillUseId?: SkillUseId,
 ): NonNullable<FormulaEvaluationContext["lastResults"]> {
   const entry = registry?.get(unitId);
   return {
+    ...(registry !== undefined && triggerSkillUseId !== undefined
+      ? {
+          TRIGGER_SKILL_USE_DAMAGE_DEALT: entry?.sumDamageDealt?.get(triggerSkillUseId) ?? 0,
+          TRIGGER_SKILL_USE_DAMAGE_RECEIVED: entry?.sumDamageReceived?.get(triggerSkillUseId) ?? 0,
+        }
+      : {}),
     ...(entry?.lastDamageDealt !== undefined ? { LAST_DAMAGE_DEALT: entry.lastDamageDealt } : {}),
     ...(entry?.lastDamageReceived !== undefined
       ? { LAST_DAMAGE_RECEIVED: entry.lastDamageReceived }

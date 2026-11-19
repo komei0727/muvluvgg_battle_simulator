@@ -3611,7 +3611,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
                                 }
@@ -3726,7 +3727,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },
                                   "result": {
@@ -16634,7 +16636,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
                                 }
@@ -16749,7 +16752,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },
                                   "result": {
@@ -30521,7 +30525,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
                                 }
@@ -30636,7 +30641,8 @@
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
-                                      "TRIGGER_SKILL_USE_HIT"
+                                      "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },
                                   "result": {

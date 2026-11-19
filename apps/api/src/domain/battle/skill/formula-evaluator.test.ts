@@ -933,4 +933,51 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
       SUM_DAMAGE_RECEIVED: 0,
     });
   });
+
+  it("UT-R-SKL-08-026: TRIGGER_SKILL_USE_DAMAGE_* sum what the unit dealt/received in the skill use that triggered the PS, excluding the PS's own EffectSequence", () => {
+    const registry: DamageResultRegistry = new Map();
+    // 契機の元AS（SEQUENCE_A）でRECEIVERが13ヒット受け、その後PS（SEQUENCE_B）が反撃する。
+    for (let hit = 0; hit < 13; hit++) {
+      recordDamageResult(registry, DEALER, RECEIVER, 66, SEQUENCE_A);
+    }
+    recordDamageResult(registry, RECEIVER, DEALER, 1029, SEQUENCE_B);
+
+    const received = damageResultsFor(registry, RECEIVER, SEQUENCE_B, SEQUENCE_A);
+    expect(received.TRIGGER_SKILL_USE_DAMAGE_RECEIVED).toBe(858);
+    expect(received.TRIGGER_SKILL_USE_DAMAGE_DEALT).toBe(0);
+    expect(received.SUM_DAMAGE_DEALT).toBe(1029);
+    expect(damageResultsFor(registry, DEALER, SEQUENCE_B, SEQUENCE_A)).toMatchObject({
+      TRIGGER_SKILL_USE_DAMAGE_DEALT: 858,
+      TRIGGER_SKILL_USE_DAMAGE_RECEIVED: 0,
+    });
+    expect(
+      evaluateFormula(
+        {
+          kind: "DAMAGE_RECEIVED_RATIO",
+          sourceResult: "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
+          ratio: 1.2,
+        },
+        context({ lastResults: received }),
+      ),
+    ).toBeCloseTo(1029.6, 10);
+  });
+
+  it("UT-R-SKL-08-027 (NEGATIVE): omits the TRIGGER_SKILL_USE_* keys when the resolution has no triggering skill use, so a Formula reading them fails loudly", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordDamageResult(registry, DEALER, RECEIVER, 120, SEQUENCE_A);
+
+    expect(damageResultsFor(registry, RECEIVER, SEQUENCE_B)).not.toHaveProperty(
+      "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
+    );
+    expect(() =>
+      evaluateFormula(
+        {
+          kind: "DAMAGE_RECEIVED_RATIO",
+          sourceResult: "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
+          ratio: 1,
+        },
+        context({ lastResults: damageResultsFor(registry, RECEIVER, SEQUENCE_B) }),
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });
