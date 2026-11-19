@@ -10,7 +10,9 @@ import {
 import {
   conditionReferencesTargetSetCount,
   evaluateEffectStepCondition,
+  type TriggerSkillUseDamage,
 } from "../skill/effect-step-condition-evaluator.js";
+import { damageResultsFor } from "../skill/formula-evaluator.js";
 import { selectWeightedBranch } from "../skill/random-branch-selection.js";
 import type { LastEffectActionResult } from "../skill/last-effect-action-result.js";
 import type {
@@ -954,6 +956,7 @@ function* resolveBranchStep(
         resolveTargetSet,
         context.definitions.unitDefinitions,
         context.triggerEventPayload,
+        triggerSkillUseDamageOf(context),
       );
       const chosenSteps = satisfied ? definition.thenSteps : definition.elseSteps;
       return yield* resolveStepDefinitionList(
@@ -1240,6 +1243,7 @@ export function* resolveRawStep(
             resolveTargetSet,
             undefined,
             context.triggerEventPayload,
+            triggerSkillUseDamageOf(context),
           );
           if (!satisfied) {
             return { satisfied: false, applications: [] };
@@ -1324,6 +1328,7 @@ export function* resolveRawStep(
         undefined,
         undefined,
         context.triggerEventPayload,
+        triggerSkillUseDamageOf(context),
       );
       const applications = satisfied
         ? resolveActionStepApplications(
@@ -1457,4 +1462,26 @@ export function stepDefinitionMayContainDamage(
         context.definitions.effectActions.get(value as EffectActionDefinitionId)?.kind === "DAMAGE"
       : stepDefinitionMayContainDamage(value, context),
   );
+}
+
+/**
+ * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE`）: PS所有者が契機のスキル使用全体で与えた・受けた
+ * 計算ダメージの合計。契機がスキル使用に属さない解決（AS/EX・Memory等）では`undefined`。
+ */
+function triggerSkillUseDamageOf(
+  context: EffectActionGroupContext,
+): TriggerSkillUseDamage | undefined {
+  if (context.actorUnitId === undefined || context.triggerSkillUseId === undefined) {
+    return undefined;
+  }
+  const totals = damageResultsFor(
+    context.damageResults ?? new Map(),
+    context.actorUnitId,
+    undefined,
+    context.triggerSkillUseId,
+  );
+  return {
+    DEALT: totals.TRIGGER_SKILL_USE_DAMAGE_DEALT ?? 0,
+    RECEIVED: totals.TRIGGER_SKILL_USE_DAMAGE_RECEIVED ?? 0,
+  };
 }

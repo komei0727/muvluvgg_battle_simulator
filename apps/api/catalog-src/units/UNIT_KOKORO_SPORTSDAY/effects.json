@@ -43,7 +43,7 @@
       "damageType": "EN",
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
-        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "sourceResult": "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
         "ratio": 1.2
       },
       "critical": { "mode": "NORMAL" }

@@ -502,7 +502,10 @@ function conditionReferencesLastResult(condition: ConditionDefinition): boolean 
  */
 function conditionReferencesEventPayload(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
+    // R-SKL-08: 契機スキル使用のダメージ合計（`TRIGGER_SKILL_USE_DAMAGE`）もplanning-time
+    // 評価ループへは渡らないため、実行がその位置まで進んだ時点で評価する。
     case "EVENT_PAYLOAD":
+    case "TRIGGER_SKILL_USE_DAMAGE":
       return true;
     case "AND":
     case "OR":

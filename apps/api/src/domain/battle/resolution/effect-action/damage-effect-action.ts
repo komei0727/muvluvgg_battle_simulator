@@ -85,6 +85,9 @@ export function* applyDeathSurvivalHealSteps(
       sourceUnitId: targetUnitId,
       effectActions: context.definitions.effectActions,
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.triggerSkillUseId !== undefined
+        ? { triggerSkillUseId: context.triggerSkillUseId }
+        : {}),
       ...(context.onFactEventForPassiveChain !== undefined
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
@@ -144,7 +147,12 @@ function* grantSubUnitAdditionalDamageDebuffSteps(
     target,
     allUnits: units,
     ...(context.exercise !== undefined ? { exercise: context.exercise } : {}),
-    lastResults: damageResultsFor(context.damageResults, ownerUnitId, context.skillUseId),
+    lastResults: damageResultsFor(
+      context.damageResults,
+      ownerUnitId,
+      context.skillUseId,
+      context.triggerSkillUseId,
+    ),
   });
   const blockingImmunity = findBlockingImmunity(
     target,
@@ -415,6 +423,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.triggerSkillUseId !== undefined
+        ? { triggerSkillUseId: context.triggerSkillUseId }
+        : {}),
       ...(context.subUnitAdditions !== undefined
         ? { subUnitAdditions: context.subUnitAdditions }
         : {}),
@@ -430,6 +441,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
         : {}),
       ...(context.triggerProcessedTargetUnitIds !== undefined
         ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
+        : {}),
+      ...(context.triggerSkillUseId !== undefined
+        ? { triggerSkillUseId: context.triggerSkillUseId }
         : {}),
     },
   );
@@ -583,6 +597,9 @@ export function* releasePendingSubUnitAdditionsSteps(
       ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
       : {}),
     ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+    ...(context.triggerSkillUseId !== undefined
+      ? { triggerSkillUseId: context.triggerSkillUseId }
+      : {}),
     subUnitAdditions: ledger,
   };
 

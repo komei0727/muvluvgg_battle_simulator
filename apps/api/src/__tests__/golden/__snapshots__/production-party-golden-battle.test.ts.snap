@@ -1193,7 +1193,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 16 complete
     "UNIT_CHIYURU_MAZE",
   ],
   "eventCount": 1160,
-  "eventSequenceHash": "sha256:b26aafec91bc8e67",
+  "eventSequenceHash": "sha256:3bfb70b01bf58a13",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 19,
     "ACTION_COMPLETING": 19,

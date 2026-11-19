@@ -123,6 +123,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
     "damageModifiers",
     "link",
     "hitConfirmedEffects",
+    "continueHitsAfterTargetDefeated",
   ],
   HEAL: ["formula", "overheal", "distribution"],
   APPLY_CONTINUOUS_HEAL: ["formula", "timing", "evaluation", "duration"],
@@ -747,6 +748,10 @@ function createPayload(
         payload["hitConfirmedEffects"],
         `${path}.hitConfirmedEffects`,
       );
+      const continueRaw = payload["continueHitsAfterTargetDefeated"];
+      if (continueRaw !== undefined) {
+        assertBoolean(continueRaw, `${path}.continueHitsAfterTargetDefeated`);
+      }
       return {
         kind: "DAMAGE",
         payload: {
@@ -762,6 +767,7 @@ function createPayload(
           ),
           link: { enabled: linkEnabled },
           ...(hitConfirmedEffects !== undefined ? { hitConfirmedEffects } : {}),
+          ...(continueRaw === true ? { continueHitsAfterTargetDefeated: true as const } : {}),
         },
       };
     }

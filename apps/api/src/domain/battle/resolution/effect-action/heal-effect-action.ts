@@ -45,6 +45,9 @@ export const resolveHeal: SteppedEffectActionHandler<"HEAL"> = function* (input)
       sourceUnitId: actor.battleUnitId,
       effectActions: context.definitions.effectActions,
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.triggerSkillUseId !== undefined
+        ? { triggerSkillUseId: context.triggerSkillUseId }
+        : {}),
       ...(context.onFactEventForPassiveChain !== undefined
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),

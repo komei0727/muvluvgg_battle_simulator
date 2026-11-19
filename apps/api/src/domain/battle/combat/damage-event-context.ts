@@ -94,11 +94,19 @@ export interface FollowUpAttackCapture {
   readonly attackedTargetUnitIds: BattleUnitId[];
   anyApplied: boolean;
   anyCritical: boolean;
+  /** R-FUP-01 #3: このスキル使用の追撃を解決済みか（DAMAGE区間の終わりで1回だけ解決する）。 */
+  resolved: boolean;
 }
 
 /** {@link FollowUpAttackCapture}の初期値。1回のスキル使用ごとに新規生成する。 */
 export function emptyFollowUpAttackCapture(): FollowUpAttackCapture {
-  return { riders: new Map(), attackedTargetUnitIds: [], anyApplied: false, anyCritical: false };
+  return {
+    riders: new Map(),
+    attackedTargetUnitIds: [],
+    anyApplied: false,
+    anyCritical: false,
+    resolved: false,
+  };
 }
 
 export interface ApplyDamageActionResult {
@@ -297,6 +305,12 @@ export interface DamageEventContext {
    */
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
+  /**
+   * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE_*`）: このPSを発動させた原因イベントが属する
+   * スキル使用の`SkillUseId`。元攻撃全体で与えた・受けたダメージの合計を引く鍵になる。
+   * AS/EX使用・Memory由来の解決や、スキル使用に属さない契機では`undefined`。
+   */
+  readonly triggerSkillUseId?: SkillUseId;
   /**
    * R-STS-03（凍結解除）＋R-EFF-09（`linkedEffectGroupId`カスケード）: 呼び出し側
    * （`lifecycle/`、`combat/`は`effects/`へ依存できないため）が注入する、凍結除去の完全な

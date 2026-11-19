@@ -118,8 +118,13 @@ export const CONDITION_KINDS = [
   "ATTRIBUTE_ADVANTAGE",
   "SELECTED_TARGET_STATE",
   "TRIGGER_SKILL_USE_HIT",
+  "TRIGGER_SKILL_USE_DAMAGE",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
+
+/** `TRIGGER_SKILL_USE_DAMAGE.field`: PS所有者が与えた合計か受けた合計か。 */
+export const TRIGGER_SKILL_USE_DAMAGE_FIELDS = ["DEALT", "RECEIVED"] as const;
+export type TriggerSkillUseDamageField = (typeof TRIGGER_SKILL_USE_DAMAGE_FIELDS)[number];
 
 /**
  * M7-001E（Issue #248、`TARGET_STATE_QUERY_BUFF_DEBUFF`）: `TARGET_HAS_EFFECT.categories`
@@ -348,6 +353,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   ATTRIBUTE_ADVANTAGE: ["kind", "target"],
   SELECTED_TARGET_STATE: ["kind", "selector", "field", "op", "value"],
   TRIGGER_SKILL_USE_HIT: ["kind", "target"],
+  TRIGGER_SKILL_USE_DAMAGE: ["kind", "field", "op", "value"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -569,6 +575,18 @@ export type ConditionDefinition =
        */
       readonly kind: "TRIGGER_SKILL_USE_HIT";
       readonly target: TargetReference;
+    }
+  | {
+      /**
+       * R-SKL-08: PS所有者が、このPSの契機イベントが属するスキル使用全体で与えた
+       * （`DEALT`）・受けた（`RECEIVED`）計算ダメージ（シールド吸収・残HP制限前）の合計を
+       * `value`と比べる。「攻撃で与えたダメージが10以下の場合」を契機の1ヒットではなく
+       * 元の攻撃全体で判定するために使う。PSのresolution stepの`stepCondition`専用。
+       */
+      readonly kind: "TRIGGER_SKILL_USE_DAMAGE";
+      readonly field: TriggerSkillUseDamageField;
+      readonly op: ComparisonOperator;
+      readonly value: number;
     };
 
 export interface ConditionDefinitionInput {
@@ -884,6 +902,16 @@ export function createConditionDefinition(
       }
       assertInteger(input.modulo, `${path}.modulo`, { min: 1 });
       return { kind: "RUNTIME_COUNTER", counter, op, value, modulo: input.modulo };
+    }
+    case "TRIGGER_SKILL_USE_DAMAGE": {
+      const field = requireField(input, "field", path);
+      assertEnumValue(field, TRIGGER_SKILL_USE_DAMAGE_FIELDS, `${path}.field`);
+      return {
+        kind: "TRIGGER_SKILL_USE_DAMAGE",
+        field,
+        op: createOperator(input, path),
+        value: requireNumberField(input, path),
+      };
     }
     case "TURN_NUMBER": {
       const value = requireNumberField(input, path);

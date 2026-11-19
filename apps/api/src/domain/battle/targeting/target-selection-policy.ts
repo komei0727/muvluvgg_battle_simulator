@@ -10,7 +10,7 @@ import {
 import { frontDirectionStep, manhattanDistance } from "./position-policy.js";
 import type { Side } from "../../shared/side.js";
 import type { BattleUnitId } from "../../shared/ids.js";
-import type { EffectInstanceId } from "../../shared/event-ids.js";
+import type { EffectInstanceId, SkillUseId } from "../../shared/event-ids.js";
 import type { Side as SelectorSide, UnitType } from "../../catalog/definitions/catalog-enums.js";
 import type {
   AreaDefinition,
@@ -58,6 +58,12 @@ export interface TriggerContext {
    * そのまま伝搬する。
    */
   readonly triggerEventPayload?: Readonly<Record<string, unknown>>;
+  /**
+   * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE_*`）: このPSを発動させた原因イベントが属する
+   * スキル使用の`SkillUseId`。元攻撃全体で与えた・受けたダメージの合計を引く鍵になる。
+   * AS/EX使用・Memory由来の解決や、スキル使用に属さない契機では`undefined`。
+   */
+  readonly triggerSkillUseId?: SkillUseId;
 }
 
 /**

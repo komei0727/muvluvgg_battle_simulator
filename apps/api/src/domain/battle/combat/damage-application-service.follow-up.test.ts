@@ -32,7 +32,7 @@ import {
  * R-FUP-01（Issue #474）: 追撃バフ（`isFollowUpAttack`）のライダー捕捉。
  * `applyDamageAction`は、AS/EXスキル使用側が`followUpAttackCapture`を渡した場合に
  * 限り、「命中判定へ到達したヒット」を基準にライダー・攻撃対象・命中/会心の集計を
- * 記録する。追撃自身の解決はスキル全step解決後（`follow-up-attack-service.ts`）。
+ * 記録する。追撃自身の解決はDAMAGE区間の終わり（`follow-up-attack-service.ts`）。
  */
 describe("applyDamageAction follow-up capture (R-FUP-01)", () => {
   const RIDER_DEFINITION_ID = createEffectActionDefinitionId("ACT_FOLLOW_UP_RIDER");

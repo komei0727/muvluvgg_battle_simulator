@@ -248,8 +248,8 @@
         {
           "kind": "ACTION",
           "stepCondition": {
-            "kind": "EVENT_PAYLOAD",
-            "field": "calculatedDamage",
+            "kind": "TRIGGER_SKILL_USE_DAMAGE",
+            "field": "DEALT",
             "op": "LTE",
             "value": 10
           },

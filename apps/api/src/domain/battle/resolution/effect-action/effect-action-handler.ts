@@ -293,6 +293,7 @@ export function grantFormulaScope(input: EffectActionApplicationInput): FormulaE
             context.damageResults,
             actor.battleUnitId,
             context.skillUseId,
+            context.triggerSkillUseId,
           ),
         }
       : {}),

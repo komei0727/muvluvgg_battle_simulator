@@ -5132,3 +5132,148 @@ describe("UNSUPPORTED_HIT_CONDITION_SCOPE: hitCondition.scope TRIGGER_SKILL_USE 
     expect(build("AS")).toThrowError(/UNSUPPORTED_HIT_CONDITION_SCOPE/);
   });
 });
+
+describe("TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL: 契機スキル使用の合計はPSだけが読める（R-SKL-08）", () => {
+  const counterAction = createEffectActionDefinition(
+    {
+      effectActionDefinitionId: "ACT_COUNTER_TOTAL",
+      kind: "DAMAGE",
+      payload: {
+        damageType: "PHYSICAL",
+        formula: {
+          kind: "DAMAGE_RECEIVED_RATIO",
+          sourceResult: "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
+          ratio: 1,
+        },
+      },
+    },
+    "effectAction",
+  );
+  function build(skillType: "AS" | "PS") {
+    const defs = baseDefinitions();
+    const resolved =
+      skillType === "PS"
+        ? createSkillDefinition({
+            skillDefinitionId: "SKL_COUNTER_TOTAL",
+            skillType: "PS",
+            cost: { resource: "PP", amount: 1 },
+            triggers: [
+              {
+                eventType: "DamageApplied",
+                category: "FACT",
+                sourceSelector: "ENEMY",
+                targetSelector: "SELF",
+              },
+            ],
+            resolution: {
+              kind: "IMMEDIATE",
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "TRIGGER_SOURCE" },
+                  actions: [{ effectActionDefinitionId: "ACT_COUNTER_TOTAL" }],
+                },
+              ],
+            },
+            cooldown: { unit: "ACTION", count: 0 },
+            traits: {},
+            metadata: { displayName: "PS" },
+          })
+        : asSkill("SKL_COUNTER_TOTAL", "ACT_COUNTER_TOTAL");
+    return () =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, resolved],
+        effectActions: [...defs.effectActions, counterAction],
+        units: [
+          unit("UNIT_001", {
+            ...(skillType === "PS"
+              ? { passive: ["SKL_COUNTER_TOTAL"] }
+              : { active: ["SKL_AS1", "SKL_COUNTER_TOTAL"] }),
+          }),
+        ],
+      });
+  }
+
+  it("UT-CAT-IDX-137 [R-SKL-08]: accepts sourceResult TRIGGER_SKILL_USE_DAMAGE_RECEIVED in a PS", () => {
+    expect(build("PS")).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-138 [R-SKL-08]: rejects sourceResult TRIGGER_SKILL_USE_DAMAGE_RECEIVED in an AS, which has no triggering skill use", () => {
+    expect(build("AS")).toThrowError(/TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL/);
+  });
+
+  const lowDamage = {
+    kind: "TRIGGER_SKILL_USE_DAMAGE",
+    field: "DEALT",
+    op: "LTE",
+    value: 10,
+  } as const;
+  function conditionedSkill(
+    skillType: "AS" | "PS",
+    where: "step" | "trigger" | "activation",
+  ): () => unknown {
+    const skill = createSkillDefinition({
+      skillDefinitionId: "SKL_LOW_DAMAGE",
+      skillType,
+      cost: skillType === "PS" ? { resource: "PP", amount: 1 } : { resource: "AP", amount: 1 },
+      ...(skillType === "PS"
+        ? {
+            triggers: [
+              {
+                eventType: "DamageApplied",
+                category: "FACT",
+                sourceSelector: "SELF",
+                targetSelector: "ENEMY",
+                ...(where === "trigger" ? { condition: lowDamage } : {}),
+              },
+            ],
+          }
+        : {}),
+      ...(where === "activation" ? { activationCondition: lowDamage } : {}),
+      resolution: {
+        kind: "IMMEDIATE",
+        steps: [
+          {
+            kind: "ACTION",
+            target: { kind: "SELF" },
+            ...(where === "step" ? { stepCondition: lowDamage } : {}),
+            actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {},
+      metadata: { displayName: "low damage" },
+    });
+    const defs = baseDefinitions();
+    return () =>
+      buildCatalogIndex({
+        ...defs,
+        skills: [...defs.skills, skill],
+        units: [
+          unit("UNIT_001", {
+            ...(skillType === "PS"
+              ? { passive: ["SKL_LOW_DAMAGE"] }
+              : { active: ["SKL_AS1", "SKL_LOW_DAMAGE"] }),
+          }),
+        ],
+      });
+  }
+
+  it("UT-CAT-IDX-139 [R-SKL-08]: accepts a TRIGGER_SKILL_USE_DAMAGE stepCondition in a PS resolution step", () => {
+    expect(conditionedSkill("PS", "step")).not.toThrow();
+  });
+
+  it("UT-CAT-IDX-140 [R-SKL-08]: rejects TRIGGER_SKILL_USE_DAMAGE outside a PS resolution step (AS step, PS trigger, PS activationCondition), where the original attack's total is not settled", () => {
+    for (const [skillType, where] of [
+      ["AS", "step"],
+      ["PS", "trigger"],
+      ["PS", "activation"],
+    ] as const) {
+      expect(conditionedSkill(skillType, where)).toThrowError(
+        /TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL/,
+      );
+    }
+  });
+});

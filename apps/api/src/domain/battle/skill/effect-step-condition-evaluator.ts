@@ -4,6 +4,7 @@ import type {
   ConditionDefinition,
   JsonPrimitive,
   TargetStateField,
+  TriggerSkillUseDamageField,
 } from "../../catalog/definitions/condition-definition.js";
 import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
@@ -229,8 +230,18 @@ export type TargetSetResolver = (reference: TargetReference) => readonly BattleU
  * が`undefined`のまま`EVENT_PAYLOAD`条件へ到達するのはCatalog-authoring
  * errorとして明確な例外を投げる（例: トリガーイベントを持たないAS/EX
  * active skillでの誤用）。
+ *
+ * `triggerSkillUseDamage`は`TRIGGER_SKILL_USE_DAMAGE`を評価する場合だけ必要で、
+ * `EVENT_PAYLOAD`と同じくPSの解決中だけ呼び出し側が渡す。
  */
 const EMPTY_UNIT_DEFINITIONS: ReadonlyMap<UnitDefinitionId, UnitDefinition> = new Map();
+
+/**
+ * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE`）: PS所有者が契機のスキル使用全体で与えた・受けた
+ * 計算ダメージの合計。PSは契機のスキル使用の効果処理が終わってから解決される（R-ATM-01）
+ * ため、元の攻撃全体を表す。
+ */
+export type TriggerSkillUseDamage = Readonly<Record<TriggerSkillUseDamageField, number>>;
 const SELF_REFERENCE: TargetReference = { kind: "SELF" };
 
 export function evaluateEffectStepCondition(
@@ -240,6 +251,7 @@ export function evaluateEffectStepCondition(
   resolveTargetSet?: TargetSetResolver,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   triggerEventPayload?: Readonly<Record<string, unknown>>,
+  triggerSkillUseDamage?: TriggerSkillUseDamage,
 ): boolean {
   switch (condition.kind) {
     case "TRUE":
@@ -253,6 +265,7 @@ export function evaluateEffectStepCondition(
           resolveTargetSet,
           unitDefinitions,
           triggerEventPayload,
+          triggerSkillUseDamage,
         ),
       );
     case "OR":
@@ -264,6 +277,7 @@ export function evaluateEffectStepCondition(
           resolveTargetSet,
           unitDefinitions,
           triggerEventPayload,
+          triggerSkillUseDamage,
         ),
       );
     case "NOT":
@@ -274,7 +288,21 @@ export function evaluateEffectStepCondition(
         resolveTargetSet,
         unitDefinitions,
         triggerEventPayload,
+        triggerSkillUseDamage,
       );
+    case "TRIGGER_SKILL_USE_DAMAGE": {
+      if (triggerSkillUseDamage === undefined) {
+        throw new DomainValidationError(
+          "step.condition",
+          'kind "TRIGGER_SKILL_USE_DAMAGE" requires the damage totals of the skill use that triggered this PS (Catalog-authoring error: only a PS activated by an event of a skill use has them)',
+        );
+      }
+      return compareWithOperator(
+        triggerSkillUseDamage[condition.field],
+        condition.op,
+        condition.value,
+      );
+    }
     case "LAST_RESULT": {
       if (lastResult === undefined) {
         throw new DomainValidationError(

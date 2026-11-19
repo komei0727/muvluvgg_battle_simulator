@@ -894,18 +894,19 @@ payload:
     enabled: false
 ```
 
-| フィールド            | 型                               | 必須 | 制約                                                                                                                                                                                                                                                                                                                                                                                       |
-| --------------------- | -------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `damageType`          | enum                             | ✓    | `PHYSICAL` / `EN`                                                                                                                                                                                                                                                                                                                                                                          |
-| `formula`             | FormulaDefinition                | ✓    | 多くは `SKILL_POWER`                                                                                                                                                                                                                                                                                                                                                                       |
-| `hitCount`            | integer                          | —    | 省略時1                                                                                                                                                                                                                                                                                                                                                                                    |
-| `bonusHits`           | object                           | —    | 対象の所持マーカー数に応じたヒット数の加算。`markerId`または`markerIds`（`MARKER_COUNT_SCALE`と同じ数え方）、`perStack`（正の整数）、`max`（正の整数）を持つ。対象ごとのヒット数は`hitCount + min(合算スタック数 × perStack, max)`で、ヒット列を組み立てる攻撃開始時点の所持数で決める（R-SKL-03）                                                                                         |
-| `critical.mode`       | enum                             | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL`                                                                                                                                                                                                                                                                                                                                     |
-| `accuracy.mode`       | enum                             | —    | `NORMAL` / `GUARANTEED`                                                                                                                                                                                                                                                                                                                                                                    |
-| `piercing`            | object                           | —    | 省略時0                                                                                                                                                                                                                                                                                                                                                                                    |
-| `damageModifiers`     | FormulaDefinition[]              | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列                                                                                                                                                                                                                                                                                                                                             |
-| `link.enabled`        | boolean                          | —    | 即時リンクダメージ                                                                                                                                                                                                                                                                                                                                                                         |
-| `hitConfirmedEffects` | `{ effectActionDefinitionId }[]` | —    | 1件以上、重複不可。対象ごとに最初の命中が確定した時点（`HitConfirmed`の連鎖解決後・会心判定前）で、その対象へ定義順に1回だけ付与する効果（R-DMG-05 #2a）。参照できるkindは`onHitEffects`と同じ`FOLLOW_UP_ON_HIT_EFFECT_KINDS`で、参照先が存在しない／対応外kindならCatalogロード時点で拒否する。全ヒット回避した対象には付与しない。production例: `ACT_YIFEI_STORM_AS1_DAMAGE`の「ご指名」 |
+| フィールド                        | 型                               | 必須 | 制約                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------- | -------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `damageType`                      | enum                             | ✓    | `PHYSICAL` / `EN`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `formula`                         | FormulaDefinition                | ✓    | 多くは `SKILL_POWER`                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `hitCount`                        | integer                          | —    | 省略時1                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `bonusHits`                       | object                           | —    | 対象の所持マーカー数に応じたヒット数の加算。`markerId`または`markerIds`（`MARKER_COUNT_SCALE`と同じ数え方）、`perStack`（正の整数）、`max`（正の整数）を持つ。対象ごとのヒット数は`hitCount + min(合算スタック数 × perStack, max)`で、ヒット列を組み立てる攻撃開始時点の所持数で決める（R-SKL-03）                                                                                                                                         |
+| `critical.mode`                   | enum                             | —    | `NORMAL` / `GUARANTEED` / `PREVENTED`。省略時 `NORMAL`                                                                                                                                                                                                                                                                                                                                                                                     |
+| `accuracy.mode`                   | enum                             | —    | `NORMAL` / `GUARANTEED`                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `piercing`                        | object                           | —    | 省略時0                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `damageModifiers`                 | FormulaDefinition[]              | —    | このDAMAGEだけへ適用する追加倍率。省略時空配列                                                                                                                                                                                                                                                                                                                                                                                             |
+| `link.enabled`                    | boolean                          | —    | 即時リンクダメージ                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `hitConfirmedEffects`             | `{ effectActionDefinitionId }[]` | —    | 1件以上、重複不可。対象ごとに最初の命中が確定した時点（`HitConfirmed`の連鎖解決後・会心判定前）で、その対象へ定義順に1回だけ付与する効果（R-DMG-05 #2a）。参照できるkindは`onHitEffects`と同じ`FOLLOW_UP_ON_HIT_EFFECT_KINDS`で、参照先が存在しない／対応外kindならCatalogロード時点で拒否する。全ヒット回避した対象には付与しない。production例: `ACT_YIFEI_STORM_AS1_DAMAGE`の「ご指名」                                                 |
+| `continueHitsAfterTargetDefeated` | boolean                          | —    | 省略時`false`。`true`ならこのDAMAGEで対象を撃破した後も、同じ対象への残りヒットを命中・会心判定とダメージ計算まで処理し、計算ダメージを`SUM_DAMAGE_*`へ記録する（HP・シールドへは適用せず、`DamageApplied`・`UnitDefeated`・防御介入・リンク・反射は発生しない）。開始時点で既に戦闘不能な対象はスキップする。「4ヒットの合計の40%回復」のように撃破後のヒットまで合計へ含める固有例外（`SKL_CLARA_TSUNDERE_AS1`、R-SKL-08）だけが宣言する |
 
 `formula` がHPから導かれる量を含む場合（`MAX_HP_RATIO`／`CURRENT_HP_RATIO`／`MISSING_HP_RATIO`／`LOST_HP_RATIO`。`source` を問わず、`MIN` 等の合成越しも含む）、`critical.mode` の**明示が必須**になる（R-CRT-04）。省略した定義はCatalogロード時点で拒否する。
 
@@ -1998,12 +1999,14 @@ formulas:
 
 ### sourceResult（`DAMAGE_DEALT_RATIO` / `DAMAGE_RECEIVED_RATIO`）
 
-| 値                     | 意味                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `LAST_DAMAGE_DEALT`    | 直前に発生した `DAMAGE` 結果1件のみ                                                   |
-| `LAST_DAMAGE_RECEIVED` | 直前に受けた `DAMAGE` 結果1件のみ                                                     |
-| `SUM_DAMAGE_DEALT`     | 同一 `EffectSequence` 実行中にこれまで発生した `DAMAGE` 結果の合計（G-10、Issue #44） |
-| `SUM_DAMAGE_RECEIVED`  | 同一 `EffectSequence` 実行中にこれまで受けた `DAMAGE` 結果の合計                      |
+| 値                                  | 意味                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| `LAST_DAMAGE_DEALT`                 | 直前に発生した `DAMAGE` 結果1件のみ                                                      |
+| `LAST_DAMAGE_RECEIVED`              | 直前に受けた `DAMAGE` 結果1件のみ                                                        |
+| `SUM_DAMAGE_DEALT`                  | 同一 `EffectSequence` 実行中にこれまで発生した `DAMAGE` 結果の合計（G-10、Issue #44）    |
+| `SUM_DAMAGE_RECEIVED`               | 同一 `EffectSequence` 実行中にこれまで受けた `DAMAGE` 結果の合計                         |
+| `TRIGGER_SKILL_USE_DAMAGE_DEALT`    | PSを発動させたスキル使用全体でPS所有者が与えた `DAMAGE` 結果の合計（PS専用、Issue #832） |
+| `TRIGGER_SKILL_USE_DAMAGE_RECEIVED` | PSを発動させたスキル使用全体でPS所有者が受けた `DAMAGE` 結果の合計（PS専用、Issue #832） |
 
 例: フルート EX「＃ぽよ・オア・トリート」の「与えたダメージの60%分自身のHPを回復する」は、列攻撃と条件付き追撃の合計与ダメージを参照する必要があるため `SUM_DAMAGE_DEALT` を使う。
 
@@ -2018,6 +2021,21 @@ ratio: 0.6
 `LAST_DAMAGE_*` は **1解決スコープ（=1行動）** の直前結果（R-SKL-08）だが、`SUM_*` は **1回の `EffectSequence` 解決** を単位に集計する。実行時の集計キーには、まさにその単位で採番される既存の `SkillUseId` を使う — AS/EX（`action-skill-use-resolver.ts`）、チャージ解放（`action-charge-resolver.ts`）、PS 自身の解決（`passive-activation-service.ts` の `activatePassiveCandidate`）がそれぞれ `nextSkillUseId()` で新規採番し、`scope: EFFECT_SEQUENCE` の `RuntimeCounter`（EFF-006）も同じキーを使う。
 
 この分離により、**同じ行動中に PS 連鎖が与えたダメージは、そのスキル自身の累計へ混入しない**（PS の解決は別の `EffectSequence`＝別の `SkillUseId` に属するため）。raw 原文（例:「与えたダメージの70%分回復する」）が意図する「そのスキルが与えたダメージ」と一致する。
+
+#### `TRIGGER_SKILL_USE_DAMAGE_*`（契機スキル使用の合計、Issue #832）
+
+「受けたダメージの120%で反撃する」のような反撃PSは、契機になった最後の1ヒット（`LAST_DAMAGE_RECEIVED`）ではなく、**元の攻撃全体**で自身が受けた量を基礎にする。PS自身の `SUM_*` はPSの `SkillUseId` に属するため使えない。`TRIGGER_SKILL_USE_DAMAGE_*` は、PSの契機イベントが属するスキル使用の `SkillUseId` をキーに、PS所有者の与ダメージ・被ダメージ累計を読む。
+
+- 値はいずれもシールド吸収・残HP制限前の計算ダメージ（`DamageCalculated.finalDamage`）の合計で、元スキルの全DAMAGE・全ヒット・その攻撃に属するサブユニット追加・追加攻撃・追撃を含む。本人以外への被害と、PS自身の反撃（別の `SkillUseId`）は含まない。
+- PSは契機のスキル使用の効果処理が終わってから解決される（`07_戦闘ルール詳細.md` `R-ATM-01`）ため、PSが評価する時点で合計は確定している。
+- 契機がスキル使用に属さない（ターン開始等）解決では値を持たず、参照するFormulaは評価時に例外になる。AS/EXのFormula・step条件からの参照はCatalogロード時点で `TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL` として拒否する。Memoryからの参照は他の `sourceResult` と同じく拒否する（R-MEM-04）。
+
+```yaml
+# 例: ココロPS1「受けたダメージの120%分の反撃」（SKL_KOKORO_SPORTSDAY_PS1）
+kind: DAMAGE_RECEIVED_RATIO
+sourceResult: TRIGGER_SKILL_USE_DAMAGE_RECEIVED
+ratio: 1.2
+```
 
 境界の扱いは次のとおり。
 
@@ -2068,29 +2086,30 @@ condition:
 
 ### kind 一覧
 
-| kind                    | 追加フィールド                                          | 意味                                                                                                  |
-| ----------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `TRUE`                  | なし                                                    | 常に成立                                                                                              |
-| `AND`                   | `conditions[]`                                          | 全条件                                                                                                |
-| `OR`                    | `conditions[]`                                          | いずれか                                                                                              |
-| `NOT`                   | `condition`                                             | 否定                                                                                                  |
-| `TARGET_STATE`          | `target`, `field`, `op`, `value`                        | 対象状態比較                                                                                          |
-| `TARGET_HAS_MARKER`     | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                       |
-| `EVENT_PAYLOAD`         | `field`, `op`, `value`                                  | trigger payload比較                                                                                   |
-| `DAMAGE_MAX_HP_RATIO`   | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                    |
-| `HP_RATIO_CROSSED`      | `threshold`, `direction`                                | trigger payloadの`hpBefore`/`hpAfter`の最大HP比が閾値を上から下へ跨いだか（`R-PS-01`）                |
-| `LAST_RESULT`           | `field`, `op`, `value`                                  | 直前結果比較                                                                                          |
-| `RUNTIME_COUNTER`       | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                           |
-| `TURN_NUMBER`           | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                        |
-| `ALIVE_UNIT_COUNT`      | `side`, `excludeSelf`, `op`, `value`                    | 生存ユニット数の直接比較（G-03、Issue #44）                                                           |
-| `POSITION_RELATION`     | `target`, `relation`                                    | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）                |
-| `RESOLUTION_PHASE`      | `phase`, `negate`                                       | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144）    |
-| `TARGET_SET_COUNT`      | `target`, `countOf`, `op`, `value`                      | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）          |
-| `TARGET_EFFECT_COUNT`   | `target`, `categories`, `op`, `value`                   | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                                |
-| `SELF_MEMORY_EQUIPPED`  | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                         |
-| `ATTRIBUTE_ADVANTAGE`   | `target`                                                | 自身が`target`に対して有利属性か（`R-ATR-05`、Issue #762、後述）                                      |
-| `SELECTED_TARGET_STATE` | `selector`, `field`, `op`, `value`                      | 評価時点に`selector`で選んだ対象の`TARGET_STATE`比較。PSの発動判定専用（`R-PS-09`、Issue #762、後述） |
-| `TRIGGER_SKILL_USE_HIT` | `target`                                                | 契機のスキル使用が`target`へ1ヒット以上命中したか。PSの発動判定専用（`R-PS-04`、Issue #831、後述）    |
+| kind                       | 追加フィールド                                          | 意味                                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUE`                     | なし                                                    | 常に成立                                                                                                                                                   |
+| `AND`                      | `conditions[]`                                          | 全条件                                                                                                                                                     |
+| `OR`                       | `conditions[]`                                          | いずれか                                                                                                                                                   |
+| `NOT`                      | `condition`                                             | 否定                                                                                                                                                       |
+| `TARGET_STATE`             | `target`, `field`, `op`, `value`                        | 対象状態比較                                                                                                                                               |
+| `TARGET_HAS_MARKER`        | `target`, `markerId`または`markerIds`, `countCondition` | Marker所持（`markerIds`はいずれかの所持と合計）                                                                                                            |
+| `EVENT_PAYLOAD`            | `field`, `op`, `value`                                  | trigger payload比較                                                                                                                                        |
+| `DAMAGE_MAX_HP_RATIO`      | `field`, `op`, `value`                                  | trigger payloadの被弾量を被弾ユニットの最大HP比で比較（`R-PS-01`）                                                                                         |
+| `HP_RATIO_CROSSED`         | `threshold`, `direction`                                | trigger payloadの`hpBefore`/`hpAfter`の最大HP比が閾値を上から下へ跨いだか（`R-PS-01`）                                                                     |
+| `LAST_RESULT`              | `field`, `op`, `value`                                  | 直前結果比較                                                                                                                                               |
+| `RUNTIME_COUNTER`          | `counter`, `op`, `value`, `modulo`                      | SkillRuntime等のcounter比較                                                                                                                                |
+| `TURN_NUMBER`              | `op`, `value`, `modulo`                                 | ターン番号条件                                                                                                                                             |
+| `ALIVE_UNIT_COUNT`         | `side`, `excludeSelf`, `op`, `value`                    | 生存ユニット数の直接比較（G-03、Issue #44）                                                                                                                |
+| `POSITION_RELATION`        | `target`, `relation`                                    | PS所有者から見た対象のFormation位置関係（M6、`TRIGGER_POSITION_RELATION`、Issue #144）                                                                     |
+| `RESOLUTION_PHASE`         | `phase`, `negate`                                       | 現在のroot/ancestorイベントが属するBattle/Turn phase（M6、`TRIGGER_EXCLUSION_TIMING`、Issue #144）                                                         |
+| `TARGET_SET_COUNT`         | `target`, `countOf`, `op`, `value`                      | 対象集合（`TargetReference`が解決する集合）の件数しきい値判定（RES-004集合条件、Issue #227）                                                               |
+| `TARGET_EFFECT_COUNT`      | `target`, `categories`, `op`, `value`                   | `TARGET_HAS_EFFECT`の個数版。`op`は数値比較6種のみ（Issue #649、後述）                                                                                     |
+| `SELF_MEMORY_EQUIPPED`     | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                                                                              |
+| `ATTRIBUTE_ADVANTAGE`      | `target`                                                | 自身が`target`に対して有利属性か（`R-ATR-05`、Issue #762、後述）                                                                                           |
+| `SELECTED_TARGET_STATE`    | `selector`, `field`, `op`, `value`                      | 評価時点に`selector`で選んだ対象の`TARGET_STATE`比較。PSの発動判定専用（`R-PS-09`、Issue #762、後述）                                                      |
+| `TRIGGER_SKILL_USE_HIT`    | `target`                                                | 契機のスキル使用が`target`へ1ヒット以上命中したか。PSの発動判定専用（`R-PS-04`、Issue #831、後述）                                                         |
+| `TRIGGER_SKILL_USE_DAMAGE` | `field`, `op`, `value`                                  | PS所有者が契機のスキル使用全体で与えた（`DEALT`）・受けた（`RECEIVED`）計算ダメージ合計の数値比較。PSのresolution step専用（`R-SKL-08`、Issue #832、後述） |
 
 `MARKER_COUNT_SCALE`・`MARKER_COUNT`（order）・`TARGET_HAS_MARKER`はいずれも、単一の`markerId`に代えて`markerIds`（1件以上、重複不可）を指定できる。両方の指定や、どちらも無い指定はCatalogロード時点で拒否する。`markerIds`を指定した場合、所持数は列挙したマーカーのスタック数の合計になる。`TARGET_HAS_MARKER`は、列挙したマーカーを1つも所持していなければ`countCondition`に関わらず不成立とする（単一`markerId`の不所持と同じ規約）。用途は寿命の違う同名マーカーを合算して数えることである — `MarkerState`はmarkerIdごとに1インスタンス・1 Durationしか持てないため（R-EFF-10）、寿命の違うスタックはmarkerIdを分けて付与し、所持数を問う側で合計する。
 
@@ -2129,6 +2148,13 @@ activationCondition:
         value: true,
       }
     - { kind: TRIGGER_SKILL_USE_HIT, target: { kind: TRIGGER_PRIMARY_TARGET } }
+```
+
+`TRIGGER_SKILL_USE_DAMAGE`（`R-SKL-08`）は、`sourceResult: TRIGGER_SKILL_USE_DAMAGE_*`と同じ合計（前述「`TRIGGER_SKILL_USE_DAMAGE_*`」節）を`value`と比べる。「攻撃で与えたダメージが10以下の場合」を契機の1ヒット（`EVENT_PAYLOAD`の`calculatedDamage`）ではなく元の攻撃全体で判定するために使う。置けるのはPSのresolution step（`stepCondition`・`BRANCH.condition`）だけで、trigger条件・`activationCondition`・`counterUpdates`・効果の`expiration.conditions`は元攻撃の効果処理中に評価され得て合計が確定していないため、AS/EXのstepは契機のスキル使用を持たないため、いずれもCatalogロード時点で`TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL`として拒否する。
+
+```yaml
+# 例: タリサPS1「与えたダメージが10以下の場合、負けん気を3つ解除する」（SKL_TARISA_TROUBLEMAKER_PS1）
+stepCondition: { kind: TRIGGER_SKILL_USE_DAMAGE, field: DEALT, op: LTE, value: 10 }
 ```
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。

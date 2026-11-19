@@ -175,6 +175,12 @@ export interface EffectActionGroupContext {
    * Memory由来の解決では`undefined`のままで、その条件は常に不成立になる。
    */
   readonly triggerSkillUseHitUnitIds?: ReadonlySet<BattleUnitId>;
+  /**
+   * R-SKL-08（`TRIGGER_SKILL_USE_DAMAGE_*`）: このPSを発動させた原因イベントが属する
+   * スキル使用の`SkillUseId`。元攻撃全体で与えた・受けたダメージの合計を引く鍵になる。
+   * AS/EX使用・Memory由来の解決や、スキル使用に属さない契機では`undefined`。
+   */
+  readonly triggerSkillUseId?: SkillUseId;
 }
 
 /**

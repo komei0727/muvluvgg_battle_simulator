@@ -842,7 +842,7 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
-        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "sourceResult": "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
         "ratio": 1
       },
       "critical": { "mode": "NORMAL" }
@@ -1514,7 +1514,8 @@
     "payload": {
       "damageType": "PHYSICAL",
       "formula": { "kind": "SKILL_POWER", "power": 0.3614 },
-      "hitCount": 4
+      "hitCount": 4,
+      "continueHitsAfterTargetDefeated": true
     },
     "metadata": { "tags": [] }
   },
@@ -4129,7 +4130,7 @@
       "damageType": "EN",
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
-        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "sourceResult": "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
         "ratio": 1.2
       },
       "critical": { "mode": "NORMAL" }
@@ -5308,7 +5309,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.35
       },
       "overheal": "DISCARD"
@@ -6932,11 +6933,7 @@
     "effectActionDefinitionId": "ACT_MEIYA_FATED_AS2_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.7
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.7 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }
@@ -9807,7 +9804,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.175
       },
       "overheal": "DISCARD"
@@ -10941,11 +10938,7 @@
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.5
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.5 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }
@@ -12500,7 +12493,7 @@
       "damageType": "PHYSICAL",
       "formula": {
         "kind": "DAMAGE_RECEIVED_RATIO",
-        "sourceResult": "LAST_DAMAGE_RECEIVED",
+        "sourceResult": "TRIGGER_SKILL_USE_DAMAGE_RECEIVED",
         "ratio": 0.5
       },
       "critical": { "mode": "NORMAL" }
@@ -12889,7 +12882,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.35
       },
       "overheal": "DISCARD"
@@ -13672,11 +13665,7 @@
     "effectActionDefinitionId": "ACT_YUI_HEIR_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.3
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.3 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }

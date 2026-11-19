@@ -3,6 +3,8 @@ import type { EffectActionDefinition } from "../definitions/effect-action-defini
 import type { TargetReference } from "../definitions/references.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type { EffectStepDefinition } from "../definitions/effect-sequence.js";
+import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
   collectConditionEffectActionReferences,
@@ -11,6 +13,7 @@ import {
   conditionContainsSelectedTargetState,
   triggerScopedConditionKindIn,
   conditionContainsTriggerSkillUseHit,
+  conditionContainsTriggerSkillUseDamage,
 } from "./condition-inspection.js";
 import {
   collectStepConditionEffectActionReferences,
@@ -216,6 +219,28 @@ export function validateSkill(
       message: `EVENT_PAYLOAD condition requires a PS Skill (the triggering event's payload only exists during a passive activation) — "${skill.skillDefinitionId}" is skillType "${skill.skillType}"`,
     });
   }
+  // R-SKL-08: `TRIGGER_SKILL_USE_DAMAGE_*`はPSを発動させたスキル使用の合計を読む。
+  // AS/EXには契機のスキル使用が無く、実行時にFormula評価が例外で止まるため、
+  // `EVENT_PAYLOAD`と同じくロード時点で拒否する。
+  // 条件版`TRIGGER_SKILL_USE_DAMAGE`はPSのresolution step専用で、trigger条件・
+  // `activationCondition`・counterUpdatesでは合計が確定していないため拒否する。
+  if (
+    (skill.skillType !== "PS" &&
+      sequences.some((sequence) =>
+        sequenceReadsTriggerSkillUseDamage(sequence.steps, effectActions),
+      )) ||
+    (skill.activationCondition !== undefined &&
+      conditionContainsTriggerSkillUseDamage(skill.activationCondition)) ||
+    [...skill.triggers, ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger)].some(
+      (trigger) => conditionContainsTriggerSkillUseDamage(trigger.condition),
+    )
+  ) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL",
+      message: `TRIGGER_SKILL_USE_DAMAGE(_*) is only evaluable while a PS resolves its steps (only a passive activation has a finished triggering skill use) — "${skill.skillDefinitionId}" (skillType "${skill.skillType}") declares it elsewhere`,
+    });
+  }
   // R-PS-01: trigger専用kind（`DAMAGE_MAX_HP_RATIO`・`HP_RATIO_CROSSED`）は
   // `TriggerDefinition.condition`専用。
   // `EVENT_PAYLOAD`と違い`effect-step-condition-evaluator.ts`が処理しないため、PSの
@@ -288,4 +313,47 @@ export function validateSkill(
   for (const counterUpdate of skill.counterUpdates) {
     validateTrigger(counterUpdate.trigger, skill.skillDefinitionId, violations);
   }
+}
+
+/** `value`（payload）のどこかが`TRIGGER_SKILL_USE_DAMAGE_*`を参照するか。 */
+function readsTriggerSkillUseDamage(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(readsTriggerSkillUseDamage);
+  }
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return Object.entries(value).some(([key, child]) =>
+    key === "sourceResult" && typeof child === "string"
+      ? child.startsWith("TRIGGER_SKILL_USE_DAMAGE_")
+      : readsTriggerSkillUseDamage(child),
+  );
+}
+
+/**
+ * ACTION stepが参照するEffectAction（DAMAGEの`hitConfirmedEffects`を含む）と、
+ * step条件の`TRIGGER_SKILL_USE_DAMAGE`のどちらかが契機スキル使用の合計を読むか。
+ */
+function sequenceReadsTriggerSkillUseDamage(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+): boolean {
+  const referenced = collectEffectActionReferences(steps).flatMap((reference) => {
+    const action = effectActions.get(reference.effectActionDefinitionId);
+    if (action === undefined) {
+      return [];
+    }
+    const confirmed =
+      action.kind === "DAMAGE"
+        ? (action.payload.hitConfirmedEffects ?? []).flatMap((effect) => {
+            const granted = effectActions.get(effect.effectActionDefinitionId);
+            return granted === undefined ? [] : [granted];
+          })
+        : [];
+    return [action, ...confirmed];
+  });
+  return (
+    referenced.some((action) => readsTriggerSkillUseDamage(action.payload)) ||
+    stepsSomeCondition(steps, conditionContainsTriggerSkillUseDamage)
+  );
 }

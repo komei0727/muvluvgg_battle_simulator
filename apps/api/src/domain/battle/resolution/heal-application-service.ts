@@ -34,6 +34,8 @@ export interface HealEventContext {
   /** R-HEAL-02: 回復者・対象が保持する`APPLY_HEALING_MOD`をkindで引くために必要。 */
   readonly effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>;
   readonly damageResults?: DamageResultRegistry;
+  /** R-SKL-08: `TRIGGER_SKILL_USE_DAMAGE_*`の鍵（PSを発動させたスキル使用）。 */
+  readonly triggerSkillUseId?: SkillUseId;
   /**
    * R-TEX-02 #5: 戦闘モードが`TACTICAL_EXERCISE`のときだけ呼び出し側が渡す、Battleが
    * 所有する演習状態。敵ユニットのHPが実際に増えた分をここから減算し
@@ -389,6 +391,7 @@ export function* applyOneHealSteps(
             context.damageResults,
             healer.battleUnitId,
             context.skillUseId,
+            context.triggerSkillUseId,
           ),
         }
       : {}),

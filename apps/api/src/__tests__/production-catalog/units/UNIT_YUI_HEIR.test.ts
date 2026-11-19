@@ -119,8 +119,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS1_HEAL", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS1_PP_DOWN", targets: ["enemy:front"] },
       ],
-      // 1ヒット371の3ヒット。回復は最終ヒット371の30%＝111。
-      hpDeltas: { "enemy:front": -1113, "ally:subject": 111 },
+      // 1ヒット371の3ヒット。回復は攻撃全体の合計1113の30%＝333（SR-408）。
+      hpDeltas: { "enemy:front": -1113, "ally:subject": 333 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -139,7 +139,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_YUI_HEIR_AS1_HEAL", targets: ["ally:subject"] },
       ],
-      hpDeltas: { "enemy:front": -1113, "ally:subject": 111 },
+      hpDeltas: { "enemy:front": -1113, "ally:subject": 333 },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
