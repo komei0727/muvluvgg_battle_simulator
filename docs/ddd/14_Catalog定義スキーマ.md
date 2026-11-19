@@ -354,7 +354,7 @@ metadata:
 | `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし                |
 | `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                      |
 | `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                                 |
-| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1                                               |
+| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1。各吸収体の機能しない割合（R-DMG-03）         |
 | `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                           |
 | `firstTriggerOnly`                   | boolean     | —    | PSのみ。同じ解決スコープで最初に一致した契機だけを発動判定にかける |
 

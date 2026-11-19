@@ -182,11 +182,11 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
     ]);
   });
 
-  it("UT-R-SUB-01-010 (R-SUB-01「シールド無視の対象とする」): shieldIgnoreRate bypasses the subunit as well as the shields", () => {
+  function ignoringSubUnitHit(finalDamage: number, subUnits: readonly AppliedEffect[]) {
     const context = damageEventContext();
-    const attacker = unit("ATTACKER", "ALLY", { attack: 50 });
-    // finalDamage = 40。shieldIgnoreRate 0.5 → 20はHPへ直行、残り20をサブユニットが吸収。
-    const target = targetWith([subUnitEffect("SUB_1", "TARGET", 100)]);
+    // finalDamage = attack - defense(10)
+    const attacker = unit("ATTACKER", "ALLY", { attack: finalDamage + 10 });
+    const target = targetWith(subUnits);
     const action = damageAction("PREVENTED");
     const piercingAction = {
       ...action,
@@ -195,7 +195,6 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
         piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0.5, damageReductionIgnoreRate: 0 },
       },
     };
-
     const result = applyDamageAction(
       attacker,
       [hit("TARGET", 1)],
@@ -204,16 +203,38 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
       new SequenceRandomSource([]),
       context,
     );
-
     const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
-    expect(updated.currentHp).toBe(80);
-    expect(updated.appliedEffects[0]!.subUnit!.durability).toBe(80);
     const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
+    return { updated, applied };
+  }
+
+  it("UT-R-SUB-01-010 (R-SUB-01「シールド無視の対象とする」, Q-SRV-01): a subunit absorbs up to its functioning share and only the excess reaches HP", () => {
+    // 耐久力100・無視50% → 機能分50。70のうち50を吸収し、超過20だけがHPへ通る。
+    const { updated, applied } = ignoringSubUnitHit(70, [subUnitEffect("SUB_1", "TARGET", 100)]);
+
+    expect(updated.currentHp).toBe(80);
+    expect(updated.appliedEffects[0]!.subUnit!.durability).toBe(50);
     expect(applied.payload).toMatchObject({
       hpDirectDamage: 20,
-      subUnitAbsorbed: 20,
+      subUnitAbsorbed: 50,
       hitPointDamage: 20,
     });
+  });
+
+  it("UT-R-SUB-01-012 (R-SUB-01, Q-SRV-01): several subunits each apply the ignore rate on their own, and a hit inside the functioning share leaves HP untouched", () => {
+    // 1体目の機能分50 → 2体目の機能分50 → 残り20がHPへ。
+    const overflow = ignoringSubUnitHit(120, [
+      subUnitEffect("SUB_1", "TARGET", 100),
+      subUnitEffect("SUB_2", "TARGET", 100),
+    ]);
+    expect(overflow.updated.currentHp).toBe(80);
+    expect(overflow.updated.appliedEffects.map((e) => e.subUnit!.durability)).toEqual([50, 50]);
+    expect(overflow.applied.payload).toMatchObject({ subUnitAbsorbed: 100, hpDirectDamage: 20 });
+
+    const inside = ignoringSubUnitHit(40, [subUnitEffect("SUB_1", "TARGET", 100)]);
+    expect(inside.updated.currentHp).toBe(100);
+    expect(inside.updated.appliedEffects[0]!.subUnit!.durability).toBe(60);
+    expect(inside.applied.payload).toMatchObject({ subUnitAbsorbed: 40, hpDirectDamage: 0 });
   });
 
   it("UT-R-SUB-02-005 (R-SUB-02第1項): adds exactly one additional-damage hit per attacked target, not per hit", () => {

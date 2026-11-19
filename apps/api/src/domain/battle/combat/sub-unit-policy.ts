@@ -16,6 +16,7 @@ import type { BattleUnit } from "../model/battle-unit.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { SubUnitDamageReason } from "../events/domain-event.js";
 import { toEffectSnapshot, type EffectSnapshot, type ValueChange } from "../events/state-delta.js";
+import { functioningShare } from "./shield-policy.js";
 
 /**
  * R-SUB-01: サブユニットを保持する`AppliedEffect`だけを付与順のまま返す。
@@ -61,6 +62,13 @@ export interface SubUnitAbsorption {
   readonly appliedEffects: readonly AppliedEffect[];
   /** 実際に耐久力が減ったインスタンスの差分。吸収量が0なら`undefined`。 */
   readonly change?: SubUnitDurabilityChange;
+  /**
+   * 今回選んだインスタンス。シールド無視で機能分が0のため吸収しなかった場合も設定する。
+   * 吸収できるインスタンスが無ければ`undefined`。
+   */
+  readonly visitedEffectInstanceId?: EffectInstanceId;
+  /** 選んだインスタンスの吸収後の耐久力（シールド無視で残った分を含む）。 */
+  readonly remainingAfter: number;
 }
 
 /**
@@ -87,32 +95,63 @@ export interface SubUnitAbsorption {
  * 同じ既定（R-EFF-02 #3「優先順が未指定の場合は付与順の古い順」）を採り
  * `appliedEffects`の並びの先頭から使い切る。
  */
-export function absorbFromNextSubUnit(target: BattleUnit, amount: number): SubUnitAbsorption {
+export function absorbFromNextSubUnit(
+  target: BattleUnit,
+  amount: number,
+  options: {
+    /**
+     * R-SUB-01第4項「シールド無視の対象とする」: シールドと同じく1体ずつ機能分
+     * （`functioningShare`）までしか吸収しない（Q-SRV-01）。
+     */
+    readonly shieldIgnoreRate?: number;
+    /** このヒットで既に選んだインスタンス。1ヒットで同じ1体を二度使わないため除く。 */
+    readonly visitedEffectInstanceIds?: ReadonlySet<EffectInstanceId>;
+  } = {},
+): SubUnitAbsorption {
+  const unchanged = { absorbed: 0, remainingAfter: 0, appliedEffects: target.appliedEffects };
   if (amount <= 0) {
-    return { absorbed: 0, appliedEffects: target.appliedEffects };
+    return unchanged;
   }
-  let change: SubUnitDurabilityChange | undefined;
-  const appliedEffects = target.appliedEffects.map((effect) => {
-    const subUnit = effect.subUnit;
-    if (change !== undefined || subUnit === undefined || subUnit.durability <= 0) {
-      return effect;
-    }
-    const taken = Math.min(subUnit.durability, amount);
-    const after = subUnit.durability - taken;
-    change = {
-      effectInstanceId: effect.effectInstanceId,
-      before: subUnit.durability,
-      after,
-      absorbed: taken,
-      depleted: after === 0,
+  const visited = options.visitedEffectInstanceIds ?? new Set<EffectInstanceId>();
+  const next = target.appliedEffects.find(
+    (effect) =>
+      effect.subUnit !== undefined &&
+      effect.subUnit.durability > 0 &&
+      !visited.has(effect.effectInstanceId),
+  );
+  if (next === undefined) {
+    return unchanged;
+  }
+  const subUnit = next.subUnit!;
+  const taken = Math.min(
+    functioningShare(subUnit.durability, options.shieldIgnoreRate ?? 0),
+    amount,
+  );
+  const after = subUnit.durability - taken;
+  if (taken <= 0) {
+    return {
+      ...unchanged,
+      visitedEffectInstanceId: next.effectInstanceId,
+      remainingAfter: subUnit.durability,
     };
-    return { ...effect, subUnit: { ...subUnit, durability: after } };
-  });
-
-  if (change === undefined) {
-    return { absorbed: 0, appliedEffects: target.appliedEffects };
   }
-  return { absorbed: change.absorbed, appliedEffects, change };
+  const change: SubUnitDurabilityChange = {
+    effectInstanceId: next.effectInstanceId,
+    before: subUnit.durability,
+    after,
+    absorbed: taken,
+    depleted: after === 0,
+  };
+  const appliedEffects = target.appliedEffects.map((effect) =>
+    effect === next ? { ...effect, subUnit: { ...subUnit, durability: after } } : effect,
+  );
+  return {
+    absorbed: taken,
+    remainingAfter: after,
+    appliedEffects,
+    change,
+    visitedEffectInstanceId: next.effectInstanceId,
+  };
 }
 
 /**

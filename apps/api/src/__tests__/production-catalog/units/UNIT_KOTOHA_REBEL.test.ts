@@ -772,4 +772,33 @@ describe("production Catalog UNIT_KOTOHA_REBEL (【世界への反逆者】コ�
         .appliedEffects.map((effect) => effect.effectActionDefinitionId),
     ).not.toContain("ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL");
   });
+
+  it("IT-UNIT-KOTOHA-REBEL-007 [R-DMG-03] (R-DMG-03, Q-SRV-01): HP満タン腕のシールド20%無視は盾の80%を機能させ、機能分に収まる2798はHPを減らさず、超えた分だけがHPへ通る", () => {
+    // 盾は実定義（ルナのEXが配る使用者の最大HP×40%）で張る。最大HPを盤面全体で
+    // 変えても、Kotohaの威力×(攻撃力−防御力)＝2798は変わらない。
+    const withShieldSource = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_LUNA_HUNGRY",
+    ]);
+    const observe = (maximumHp: number) =>
+      observeSkillUse({
+        snapshot: withShieldSource,
+        unitDefinitionId: UNIT_DEFINITION_ID,
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_KOTOHA_REBEL_EX" },
+        board: { combatStats: { maximumHp }, subject: { state: { currentHp: maximumHp } } },
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_LUNA_HUNGRY_EX_SHIELD", target: "ENEMY" },
+        ],
+      });
+
+    // 盾4500 → 機能分3600 ≥ 2798。旧方式の floor(2798 × 20%) = 559 の直通は起きない。
+    const covered = observe(11250);
+    expect(covered.actions).toEqual([
+      { effectActionDefinitionId: "ACT_KOTOHA_REBEL_EX_DAMAGE_PIERCE", targets: ["enemy:front"] },
+    ]);
+    expect(covered.hpDeltas ?? {}).toEqual({});
+
+    // 盾3000 → 機能分2400。超過398だけがHPへ通る。
+    expect(observe(7500).hpDeltas).toEqual({ "enemy:front": -398 });
+  });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   absorbFromShieldPool,
   decayActionShields,
-  shieldBypassedDamage,
+  functioningShare,
   shieldDecayHolders,
   shieldDecayPools,
   shieldPoolsOf,
@@ -141,11 +141,15 @@ describe("shield-policy (R-SHD-01/02/03)", () => {
     expect(pools).toEqual({ physical: 0, energy: 500, untyped: 40 });
   });
 
-  it("UT-R-SHD-02-002: truncates the shieldIgnoreRate share, leaving the remainder to the shields", () => {
-    expect(shieldBypassedDamage(200, 0.5)).toBe(100);
-    expect(shieldBypassedDamage(123, 0.3)).toBe(36);
-    expect(shieldBypassedDamage(40, 1)).toBe(40);
-    expect(shieldBypassedDamage(40, 0)).toBe(0);
+  it("UT-R-SHD-02-002 (Q-SRV-01): the functioning share is the remainder times (1 - shieldIgnoreRate), truncated", () => {
+    expect(functioningShare(2000, 0.5)).toBe(1000);
+    expect(functioningShare(4500, 0.2)).toBe(3600);
+    expect(functioningShare(123, 0.3)).toBe(86);
+    expect(functioningShare(101, 0.5)).toBe(50);
+    expect(functioningShare(40, 1)).toBe(0);
+    expect(functioningShare(40, 0)).toBe(40);
+    // 貫通の合成値（1 - 0.8 × 0.75）でも整数の機能分を1減らさない。
+    expect(functioningShare(1000, 1 - 0.8 * 0.75)).toBe(600);
   });
 
   it("UT-R-SHD-02-003: never absorbs from a typed pool of a different damage type", () => {

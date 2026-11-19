@@ -4,7 +4,7 @@ import { absorbFromNextSubUnit, emitSubUnitDamaged } from "./sub-unit-policy.js"
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { driveRemovalSteps, notifyOrYieldNewEvents, revalidateHit } from "./damage-hit-chain.js";
 import { expireDepletedAbsorberSteps } from "./damage-effect-expiry.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId } from "../../shared/event-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
@@ -18,6 +18,11 @@ export interface AbsorptionBeforeHitPoints {
   /** R-SHD-02 #4／R-SUB-01: サブユニットの吸収量。 */
   readonly subUnitAbsorbed: number;
   /**
+   * R-DMG-03／Q-SRV-01: 吸収先を通り抜けてHPへ向かう量のうち、シールド無視がなければ
+   * 吸収先が受け止めていた量（`hpDirectDamage`）。無視率0なら常に0。
+   */
+  readonly shieldBypassedDamage: number;
+  /**
    * 吸収イベント（`ShieldConsumed`/`SubUnitDamaged`）のPS/Memory連鎖が前提を崩したため、
    * 残りの吸収先へ進まずに打ち切ったことを表す。`INTERRUPT`は使用者の戦闘不能
    * （R-SKL-01「使用者が戦闘不能になった場合、未解決効果を中断する」）、`SKIP`は対象の
@@ -29,11 +34,13 @@ export interface AbsorptionBeforeHitPoints {
 }
 
 /**
- * R-SHD-02 #2〜#4（DMG-004／DMG-005）: HPへ到達する前の吸収先へ、`poolDamage`
- * （`shieldIgnoreRate`分を除いた残り）を規定の順序「タイプありシールド → タイプなし
- * シールド → サブユニット」で振り分ける。`08_ドメインイベント.md`「ダメージイベント」の
- * 並び（`DamageCalculated`→`ShieldConsumed`／`SubUnitDamaged`→`HitPointReduced`→
- * `DamageApplied`）どおり、吸収はHP適用より前に記録する。
+ * R-SHD-02 #1〜#4（DMG-004／DMG-005）: HPへ到達する前の吸収先へ、`poolDamage`を
+ * 規定の順序「タイプありシールド → タイプなしシールド → サブユニット」で振り分ける。
+ * `shieldIgnoreRate`があれば、各インスタンスは機能分（`functioningShare`）までしか
+ * 吸収せず、超過分だけが次の吸収先・HPへ進む（R-DMG-03、Q-SRV-01）。
+ * `08_ドメインイベント.md`「ダメージイベント」の並び（`DamageCalculated`→
+ * `ShieldConsumed`／`SubUnitDamaged`→`HitPointReduced`→`DamageApplied`）どおり、
+ * 吸収はHP適用より前に記録する。
  *
  * **プール1つ／サブユニット1体**を単位に「減少 → `ShieldConsumed`（`SubUnitDamaged`）→
  * PS/Memory即時連鎖の解決 → 枯渇分の`EffectExpired`とR-EFF-09カスケード」を完了させてから
@@ -67,11 +74,17 @@ export function* absorbBeforeHitPointsSteps(
      * 吸収の途中で失わせないためである。対象の戦闘不能による打ち切りはそのまま行う。
      */
     readonly continueAfterSourceDefeat?: boolean;
+    /** R-DMG-03: このヒットのシールド無視率。既定は0（通常の吸収）。 */
+    readonly shieldIgnoreRate?: number;
   } = {},
 ): Generator<DamageStep, AbsorptionBeforeHitPoints, readonly BattleUnit[] | undefined> {
   const absorbedByPool = new Map<DamageType | null, number>();
   let remaining = poolDamage;
   let lastEventId = parentEventId;
+  const shieldIgnoreRate = options.shieldIgnoreRate ?? 0;
+  // 吸収に使えた吸収体の、吸収後の残量合計。HPへ通った量のうちこの量までは、
+  // 無視がなければ受け止められていた。
+  let capacityLeft = 0;
   let interruption: AbsorptionBeforeHitPoints["interruption"] = "NONE";
   /**
    * `ShieldConsumed`/`SubUnitDamaged`起点のPS/Memory即時連鎖は`working`を書き換え得る
@@ -114,7 +127,9 @@ export function* absorbBeforeHitPointsSteps(
       remaining,
       shieldType,
       context.suspendedEffectInstanceIds,
+      shieldIgnoreRate,
     );
+    capacityLeft += absorption.remainingAfter;
     if (absorption.change === undefined) {
       continue;
     }
@@ -158,6 +173,7 @@ export function* absorbBeforeHitPointsSteps(
         typedShieldAbsorbed: absorbedByPool.get(damageType) ?? 0,
         untypedShieldAbsorbed: absorbedByPool.get(null) ?? 0,
         subUnitAbsorbed: 0,
+        shieldBypassedDamage: 0,
         interruption,
         lastEventId,
       };
@@ -170,14 +186,24 @@ export function* absorbBeforeHitPointsSteps(
   // 進行はあくまで残ダメージが尽きるか吸収できるインスタンスが無くなるまでとし、
   // 各周回で`working`から最新の保持者を取り直す。
   let subUnitAbsorbed = 0;
+  // シールド無視で機能分を使い切った1体は残量が残るため、同じヒットで再び選ばない。
+  const visitedSubUnits = new Set<EffectInstanceId>();
   while (remaining > 0) {
     const holder = working.get(targetUnitId);
     if (holder === undefined) {
       break;
     }
-    const absorption = absorbFromNextSubUnit(holder, remaining);
-    if (absorption.change === undefined) {
+    const absorption = absorbFromNextSubUnit(holder, remaining, {
+      shieldIgnoreRate,
+      visitedEffectInstanceIds: visitedSubUnits,
+    });
+    if (absorption.visitedEffectInstanceId === undefined) {
       break;
+    }
+    visitedSubUnits.add(absorption.visitedEffectInstanceId);
+    capacityLeft += absorption.remainingAfter;
+    if (absorption.change === undefined) {
+      continue;
     }
     const holderAfter: BattleUnit = { ...holder, appliedEffects: absorption.appliedEffects };
     working.set(targetUnitId, holderAfter);
@@ -221,6 +247,7 @@ export function* absorbBeforeHitPointsSteps(
     typedShieldAbsorbed: absorbedByPool.get(damageType) ?? 0,
     untypedShieldAbsorbed: absorbedByPool.get(null) ?? 0,
     subUnitAbsorbed,
+    shieldBypassedDamage: interruption === "NONE" ? Math.min(remaining, capacityLeft) : 0,
     interruption,
     lastEventId,
   };
