@@ -11,6 +11,7 @@ import {
   type ProductionBoard,
 } from "../../testing/production-unit/skill-behaviour.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
+import { createEffectActionDefinition } from "../../domain/catalog/definitions/effect-action-definition-factory.js";
 
 /**
  * R-EFF-09/R-EFF-10（Issue #830）: 同じ`markerId`でも付与ごとに付与元・期限を持つ別の
@@ -350,4 +351,294 @@ describe("marker grant independence (R-EFF-09, R-EFF-10)", () => {
     expect(violations).toEqual([]);
     expect(checkedChildren).toBeGreaterThan(30);
   });
+});
+
+/**
+ * 段階G（Issue #840）: FIX-06が担当する38評価行のスキルが付与する加算（`ADD`）マーカー
+ * すべてについて、付与分の独立を同じ手順で確かめる。代表例（-001〜-007）だけでなく、
+ * 定義移行だけで直した行も実定義で通す。
+ *
+ * 1. 同じ保持者へ親（＋同じスキル使用の子）を2回付ける → 付与分は2つ
+ * 2. 敵・味方へ付けるマーカーは別の保持者へも1回付ける
+ * 3. 保持者のマーカーを古い順に1つだけ外す（合成の`REMOVE_MARKER count: 1`）
+ * 4. 外れるのは1回目の付与分とその子だけで、2回目の付与分と子・別の保持者は残る
+ */
+const FIX06_ROWS = [
+  ["SR-264", "UNIT_AOI_ELEGANT", "SKL_AOI_ELEGANT_AS1"],
+  ["SR-265", "UNIT_AOI_ELEGANT", "SKL_AOI_ELEGANT_AS2"],
+  ["SR-266", "UNIT_AOI_ELEGANT", "SKL_AOI_ELEGANT_PS2"],
+  ["SR-275", "UNIT_FEE_BATH", "SKL_FEE_BATH_AS1"],
+  ["SR-276", "UNIT_FEE_BATH", "SKL_FEE_BATH_AS2"],
+  ["SR-283", "UNIT_KOTOHA_DAILY", "SKL_KOTOHA_DAILY_EX"],
+  ["SR-297", "UNIT_HARRIET_SAGE", "SKL_HARRIET_SAGE_AS1"],
+  ["SR-299", "UNIT_LAYLA_NURSE", "SKL_LAYLA_NURSE_PS1"],
+  ["SR-309", "UNIT_URUU_SUMMER", "SKL_URUU_SUMMER_PS1"],
+  ["SR-336", "UNIT_HIIRO_FREEWOLF", "SKL_HIIRO_FREEWOLF_AS1"],
+  ["SR-338", "UNIT_HIIRO_FREEWOLF", "SKL_HIIRO_FREEWOLF_PS1"],
+  ["SR-345", "UNIT_MAO_SUMMER", "SKL_MAO_SUMMER_EX"],
+  ["SR-351", "UNIT_NANAE_SOVEREIGN", "SKL_NANAE_SOVEREIGN_EX"],
+  ["SR-354", "UNIT_NADYA_SUCCESSOR", "SKL_NADYA_SUCCESSOR_AS1"],
+  ["SR-355", "UNIT_NADYA_SUCCESSOR", "SKL_NADYA_SUCCESSOR_PS1"],
+  ["SR-356", "UNIT_NADYA_SUCCESSOR", "SKL_NADYA_SUCCESSOR_PS2"],
+  ["SR-358", "UNIT_NADYA_SUCCESSOR", "SKL_NADYA_SUCCESSOR_EX"],
+  ["SR-361", "UNIT_OLGA_NADYA_BOND", "SKL_OLGA_NADYA_BOND_EX"],
+  ["SR-363", "UNIT_OLGA_VETERAN", "SKL_OLGA_VETERAN_AS2"],
+  ["SR-373", "UNIT_MERU_BESIDE", "SKL_MERU_BESIDE_AS2"],
+  ["SR-374", "UNIT_MERU_BESIDE", "SKL_MERU_BESIDE_PS1"],
+  ["SR-375", "UNIT_MERU_BESIDE", "SKL_MERU_BESIDE_PS2"],
+  ["SR-376", "UNIT_MERU_BESIDE", "SKL_MERU_BESIDE_EX"],
+  ["SR-377", "UNIT_YURIA_JOKER", "SKL_YURIA_JOKER_AS1"],
+  ["SR-388", "UNIT_RAVEL_MODEL", "SKL_RAVEL_MODEL_AS2"],
+  ["SR-389", "UNIT_RAVEL_MODEL", "SKL_RAVEL_MODEL_PS1"],
+  ["SR-391", "UNIT_RAVEL_MODEL", "SKL_RAVEL_MODEL_EX"],
+  ["SR-397", "UNIT_TARISA_TROUBLEMAKER", "SKL_TARISA_TROUBLEMAKER_PS1"],
+  ["SR-405", "UNIT_SUIRAN_CASINO", "SKL_SUIRAN_CASINO_AS3"],
+  ["SR-407", "UNIT_SUIRAN_CASINO", "SKL_SUIRAN_CASINO_EX"],
+  ["SR-412", "UNIT_NINA_ZINA_FRONTRUNNER", "SKL_NINA_ZINA_FRONTRUNNER_AS2"],
+  ["SR-413", "UNIT_NINA_ZINA_FRONTRUNNER", "SKL_NINA_ZINA_FRONTRUNNER_PS1"],
+  ["SR-414", "UNIT_NINA_ZINA_FRONTRUNNER", "SKL_NINA_ZINA_FRONTRUNNER_PS2"],
+  ["SR-415", "UNIT_NINA_ZINA_FRONTRUNNER", "SKL_NINA_ZINA_FRONTRUNNER_EX"],
+  ["SR-416", "UNIT_TATIANA_SAGE", "SKL_TATIANA_SAGE_AS1"],
+  ["SR-417", "UNIT_TATIANA_SAGE", "SKL_TATIANA_SAGE_AS2"],
+  ["SR-418", "UNIT_TATIANA_SAGE", "SKL_TATIANA_SAGE_AS3"],
+  ["SR-420", "UNIT_TATIANA_SAGE", "SKL_TATIANA_SAGE_EX"],
+] as const;
+
+const sweepSnapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  ...new Set(FIX06_ROWS.map(([, unitDefinitionId]) => unitDefinitionId)),
+]);
+
+type MarkerDuration = {
+  readonly linkedEffectGroupId?: string | null;
+  readonly linkedEffectGroupRole?: string;
+  readonly linkedEffectGroupScope?: string;
+};
+
+interface MarkerGrantCase {
+  readonly markerId: string;
+  /** 同じ保持者へ2つ目の付与分を持てるか（`stack.max`が1なら持てない）。 */
+  readonly stackable: boolean;
+  readonly parentId: string;
+  readonly childIds: readonly string[];
+  readonly target: PrecedingAction["target"];
+}
+
+function durationOf(effectActionDefinitionId: string): MarkerDuration | undefined {
+  const definition = sweepSnapshot.effectActions.get(effectActionDefinitionId as never);
+  return (definition?.payload as { readonly duration?: MarkerDuration } | undefined)?.duration;
+}
+
+/** スキル定義を辿り、各EffectAction IDを最初に現れたstepの対象（自身／味方／敵）と組で返す。 */
+function actionsWithTarget(skillDefinitionId: string): Map<string, PrecedingAction["target"]> {
+  const skill = sweepSnapshot.skills.get(skillDefinitionId as never)!;
+  const bindings = new Map(
+    skill.resolution.targetBindings.map((binding) => [
+      String(binding.targetBindingId),
+      JSON.stringify(binding.selector),
+    ]),
+  );
+  const targetOf = (step: Record<string, unknown>): PrecedingAction["target"] => {
+    const reference = step["target"] as { kind: string; targetBindingId?: string } | undefined;
+    if (reference === undefined || reference.kind === "SELF") {
+      return "SELF";
+    }
+    const selector = bindings.get(String(reference.targetBindingId)) ?? "";
+    return selector.includes('"side":"ALLY"') ? "ALLY" : "ENEMY";
+  };
+  const found = new Map<string, PrecedingAction["target"]>();
+  const visit = (steps: readonly Record<string, unknown>[]): void => {
+    for (const step of steps) {
+      for (const key of ["thenSteps", "elseSteps", "steps"]) {
+        if (Array.isArray(step[key])) {
+          visit(step[key] as Record<string, unknown>[]);
+        }
+      }
+      for (const branch of (step["branches"] ?? []) as { steps: Record<string, unknown>[] }[]) {
+        visit(branch.steps);
+      }
+      for (const action of (step["actions"] ?? []) as { effectActionDefinitionId: string }[]) {
+        if (!found.has(action.effectActionDefinitionId)) {
+          found.set(action.effectActionDefinitionId, targetOf(step));
+        }
+      }
+    }
+  };
+  visit(skill.resolution.steps);
+  // 命中時効果（`onHitEffects`）のように効果の中から参照される効果は、参照元と同じ対象へ付く。
+  const nested = (node: unknown, target: PrecedingAction["target"]): void => {
+    if (Array.isArray(node)) {
+      node.forEach((item) => nested(item, target));
+    } else if (node !== null && typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) {
+        if (
+          key === "effectActionDefinitionId" &&
+          typeof value === "string" &&
+          !found.has(value) &&
+          sweepSnapshot.effectActions.has(value as never)
+        ) {
+          found.set(value, target);
+          nested(sweepSnapshot.effectActions.get(value as never)!.payload, target);
+        } else {
+          nested(value, target);
+        }
+      }
+    }
+  };
+  for (const [id, target] of [...found]) {
+    nested(sweepSnapshot.effectActions.get(id as never)?.payload, target);
+  }
+  return found;
+}
+
+function markerGrantCases(skillDefinitionId: string): readonly MarkerGrantCase[] {
+  const actions = actionsWithTarget(skillDefinitionId);
+  return [...actions].flatMap(([effectActionDefinitionId, target]) => {
+    const definition = sweepSnapshot.effectActions.get(effectActionDefinitionId as never);
+    const payload = definition?.payload as
+      | {
+          readonly markerId?: string;
+          readonly stack?: { readonly policy?: string; readonly max?: number | null };
+        }
+      | undefined;
+    if (definition?.kind !== "APPLY_MARKER" || payload?.stack?.policy !== "ADD") {
+      return [];
+    }
+    const duration = durationOf(effectActionDefinitionId);
+    const childIds =
+      duration?.linkedEffectGroupScope === "SKILL_USE" &&
+      duration.linkedEffectGroupRole === "PARENT"
+        ? [...actions.keys()].filter((id) => {
+            const child = durationOf(id);
+            return (
+              child?.linkedEffectGroupRole === "CHILD" &&
+              child.linkedEffectGroupId === duration.linkedEffectGroupId
+            );
+          })
+        : [];
+    const max = payload.stack.max ?? null;
+    return [
+      {
+        markerId: payload.markerId!,
+        stackable: max === null || max >= 2,
+        parentId: effectActionDefinitionId,
+        childIds,
+        target,
+      },
+    ];
+  });
+}
+
+const FIX06_CASES = FIX06_ROWS.flatMap(([sr, unitDefinitionId, skillDefinitionId]) =>
+  markerGrantCases(skillDefinitionId).map(
+    (grantCase) => [sr, grantCase.parentId, { unitDefinitionId, ...grantCase }] as const,
+  ),
+);
+
+/** 保持者のそのマーカーを古い付与分から1つだけ外す合成の効果を盤面の定義へ足す。 */
+function withRemoveOne(board: ProductionBoard, markerId: string): ProductionBoard {
+  const definition = createEffectActionDefinition(
+    {
+      effectActionDefinitionId: `ACT_TEST_REMOVE_ONE_${markerId}`,
+      kind: "REMOVE_MARKER",
+      payload: { markerId, count: 1 },
+    },
+    "test",
+  );
+  return {
+    ...board,
+    definitions: {
+      ...board.definitions,
+      effectActions: new Map(board.definitions.effectActions).set(
+        definition.effectActionDefinitionId,
+        definition,
+      ),
+    },
+  };
+}
+
+function childInstanceIds(unit: BattleUnit, childIds: readonly string[]): readonly string[] {
+  return unit.appliedEffects
+    .filter((effect) => childIds.includes(effect.effectActionDefinitionId))
+    .map((effect) => effect.effectInstanceId);
+}
+
+describe("FIX-06 付与分の独立（段階G・38評価行の実定義）", () => {
+  it("IT-CAT-MKGRANT-008 [R-EFF-10]: FIX-06の評価行のうち加算マーカーを付けるスキルは全て横断対象に入り、子を連動させる親も含む", () => {
+    const rowsWithMarkers = new Set(FIX06_CASES.map(([sr]) => sr));
+    // 解除だけを持つ行（緋色PS1の闘志消費）は付与を持たないため、-004が単独で担う。
+    expect(FIX06_ROWS.filter(([sr]) => !rowsWithMarkers.has(sr)).map(([sr]) => sr)).toEqual([
+      "SR-338",
+    ]);
+    // 子を連動させる親（`SKILL_USE`範囲のPARENT）を持つ行が横断から漏れていないこと。
+    const linkedParents = new Set(
+      FIX06_CASES.filter(([, , grantCase]) => grantCase.childIds.length > 0).map(
+        ([, parentId]) => parentId,
+      ),
+    );
+    expect(linkedParents.size).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(FIX06_CASES)(
+    "IT-CAT-MKGRANT-009 [R-EFF-09, R-EFF-10] (%s): %s の付与分を古い順に1つ外すと、その付与分と子だけが消え、後の付与分・子と別の保持者は残る",
+    (_sr, _parentId, { unitDefinitionId, markerId, stackable, parentId, childIds, target }) => {
+      const precede = sharedPreceding();
+      const board = withRemoveOne(productionBoard(sweepSnapshot, unitDefinitionId), markerId);
+
+      const first = precede(board, grant(parentId, childIds, target));
+      const holder = first.find((unit) => grantsOf(unit, markerId).length > 0)!;
+      expect(holder, "the first grant lands on some unit").toBeDefined();
+      const firstGrant = grantsOf(holder, markerId)[0]!.markerInstanceId;
+      const firstChildren = childInstanceIds(holder, childIds);
+      expect(firstChildren).toHaveLength(childIds.length);
+
+      // 上限1のマーカーは同じ保持者に2つ目の付与分を持てないため、別保持者の独立だけを見る。
+      let units = first;
+      let keptGrants: readonly string[] = [];
+      let keptChildren: readonly string[] = [];
+      if (stackable) {
+        units = precede({ ...board, units: first }, grant(parentId, childIds, target));
+        const holderTwice = unitOf(units, holder.battleUnitId);
+        expect(grantsOf(holderTwice, markerId)).toHaveLength(2);
+        keptGrants = grantsOf(holderTwice, markerId)
+          .map((marker) => marker.markerInstanceId)
+          .filter((id) => id !== firstGrant);
+        keptChildren = childInstanceIds(holderTwice, childIds).filter(
+          (id) => !firstChildren.includes(id),
+        );
+      }
+
+      // 別の保持者へ、別のスキル使用で同じ親子を付ける。自身へ付けるマーカーは他の味方、
+      // 敵・味方へ付けるマーカーは保持者を一時的に倒れた扱いにして次の候補へ付ける。
+      units =
+        target === "SELF"
+          ? precede({ ...board, units }, grant(parentId, childIds, "ALLY"))
+          : restoreHp(
+              precede(
+                withDefeated(board, units, holder.battleUnitId),
+                grant(parentId, childIds, target),
+              ),
+              units,
+            );
+      const otherHolderId = units.find(
+        (unit) => unit.battleUnitId !== holder.battleUnitId && grantsOf(unit, markerId).length > 0,
+      )?.battleUnitId;
+      expect(otherHolderId, "a second holder receives its own grant").toBeDefined();
+      const otherBefore = unitOf(units, otherHolderId!);
+
+      const removed = precede({ ...board, units }, [
+        { effectActionDefinitionId: `ACT_TEST_REMOVE_ONE_${markerId}`, target },
+      ]);
+      const after = unitOf(removed, holder.battleUnitId);
+      expect(grantsOf(after, markerId).map((marker) => marker.markerInstanceId)).toEqual(
+        keptGrants,
+      );
+      const remainingChildren = childInstanceIds(after, childIds);
+      expect(remainingChildren.filter((id) => firstChildren.includes(id))).toEqual([]);
+      expect(keptChildren.filter((id) => !remainingChildren.includes(id))).toEqual([]);
+
+      const other = unitOf(removed, otherHolderId!);
+      expect(grantsOf(other, markerId)).toEqual(grantsOf(otherBefore, markerId));
+      expect(childInstanceIds(other, childIds)).toEqual(childInstanceIds(otherBefore, childIds));
+    },
+  );
 });

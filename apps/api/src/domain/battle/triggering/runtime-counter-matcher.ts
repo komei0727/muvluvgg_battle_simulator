@@ -40,6 +40,12 @@ export interface RuntimeCounterUpdateResult {
    * 契約とする（Catalog側の条件は`docs/ddd/14_Catalog定義スキーマ.md`参照）。
    */
   readonly valueChanged: boolean;
+  /**
+   * この更新でcounterのエントリが初めて作られたか。初回の更新は値が0のままでも
+   * 状態へ0のエントリを作るため、carryだけが動いた場合でも公開値の差分（0→0）を
+   * 持たせないと、公開差分から復元した状態にエントリが欠ける。
+   */
+  readonly valueEntryCreated: boolean;
 }
 
 export interface RuntimeCounterMatchInput {
@@ -271,11 +277,14 @@ export function applyMatchedRuntimeCounterUpdate(
   // 変化」と「実際の閾値到達」を区別できるようにするため。
   const valueChanged = applied.before !== applied.after;
   if (!valueChanged && applied.carry === carryBefore) {
-    return { units: nextUnits, change: undefined };
+    // 何も変わらない更新ではエントリも作らない。イベントを発行しないため、
+    // ここで0のエントリだけを作ると公開差分から復元できない状態が残る。
+    return { units, change: undefined };
   }
   return {
     units: nextUnits,
     change: {
+      valueEntryCreated: existingCounters[update.counter] === undefined,
       ownerUnitId: matched.ownerUnitId,
       skillDefinitionId,
       counter: update.counter,

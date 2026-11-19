@@ -258,7 +258,8 @@ export function applyEffectSequenceRuntimeCounterUpdates(
       stateDelta: {
         units: {
           [change.actorUnitId]: {
-            ...(change.valueChanged
+            // エントリを初めて作った更新は値が0のままでも公開値の差分を持つ。
+            ...(change.valueChanged || change.valueEntryCreated
               ? {
                   effectSequenceCounters: {
                     [change.skillUseId]: {

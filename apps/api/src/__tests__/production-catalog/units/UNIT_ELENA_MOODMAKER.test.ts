@@ -21,6 +21,7 @@ import {
   type BoardOverrides,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
+import { createHitPoint } from "../../../domain/battle/model/resource-gauge.js";
 import { computeCombatStats } from "../../../domain/battle/effects/combat-stat-recalculation-service.js";
 import { applyDamageAction } from "../../../domain/battle/combat/damage-application-service.js";
 import {
@@ -976,7 +977,61 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     expect(restored.units[board.woundedEnemy.battleUnitId]!.hp).toBe(300);
   });
 
-  it("IT-UNIT-ELENA-MOODMAKER-006 [R-HEAL-04] (BOUNDARY, R-HEAL-04): the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
+  it("IT-UNIT-ELENA-MOODMAKER-018 [R-HEAL-04] (BOUNDARY, R-HEAL-04): the 100% transfer from the linked enemy is capped by that enemy's missing HP — 30 missing transfers 30 of the 65 heal, a full-HP enemy transfers 0, and the enemy's HP stays where it was (SR-215)", () => {
+    const board = linkBoard();
+    const recorder = new EventRecorder(createBattleId("B_ELENA_CAP"));
+    const granted = useSkill(
+      board,
+      recorder,
+      board.elena,
+      skillFrom(snapshot, AS1_SKILL_ID),
+      board.units,
+      1,
+    );
+    const healSkillDefinition = board.definitions.skillDefinitions.get(
+      createSkillDefinitionId(LOWEST_ENEMY_HEAL_ID),
+    )!;
+    // 回復先をリンク保持者へ固定するため、もう1体の敵は倒れた扱いにする。
+    const withEnemyHp = (hp: number): readonly BattleUnit[] =>
+      granted.units.map((unit) => {
+        if (unit.battleUnitId === board.healthyEnemy.battleUnitId) {
+          return { ...unit, currentHp: createHitPoint(0, unit.combatStats.maximumHp) };
+        }
+        return unit.battleUnitId === board.woundedEnemy.battleUnitId
+          ? { ...unit, currentHp: createHitPoint(hp, unit.combatStats.maximumHp) }
+          : unit;
+      });
+    const elenaHp = unitOf(granted.units, board.elena.battleUnitId).currentHp;
+
+    for (const [enemyHp, transferred] of [
+      [970, 30],
+      [1000, 0],
+    ] as const) {
+      const eventsBefore = recorder.getEvents().length;
+      const healed = useSkill(
+        board,
+        recorder,
+        unitOf(granted.units, board.elena.battleUnitId),
+        healSkillDefinition,
+        withEnemyHp(enemyHp),
+        2,
+      );
+      const healApplied = recorder
+        .getEvents()
+        .slice(eventsBefore)
+        .find((event) => event.eventType === "HealApplied")!;
+      expect(healApplied.payload).toMatchObject({
+        targetUnitId: board.woundedEnemy.battleUnitId,
+        healAmount: 65,
+        transferredAmount: transferred,
+        appliedAmount: 0,
+      });
+      expect(unitOf(healed.units, board.woundedEnemy.battleUnitId).currentHp).toBe(enemyHp);
+      expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(elenaHp + transferred);
+    }
+  });
+
+  it("IT-UNIT-ELENA-MOODMAKER-006 [R-HEAL-04] (BOUNDARY, R-HEAL-04):the link AS1 also grants to Elena herself is the identity — healing Elena keeps the whole amount with her and emits no HealingTransferred", () => {
     const board = linkBoard();
     const recorder = new EventRecorder(createBattleId("B_ELENA"));
     const granted = useSkill(

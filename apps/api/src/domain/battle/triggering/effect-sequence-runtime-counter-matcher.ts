@@ -33,6 +33,12 @@ export interface EffectSequenceRuntimeCounterUpdateResult {
   readonly carry: number;
   readonly carryBefore: number;
   readonly valueChanged: boolean;
+  /**
+   * この更新でcounterのエントリが初めて作られたか。初回の更新は値が0のままでも
+   * 状態へ0のエントリを作るため、carryだけが動いた場合でも公開値の差分（0→0）を
+   * 持たせないと、公開差分から復元した状態にエントリが欠ける。
+   */
+  readonly valueEntryCreated: boolean;
 }
 
 /** `matchEffectSequenceRuntimeCounterUpdates`が1件マッチしたとして報告する、更新前の組。 */
@@ -143,11 +149,13 @@ export function applyMatchedEffectSequenceRuntimeCounterUpdate(
 
   const valueChanged = applied.before !== applied.after;
   if (!valueChanged && applied.carry === carryBefore) {
-    return { units: nextUnits, change: undefined };
+    // 何も変わらない更新ではエントリも作らない（`runtime-counter-matcher.ts`と同じ理由）。
+    return { units, change: undefined };
   }
   return {
     units: nextUnits,
     change: {
+      valueEntryCreated: existingCounters[update.counter] === undefined,
       actorUnitId: matched.actorUnitId,
       skillUseId,
       skillDefinitionId: matched.skillDefinitionId,

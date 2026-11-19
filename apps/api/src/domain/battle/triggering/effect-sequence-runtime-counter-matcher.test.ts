@@ -273,6 +273,7 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
       carry: 0,
       carryBefore: 0,
       valueChanged: true,
+      valueEntryCreated: true,
     });
     const updatedActor = result.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
     expect(updatedActor.effectSequenceCounters).toEqual({
@@ -315,6 +316,9 @@ describe("applyMatchedEffectSequenceRuntimeCounterUpdate", () => {
 
     expect(second.change?.before).toBe(1);
     expect(second.change?.after).toBe(2);
+    // 初回だけがエントリを作る（公開値の差分を必ず持たせる対象）。
+    expect(first.change?.valueEntryCreated).toBe(true);
+    expect(second.change?.valueEntryCreated).toBe(false);
     const updatedActor = second.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
     expect(updatedActor.effectSequenceCounters).toEqual({
       [SKILL_USE_ID]: { [HIT_COUNTER]: { value: 2, carry: 0 } },
