@@ -7,6 +7,7 @@ import type {
 import type { JsonPrimitive } from "../../catalog/definitions/condition-definition.js";
 import type { MarkerId } from "../../catalog/definitions/catalog-ids.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 import { compareWithOperator } from "../skill/comparison-operator.js";
 import { markerStackTotal } from "../model/marker-state.js";
 import {
@@ -26,6 +27,12 @@ export interface DamageModifierCompositionInput {
    * （`SkillTraits.piercing.damageReductionIgnoreRate`、[0, 1]）。
    */
   readonly damageReductionIgnoreRate: number;
+  /**
+   * R-DMG-04: このヒットが属する攻撃の開始時点のHP割合（ユニットごと）。
+   * `HP_RATIO_COMPARISON`の`evaluation: ATTACK_START`だけが読む。攻撃の外で
+   * 計算するヒット（攻撃スコープを持たない経路）では省略し、現在のHP割合で比べる。
+   */
+  readonly attackStartHitPointRatios?: ReadonlyMap<BattleUnitId, number>;
 }
 
 export interface DamageModifierComposition {
@@ -82,6 +89,24 @@ function referencedUnit(
 }
 
 /**
+ * R-DMG-04: `HP_RATIO_COMPARISON`が比べるHP割合。`ATTACK_START`は攻撃開始時点の値を使い、
+ * 攻撃の途中で被弾・回復してHP割合が逆転しても同じ攻撃の判定を変えない。
+ */
+function comparedHitPointRatio(
+  unit: BattleUnit,
+  condition: Extract<DamageModConditionDefinition, { kind: "HP_RATIO_COMPARISON" }>,
+  attackStartHitPointRatios: ReadonlyMap<BattleUnitId, number> | undefined,
+): number {
+  if (condition.evaluation === "ATTACK_START") {
+    const atStart = attackStartHitPointRatios?.get(unit.battleUnitId);
+    if (atStart !== undefined) {
+      return atStart;
+    }
+  }
+  return hitPointRatio(unit);
+}
+
+/**
  * `DYNAMIC_DAMAGE_MOD_CONDITION`（DMG-002、Issue #192）: 補正インスタンスの
  * 動的条件を、そのヒットの保持者(`owner`)と相手(`opponent`)に対して評価する。
  * 状態変更もイベント発行も行わない純粋関数。
@@ -90,20 +115,26 @@ export function evaluateDamageModCondition(
   condition: DamageModConditionDefinition,
   owner: BattleUnit,
   opponent: BattleUnit,
+  attackStartHitPointRatios?: ReadonlyMap<BattleUnitId, number>,
 ): boolean {
   switch (condition.kind) {
     case "TRUE":
       return true;
     case "AND":
       return condition.conditions.every((child) =>
-        evaluateDamageModCondition(child, owner, opponent),
+        evaluateDamageModCondition(child, owner, opponent, attackStartHitPointRatios),
       );
     case "OR":
       return condition.conditions.some((child) =>
-        evaluateDamageModCondition(child, owner, opponent),
+        evaluateDamageModCondition(child, owner, opponent, attackStartHitPointRatios),
       );
     case "NOT":
-      return !evaluateDamageModCondition(condition.condition, owner, opponent);
+      return !evaluateDamageModCondition(
+        condition.condition,
+        owner,
+        opponent,
+        attackStartHitPointRatios,
+      );
     case "UNIT_STATE": {
       const unit = referencedUnit(condition.unit, owner, opponent);
       if (condition.field === "ATTRIBUTE") {
@@ -132,9 +163,17 @@ export function evaluateDamageModCondition(
     }
     case "HP_RATIO_COMPARISON":
       return compareWithOperator(
-        hitPointRatio(referencedUnit(condition.left, owner, opponent)),
+        comparedHitPointRatio(
+          referencedUnit(condition.left, owner, opponent),
+          condition,
+          attackStartHitPointRatios,
+        ),
         condition.op,
-        hitPointRatio(referencedUnit(condition.right, owner, opponent)),
+        comparedHitPointRatio(
+          referencedUnit(condition.right, owner, opponent),
+          condition,
+          attackStartHitPointRatios,
+        ),
       );
   }
 }
@@ -156,6 +195,7 @@ function composeRate(
   direction: "OUTGOING" | "INCOMING",
   damageType: DamageType,
   damageReductionIgnoreRate: number,
+  attackStartHitPointRatios: ReadonlyMap<BattleUnitId, number> | undefined,
 ): number {
   return owner.appliedEffects.reduce((total, effect) => {
     const modifier = effect.damageModifier;
@@ -173,7 +213,7 @@ function composeRate(
     }
     if (
       modifier.condition !== undefined &&
-      !evaluateDamageModCondition(modifier.condition, owner, opponent)
+      !evaluateDamageModCondition(modifier.condition, owner, opponent, attackStartHitPointRatios)
     ) {
       return total;
     }
@@ -204,11 +244,27 @@ export function composeDamageModifiers(
   return {
     outgoingMultiplier: Math.max(
       0,
-      1 + composeRate(input.attacker, input.defender, "OUTGOING", input.damageType, rate),
+      1 +
+        composeRate(
+          input.attacker,
+          input.defender,
+          "OUTGOING",
+          input.damageType,
+          rate,
+          input.attackStartHitPointRatios,
+        ),
     ),
     incomingMultiplier: Math.max(
       0,
-      1 + composeRate(input.defender, input.attacker, "INCOMING", input.damageType, rate),
+      1 +
+        composeRate(
+          input.defender,
+          input.attacker,
+          "INCOMING",
+          input.damageType,
+          rate,
+          input.attackStartHitPointRatios,
+        ),
     ),
   };
 }

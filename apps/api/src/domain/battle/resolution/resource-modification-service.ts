@@ -6,7 +6,11 @@ import {
   createPassivePoint,
   truncateFraction,
 } from "../model/resource-gauge.js";
-import { evaluateFormula, damageResultsFor } from "../skill/formula-evaluator.js";
+import {
+  evaluateFormula,
+  damageResultsFor,
+  recordHitPointConsumed,
+} from "../skill/formula-evaluator.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   recordResourceChangeIfAny,
@@ -270,6 +274,15 @@ export function* applyModifyResourceActionSteps(
         ? markBreakPendingIfDeferred(context.exercise, targetAfterChange)
         : targetAfterChange;
     working.set(target.battleUnitId, updatedTarget);
+    // 使用者自身のHPの減少はHP消費として記録し、同じEffectSequenceの「消費分×N%」が読む。
+    if (resource === "HP" && target.battleUnitId === actor.battleUnitId && after < before) {
+      recordHitPointConsumed(
+        context.damageResults,
+        actor.battleUnitId,
+        before - after,
+        context.skillUseId,
+      );
+    }
 
     lastEventId = recordResourceChangeIfAny(
       context,

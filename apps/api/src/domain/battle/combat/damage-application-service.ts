@@ -393,6 +393,9 @@ export function* applyDamageActionSteps(
       defender: targetBeforeDamage,
       damageType: damageAction.payload.damageType,
       damageReductionIgnoreRate: piercing.damageReductionIgnoreRate,
+      ...(context.attackStartHitPointRatios !== undefined
+        ? { attackStartHitPointRatios: context.attackStartHitPointRatios }
+        : {}),
     });
     const confusionInput = resolveConfusion(attackerBeforeDamage, context.skillType);
     const rawDamageResult = calculateDamage({

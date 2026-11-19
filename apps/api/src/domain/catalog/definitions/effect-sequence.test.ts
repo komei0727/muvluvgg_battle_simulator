@@ -1106,4 +1106,103 @@ describe("EffectSequence", () => {
       ).toThrow(DomainValidationError);
     });
   });
+
+  describe("targetBindings[].evaluation (SR-117)", () => {
+    const lowestAlly = {
+      kind: "SELECT",
+      side: "ALLY",
+      count: 1,
+      order: ["LOWEST_HP_RATIO"],
+    };
+    const healSteps = (lowestTarget: unknown) => [
+      {
+        kind: "ACTION",
+        target: { kind: "BINDING", targetBindingId: "TGT_ALL" },
+        actions: [{ effectActionDefinitionId: "ACT_HEAL_ALL" }],
+      },
+      {
+        kind: "ACTION",
+        target: lowestTarget,
+        actions: [{ effectActionDefinitionId: "ACT_HEAL_LOWEST" }],
+      },
+    ];
+    const bindings = (evaluation?: string) => [
+      { targetBindingId: "TGT_ALL", selector: { kind: "SELECT", side: "ALLY", count: "ALL" } },
+      {
+        targetBindingId: "TGT_LOWEST",
+        selector: lowestAlly,
+        ...(evaluation === undefined ? {} : { evaluation }),
+      },
+    ];
+
+    it("UT-CAT-SEQ-051 [R-SKL-01]: accepts ON_FIRST_REFERENCE on a SELECT binding targeted by a top-level ACTION step, and rejects an unknown value", () => {
+      const sequence = createEffectSequence(
+        {
+          targetBindings: bindings("ON_FIRST_REFERENCE"),
+          steps: healSteps({ kind: "BINDING", targetBindingId: "TGT_LOWEST" }),
+        } as never,
+        "resolution",
+      );
+      expect(sequence.targetBindings[1]).toMatchObject({ evaluation: "ON_FIRST_REFERENCE" });
+      expect(sequence.targetBindings[0]).not.toHaveProperty("evaluation");
+      expect(() =>
+        createEffectSequence(
+          {
+            kind: "IMMEDIATE",
+            targetBindings: bindings("ON_APPLY"),
+            steps: healSteps({ kind: "BINDING", targetBindingId: "TGT_LOWEST" }),
+          } as never,
+          "resolution",
+        ),
+      ).toThrow(DomainValidationError);
+    });
+
+    it("UT-CAT-SEQ-052 [R-SKL-01]: rejects an ON_FIRST_REFERENCE binding referenced from a condition, a nested step or another binding's base", () => {
+      const referencedFromCondition = {
+        targetBindings: bindings("ON_FIRST_REFERENCE"),
+        steps: [
+          ...healSteps({ kind: "BINDING", targetBindingId: "TGT_LOWEST" }),
+          {
+            kind: "BRANCH",
+            condition: {
+              kind: "TARGET_STATE",
+              target: { kind: "BINDING", targetBindingId: "TGT_LOWEST" },
+              field: "IS_ALIVE",
+              op: "EQ",
+              value: true,
+            },
+            thenSteps: [],
+            elseSteps: [],
+          },
+        ],
+      };
+      const usedAsBase = {
+        targetBindings: [
+          ...bindings("ON_FIRST_REFERENCE"),
+          {
+            targetBindingId: "TGT_NEXT_TO_LOWEST",
+            selector: {
+              kind: "BINDING_DERIVED",
+              base: { kind: "BINDING", targetBindingId: "TGT_LOWEST" },
+              area: { kind: "SAME_ROW_AS_BASE", includeBase: false },
+              side: "ALLY",
+            },
+          },
+        ],
+        steps: [
+          ...healSteps({ kind: "BINDING", targetBindingId: "TGT_LOWEST" }),
+          {
+            kind: "ACTION",
+            target: { kind: "BINDING", targetBindingId: "TGT_NEXT_TO_LOWEST" },
+            actions: [{ effectActionDefinitionId: "ACT_HEAL_LOWEST" }],
+          },
+        ],
+      };
+      for (const input of [referencedFromCondition, usedAsBase]) {
+        expect(() => createEffectSequence(input as never, "resolution")).toThrow(
+          DomainValidationError,
+        );
+      }
+    });
+  });
 });

@@ -99,6 +99,8 @@ const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set([
   // Formula種別も評価不能として扱う。
   "DAMAGE_DEALT_RATIO",
   "DAMAGE_RECEIVED_RATIO",
+  // 使用者自身のHP消費量も同じ`DamageResultRegistry`に使用者ごとに記録される。
+  "HP_CONSUMED_RATIO",
 ]);
 
 /** 発生源ではなく「効果保持者」のスコープを表すpayloadキー（走査対象外）。 */

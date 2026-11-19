@@ -10,10 +10,9 @@
       },
       "damageModifiers": [
         {
-          "kind": "ALIVE_UNIT_COUNT_SCALE",
+          "kind": "ALIVE_UNIT_RATIO",
           "side": "ENEMY",
-          "perUnit": 0.1667,
-          "max": 1.0
+          "ratio": 1
         }
       ]
     },

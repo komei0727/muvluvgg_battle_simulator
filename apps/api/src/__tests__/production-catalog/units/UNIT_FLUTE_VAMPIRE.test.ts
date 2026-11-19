@@ -229,6 +229,74 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
   },
   {
+    skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1",
+    intent:
+      "(境界): HP消費は補正を受けない直接消費で、与ダメージ+25%中でもHP10000から2500だけ消費して7500になる（補正は対敵ダメージにだけ掛かる）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1" },
+    board: {
+      ...IN_KYOKUGEN,
+      subject: {
+        ...IN_KYOKUGEN.subject,
+        state: {
+          combatStats: { ...BOARD_COMBAT_STATS, maximumHp: 10000 },
+          currentHp: 10000,
+        },
+      },
+    },
+    precedingActions: [
+      { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_PS1_DMG_UP", target: "SELF" },
+    ],
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_HP_COST", targets: ["ally:subject"] },
+      ],
+      hpDeltas: {
+        "ally:subject": -2500,
+        // 対敵だけが429×1.25＝536へ増える。
+        "enemy:front": -536,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1",
+    intent: "(境界): 敵に攻撃を回避されてもHP消費は行う",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1" },
+    board: IN_KYOKUGEN,
+    precedingActions: [{ effectActionDefinitionId: PS2_EVASION, target: "ENEMY" }],
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_DAMAGE",
+          targets: ["enemy:front"],
+          resultKind: "MISSED",
+        },
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_HP_COST", targets: ["ally:subject"] },
+      ],
+      effectsRemoved: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: PS2_EVASION,
+          magnitude: 0,
+          statusKind: "HIT_EVASION",
+          timeLimit: { unit: "ACTION", count: 1 },
+          consumption: { kind: "INCOMING_HIT", maxCount: 1 },
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": -1250,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
     skillDefinitionId: "SKL_FLUTE_VAMPIRE_PS1",
     intent:
       "自身のHPが10%以下になった際に発動。自身のHPを最大HPの100%回復、さらに最大APを1増やし、自身を解除不可の「極限」状態にする。さらに自身に対し、2行動の間与ダメージを25%上昇させるバフを付与する",

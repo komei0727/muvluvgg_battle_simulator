@@ -328,7 +328,10 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       // R-INT-01 #5: 範囲攻撃の各対象への適用は同じ1回の攻撃のため、致死耐えの台帳を共有する。
       ...(input.attack === undefined
         ? {}
-        : { attackDeathSurvivals: input.attack.scope.deathSurvivals }),
+        : {
+            attackDeathSurvivals: input.attack.scope.deathSurvivals,
+            attackStartHitPointRatios: input.attack.scope.startHitPointRatios,
+          }),
       reservedDeathSurvivals: reservedDeathSurvivalsFor(context, input.attack?.scope),
       ...(suspendedEffectInstanceIds.size > 0
         ? {

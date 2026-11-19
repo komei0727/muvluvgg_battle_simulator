@@ -67,21 +67,24 @@ export function resolveBindingSelections(
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
 ): readonly { targetBindingId: string; selectedTargetUnitIds: readonly BattleUnitId[] }[] {
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
-  return targetBindings.map((binding) => {
-    const units = resolveTargets(
-      binding.selector,
-      actor,
-      allUnits,
-      resolvedBindingUnits,
-      undefined,
-      unitDefinitions,
-    );
-    resolvedBindingUnits.set(binding.targetBindingId, units);
-    return {
-      targetBindingId: binding.targetBindingId,
-      selectedTargetUnitIds: units.map((unit) => unit.battleUnitId),
-    };
-  });
+  // R-SKL-01: 遅れて評価するbindingは開始時点では選択が確定していないため載せない。
+  return targetBindings
+    .filter((binding) => binding.evaluation !== "ON_FIRST_REFERENCE")
+    .map((binding) => {
+      const units = resolveTargets(
+        binding.selector,
+        actor,
+        allUnits,
+        resolvedBindingUnits,
+        undefined,
+        unitDefinitions,
+      );
+      resolvedBindingUnits.set(binding.targetBindingId, units);
+      return {
+        targetBindingId: binding.targetBindingId,
+        selectedTargetUnitIds: units.map((unit) => unit.battleUnitId),
+      };
+    });
 }
 
 /**

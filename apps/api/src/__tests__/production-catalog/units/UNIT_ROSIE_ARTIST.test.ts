@@ -84,11 +84,166 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN", targets: ["ally:subject"] },
       ],
-      // 468 に、生存敵3体分の増加率（0.1667×3）が乗る。
+      // 468 に、倍率1＋min(生存敵数3／戦闘開始時の敵数3, 1)＝2 が乗る。
       hpDeltas: {
-        "enemy:front": -702,
-        "enemy:left": -702,
-        "enemy:back": -702,
+        "enemy:front": -936,
+        "enemy:left": -936,
+        "enemy:back": -936,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN",
+          magnitude: -0.75,
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_EX",
+    intent:
+      "(境界): 同じ攻撃の途中で敵を撃破すると生存敵数を数え直す — 最初の敵を撃破した後の2体は倍率1＋2/3で各780",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ROSIE_ARTIST_EX" },
+    board: {
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 936 },
+        },
+        {
+          id: "enemy:left",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN", targets: ["ally:subject"] },
+        // 撃破でPS1（敵撃破時の与ダメージ上昇）が連鎖する。
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
+      ],
+      // 468×(1＋2/3)は浮動小数で779.999…となり、R-NUM-02の切り捨てで779になる。
+      hpDeltas: {
+        "enemy:front": -936,
+        "enemy:left": -779,
+        "enemy:back": -779,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN",
+          magnitude: -0.75,
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+        },
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP",
+          magnitude: 0.5,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS1", remaining: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_EX",
+    intent:
+      "(境界): 基準は戦闘開始時の敵数 — 開始時から敵が1体だけなら、その1体の生存で上限の倍率2になる",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ROSIE_ARTIST_EX" },
+    board: {
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN", targets: ["ally:subject"] },
+      ],
+      hpDeltas: {
+        "enemy:front": -936,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN",
+          magnitude: -0.75,
+          consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_EX",
+    intent:
+      "(境界): 戦闘開始時の6体のうち1体が既に倒れていれば、生存5体で倍率1＋5/6（468×11/6＝858）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ROSIE_ARTIST_EX" },
+    board: {
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "enemy:left",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 10000 },
+        },
+        { id: "enemy:right", position: { column: "RIGHT", row: "FRONT" }, state: { currentHp: 0 } },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "enemy:backleft",
+          position: { column: "LEFT", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+        {
+          id: "enemy:backright",
+          position: { column: "RIGHT", row: "BACK" },
+          state: { currentHp: 10000 },
+        },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:backleft"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DAMAGE", targets: ["enemy:backright"] },
+        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_EX_DMG_DOWN", targets: ["ally:subject"] },
+      ],
+      hpDeltas: {
+        "enemy:front": -858,
+        "enemy:left": -858,
+        "enemy:back": -858,
+        "enemy:backleft": -858,
+        "enemy:backright": -858,
       },
       effectsApplied: [
         {

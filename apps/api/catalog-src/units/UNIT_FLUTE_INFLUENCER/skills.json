@@ -24,7 +24,8 @@
             "side": "ALLY",
             "count": 1,
             "order": ["LOWEST_HP_RATIO"]
-          }
+          },
+          "evaluation": "ON_FIRST_REFERENCE"
         }
       ],
       "steps": [

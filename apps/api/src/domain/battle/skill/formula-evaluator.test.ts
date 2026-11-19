@@ -3,6 +3,7 @@ import {
   damageResultsFor,
   evaluateFormula,
   recordDamageResult,
+  recordHitPointConsumed,
   type DamageResultRegistry,
   type FormulaEvaluationContext,
 } from "./formula-evaluator.js";
@@ -861,11 +862,13 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
       LAST_DAMAGE_DEALT: 80,
       SUM_DAMAGE_DEALT: 200,
       SUM_DAMAGE_RECEIVED: 0,
+      SUM_HP_CONSUMED: 0,
     });
     expect(damageResultsFor(registry, RECEIVER, SEQUENCE_A)).toEqual({
       LAST_DAMAGE_RECEIVED: 80,
       SUM_DAMAGE_DEALT: 0,
       SUM_DAMAGE_RECEIVED: 200,
+      SUM_HP_CONSUMED: 0,
     });
   });
 
@@ -887,6 +890,7 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
     expect(damageResultsFor(registry, DEALER, SEQUENCE_A)).toEqual({
       SUM_DAMAGE_DEALT: 0,
       SUM_DAMAGE_RECEIVED: 0,
+      SUM_HP_CONSUMED: 0,
     });
     expect(
       evaluateFormula(
@@ -919,6 +923,7 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
       LAST_DAMAGE_RECEIVED: 10,
       SUM_DAMAGE_DEALT: 40,
       SUM_DAMAGE_RECEIVED: 40,
+      SUM_HP_CONSUMED: 0,
     });
   });
 
@@ -931,6 +936,7 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
       LAST_DAMAGE_DEALT: 0,
       SUM_DAMAGE_DEALT: 120,
       SUM_DAMAGE_RECEIVED: 0,
+      SUM_HP_CONSUMED: 0,
     });
   });
 
@@ -979,5 +985,79 @@ describe("DamageResultRegistry EffectSequence sums (G-10, RES-003A)", () => {
         context({ lastResults: damageResultsFor(registry, RECEIVER, SEQUENCE_B) }),
       ),
     ).toThrow(DomainValidationError);
+  });
+});
+
+describe("ALIVE_UNIT_RATIO (SR-056)", () => {
+  it("UT-R-NUM-04-049: ALIVE_UNIT_RATIO divides the alive count by the side's battle-start count, defeated units included in the denominator", () => {
+    const skillSource = unitAt("U_SOURCE", "ALLY");
+    const enemies = [
+      unitAt("U_E1", "ENEMY"),
+      withCurrentHp(unitAt("U_E2", "ENEMY"), 0),
+      unitAt("U_E3", "ENEMY"),
+    ];
+    const formula: FormulaDefinition = { kind: "ALIVE_UNIT_RATIO", side: "ENEMY", ratio: 1 };
+    expect(
+      evaluateFormula(formula, context({ skillSource, allUnits: [skillSource, ...enemies] })),
+    ).toBeCloseTo(2 / 3);
+    // 全滅していれば0（0除算にしない）。
+    const wiped = enemies.map((enemy) => withCurrentHp(enemy, 0));
+    expect(
+      evaluateFormula(formula, context({ skillSource, allUnits: [skillSource, ...wiped] })),
+    ).toBe(0);
+  });
+
+  it("UT-R-NUM-04-050: ALIVE_UNIT_RATIO counts only the deployed (highest-numbered) total-war formation, so the wiped earlier formation left on the board does not enlarge the denominator", () => {
+    const skillSource = unitAt("U_SOURCE", "ALLY", { formationNumber: 1 });
+    const wipedFirst = ["U_F1A", "U_F1B", "U_F1C"].map((id) =>
+      withCurrentHp(unitAt(id, "ENEMY", { formationNumber: 1 }), 0),
+    );
+    const deployed = [
+      unitAt("U_F2A", "ENEMY", { formationNumber: 2 }),
+      withCurrentHp(unitAt("U_F2B", "ENEMY", { formationNumber: 2 }), 0),
+    ];
+    const formula: FormulaDefinition = { kind: "ALIVE_UNIT_RATIO", side: "ENEMY", ratio: 1 };
+    expect(
+      evaluateFormula(
+        formula,
+        context({ skillSource, allUnits: [skillSource, ...wipedFirst, ...deployed] }),
+      ),
+    ).toBeCloseTo(1 / 2);
+  });
+});
+
+describe("HP_CONSUMED_RATIO (SR-215)", () => {
+  const SOURCE = createBattleUnitId("U_SOURCE");
+  const SEQUENCE_A = createSkillUseId("SKILL_USE_A");
+  const SEQUENCE_B = createSkillUseId("SKILL_USE_B");
+
+  it("UT-R-SKL-08-028: HP_CONSUMED_RATIO reads the HP the source consumed within the same EffectSequence only", () => {
+    const registry: DamageResultRegistry = new Map();
+    recordHitPointConsumed(registry, SOURCE, 500, SEQUENCE_A);
+    recordHitPointConsumed(registry, SOURCE, 0, SEQUENCE_A);
+    recordHitPointConsumed(registry, SOURCE, 200, SEQUENCE_B);
+    const formula: FormulaDefinition = { kind: "HP_CONSUMED_RATIO", ratio: 2.35 };
+    expect(
+      evaluateFormula(
+        formula,
+        context({ lastResults: damageResultsFor(registry, SOURCE, SEQUENCE_A) }),
+      ),
+    ).toBeCloseTo(1175);
+    // 消費していないEffectSequenceでは0。
+    expect(
+      evaluateFormula(
+        formula,
+        context({
+          lastResults: damageResultsFor(registry, SOURCE, createSkillUseId("SKILL_USE_C")),
+        }),
+      ),
+    ).toBe(0);
+  });
+
+  it("UT-R-SKL-08-029: HP_CONSUMED_RATIO outside an EffectSequence resolution is rejected instead of silently reading 0", () => {
+    const formula: FormulaDefinition = { kind: "HP_CONSUMED_RATIO", ratio: 1 };
+    expect(() => evaluateFormula(formula, context({ lastResults: {} }))).toThrow(
+      DomainValidationError,
+    );
   });
 });

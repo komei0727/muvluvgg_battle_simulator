@@ -13,7 +13,7 @@ import {
 } from "./effect-action-group-context.js";
 
 export type { AttackConsumptionScope };
-import type { BattleUnit } from "../../model/battle-unit.js";
+import { hitPointRatio, type BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
 import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
 import type {
@@ -42,12 +42,17 @@ const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set(
 /** `siblings`を渡すと、同じstepの攻撃としてそこへ加わる。 */
 export function createAttackConsumptionScope(
   siblings: AttackConsumptionScope[] = [],
+  /** 攻撃開始時点の盤面。HP割合を攻撃単位の判定用に記録する（R-DMG-04）。 */
+  unitsAtStart: readonly BattleUnit[] = [],
 ): AttackConsumptionScope {
   const scope: AttackConsumptionScope = {
     consumedInstanceKeys: new Set(),
     pendingExpirySeeds: [],
     siblings,
     deathSurvivals: new Map(),
+    startHitPointRatios: new Map(
+      unitsAtStart.map((unit) => [unit.battleUnitId, hitPointRatio(unit)]),
+    ),
     finished: false,
   };
   siblings.push(scope);
@@ -318,6 +323,7 @@ export function buildConsumeEffectDurationHooks(
         pendingExpirySeeds: seeds,
         siblings: [],
         deathSurvivals: scope.deathSurvivals,
+        startHitPointRatios: scope.startHitPointRatios,
         finished: true,
       });
       return { units, lastEventId: parentEventId };

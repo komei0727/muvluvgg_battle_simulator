@@ -88,6 +88,7 @@ const PS2_ATK_UP_ID = "ACT_ELENA_MOODMAKER_PS2_ATK_UP";
 const BONUS_VEHICLE_DAMAGE_ID = "ACT_TEST_ELENA_BONUS_VEHICLE";
 const AS1_SKILL_ID = "SKL_ELENA_MOODMAKER_AS1";
 const AS1_HEAL_ID = "ACT_ELENA_MOODMAKER_AS1_HEAL";
+const PS1_HEAL_ID = "ACT_ELENA_MOODMAKER_PS1_HEAL";
 const AS1_HEALING_LINK_ID = "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK";
 
 /**
@@ -107,9 +108,10 @@ const LINK_TRAITS: SkillDefinition["traits"] = {
 };
 
 /**
- * 実production定義の`ACT_ELENA_MOODMAKER_AS1_HEAL`だけを、指定の相手へ単体で撃つ
- * 合成AS。リンクは「付与後に別の回復が保持者へ届いたとき」にしか観測できないため、
- * 転送の検証にはAS1本体とは別の回復経路が要る。
+ * 実production定義の単純な回復`ACT_ELENA_MOODMAKER_PS1_HEAL`（威力65）だけを、指定の
+ * 相手へ単体で撃つ合成AS。リンクは「付与後に別の回復が保持者へ届いたとき」にしか観測
+ * できないため、転送の検証にはAS1本体とは別の回復経路が要る。AS1の回復はHP消費量に
+ * 依存し（消費分×235%）、回復元のHPまで動かすため、リンクの検証には使わない。
  */
 function healSkill(id: string, target: TargetReference): SkillDefinition {
   const selector: TargetSelectorDefinition = {
@@ -139,7 +141,7 @@ function healSkill(id: string, target: TargetReference): SkillDefinition {
           stepCondition: { kind: "TRUE" },
           targetCondition: { kind: "TRUE" },
           target,
-          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(AS1_HEAL_ID) }],
+          actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(PS1_HEAL_ID) }],
         },
       ],
     },
@@ -282,7 +284,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
     },
     expected: {
+      // 先に現在HP5000の10%＝500を消費し、消費分×235%＝1175を最低HPの味方へ回復する。
       actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HP_COST",
+          targets: ["ally:subject"],
+        },
         {
           effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEAL",
           targets: ["ally:front"],
@@ -297,6 +304,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       hpDeltas: {
+        "ally:subject": -500,
         "ally:front": 1175,
       },
       effectsApplied: [
@@ -332,6 +340,73 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           resource: "EX_GAUGE",
           delta: 1,
         },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
+    intent:
+      "(境界): 自身が最もHP割合の低い味方なら、先に消費してから消費分×235%で自身を回復する — HP5000→4500→5675",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" }, state: { currentHp: 5000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 6500 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 3000 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HP_COST",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEAL",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": 675,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          magnitude: 1,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          magnitude: 1,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
     },
   },
@@ -703,7 +778,7 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
       1,
     );
 
-    // CURRENT_HP_RATIO(SKILL_SOURCE) 0.235 × Elenaの400 = 94 が、最もHPの低い味方へ。
+    // Elenaの現在HP400の10%＝40を消費し、消費分×235%＝94を最もHPの低い味方へ。
     const healApplied = recorder.getEvents().find((event) => event.eventType === "HealApplied")!;
     expect(healApplied.payload).toMatchObject({
       effectActionDefinitionId: createEffectActionDefinitionId(AS1_HEAL_ID),
@@ -779,7 +854,8 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     );
 
     const elenaBefore = unitOf(granted.units, board.elena.battleUnitId);
-    expect(elenaBefore.currentHp).toBe(400);
+    // AS1でHP400の10%＝40を消費済み。
+    expect(elenaBefore.currentHp).toBe(360);
     const eventsBefore = recorder.getEvents().length;
 
     const healSkillDefinition = board.definitions.skillDefinitions.get(
@@ -791,8 +867,8 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     const healApplied = newEvents.find((event) => event.eventType === "HealApplied")!;
     expect(healApplied.payload).toMatchObject({
       targetUnitId: board.woundedEnemy.battleUnitId,
-      healAmount: 94,
-      transferredAmount: 94,
+      healAmount: 65,
+      transferredAmount: 65,
       appliedAmount: 0,
       discardedAmount: 0,
     });
@@ -811,24 +887,24 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
       fromUnitId: board.woundedEnemy.battleUnitId,
       toUnitId: board.elena.battleUnitId,
       transferRate: 1,
-      transferredAmount: 94,
-      appliedAmount: 94,
+      transferredAmount: 65,
+      appliedAmount: 65,
       discardedAmount: 0,
-      hpBefore: 400,
-      hpAfter: 494,
+      hpBefore: 360,
+      hpAfter: 425,
     });
     // 転送は1回だけ（Elena自身も同じリンクを持つが、転送によって生じた回復から
     // さらに転送は起こらない — R-HEAL-04の再リンク禁止）。
     expect(newEvents.filter((event) => event.eventType === "HealingTransferred")).toHaveLength(1);
 
     expect(unitOf(healed.units, board.woundedEnemy.battleUnitId).currentHp).toBe(300);
-    expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(494);
+    expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(425);
 
     const restored = applyStateDelta(
       initialSnapshotFor(granted.units, { status: "READY" }),
       transferred.stateDelta!,
     );
-    expect(restored.units[board.elena.battleUnitId]!.hp).toBe(494);
+    expect(restored.units[board.elena.battleUnitId]!.hp).toBe(425);
     expect(restored.units[board.woundedEnemy.battleUnitId]!.hp).toBe(300);
   });
 
@@ -855,12 +931,12 @@ describe("production Catalog UNIT_ELENA_MOODMAKER (【心色見つめるムー�
     const newEvents = recorder.getEvents().slice(eventsBefore);
     expect(newEvents.find((event) => event.eventType === "HealApplied")!.payload).toMatchObject({
       targetUnitId: board.elena.battleUnitId,
-      healAmount: 94,
+      healAmount: 65,
       transferredAmount: 0,
-      appliedAmount: 94,
+      appliedAmount: 65,
     });
     expect(newEvents.some((event) => event.eventType === "HealingTransferred")).toBe(false);
-    expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(494);
+    expect(unitOf(healed.units, board.elena.battleUnitId).currentHp).toBe(425);
   });
 
   // -007〜-008: 追加ダメージ（`APPLY_ATTACK_DAMAGE_BONUS`）は「付与」と「以後の

@@ -1925,16 +1925,24 @@
     "metadata": { "tags": [] }
   },
   {
-    "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL",
-    "kind": "HEAL",
+    "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
     "payload": {
+      "resource": "HP",
+      "operation": "ADD",
       "formula": {
         "kind": "CURRENT_HP_RATIO",
         "source": { "kind": "SKILL_SOURCE" },
-        "ratio": 0.235
+        "ratio": -0.1
       },
-      "overheal": "DISCARD"
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL",
+    "kind": "HEAL",
+    "payload": { "formula": { "kind": "HP_CONSUMED_RATIO", "ratio": 2.35 }, "overheal": "DISCARD" },
     "metadata": { "tags": [] }
   },
   {
@@ -2517,13 +2525,16 @@
   },
   {
     "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_AS1_HP_COST",
-    "kind": "DAMAGE",
+    "kind": "MODIFY_RESOURCE",
     "payload": {
-      "damageType": "PHYSICAL",
-      "formula": { "kind": "CURRENT_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.25 },
-      "critical": { "mode": "PREVENTED" },
-      "accuracy": { "mode": "GUARANTEED" },
-      "piercing": { "defenseIgnoreRate": 1, "shieldIgnoreRate": 1, "damageReductionIgnoreRate": 1 }
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.25
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
     },
     "metadata": { "tags": [] }
   },
@@ -2631,6 +2642,7 @@
     "payload": {
       "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "evaluation": "ON_APPLY",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }
@@ -3462,7 +3474,8 @@
         "kind": "HP_RATIO_COMPARISON",
         "left": "OPPONENT",
         "op": "GT",
-        "right": "EFFECT_OWNER"
+        "right": "EFFECT_OWNER",
+        "evaluation": "ATTACK_START"
       },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
@@ -10360,9 +10373,7 @@
     "payload": {
       "damageType": "PHYSICAL",
       "formula": { "kind": "SKILL_POWER", "power": 0.936 },
-      "damageModifiers": [
-        { "kind": "ALIVE_UNIT_COUNT_SCALE", "side": "ENEMY", "perUnit": 0.1667, "max": 1 }
-      ]
+      "damageModifiers": [{ "kind": "ALIVE_UNIT_RATIO", "side": "ENEMY", "ratio": 1 }]
     },
     "metadata": { "tags": [] }
   },

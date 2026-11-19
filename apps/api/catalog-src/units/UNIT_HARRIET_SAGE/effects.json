@@ -11,6 +11,7 @@
     "payload": {
       "formula": { "kind": "MISSING_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
       "timing": { "eventType": "ActionStarted", "targetSelector": "EFFECT_OWNER" },
+      "evaluation": "ON_APPLY",
       "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
     },
     "metadata": { "tags": [] }

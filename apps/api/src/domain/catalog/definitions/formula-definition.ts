@@ -38,6 +38,8 @@ const FORMULA_KINDS = [
   "DAMAGE_RECEIVED_RATIO",
   "MARKER_COUNT_SCALE",
   "ALIVE_UNIT_COUNT_SCALE",
+  "ALIVE_UNIT_RATIO",
+  "HP_CONSUMED_RATIO",
   "HP_RATIO_SCALE",
   "SUM",
   "PRODUCT",
@@ -96,6 +98,8 @@ const FORMULA_ALLOWED_KEYS: Record<FormulaKind, readonly string[]> = {
   DAMAGE_RECEIVED_RATIO: ["kind", "sourceResult", "ratio"],
   MARKER_COUNT_SCALE: ["kind", "target", "markerId", "markerIds", "perStack", "max"],
   ALIVE_UNIT_COUNT_SCALE: ["kind", "side", "perUnit", "max"],
+  ALIVE_UNIT_RATIO: ["kind", "side", "ratio"],
+  HP_CONSUMED_RATIO: ["kind", "ratio"],
   HP_RATIO_SCALE: [
     "kind",
     "target",
@@ -149,6 +153,25 @@ export type FormulaDefinition =
       readonly side: Side;
       readonly perUnit: number;
       readonly max: number;
+    }
+  | {
+      /**
+       * 生存数÷戦闘開始時の人数（`side`は使用者から見た陣営）×`ratio`。総力戦では
+       * 出撃中の編成の人数を戦闘開始時の人数とする（控えは盤面に居ない、R-TWR-03 #2）。
+       * 途中撃破は評価のたびに数え直す（`SKL_ROSIE_ARTIST_EX`の敵数補正）。
+       */
+      readonly kind: "ALIVE_UNIT_RATIO";
+      readonly side: Side;
+      readonly ratio: number;
+    }
+  | {
+      /**
+       * 同じEffectSequence解決で使用者自身が`MODIFY_RESOURCE(HP)`で消費したHPの合計×`ratio`。
+       * 「HPを消費し、消費分×N%回復」のように、消費前の現在HPから決まる量を消費後の効果で
+       * 使う（`SKL_ELENA_MOODMAKER_AS1`）。
+       */
+      readonly kind: "HP_CONSUMED_RATIO";
+      readonly ratio: number;
     }
   | {
       readonly kind: "HP_RATIO_SCALE";
@@ -325,6 +348,13 @@ export function createFormulaDefinition(
         max: requireNumber(input.max, `${path}.max`),
       };
     }
+    case "ALIVE_UNIT_RATIO": {
+      const side = requireString(input.side, `${path}.side`);
+      assertEnumValue(side, SIDES, `${path}.side`);
+      return { kind: "ALIVE_UNIT_RATIO", side, ratio: requireNumber(input.ratio, `${path}.ratio`) };
+    }
+    case "HP_CONSUMED_RATIO":
+      return { kind: "HP_CONSUMED_RATIO", ratio: requireNumber(input.ratio, `${path}.ratio`) };
     case "HP_RATIO_SCALE": {
       if (input.target === undefined) {
         throw new DomainValidationError(`${path}.target`, "is required");

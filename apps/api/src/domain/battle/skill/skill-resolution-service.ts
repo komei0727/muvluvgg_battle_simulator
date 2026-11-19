@@ -154,6 +154,52 @@ export interface EffectSequencePlan {
    * 計画関数自身は`appliedEffects`を変更しない。
    */
   readonly stealthConsumptions: readonly StealthConsumption[];
+  /**
+   * R-SKL-01: `evaluation: ON_FIRST_REFERENCE`のbindingのうち、まだ評価していないもの。
+   * それを参照する最初のトップレベルstepの直前に`resolveDeferredBinding`が評価して
+   * `resolvedBindings`へ加え、ここから外す。手組みの計画（遅延bindingを持たない）では省略できる。
+   */
+  readonly deferredBindings?: Map<TargetBindingId, TargetBindingDefinition>;
+}
+
+/**
+ * R-SKL-01: 遅れて評価するbindingをその時点の盤面で評価し、`plan.resolvedBindings`へ
+ * 固定する。既に評価済み、または遅延bindingでなければ何もしない。発生したStealthの消費
+ * （R-TGT-08）は呼び出し側が失効させる。
+ */
+export function resolveDeferredBinding(
+  plan: EffectSequencePlan,
+  targetBindingId: TargetBindingId,
+  source: ResolutionSource,
+  allUnits: readonly BattleUnit[],
+  triggerContext?: TriggerContext,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): StealthConsumption | undefined {
+  const binding = plan.deferredBindings?.get(targetBindingId);
+  if (binding === undefined) {
+    return undefined;
+  }
+  if (!(plan.resolvedBindings instanceof Map)) {
+    throw new DomainValidationError(
+      "plan.resolvedBindings",
+      "must be the mutable Map built by resolveEffectSequence to hold deferred bindings",
+    );
+  }
+  const resolvedBindings = plan.resolvedBindings as Map<TargetBindingId, ResolvedBinding>;
+  const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
+    binding.selector,
+    source,
+    allUnits,
+    new Map(Array.from(resolvedBindings.entries()).map(([id, resolved]) => [id, resolved.units])),
+    triggerContext,
+    unitDefinitions,
+  );
+  resolvedBindings.set(targetBindingId, {
+    units,
+    includeDefeated: binding.selector.includeDefeated,
+  });
+  plan.deferredBindings?.delete(targetBindingId);
+  return stealthConsumption;
 }
 
 /**
@@ -530,9 +576,16 @@ function conditionReferencesEventPayload(condition: ConditionDefinition): boolea
  */
 function isEagerActionStep(
   step: EffectStepDefinition,
+  deferredBindingIds: ReadonlySet<TargetBindingId>,
 ): step is Extract<EffectStepDefinition, { kind: "ACTION" }> {
   return (
     step.kind === "ACTION" &&
+    // R-SKL-01: 遅れて評価するbindingを対象に持つstepは、そのbindingを直前に評価する
+    // JIT解決へ回す。
+    !(
+      step.target.kind === "BINDING" &&
+      deferredBindingIds.has(step.target.targetBindingId as TargetBindingId)
+    ) &&
     !conditionReferencesLastResult(step.stepCondition) &&
     !conditionReferencesEventPayload(step.stepCondition) &&
     step.target.kind !== "LAST_ACTION_TARGETS" &&
@@ -647,7 +700,12 @@ function resolveEffectSequence(
   const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   const stealthConsumptions: StealthConsumption[] = [];
   const consumedStealthEffectInstanceIds = new Set<EffectInstanceId>();
+  const deferredBindings = new Map<TargetBindingId, TargetBindingDefinition>();
   for (const binding of sequence.targetBindings) {
+    if (binding.evaluation === "ON_FIRST_REFERENCE") {
+      deferredBindings.set(binding.targetBindingId, binding);
+      continue;
+    }
     const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
       binding.selector,
       source,
@@ -679,8 +737,9 @@ function resolveEffectSequence(
   };
 
   // R-SKL-01 #2: stepsを定義順に解決する。
+  const deferredBindingIds: ReadonlySet<TargetBindingId> = new Set(deferredBindings.keys());
   sequence.steps.forEach((step, stepIndex) => {
-    if (!isEagerActionStep(step)) {
+    if (!isEagerActionStep(step, deferredBindingIds)) {
       for (const id of collectStructuralCandidateTargetUnitIds(step, resolvedBindings, source)) {
         addTargetUnitId(id);
       }
@@ -729,7 +788,7 @@ function resolveEffectSequence(
     });
   });
 
-  return { steps, targetUnitIds, resolvedBindings, stealthConsumptions };
+  return { steps, targetUnitIds, resolvedBindings, stealthConsumptions, deferredBindings };
 }
 
 /** テスト・呼び出し側がstep構造を無視して、旧来のヒット単位の平坦な順序だけを見たい場合に使う。 */

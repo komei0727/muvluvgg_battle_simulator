@@ -367,4 +367,27 @@ describe("FormulaDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-FORM-026 [R-NUM-04]: maps ALIVE_UNIT_RATIO and HP_CONSUMED_RATIO, rejecting a missing ratio or an unknown side", () => {
+    expect(
+      createFormulaDefinition(
+        { kind: "ALIVE_UNIT_RATIO", side: "ENEMY", ratio: 1 },
+        "formula",
+        undefined,
+      ),
+    ).toEqual({ kind: "ALIVE_UNIT_RATIO", side: "ENEMY", ratio: 1 });
+    expect(
+      createFormulaDefinition({ kind: "HP_CONSUMED_RATIO", ratio: 2.35 }, "formula", undefined),
+    ).toEqual({ kind: "HP_CONSUMED_RATIO", ratio: 2.35 });
+    expect(() =>
+      createFormulaDefinition(
+        { kind: "ALIVE_UNIT_RATIO", side: "OTHER", ratio: 1 },
+        "formula",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createFormulaDefinition({ kind: "HP_CONSUMED_RATIO" }, "formula", undefined),
+    ).toThrow(DomainValidationError);
+  });
 });

@@ -403,6 +403,11 @@ export interface DamageEventContext {
    */
   readonly attackDeathSurvivals?: AttackDeathSurvivalLedger;
   /**
+   * R-DMG-04: このヒットが属する攻撃の開始時点のHP割合（ユニットごと）。攻撃単位で判定する
+   * 補正条件だけが読む。攻撃スコープを持たない経路（反撃・追加攻撃の単発解決など）では省略する。
+   */
+  readonly attackStartHitPointRatios?: ReadonlyMap<BattleUnitId, number>;
+  /**
    * R-INT-01 #5: 同じstepのまだ終わっていない別の攻撃が耐えに使い、その攻撃の終了で消費する
    * 予定の回数（効果インスタンスごと）。この攻撃はその回数を除いて残る耐えだけを使う。
    */

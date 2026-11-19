@@ -4,10 +4,13 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
@@ -466,5 +469,50 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
         action.effectActionDefinitionId.startsWith("ACT_JULIE_SNOW_PS2_"),
       ),
     ).toEqual([{ effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:front"] }]);
+  });
+
+  it("IT-UNIT-JULIE-SNOW-006 [R-DMG-04] (SR-318): PS1の軽減条件は攻撃開始時の本人と攻撃者のHP割合で固定し、同じ攻撃の途中でHP割合が逆転しても判定し直さない", () => {
+    // 13ヒット各66（威力13.2%、軽減時は66×0.9＝59）の攻撃を、PS1の軽減を保持した本人が受ける。
+    const attack = (subjectHp: number, enemyHp: number, battleId: string) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp: subjectHp } },
+        enemies: [
+          {
+            id: "enemy:front",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { currentHp: enemyHp },
+          },
+        ],
+      });
+      const holding = applyPrecedingActions(board, [
+        { effectActionDefinitionId: "ACT_JULIE_SNOW_PS1_DMG_DOWN", target: "SELF" },
+      ]);
+      return observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: holding,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power: 0.132,
+        hitCount: 13,
+        battleId,
+      });
+    };
+
+    // 開始時に本人80%・敵79%: 攻撃者の方が低いので全13ヒット66（途中で本人が79%を
+    // 下回っても軽減へ切り替えない）。
+    const notReduced = attack(8000, 7900, "B_JULIE_PS1_START_HIGHER");
+    expect(notReduced.hpDeltas).toEqual({ "ally:subject": -858 });
+    // 開始時に本人79%・敵80%: 全13ヒットを59へ軽減する。
+    const reduced = attack(7900, 8000, "B_JULIE_PS1_START_LOWER");
+    expect(reduced.hpDeltas).toEqual({ "ally:subject": -767 });
+    // 次の被攻撃1回として、攻撃終了後に1回消費して失効する。
+    expect(notReduced.expirations).toEqual([
+      {
+        unitId: "ally:subject",
+        effectActionDefinitionId: "ACT_JULIE_SNOW_PS1_DMG_DOWN",
+        reason: "CONSUMPTION",
+        cascaded: false,
+      },
+    ]);
   });
 });
