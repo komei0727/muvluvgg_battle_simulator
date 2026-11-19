@@ -624,4 +624,41 @@ describe("TargetSelectorDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-TSEL-046: accepts ADJACENT_DIRECTION only together with an ADJACENT_ORTHOGONAL area", () => {
+    const adjacent = createTargetSelectorDefinition(
+      {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        order: ["ADJACENT_DIRECTION"],
+        count: 2,
+      },
+      "selector",
+      undefined,
+    );
+    expect(adjacent.order).toEqual(["ADJACENT_DIRECTION"]);
+
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELECT", side: "ENEMY", count: 1, order: ["ADJACENT_DIRECTION"] },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createTargetSelectorDefinition(
+        {
+          kind: "BINDING_DERIVED",
+          side: "ENEMY",
+          base: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+          area: { kind: "SAME_ROW_AS_BASE" },
+          order: ["ADJACENT_DIRECTION"],
+        },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(DomainValidationError);
+  });
 });

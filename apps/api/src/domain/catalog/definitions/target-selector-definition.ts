@@ -61,6 +61,7 @@ const TARGET_ORDER_KEYS = [
   "BACK_ROW",
   "LEFT_TO_RIGHT",
   "SELF_LOWEST_PRIORITY",
+  "ADJACENT_DIRECTION",
 ] as const;
 export type TargetOrderKey = (typeof TARGET_ORDER_KEYS)[number];
 
@@ -518,6 +519,16 @@ const TARGET_SELECTOR_ALLOWED_KEYS = [
   "includeDefeated",
 ] as const;
 
+function createSelectorCount(count: number | "ALL", path: string): number | "ALL" {
+  if (count !== "ALL") {
+    assertFinite(count, path);
+    if (!Number.isInteger(count) || count < 1) {
+      throw new DomainValidationError(path, `must be a positive integer or "ALL", got ${count}`);
+    }
+  }
+  return count;
+}
+
 export function createTargetSelectorDefinition(
   input: TargetSelectorDefinitionInput,
   path: string,
@@ -569,21 +580,16 @@ export function createTargetSelectorDefinition(
     if (input.count === undefined) {
       throw new DomainValidationError(`${path}.count`, "is required when kind is SELECT");
     }
-    if (input.count !== "ALL") {
-      assertFinite(input.count, `${path}.count`);
-      if (!Number.isInteger(input.count) || input.count < 1) {
-        throw new DomainValidationError(
-          `${path}.count`,
-          `must be a positive integer or "ALL", got ${input.count}`,
-        );
-      }
-    }
-    result.count = input.count;
+    result.count = createSelectorCount(input.count, `${path}.count`);
   } else {
-    if (input.count !== undefined) {
+    // R-TGT-04「隣接2体」: 範囲で作った候補から上限数だけ選ぶため、BINDING_DERIVEDは
+    // countを任意で持てる（省略時は範囲内の全員）。
+    if (input.kind === "BINDING_DERIVED" && input.count !== undefined) {
+      result.count = createSelectorCount(input.count, `${path}.count`);
+    } else if (input.count !== undefined) {
       throw new DomainValidationError(
         `${path}.count`,
-        `must not be set when kind is "${input.kind}" (only valid when kind is SELECT)`,
+        `must not be set when kind is "${input.kind}" (only valid when kind is SELECT or BINDING_DERIVED)`,
       );
     }
     if (input.side !== undefined) {
@@ -606,6 +612,15 @@ export function createTargetSelectorDefinition(
 
   if (input.area !== undefined) {
     result.area = createAreaDefinition(input.area, `${path}.area`);
+  }
+
+  // `ADJACENT_DIRECTION`は基準対象からの上下左右の向きで並べるため、
+  // 隣接範囲で絞った候補にしか意味を持たない。
+  if (order.includes("ADJACENT_DIRECTION") && result.area?.kind !== "ADJACENT_ORTHOGONAL") {
+    throw new DomainValidationError(
+      `${path}.order`,
+      'order key "ADJACENT_DIRECTION" requires area "ADJACENT_ORTHOGONAL" (R-TGT-04)',
+    );
   }
 
   if (input.fallback !== undefined) {

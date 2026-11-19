@@ -95,8 +95,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       actions: [
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_AP_DOWN", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT", targets: ["enemy:left"] },
       ],
       hpDeltas: {
         "enemy:front": -711,

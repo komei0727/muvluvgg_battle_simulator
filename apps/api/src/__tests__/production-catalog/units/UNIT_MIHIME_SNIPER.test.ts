@@ -145,10 +145,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       actions: [
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE1", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:left"] },
         {
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
           targets: ["ally:subject"],

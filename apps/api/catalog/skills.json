@@ -1212,6 +1212,8 @@
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2,
             "side": "ENEMY"
           }
         }
@@ -4034,6 +4036,8 @@
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2,
             "side": "ENEMY"
           }
         }
@@ -4958,7 +4962,9 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -7704,7 +7710,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -7730,6 +7738,18 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_KOKORO_SPORTSDAY_PS2_DAMAGE"]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
               "actions": [
                 {
                   "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
@@ -10561,7 +10581,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -10799,7 +10821,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -13386,7 +13410,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -13554,7 +13580,9 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],

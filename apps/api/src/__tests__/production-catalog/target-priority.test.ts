@@ -1,0 +1,221 @@
+import { describe, expect, it } from "vitest";
+import { loadProductionSnapshot } from "../../testing/fixtures/index.js";
+import { evasionOf } from "../../testing/production-unit/evasion.js";
+import {
+  PRODUCTION_CATALOG_DIR,
+  observeSkillUse,
+  type BoardOverrides,
+  type BoardUnitSpec,
+  type SkillUseObservation,
+} from "../../testing/production-unit/skill-behaviour.js";
+import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
+import { turnStarted } from "../../testing/production-unit/trigger-events.js";
+
+/**
+ * Issue #831（FIX-07）: 対象優先度・隣接範囲・本人の除外／包含・対象不在時の不発。
+ *
+ * 実`catalog/`の定義を実経路へ通し、評価シートの確定仕様どおりの対象だけに効果が
+ * 届くことを確かめる。
+ */
+
+const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  "UNIT_MIHIME_SNIPER",
+  "UNIT_MIKOTO_SURVIVOR",
+  "UNIT_LYDIA_SUMMER",
+  "UNIT_LYDIA_SUMMER_TEX",
+  "UNIT_FEE_ACTOR",
+  "UNIT_AOI_ELEGANT",
+  "UNIT_HARRIET_SAGE",
+  "UNIT_KOKORO_SPORTSDAY",
+  "UNIT_LUNA_HUNGRY",
+  "UNIT_KATE_PALADIN",
+  "UNIT_LUCIE_MAID",
+  "UNIT_URUU_SUMMER",
+  "UNIT_INIA_CRYSKA",
+]);
+
+/** 基準（敵前列中央）の上（後列中央）・左・右・斜めに敵がいる盤面。 */
+function crossBoard(base: Partial<BoardUnitSpec> = {}): BoardOverrides {
+  return {
+    enemies: [
+      { id: "enemy:front", position: { column: "CENTER", row: "FRONT" }, ...base },
+      { id: "enemy:right", position: { column: "RIGHT", row: "FRONT" } },
+      { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+      { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      { id: "enemy:diag", position: { column: "LEFT", row: "BACK" } },
+    ],
+  };
+}
+
+function targetsOf(observation: SkillUseObservation, effectActionDefinitionId: string): string[] {
+  return (observation.actions ?? [])
+    .filter((action) => action.effectActionDefinitionId === effectActionDefinitionId)
+    .flatMap((action) => action.targets);
+}
+
+function appliedTo(observation: SkillUseObservation, effectActionDefinitionId: string): string[] {
+  return (observation.effectsApplied ?? [])
+    .filter((effect) => effect.effectActionDefinitionId === effectActionDefinitionId)
+    .map((effect) => effect.unitId);
+}
+
+function skillOf(skillDefinitionId: string) {
+  const skill = snapshot.skills.get(createSkillDefinitionId(skillDefinitionId));
+  if (skill === undefined) {
+    throw new Error(`missing ${skillDefinitionId}`);
+  }
+  return skill;
+}
+
+function adjacentSelectors(skillDefinitionId: string): TargetSelectorDefinition[] {
+  const skill = skillOf(skillDefinitionId);
+  if (skill.resolution.kind !== "IMMEDIATE") {
+    return [];
+  }
+  return skill.resolution.targetBindings
+    .map((binding) => binding.selector)
+    .filter((selector) => selector.area?.kind === "ADJACENT_ORTHOGONAL");
+}
+
+describe("FIX-07 隣接2体（R-TGT-04）", () => {
+  const ADJACENT_TWO = [
+    "SKL_MIHIME_SNIPER_AS2",
+    "SKL_MIKOTO_SURVIVOR_AS1",
+    "SKL_LYDIA_SUMMER_AS1",
+    "SKL_LYDIA_SUMMER_TEX_AS1",
+    "SKL_FEE_ACTOR_AS1",
+    "SKL_AOI_ELEGANT_AS2",
+    "SKL_HARRIET_SAGE_AS1",
+    "SKL_KOKORO_SPORTSDAY_PS2",
+  ];
+  const ADJACENT_ALL = [
+    "SKL_LUNA_HUNGRY_AS1",
+    "SKL_KATE_PALADIN_AS3",
+    "SKL_LUCIE_MAID_AS2",
+    "SKL_URUU_SUMMER_EX",
+    "SKL_INIA_CRYSKA_AS1",
+  ];
+
+  it.each(ADJACENT_TWO)(
+    "IT-CAT-TGTPRI-001 [R-TGT-04] %s: 「隣接する2体」は上→左→右→下の順で最大2体を選ぶ",
+    (skillDefinitionId) => {
+      const selectors = adjacentSelectors(skillDefinitionId);
+      expect(selectors).not.toHaveLength(0);
+      for (const selector of selectors) {
+        expect(selector.count).toBe(2);
+        expect(selector.order).toEqual(["ADJACENT_DIRECTION"]);
+      }
+    },
+  );
+
+  it.each(ADJACENT_ALL)(
+    "IT-CAT-TGTPRI-002 [R-TGT-04] %s: 「隣接する敵」と全員を指すスキルは上限を持たない",
+    (skillDefinitionId) => {
+      for (const selector of adjacentSelectors(skillDefinitionId)) {
+        expect(selector.count).toBeUndefined();
+      }
+    },
+  );
+
+  it("IT-CAT-TGTPRI-003 [R-TGT-04] (SR-145): フィーAS1は隣接3候補から上（後列）と左だけを攻撃し、右・斜めへは攻撃しない。基準のAP−1は維持", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_FEE_ACTOR",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_FEE_ACTOR_AS1" },
+      board: crossBoard(),
+    });
+
+    expect(targetsOf(observation, "ACT_FEE_ACTOR_AS1_DAMAGE_ADJACENT")).toEqual([
+      "enemy:back",
+      "enemy:left",
+    ]);
+    expect(observation.resources).toContainEqual({
+      unitId: "enemy:front",
+      resource: "AP",
+      delta: -1,
+    });
+  });
+
+  it("IT-CAT-TGTPRI-004 [R-TGT-04] (SR-053): 美琴AS1の防御低下は選んだ2体と基準だけに付き、未選択の右には攻撃も低下も無い", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_MIKOTO_SURVIVOR",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIKOTO_SURVIVOR_AS1" },
+      board: crossBoard(),
+    });
+
+    expect(targetsOf(observation, "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ")).toEqual([
+      "enemy:back",
+      "enemy:left",
+    ]);
+    expect(appliedTo(observation, "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN").sort()).toEqual(
+      ["enemy:back", "enemy:front", "enemy:left"].sort(),
+    );
+    expect(observation.hpDeltas?.["enemy:right"]).toBeUndefined();
+  });
+
+  it("IT-CAT-TGTPRI-005 [R-TGT-04] (SR-100): リディアAS1は上が欠けると左・右を選び、後列追加も選んだ対象だけに行う", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_LYDIA_SUMMER",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_AS1" },
+      board: {
+        enemies: [
+          {
+            id: "enemy:base",
+            position: { column: "CENTER", row: "BACK" },
+            combatStats: { maximumHp: 20000 },
+          },
+          { id: "enemy:down", position: { column: "CENTER", row: "FRONT" } },
+          { id: "enemy:left", position: { column: "LEFT", row: "BACK" } },
+          { id: "enemy:right", position: { column: "RIGHT", row: "BACK" } },
+        ],
+      },
+    });
+
+    expect(targetsOf(observation, "ACT_LYDIA_SUMMER_AS1_DAMAGE")).toEqual([
+      "enemy:base",
+      "enemy:left",
+      "enemy:right",
+    ]);
+    expect(targetsOf(observation, "ACT_LYDIA_SUMMER_AS1_BACKROW_BONUS")).toEqual([
+      "enemy:base",
+      "enemy:left",
+      "enemy:right",
+    ]);
+    expect(observation.hpDeltas?.["enemy:down"]).toBeUndefined();
+  });
+
+  it("IT-CAT-TGTPRI-006 [R-TGT-04] (SR-384): 心香PS2はストイック中、基準と選んだ隣接2体のうち命中した生存対象へ与ダメージ低下を付け、回避した隣接と範囲外には付けない", () => {
+    const board = crossBoard();
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_KOKORO_SPORTSDAY",
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_KOKORO_SPORTSDAY_PS2",
+        trigger: turnStarted({ turnNumber: 1 }),
+        triggeredBy: "ally:subject",
+      },
+      board: {
+        ...board,
+        subject: { markers: [{ markerId: "MARKER_KOKORO_SPORTSDAY_STOIC" }] },
+        enemies: (board.enemies ?? []).map((spec) =>
+          spec.id === "enemy:left"
+            ? { ...spec, state: { appliedEffects: [evasionOf("enemy:left")] } }
+            : spec,
+        ),
+      },
+    });
+
+    expect(targetsOf(observation, "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE")).toEqual([
+      "enemy:front",
+      "enemy:back",
+      "enemy:left",
+    ]);
+    expect(appliedTo(observation, "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN").sort()).toEqual(
+      ["enemy:back", "enemy:front"].sort(),
+    );
+  });
+});

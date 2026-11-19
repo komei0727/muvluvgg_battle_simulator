@@ -421,9 +421,33 @@ function compareSelfLowestPriority(source: ResolutionSource) {
   };
 }
 
+/**
+ * R-TGT-04「隣接2体」: 基準対象から見た方向を、俯瞰図（共通座標）で上→左→右→下の
+ * 順に並べる。上下は陣営の前後ではなく共通座標のy（小さいほど上）なので、敵盤面では
+ * 後列、味方盤面では前列が基準の上になる。方向は基準との座標差だけで決まるため、
+ * 隣接範囲（`ADJACENT_ORTHOGONAL`）で絞った候補にだけ意味を持つ。
+ */
+function compareAdjacentDirection(base: BattleUnit | undefined) {
+  // 基準が不在なら範囲の候補も0件になり、並べる対象がない。
+  if (base === undefined) {
+    return (): number => 0;
+  }
+  const rank = (unit: BattleUnit): number => {
+    const dy = unit.globalCoordinate.y - base.globalCoordinate.y;
+    const dx = unit.globalCoordinate.x - base.globalCoordinate.x;
+    if (dy < 0) return 0;
+    if (dy > 0) return 3;
+    return dx < 0 ? 1 : 2;
+  };
+  return (a: BattleUnit, b: BattleUnit): number => rank(a) - rank(b);
+}
+
 const SINGLE_KEY_ORDER_COMPARATORS: Record<
   TargetOrderKey,
-  (source: ResolutionSource) => (a: BattleUnit, b: BattleUnit) => number
+  (
+    source: ResolutionSource,
+    base: BattleUnit | undefined,
+  ) => (a: BattleUnit, b: BattleUnit) => number
 > = {
   DEFAULT: compareDefaultOrder,
   NEAREST: compareNearestOrder,
@@ -447,6 +471,7 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   FASTEST: () => compareFastest,
   SLOWEST: () => compareSlowest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
+  ADJACENT_DIRECTION: (_source, base) => compareAdjacentDirection(base),
 };
 
 /** TARGET_ORDER_MARKER_COUNTテーマ: Marker所持数（`markerIds`指定時は合計）を比較キーにする。 */
@@ -481,6 +506,7 @@ function compareByOrder(
   orderEntries: readonly TargetOrderEntry[],
   source: ResolutionSource,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  base: BattleUnit | undefined,
 ) {
   const comparators = orderEntries.map((entry) => {
     if (typeof entry !== "string") {
@@ -495,7 +521,7 @@ function compareByOrder(
         `order key "${entry}" is not supported by this TargetSelectionPolicy (TGT-002/CAP_TARGET_FILTER_ORDER scope)`,
       );
     }
-    return factory(source);
+    return factory(source, base);
   });
   const fallback = compareDefaultOrder(source);
   return (a: BattleUnit, b: BattleUnit): number => {
@@ -831,8 +857,23 @@ function resolveTargetsCore(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId>,
 ): ResolveTargetsCoreResult {
+  if (
+    selector.order.includes("ADJACENT_DIRECTION") &&
+    selector.area?.kind !== "ADJACENT_ORTHOGONAL"
+  ) {
+    throw new DomainValidationError(
+      "selector.order",
+      'order key "ADJACENT_DIRECTION" requires area "ADJACENT_ORTHOGONAL" (R-TGT-04)',
+    );
+  }
+  // R-TGT-09 #4のbaseは候補に依存しないため先に解決し、基準対象を要するorder
+  // （`ADJACENT_DIRECTION`）にも渡す。
+  const base =
+    selector.area !== undefined
+      ? resolveBase(selector, source, allUnits, resolvedBindings, triggerContext)
+      : undefined;
   // R-TGT-09 #5相当の事前検証: orderは並べ替え前に検証する（候補0/1件でも不正なorderは拒否する）。
-  const compare = compareByOrder(selector.order, source, unitDefinitions);
+  const compare = compareByOrder(selector.order, source, unitDefinitions, base);
 
   // R-TGT-09 #1: kindに基づき初期候補を作る。
   let pool: readonly BattleUnit[];
@@ -876,7 +917,6 @@ function resolveTargetsCore(
 
   // R-TGT-09 #4: areaが指定されている場合、baseを基準に候補を範囲で絞る。
   if (selector.area !== undefined) {
-    const base = resolveBase(selector, source, allUnits, resolvedBindings, triggerContext);
     pool = applyArea(selector.area, base, pool);
   }
 

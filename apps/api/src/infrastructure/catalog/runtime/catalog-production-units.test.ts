@@ -671,7 +671,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （`linkedEffectGroupScope: SKILL_USE`）へ揃えた（Issue #830、戦術演習版の同じスキルを
     // 含む）。闘志の補正は親の解除へ連動させ、`SKL_HIIRO_FREEWOLF_PS1`（戦術演習版を含む）の
     // 補正を個別に外す`REMOVE_EFFECTS`4件を削除した。新規・削除したUnit・Skillはない。
-    expect(catalog.catalogRevision).toBe("2026-11-19.1");
+    expect(catalog.catalogRevision).toBe("2026-11-19.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

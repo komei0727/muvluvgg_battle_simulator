@@ -180,8 +180,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:left"] },
       ],
       hpDeltas: {
         "enemy:front": -273,
@@ -206,12 +206,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     board: STOIC,
     expected: {
-      // デバフが乗るのは「最も近い位置にいる敵単体」だけで、隣接の2体には乗らない。
+      // 「対象」は基準と選んだ隣接2体を含む攻撃対象全員で、命中した生存対象へ付く（SR-384）。
       actions: [
         { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN", targets: ["enemy:left"] },
       ],
       hpDeltas: {
         "enemy:front": -273,
@@ -221,6 +223,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       effectsApplied: [
         {
           unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+          magnitude: -0.3,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+        {
+          unitId: "enemy:left",
+          effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+          magnitude: -0.3,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+        {
+          unitId: "enemy:back",
           effectActionDefinitionId: "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
           magnitude: -0.3,
           consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
