@@ -22,6 +22,7 @@ import type {
   DamageThreshold,
   ConfusionDefinition,
   DamageToHealDefinition,
+  DeathSurvivalHealTiming,
   ShieldDecayDefinition,
   StatusKind,
 } from "../../catalog/definitions/effect-action-payload.js";
@@ -261,6 +262,7 @@ export interface DamageLinkState {
 export interface DeathSurvivalState {
   readonly survivalHp: FormulaDefinition;
   readonly healAfterSurvival: FormulaDefinition | null;
+  readonly healTiming: DeathSurvivalHealTiming;
 }
 
 /**

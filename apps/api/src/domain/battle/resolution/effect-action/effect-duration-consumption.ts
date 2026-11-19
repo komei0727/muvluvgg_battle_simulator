@@ -43,6 +43,7 @@ export function createAttackConsumptionScope(
     consumedInstanceKeys: new Set(),
     pendingExpirySeeds: [],
     siblings,
+    deathSurvivals: new Map(),
     finished: false,
   };
   siblings.push(scope);
@@ -74,6 +75,28 @@ export function suspendedEffectInstanceIdsFor(
     }
   }
   return suspended;
+}
+
+/**
+ * R-INT-01 #5: 同じstepのまだ終わっていない別の攻撃が耐えに使い、その攻撃の終了で消費する
+ * 予定の致死耐えの回数（効果インスタンスごと）。
+ */
+export function reservedDeathSurvivalsFor(
+  scope: AttackConsumptionScope,
+): ReadonlyMap<EffectInstanceId, number> {
+  const reserved = new Map<EffectInstanceId, number>();
+  for (const sibling of scope.siblings) {
+    if (sibling === scope || sibling.finished) {
+      continue;
+    }
+    for (const entry of sibling.deathSurvivals.values()) {
+      if (!entry.settled) {
+        const id = entry.selection.effectInstanceId;
+        reserved.set(id, (reserved.get(id) ?? 0) + 1);
+      }
+    }
+  }
+  return reserved;
 }
 
 /**
@@ -247,6 +270,7 @@ export function buildConsumeEffectDurationHooks(
         consumedInstanceKeys: scope.consumedInstanceKeys,
         pendingExpirySeeds: seeds,
         siblings: [],
+        deathSurvivals: scope.deathSurvivals,
         finished: true,
       });
       return { units, lastEventId: parentEventId };

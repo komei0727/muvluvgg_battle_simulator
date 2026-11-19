@@ -149,6 +149,7 @@ function deathSurvivalEffect(
     deathSurvival: {
       survivalHp: { kind: "CONSTANT", value: 1 },
       healAfterSurvival: null,
+      healTiming: "ON_SURVIVAL",
     },
     duration:
       consumptionRemaining === undefined
@@ -412,6 +413,27 @@ describe("defensive intervention policy (DMG-006, R-INT-01〜03)", () => {
       };
 
       expect(selectDeathSurvival(target)?.survivalHp).toEqual({ kind: "CONSTANT", value: 1 });
+    });
+
+    it("UT-R-INT-01-022: skips instances whose remaining count is reserved by another unfinished attack", () => {
+      const target = {
+        ...unit("TARGET", "ALLY"),
+        appliedEffects: [
+          deathSurvivalEffect("E1", "TARGET", 1),
+          deathSurvivalEffect("E2", "TARGET", 2),
+        ],
+      };
+      const reserved = new Map([
+        [createEffectInstanceId("E1"), 1],
+        [createEffectInstanceId("E2"), 1],
+      ]);
+
+      expect(selectDeathSurvival(target, reserved)?.effectInstanceId).toBe(
+        createEffectInstanceId("E2"),
+      );
+      expect(
+        selectDeathSurvival(target, new Map([...reserved, [createEffectInstanceId("E2"), 2]])),
+      ).toBeUndefined();
     });
 
     it("UT-R-INT-01-008: selects nothing once every instance has spent its consumption", () => {

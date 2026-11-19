@@ -658,10 +658,19 @@ export interface RemoveMarkerPayload {
   readonly count?: number;
 }
 
+/**
+ * R-INT-01 #5: `healAfterSurvival`を適用する時点。`ON_SURVIVAL`は致死を耐えたヒットの直後、
+ * `AFTER_ATTACK`はそのヒットを含む攻撃（DAMAGE 1回）の終了後。どちらも1攻撃で1回だけ回復する。
+ */
+export const DEATH_SURVIVAL_HEAL_TIMINGS = ["ON_SURVIVAL", "AFTER_ATTACK"] as const;
+export type DeathSurvivalHealTiming = (typeof DEATH_SURVIVAL_HEAL_TIMINGS)[number];
+
 export interface ApplyDeathSurvivalPayload {
   readonly trigger: { readonly lethalDamageOnly: boolean };
   readonly survivalHp: FormulaDefinition;
   readonly healAfterSurvival: FormulaDefinition | null;
+  /** 省略時`ON_SURVIVAL`。`healAfterSurvival`が`null`の定義では指定できない。 */
+  readonly healTiming: DeathSurvivalHealTiming;
   readonly duration: DurationDefinition;
 }
 

@@ -270,7 +270,8 @@ function sameDeathSurvivalState(
   }
   return (
     JSON.stringify(a.survivalHp) === JSON.stringify(b.survivalHp) &&
-    JSON.stringify(a.healAfterSurvival) === JSON.stringify(b.healAfterSurvival)
+    JSON.stringify(a.healAfterSurvival) === JSON.stringify(b.healAfterSurvival) &&
+    a.healTiming === b.healTiming
   );
 }
 

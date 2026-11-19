@@ -5,6 +5,7 @@ import {
 } from "./additional-attack-hit.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
 import { driveRemovalSteps } from "./damage-hit-chain.js";
+import { settleAttackDeathSurvivalsSteps } from "./damage-hit-point-application.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -87,6 +88,16 @@ export function* applyFollowUpAttacksSteps(
       if (followUpHit.kind === "INTERRUPT") {
         return { lastEventId, interrupted: true };
       }
+    }
+    // R-INT-01 #5: この追撃で使った致死耐えを1回分消費し、次の追撃は別の攻撃として耐える。
+    if (context.attackDeathSurvivals !== undefined) {
+      lastEventId = yield* settleAttackDeathSurvivalsSteps(
+        context,
+        working,
+        context.attackDeathSurvivals,
+        lastEventId,
+      );
+      context.attackDeathSurvivals.clear();
     }
     // R-EFF-07: ライダーごとの追撃は別の攻撃。この追撃で使い切った効果を次の追撃へ
     // 持ち越さず、次の追撃では改めて1回分を消費する。

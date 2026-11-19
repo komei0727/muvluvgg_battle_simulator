@@ -1,6 +1,10 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { shieldBypassedDamage } from "./shield-policy.js";
-import { selectDeathSurvival } from "./defensive-intervention-policy.js";
+import {
+  selectDeathSurvival,
+  type AttackDeathSurvivalLedger,
+  type DeathSurvivalSelection,
+} from "./defensive-intervention-policy.js";
 import { evaluateFormula, recordDamageResult } from "../skill/formula-evaluator.js";
 import { createHitPoint, truncateFraction } from "../model/resource-gauge.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
@@ -128,8 +132,21 @@ export function* applyConfirmedDamageSteps(
   // `DamageWillBeApplied`を発行せず、この適用経路自体を通らないため対象外である
   // （R-DOT-01「ダメージ軽減・増加、属性相性の影響を受けない」と同じ、継続ダメージが
   // ダメージpipelineの外にあることの帰結）。
+  //
+  // 耐えは1ヒットではなく1回の攻撃を守る。同じ攻撃で既に致死を耐えた対象は、台帳の耐えで
+  // 残りのヒットもHPを止め、回数の消費・回復を繰り返さない（消費は攻撃の終了時に
+  // `settleAttackDeathSurvivalsSteps`が1回分行う）。
   const wouldBeLethal = hpBefore > 0 && hpBefore - hitPointDamage <= 0;
-  const survival = wouldBeLethal ? selectDeathSurvival(targetAfterAbsorption) : undefined;
+  const ledger = context.attackDeathSurvivals;
+  const protectingEntry = wouldBeLethal ? ledger?.get(targetUnitId) : undefined;
+  const survival = !wouldBeLethal
+    ? undefined
+    : (protectingEntry?.selection ??
+      selectDeathSurvival(targetAfterAbsorption, context.reservedDeathSurvivals));
+  const firstSurvivalInAttack = survival !== undefined && protectingEntry === undefined;
+  if (firstSurvivalInAttack && ledger !== undefined) {
+    ledger.set(targetUnitId, { selection: survival, settled: false });
+  }
   const survivalHp =
     survival === undefined
       ? 0
@@ -371,36 +388,28 @@ export function* applyConfirmedDamageSteps(
     lastEventId = resolved.lastEventId;
   }
 
-  // R-INT-01 #5（DMG-006）: 耐えたインスタンス自身の消費条件（production定義はすべて
-  // `consumption.kind: LETHAL_DAMAGE`、`maxCount: 1`）を、`LethalDamageSurvived`と
-  // その連鎖の後に1消費する。R-HIT-04のNヒット回避と同じく消費対象をこのインスタンスへ
-  // 限定する — 同じ対象が複数の致死耐えを保持していても、実際に耐えた1件だけを消費する
-  // ためである。
-  if (survival !== undefined) {
-    lastEventId = yield* consumeAndExpire(
-      context,
-      working,
-      targetUnitId,
-      "LETHAL_DAMAGE",
-      lastEventId,
-      survival.effectInstanceId,
-    );
-    // `healAfterSurvival`（`ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL`の最大HP65%回復など）は
-    // R-HEAL-01の手順で適用する。`combat/`は`lifecycle/`へ到達できないため、
-    // 呼び出し側が注入するhookへ委譲する（未指定なら耐えるだけで回復しない）。
-    if (survival.healAfterSurvival !== null && context.applyDeathSurvivalHeal !== undefined) {
-      const healed = yield* driveRemovalSteps(
+  // R-INT-01 #5: 攻撃の台帳を持たない解決（単体のヒット適用）は、耐えたヒットの直後に
+  // 回数を1消費する。台帳を持つ攻撃は、攻撃の終了時に1回分だけ消費する。回復は
+  // `ON_SURVIVAL`ならこの攻撃で最初に耐えたヒットの直後に1回だけ行う。
+  if (survival !== undefined && firstSurvivalInAttack) {
+    if (ledger === undefined) {
+      lastEventId = yield* consumeAndExpire(
         context,
         working,
-        context.applyDeathSurvivalHeal(
-          targetUnitId,
-          survival.effectActionDefinitionId,
-          survival.healAfterSurvival,
-          Array.from(working.values()),
-          lastEventId,
-        ),
+        targetUnitId,
+        "LETHAL_DAMAGE",
+        lastEventId,
+        survival.effectInstanceId,
       );
-      lastEventId = healed.lastEventId;
+    }
+    if (ledger === undefined || survival.healTiming === "ON_SURVIVAL") {
+      lastEventId = yield* healAfterSurvivalSteps(
+        context,
+        working,
+        targetUnitId,
+        survival,
+        lastEventId,
+      );
     }
   }
 
@@ -426,4 +435,77 @@ export function* applyConfirmedDamageSteps(
     );
   }
   return { kind: "APPLIED", lastEventId, damageAppliedEventId: damageApplied.eventId };
+}
+
+/**
+ * R-INT-01 #5: 攻撃の終了時に、その攻撃で致死を耐えた各ユニットの耐えを1回分ずつ消費し
+ * （R-EFF-07の`LETHAL_DAMAGE`。耐えに使ったインスタンスだけ）、回復時点が`AFTER_ATTACK`の
+ * 耐えはその後に1回だけ回復する。済ませた耐えは台帳に残し、同じ攻撃の後続（保留した
+ * R-SUB-02の追加ヒット）でも同じ耐えでHPを止められるようにする。
+ */
+export function* settleAttackDeathSurvivalsSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  ledger: AttackDeathSurvivalLedger,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+  let lastEventId = parentEventId;
+  for (const [unitId, entry] of ledger) {
+    if (entry.settled) {
+      continue;
+    }
+    entry.settled = true;
+    lastEventId = yield* consumeAndExpire(
+      context,
+      working,
+      unitId,
+      "LETHAL_DAMAGE",
+      lastEventId,
+      entry.selection.effectInstanceId,
+    );
+    const survivor = working.get(unitId);
+    if (
+      entry.selection.healTiming === "AFTER_ATTACK" &&
+      survivor !== undefined &&
+      !isDefeated(survivor)
+    ) {
+      lastEventId = yield* healAfterSurvivalSteps(
+        context,
+        working,
+        unitId,
+        entry.selection,
+        lastEventId,
+      );
+    }
+  }
+  return lastEventId;
+}
+
+/**
+ * `healAfterSurvival`（`ACT_KOTOHA_REBEL_PS2_DEATH_SURVIVAL`の最大HP65%回復など）を
+ * R-HEAL-01の手順で適用する。`combat/`は`lifecycle/`へ到達できないため、呼び出し側が
+ * 注入するhookへ委譲する（未指定なら耐えるだけで回復しない）。
+ */
+function* healAfterSurvivalSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  targetUnitId: BattleUnitId,
+  survival: DeathSurvivalSelection,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+  if (survival.healAfterSurvival === null || context.applyDeathSurvivalHeal === undefined) {
+    return parentEventId;
+  }
+  const healed = yield* driveRemovalSteps(
+    context,
+    working,
+    context.applyDeathSurvivalHeal(
+      targetUnitId,
+      survival.effectActionDefinitionId,
+      survival.healAfterSurvival,
+      Array.from(working.values()),
+      parentEventId,
+    ),
+  );
+  return healed.lastEventId;
 }

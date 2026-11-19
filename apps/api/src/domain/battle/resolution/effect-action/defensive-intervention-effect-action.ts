@@ -113,6 +113,7 @@ function buildDefensiveInterventionGrant(
           deathSurvival: {
             survivalHp: effectAction.payload.survivalHp,
             healAfterSurvival: effectAction.payload.healAfterSurvival,
+            healTiming: effectAction.payload.healTiming,
           },
         },
       };

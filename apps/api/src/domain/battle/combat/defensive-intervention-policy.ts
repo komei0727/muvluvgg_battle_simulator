@@ -1,6 +1,7 @@
 import type { ActionKind } from "../../catalog/definitions/catalog-enums.js";
 import type { EffectActionDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
+import type { DeathSurvivalHealTiming } from "../../catalog/definitions/effect-action-payload.js";
 import type { EffectInstanceId } from "../../shared/event-ids.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import type { AppliedEffect } from "../model/applied-effect.js";
@@ -245,6 +246,20 @@ export interface DeathSurvivalSelection {
   readonly effectActionDefinitionId: EffectActionDefinitionId;
   readonly survivalHp: FormulaDefinition;
   readonly healAfterSurvival: FormulaDefinition | null;
+  readonly healTiming: DeathSurvivalHealTiming;
+}
+
+/**
+ * R-INT-01 #5: 1回の攻撃（DAMAGE 1回の全対象・全ヒット）で致死を耐えたユニットと、その耐えに
+ * 使った致死耐え。同じ攻撃の残りヒットはこの耐えでHPを止め、耐えの回数は攻撃の終了時に
+ * 1回分だけ使う（`settled`）。
+ */
+export type AttackDeathSurvivalLedger = Map<BattleUnitId, AttackDeathSurvivalEntry>;
+
+export interface AttackDeathSurvivalEntry {
+  readonly selection: DeathSurvivalSelection;
+  /** 攻撃の終了処理（回数の消費・攻撃後の回復）を済ませたか。 */
+  settled: boolean;
 }
 
 /**
@@ -257,13 +272,21 @@ export interface DeathSurvivalSelection {
  * （`shield-policy.ts`が残量0のシールドをプールへ含めないのと同じ規約）。消費条件を
  * 持たないインスタンス（回数無制限）は常に選べる。
  */
-export function selectDeathSurvival(target: BattleUnit): DeathSurvivalSelection | undefined {
+export function selectDeathSurvival(
+  target: BattleUnit,
+  /**
+   * 同じstepのまだ終わっていない別の攻撃が耐えに使い、攻撃の終了で消費する予定の回数。
+   * その回数を除いても残る致死耐えだけを選ぶ。
+   */
+  reserved: ReadonlyMap<EffectInstanceId, number> = new Map(),
+): DeathSurvivalSelection | undefined {
   const effect = firstMatching(
     target,
     (candidate) =>
       candidate.deathSurvival !== undefined &&
       (candidate.duration.consumptionRemaining === undefined ||
-        candidate.duration.consumptionRemaining > 0),
+        candidate.duration.consumptionRemaining - (reserved.get(candidate.effectInstanceId) ?? 0) >
+          0),
   );
   const deathSurvival = effect?.deathSurvival;
   return effect === undefined || deathSurvival === undefined
@@ -273,5 +296,6 @@ export function selectDeathSurvival(target: BattleUnit): DeathSurvivalSelection 
         effectActionDefinitionId: effect.effectActionDefinitionId,
         survivalHp: deathSurvival.survivalHp,
         healAfterSurvival: deathSurvival.healAfterSurvival,
+        healTiming: deathSurvival.healTiming,
       };
 }

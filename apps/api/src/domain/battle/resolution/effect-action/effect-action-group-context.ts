@@ -33,6 +33,7 @@ import {
 } from "../../targeting/target-selection-policy.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import type { ExpirationSeed } from "../../effects/duration-expiry-service.js";
+import type { AttackDeathSurvivalLedger } from "../../combat/defensive-intervention-policy.js";
 
 /**
  * `resolveSkillOrder`/`resolveChargeReleaseOrder`が計画した`EffectSequencePlan`を
@@ -423,5 +424,7 @@ export interface AttackConsumptionScope {
   readonly pendingExpirySeeds: ExpirationSeed[];
   /** 同じstepで解決する攻撃（自身を含む）。失効の引き継ぎと非表示の判定に使う。 */
   readonly siblings: AttackConsumptionScope[];
+  /** R-INT-01 #5: この攻撃で致死を耐えたユニットと、その耐え。攻撃の全適用で共有する。 */
+  readonly deathSurvivals: AttackDeathSurvivalLedger;
   finished: boolean;
 }

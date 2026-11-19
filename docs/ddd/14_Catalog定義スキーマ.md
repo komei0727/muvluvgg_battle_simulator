@@ -1519,6 +1519,7 @@ payload:
     kind: MAX_HP_RATIO
     source: TARGET
     ratio: 0.65
+  healTiming: ON_SURVIVAL
   duration:
     timeLimit:
       unit: BATTLE
@@ -1534,9 +1535,12 @@ payload:
 | `trigger.lethalDamageOnly` | boolean                | 致死ダメージ時だけ消費する場合 true            |
 | `survivalHp`               | FormulaDefinition      | 耐えた直後の最低HP。HP1耐えは `CONSTANT=1`     |
 | `healAfterSurvival`        | FormulaDefinition/null | 耐えた後に回復する場合のみ指定                 |
+| `healTiming`               | enum（省略可）         | `ON_SURVIVAL`（省略時）／`AFTER_ATTACK`        |
 | `duration`                 | DurationDefinition     | 通常は `consumption.kind=LETHAL_DAMAGE` を持つ |
 
 `DMG-006`（Issue #188、`R-INT-01` #5）で実行時へ配線した。実装するのは `trigger.lethalDamageOnly: true` だけであり（致死耐えはHPへ適用する量が確定した時点でのみ成立する）、`false` は `UNSUPPORTED_DEFENSIVE_INTERVENTION` としてCatalogロード時点で拒否する。`survivalHp`／`healAfterSurvival` は付与時点ではなく耐えた時点で評価する（`MAX_HP_RATIO` が耐えた時点の最大HPを参照するため）。
+
+`healTiming` は回復の時点を表す。`ON_SURVIVAL` は致死を耐えたヒットの直後、`AFTER_ATTACK` はそのヒットを含む攻撃（DAMAGE 1回）の終了後で、`healAfterSurvival` もその時点で評価する。どちらも1回の攻撃で1回だけ回復し、同じ攻撃の残りヒットで繰り返さない。原文が「全攻撃を終了してから」等と回復時点を明記する定義（`ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL`／`ACT_ROSIE_CAMPAIGN_PS2_DEATH_SURVIVAL`／`ACT_TATIANA_SAGE_PS1_DEATH_SURVIVAL`）だけが `AFTER_ATTACK` を宣言する。`healAfterSurvival: null` の定義に `healTiming` を書くとCatalogロード時に拒否する。
 
 ### APPLY_TARGET_REDIRECT
 
@@ -2637,9 +2641,9 @@ duration:
 | `INCOMING_HIT`         | 被ヒットごと             |
 | `OUTGOING_HIT`         | 与ヒットごと             |
 | `STATUS_BLOCKED`       | 状態異常を無効化したとき |
-| `LETHAL_DAMAGE`        | 致死ダメージを受けたとき |
+| `LETHAL_DAMAGE`        | 致死ダメージを受けた攻撃 |
 
-`consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。`NEXT_OUTGOING_ATTACK`／`NEXT_INCOMING_ATTACK` は1 DAMAGE EffectAction（全対象・全ヒット）を1回と数え、範囲攻撃では最後の対象の解決後に失効する（R-EFF-07）。「Nヒットの間」ではなく「N回攻撃を受けるまで」「N攻撃の間」と書かれた効果・シールドはこの2つで表し、`INCOMING_HIT`／`OUTGOING_HIT` は明示的にヒット数で数える効果（1ヒット盾・Nヒット回避・2ヒットの被ダメージ増加等）に限る。
+`consumption.maxCount` は消費条件の成立回数上限を表す。上限に到達した効果は、該当する EffectAction の解決後に失効する。`NEXT_OUTGOING_ATTACK`／`NEXT_INCOMING_ATTACK` は1 DAMAGE EffectAction（全対象・全ヒット）を1回と数え、範囲攻撃では最後の対象の解決後に失効する（R-EFF-07）。「Nヒットの間」ではなく「N回攻撃を受けるまで」「N攻撃の間」と書かれた効果・シールドはこの2つで表し、`INCOMING_HIT`／`OUTGOING_HIT` は明示的にヒット数で数える効果（1ヒット盾・Nヒット回避・2ヒットの被ダメージ増加等）に限る。`LETHAL_DAMAGE` も1 DAMAGE EffectActionを1回と数え、致死に達した攻撃の終了時に1回分だけ消費する（R-INT-01 #5）。
 
 `consumption.damageType`（省略可、`PHYSICAL`／`EN`）は、そのダメージタイプの攻撃でだけ消費することを表す（「次のEN攻撃」）。省略時はタイプを問わない。効果自体の対象タイプ（`APPLY_DAMAGE_MOD.damageType`）とは独立に宣言する — 物理被ダメージ軽減をEN攻撃でも回数消費させる効果（`ACT_SHIRANA_LUCKY_PS2_GUARD`）があるため。
 

@@ -141,6 +141,7 @@ describe("applyDamageAction exercise score accumulation (R-TEX-02)", () => {
       deathSurvival: {
         survivalHp: { kind: "CONSTANT", value: survivalHp },
         healAfterSurvival: null,
+        healTiming: "ON_SURVIVAL",
       },
     });
   }

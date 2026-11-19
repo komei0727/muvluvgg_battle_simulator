@@ -43,8 +43,10 @@ import {
   STAT_MOD_STACKING_MODES,
   STATUS_AILMENT_KINDS,
   STATUS_KINDS,
+  DEATH_SURVIVAL_HEAL_TIMINGS,
   type ConfusionDefinition,
   type DamageBonusHits,
+  type DeathSurvivalHealTiming,
   type DamageModConditionDefinition,
   type DamageThreshold,
   type DamageToHealDefinition,
@@ -172,7 +174,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   ],
   APPLY_MARKER: ["markerId", "stack", "duration", "decay"],
   REMOVE_MARKER: ["markerId", "count"],
-  APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "duration"],
+  APPLY_DEATH_SURVIVAL: ["trigger", "survivalHp", "healAfterSurvival", "healTiming", "duration"],
   APPLY_TARGET_REDIRECT: ["redirectTo", "appliesTo", "duration"],
   APPLY_COVER: ["coverer", "damageShareRate", "guardRate", "appliesTo", "duration"],
   APPLY_REFLECT: ["reflectTo", "formula", "timing", "allowRecursiveReflect", "duration"],
@@ -228,6 +230,25 @@ function createDamageThresholdField(
   const op = requireField(raw.op, `${path}.op`);
   assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
   return { op, formula: createFormulaField(raw, "formula", path) };
+}
+
+/**
+ * R-INT-01 #5: 回復を持たない致死耐えに回復時点だけを書いても意味を持たないため、
+ * 書き誤りとして拒否する。
+ */
+function createDeathSurvivalHealTiming(
+  raw: string | undefined,
+  withoutHeal: boolean,
+  path: string,
+): DeathSurvivalHealTiming {
+  if (raw === undefined) {
+    return "ON_SURVIVAL";
+  }
+  if (withoutHeal) {
+    throw new DomainValidationError(path, "requires healAfterSurvival");
+  }
+  assertEnumValue(raw, DEATH_SURVIVAL_HEAL_TIMINGS, path);
+  return raw;
 }
 
 function requireField<T>(value: T | undefined, path: string): T {
@@ -1366,6 +1387,11 @@ function createPayload(
         | FormulaDefinitionInput
         | null
         | undefined;
+      const healTiming = createDeathSurvivalHealTiming(
+        payload["healTiming"] as string | undefined,
+        healAfterSurvivalInput === undefined || healAfterSurvivalInput === null,
+        `${path}.healTiming`,
+      );
       return {
         kind: "APPLY_DEATH_SURVIVAL",
         payload: {
@@ -1379,6 +1405,7 @@ function createPayload(
                   `${path}.healAfterSurvival`,
                   undefined,
                 ),
+          healTiming,
           duration: createDurationField(payload, path),
         },
       };

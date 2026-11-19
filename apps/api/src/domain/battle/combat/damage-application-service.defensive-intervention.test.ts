@@ -100,6 +100,7 @@ function deathSurvivalHeldByTarget(
     deathSurvival: {
       survivalHp: { kind: "CONSTANT", value: survivalHp },
       healAfterSurvival: null,
+      healTiming: "ON_SURVIVAL",
     },
     duration: {
       definition: {

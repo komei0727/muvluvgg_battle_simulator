@@ -168,6 +168,50 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-153 (R-INT-01): APPLY_DEATH_SURVIVAL.healTiming defaults to ON_SURVIVAL and accepts AFTER_ATTACK", () => {
+    const payload = (healTiming?: string) => ({
+      effectActionDefinitionId: "ACT_DEATH_SURVIVAL_1",
+      kind: "APPLY_DEATH_SURVIVAL",
+      payload: {
+        trigger: { lethalDamageOnly: true },
+        survivalHp: { kind: "CONSTANT", value: 1 },
+        healAfterSurvival: { kind: "MAX_HP_RATIO", source: { kind: "TARGET" }, ratio: 0.5 },
+        ...(healTiming === undefined ? {} : { healTiming }),
+        duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+      },
+    });
+    const omitted = createEffectActionDefinition(payload(), "effectAction");
+    const afterAttack = createEffectActionDefinition(payload("AFTER_ATTACK"), "effectAction");
+    expect(omitted.kind === "APPLY_DEATH_SURVIVAL" && omitted.payload.healTiming).toBe(
+      "ON_SURVIVAL",
+    );
+    expect(afterAttack.kind === "APPLY_DEATH_SURVIVAL" && afterAttack.payload.healTiming).toBe(
+      "AFTER_ATTACK",
+    );
+    expect(() => createEffectActionDefinition(payload("LATER"), "effectAction")).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it("UT-CAT-ACT-154 (R-INT-01): rejects APPLY_DEATH_SURVIVAL.healTiming without healAfterSurvival", () => {
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_DEATH_SURVIVAL_1",
+          kind: "APPLY_DEATH_SURVIVAL",
+          payload: {
+            trigger: { lethalDamageOnly: true },
+            survivalHp: { kind: "CONSTANT", value: 1 },
+            healAfterSurvival: null,
+            healTiming: "AFTER_ATTACK",
+            duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: true },
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(/requires healAfterSurvival/);
+  });
+
   it("UT-CAT-ACT-007: maps APPLY_TARGET_REDIRECT with a SELF redirect", () => {
     const result = createEffectActionDefinition(
       {

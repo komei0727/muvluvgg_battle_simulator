@@ -23,6 +23,7 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+import type { AttackDeathSurvivalLedger } from "./defensive-intervention-policy.js";
 
 /**
  * R-SUB-02: 1スキル使用（EffectSequence）の中で、ある対象へまだ加えていないサブユニット
@@ -395,6 +396,17 @@ export interface DamageEventContext {
    * `APPLY_DEATH_SURVIVAL`の保持者が自力で立ち直る効果であり、付与者の回復量補正を受ける
    * 規則をR-INT-01もCatalog schemaも持たない）。
    */
+  /**
+   * R-INT-01 #5: この攻撃で致死を耐えたユニットの台帳。同じ攻撃の適用（範囲攻撃の各対象・
+   * R-SUB-02の追加ヒット・反射やリンクの派生ダメージ）で共有する。未指定なら
+   * `applyDamageActionSteps`がその1回の解決だけの台帳を作る。
+   */
+  readonly attackDeathSurvivals?: AttackDeathSurvivalLedger;
+  /**
+   * R-INT-01 #5: 同じstepのまだ終わっていない別の攻撃が耐えに使い、その攻撃の終了で消費する
+   * 予定の回数（効果インスタンスごと）。この攻撃はその回数を除いて残る耐えだけを使う。
+   */
+  readonly reservedDeathSurvivals?: ReadonlyMap<EffectInstanceId, number>;
   readonly applyDeathSurvivalHeal?: (
     targetUnitId: BattleUnitId,
     effectActionDefinitionId: EffectActionDefinitionId,
