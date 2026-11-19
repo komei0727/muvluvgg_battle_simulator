@@ -34,6 +34,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_TATIANA_SAGE",
   "UNIT_YUI_HEIR",
   "UNIT_LYDIA_SUMMER",
+  "UNIT_YIFEI_STORM",
 ]);
 
 const HOLDER = "ally:subject";
@@ -251,5 +252,36 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
       ],
     });
     expect(observed.hpDeltas?.["enemy:center"]).toBe(5001 - 50);
+  });
+
+  it("IT-CAT-SURVIVAL-008 [R-INT-01, R-SUB-02] SR-219・SR-365: 追加ヒットまで精算を待つ間も、使った耐えを同じスキルの別DAMAGEで再利用しない", () => {
+    // 亦菲EXは7ヒットのDAMAGEの後に締めの別DAMAGEを持つ。最初のDAMAGEで耐えたHP50の敵は、
+    // 追加ヒットの精算待ちでも、締めのDAMAGEは別の攻撃として防げず倒れる。
+    const board = {
+      enemies: [
+        {
+          id: "enemy:center",
+          position: { column: "CENTER" as const, row: "FRONT" as const },
+          state: { currentHp: 50 } as Partial<BattleUnit>,
+        },
+      ],
+    };
+    const yifeiExWith = (survivalEffectActionDefinitionId: string) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_YIFEI_STORM",
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_YIFEI_STORM_EX", actionType: "EX" },
+        board,
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", target: "SELF" },
+          { effectActionDefinitionId: survivalEffectActionDefinitionId, target: "ENEMY" },
+        ],
+      });
+    expect(yifeiExWith("ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL").hpDeltas?.["enemy:center"]).toBe(
+      -50,
+    );
+    // オルガPS2も同じ耐えを締めのDAMAGEへ持ち越さない。回復は追加ヒットの解決後（攻撃の
+    // 終わり）のため、締めのDAMAGEで倒れた敵は回復しない。
+    expect(yifeiExWith("ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL").hpDeltas?.["enemy:center"]).toBe(-50);
   });
 });

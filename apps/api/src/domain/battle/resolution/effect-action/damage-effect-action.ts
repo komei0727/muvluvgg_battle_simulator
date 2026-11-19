@@ -327,10 +327,8 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       // R-INT-01 #5: 範囲攻撃の各対象への適用は同じ1回の攻撃のため、致死耐えの台帳を共有する。
       ...(input.attack === undefined
         ? {}
-        : {
-            attackDeathSurvivals: input.attack.scope.deathSurvivals,
-            reservedDeathSurvivals: reservedDeathSurvivalsFor(input.attack.scope),
-          }),
+        : { attackDeathSurvivals: input.attack.scope.deathSurvivals }),
+      reservedDeathSurvivals: reservedDeathSurvivalsFor(context, input.attack?.scope),
       ...(suspendedEffectInstanceIds.size > 0
         ? {
             suspendedEffectInstanceIds,
@@ -666,6 +664,8 @@ export function* releasePendingSubUnitAdditionsSteps(
       const targetContext: DamageEventContext = {
         ...damageContext,
         attackDeathSurvivals: deathSurvivals,
+        // 精算待ちの別の攻撃が使った耐えは、ここで新たに耐える場合も除く。
+        reservedDeathSurvivals: reservedDeathSurvivalsFor(context),
         ...(suspended.size === 0
           ? {}
           : {

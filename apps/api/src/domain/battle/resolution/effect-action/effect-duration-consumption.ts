@@ -79,18 +79,26 @@ export function suspendedEffectInstanceIdsFor(
 }
 
 /**
- * R-INT-01 #5: 同じstepのまだ終わっていない別の攻撃が耐えに使い、その攻撃の終了で消費する
- * 予定の致死耐えの回数（効果インスタンスごと）。
+ * R-INT-01 #5: 別の攻撃が耐えに使い、まだ消費していない致死耐えの回数（効果インスタンスごと）。
+ * 同じstepのまだ終わっていない攻撃と、追加ヒット（R-SUB-02）の解決まで精算を待っている攻撃
+ * （`heldDeathSurvivals`。後続stepの別DAMAGEからも見える）を数える。
  */
 export function reservedDeathSurvivalsFor(
-  scope: AttackConsumptionScope,
+  context: EffectActionGroupContext,
+  scope?: AttackConsumptionScope,
 ): ReadonlyMap<EffectInstanceId, number> {
-  const reserved = new Map<EffectInstanceId, number>();
-  for (const sibling of scope.siblings) {
-    if (sibling === scope || sibling.finished) {
-      continue;
+  const ledgers = new Set<AttackDeathSurvivalLedger>(context.heldDeathSurvivals ?? []);
+  for (const sibling of scope?.siblings ?? []) {
+    if (!sibling.finished) {
+      ledgers.add(sibling.deathSurvivals);
     }
-    for (const entry of sibling.deathSurvivals.values()) {
+  }
+  if (scope !== undefined) {
+    ledgers.delete(scope.deathSurvivals);
+  }
+  const reserved = new Map<EffectInstanceId, number>();
+  for (const ledger of ledgers) {
+    for (const entry of ledger.values()) {
       if (!entry.settled) {
         const id = entry.selection.effectInstanceId;
         reserved.set(id, (reserved.get(id) ?? 0) + 1);
