@@ -96,6 +96,13 @@ export function reservedDeathSurvivalsFor(
   if (scope !== undefined) {
     ledgers.delete(scope.deathSurvivals);
   }
+  return reservedDeathSurvivalsIn(ledgers);
+}
+
+/** R-INT-01 #5: `ledgers`の未精算の耐えが予約している回数（効果インスタンスごと）。 */
+export function reservedDeathSurvivalsIn(
+  ledgers: Iterable<AttackDeathSurvivalLedger>,
+): ReadonlyMap<EffectInstanceId, number> {
   const reserved = new Map<EffectInstanceId, number>();
   for (const ledger of ledgers) {
     for (const entry of ledger.values()) {

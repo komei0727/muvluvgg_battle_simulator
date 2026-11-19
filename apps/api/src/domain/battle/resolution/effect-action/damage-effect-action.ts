@@ -44,6 +44,7 @@ import {
   holdDeathSurvivalsForSubUnitAdditions,
   instanceKeyOf,
   reservedDeathSurvivalsFor,
+  reservedDeathSurvivalsIn,
   suspendedEffectInstanceIdsFor,
   type AttackConsumptionScope,
 } from "./effect-duration-consumption.js";
@@ -641,7 +642,12 @@ export function* releasePendingSubUnitAdditionsSteps(
   // 同じ攻撃の残る対象の追加ヒットへ引き継ぐ。別のDAMAGEの台帳は混ぜない（別の攻撃だからである）。
   // 精算は全対象の追加ヒットを解決し終えてから1回だけ行う（攻撃の終わりはそこだからである）。
   const settlementLedgers = new Set<AttackDeathSurvivalLedger>(context.heldDeathSurvivals ?? []);
-  const reservedDeathSurvivals = reservedDeathSurvivalsFor(context);
+  const allAttackLedgers = new Set<AttackDeathSurvivalLedger>([
+    ...(context.heldDeathSurvivals ?? []),
+    ...[...(context.attackScopesByDefender?.values() ?? [])].flatMap((scopes) =>
+      scopes.map((scope) => scope.deathSurvivals),
+    ),
+  ]);
   let released: { lastEventId: DomainEventId; interrupted: boolean } = {
     lastEventId: parentEventId,
     interrupted: false,
@@ -671,8 +677,11 @@ export function* releasePendingSubUnitAdditionsSteps(
       const targetContext: DamageEventContext = {
         ...damageContext,
         attackDeathSurvivals: targetSurvivals,
-        // 精算待ちの別の攻撃が使った耐えは、ここで新たに耐える場合も除く。
-        reservedDeathSurvivals,
+        // 別の攻撃が使い、まだ精算していない耐えは、ここで新たに耐える場合も除く。先行する
+        // 対象の追加ヒットで初めて使った分も含めるため、対象ごとに数え直す。
+        reservedDeathSurvivals: reservedDeathSurvivalsIn(
+          [...allAttackLedgers].filter((attackLedger) => !attackLedgers.includes(attackLedger)),
+        ),
         ...(suspended.size === 0
           ? {}
           : {
