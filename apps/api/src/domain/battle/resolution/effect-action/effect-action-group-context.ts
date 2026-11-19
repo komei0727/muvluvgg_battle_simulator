@@ -105,6 +105,11 @@ export interface EffectActionGroupContext {
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
+   * R-SUB-02: このEffectSequence（1スキル使用）で加えたサブユニット追加ダメージの
+   * 「インスタンス×対象」。`resolveEffectSequencePlan`がEffectSequenceごとに新規生成する。
+   */
+  readonly subUnitAdditionalHits?: Set<string>;
+  /**
    * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
    * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が
    * `DamageEventContext.exercise`としてダメージ適用の最深部まで運ぶ。

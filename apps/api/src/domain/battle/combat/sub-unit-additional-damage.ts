@@ -48,6 +48,9 @@ export interface SubUnitAdditionalDamageResult {
  *   各対象へ1ヒットずつ加える」: この攻撃で実際に適用されたヒットの**対象**を
  *   重複なく（初出順で）並べ、その各対象へ加える。同じ対象への複数ヒットは
  *   1回にまとまる
+ * - 数える単位は攻撃1回（1スキル使用）であり、同じ対象が同じスキル使用の複数DAMAGEに
+ *   現れても各体1回に限る（`DamageEventContext.subUnitAdditionalHits`、Issue #836）。
+ *   追加は対象が最初に現れたDAMAGEの直後に解決する
  * - 所持者が同じサブユニットを複数保持していればその数だけ加える
  *   （production例: `SKL_OLGA_VETERAN_PS1`「サブユニット『カムラッドⅡ』を3つ付与する」）
  * - 「追加ダメージでは通常の防御力減衰を行わない」: 基礎値は`damage-calculator.ts`を
@@ -128,6 +131,12 @@ export function* applySubUnitAdditionalDamageSteps(
       if (!stillHeld) {
         continue;
       }
+      // 同じスキル使用の先行するDAMAGEで、この体がこの対象へ既に加えていれば加えない。
+      const ledgerKey = `${source.effectInstanceId}|${targetUnitId}`;
+      if (context.subUnitAdditionalHits?.has(ledgerKey) === true) {
+        continue;
+      }
+      context.subUnitAdditionalHits?.add(ledgerKey);
       const hitIndex = additionalHitIndex;
       additionalHitIndex += 1;
       const additionalHit = yield* applyOneSubUnitAdditionalDamageSteps(

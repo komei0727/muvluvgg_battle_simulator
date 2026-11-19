@@ -405,6 +405,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.subUnitAdditionalHits !== undefined
+        ? { subUnitAdditionalHits: context.subUnitAdditionalHits }
+        : {}),
       // R-FUP-01: AS/EXスキル使用だけが渡す追撃捕捉をヒット処理へ素通しする。
       ...(context.followUpAttackCapture !== undefined
         ? { followUpAttackCapture: context.followUpAttackCapture }

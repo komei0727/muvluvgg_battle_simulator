@@ -132,6 +132,13 @@ export interface DamageEventContext {
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
+   * R-SUB-02: このスキル使用（EffectSequence）で既にサブユニット追加ダメージを加えた
+   * 「サブユニットのインスタンス×対象」の組。追加は攻撃1回につき元攻撃の対象ごと・各体
+   * 1ヒットであり、同じ対象が同じスキル使用の複数DAMAGEに現れても増やさない。
+   * 未指定ならDAMAGE EffectActionごとに独立して数える（単体のDAMAGE解決テスト用）。
+   */
+  readonly subUnitAdditionalHits?: Set<string>;
+  /**
    * `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を同期的に解決するフック。
    * 呼び出し側（`lifecycle/`、Domain層のmodule境界により`combat/`自身は`triggering/`へ
    * 依存できない）が注入する。戻り値の`units`をそのまま以後の`working`として使う。
