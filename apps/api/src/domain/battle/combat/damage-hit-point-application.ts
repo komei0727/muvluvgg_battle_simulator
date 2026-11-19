@@ -1,5 +1,4 @@
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
-import { shieldBypassedDamage } from "./shield-policy.js";
 import {
   selectDeathSurvival,
   type AttackDeathSurvivalLedger,
@@ -85,24 +84,26 @@ export function* applyConfirmedDamageSteps(
   // R-LNK-02第5項: 元ダメージがシールド対象外なら、リンク先でもシールド対象外にする
   // （全量がHPへ直接向かう。`continuous-damage-service.ts`が炎上・毒を吸収経路へ
   // 渡さないのと同じ扱い）。
-  const hpDirectDamage =
-    options.shieldApplicable === false
-      ? finalDamage
-      : shieldBypassedDamage(finalDamage, profile.piercing.shieldIgnoreRate);
+  const shieldApplicable = options.shieldApplicable !== false;
   const absorption = yield* absorbBeforeHitPointsSteps(
     context,
     working,
     attackerUnitId,
     targetUnitId,
     profile.damageType,
-    finalDamage - hpDirectDamage,
+    shieldApplicable ? finalDamage : 0,
     lastEventId,
     { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
     {
       continueAfterSourceDefeat:
         options.isLinkedDamage === true || options.isReflectedDamage === true,
+      shieldIgnoreRate: profile.piercing.shieldIgnoreRate,
     },
   );
+  // R-DMG-03／Q-SRV-01: シールド無視はダメージの一部をHPへ直通させるのではなく、
+  // 吸収体の機能分を減らす。`hpDirectDamage`はHPへ通った量のうち、無視がなければ
+  // 吸収体が受け止めていた分（シールド対象外のダメージでは全量）である。
+  const hpDirectDamage = shieldApplicable ? absorption.shieldBypassedDamage : finalDamage;
   lastEventId = absorption.lastEventId;
   if (absorption.interruption !== "NONE") {
     // 吸収イベントの連鎖が使用者を戦闘不能にした（R-SKL-01「未解決効果を中断する」）、

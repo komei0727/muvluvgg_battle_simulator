@@ -133,37 +133,183 @@ describe("applyDamageAction shield absorption (DMG-004 R-SHD-01/02/03)", () => {
     });
   });
 
-  it("UT-R-SHD-02-006: sends the shieldIgnoreRate share straight to HP", () => {
-    const context = damageEventContext();
-    const attacker = unit("ATTACKER", "ALLY", { attack: 50 });
-    // finalDamage = 50 - 10 = 40, shieldIgnoreRate 0.5 -> 20 direct to HP
-    const target = shieldedTarget([shieldEffect("SHIELD_UNTYPED", "TARGET", 100, null)]);
+  function ignoringAction(shieldIgnoreRate: number) {
     const action = damageAction("PREVENTED");
-    const piercingAction = {
+    return {
       ...action,
       payload: {
         ...action.payload,
-        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0.5, damageReductionIgnoreRate: 0 },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate, damageReductionIgnoreRate: 0 },
       },
     };
+  }
 
+  function ignoringHit(
+    shieldIgnoreRate: number,
+    finalDamagePerHit: number,
+    shields: readonly AppliedEffect[],
+    hitCount = 1,
+  ) {
+    const context = damageEventContext();
+    // finalDamage = attack - defense(10)
+    const attacker = unit("ATTACKER", "ALLY", { attack: finalDamagePerHit + 10 });
+    const base = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 10000 });
+    const target: BattleUnit = { ...base, appliedEffects: shields };
     const result = applyDamageAction(
       attacker,
-      [hit("TARGET", 1)],
-      piercingAction,
+      Array.from({ length: hitCount }, (_, index) => hit("TARGET", index + 1)),
+      ignoringAction(shieldIgnoreRate),
       [attacker, target],
       new SequenceRandomSource([]),
       context,
     );
-
     const updated = result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!;
-    expect(updated.currentHp).toBe(80);
-    expect(updated.appliedEffects[0]!.shield!.remaining).toBe(80);
-    const applied = context.recorder.getEvents().find((e) => e.eventType === "DamageApplied")!;
-    expect(applied.payload).toMatchObject({
-      hpDirectDamage: 20,
-      untypedShieldAbsorbed: 20,
-      hitPointDamage: 20,
+    const remainingOf = (id: string): number | undefined =>
+      updated.appliedEffects.find((e) => e.effectInstanceId === createEffectInstanceId(id))?.shield
+        ?.remaining;
+    const applied = context.recorder
+      .getEvents()
+      .filter((e) => e.eventType === "DamageApplied")
+      .map((e) => e.payload);
+    return { updated, remainingOf, applied, events: context.recorder.getEvents() };
+  }
+
+  it("UT-R-SHD-02-006 (R-DMG-03, Q-SRV-01): a partly ignored shield still stops the whole hit while its functioning share covers it", () => {
+    // 無視50%・盾100 → 機能分50。40ダメージは機能分に収まり、HPは減らない。
+    const { updated, remainingOf, applied } = ignoringHit(0.5, 40, [
+      shieldEffect("SHIELD_UNTYPED", "TARGET", 100, null),
+    ]);
+
+    expect(updated.currentHp).toBe(10000);
+    expect(remainingOf("SHIELD_UNTYPED")).toBe(60);
+    expect(applied[0]).toMatchObject({
+      hpDirectDamage: 0,
+      untypedShieldAbsorbed: 40,
+      hitPointDamage: 0,
+    });
+  });
+
+  it("UT-R-SHD-02-008 (Q-SRV-01): 50% ignore, shield 2000, damage 800 -> HP unchanged, shield 1200 left", () => {
+    const { updated, remainingOf, applied } = ignoringHit(0.5, 800, [
+      shieldEffect("SHIELD", "TARGET", 2000, null),
+    ]);
+
+    expect(updated.currentHp).toBe(10000);
+    expect(remainingOf("SHIELD")).toBe(1200);
+    expect(applied[0]).toMatchObject({ untypedShieldAbsorbed: 800, hitPointDamage: 0 });
+  });
+
+  it("UT-R-SHD-02-009 (Q-SRV-01): beyond the functioning share only the excess reaches HP and only the functioning share is consumed", () => {
+    // 無視50%・盾2000 → 機能分1000。1200のうち超過200だけがHPへ通り、盾は1000残る。
+    const { updated, remainingOf, applied } = ignoringHit(0.5, 1200, [
+      shieldEffect("SHIELD", "TARGET", 2000, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9800);
+    expect(remainingOf("SHIELD")).toBe(1000);
+    expect(applied[0]).toMatchObject({
+      calculatedDamage: 1200,
+      untypedShieldAbsorbed: 1000,
+      hitPointDamage: 200,
+      // 無視がなければ盾が受け止めていた200。
+      hpDirectDamage: 200,
+    });
+  });
+
+  it("UT-R-SHD-02-010 (Q-SRV-01): 50% ignore, shield 2000, damage 1500 -> 500 to HP, shield 1000 left (U1 example)", () => {
+    const { updated, remainingOf } = ignoringHit(0.5, 1500, [
+      shieldEffect("SHIELD", "TARGET", 2000, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9500);
+    expect(remainingOf("SHIELD")).toBe(1000);
+  });
+
+  it("UT-R-SHD-02-011 (Q-SRV-01): each following hit applies the ignore rate again to the shield's remainder", () => {
+    // 1ヒット目: 機能分1000 → 吸収1000・HP200・残1000。
+    // 2ヒット目: 機能分500 → 吸収500・HP700・残500。
+    const { updated, remainingOf, applied } = ignoringHit(
+      0.5,
+      1200,
+      [shieldEffect("SHIELD", "TARGET", 2000, null)],
+      2,
+    );
+
+    expect(applied.map((d) => [d["untypedShieldAbsorbed"], d["hitPointDamage"]])).toEqual([
+      [1000, 200],
+      [500, 700],
+    ]);
+    expect(updated.currentHp).toBe(9100);
+    expect(remainingOf("SHIELD")).toBe(500);
+  });
+
+  it("UT-R-SHD-02-012 (Q-SRV-01): several shields of one type each apply the ignore rate on their own, oldest first", () => {
+    // 盾1000＋1000・無視50%: 古い盾が機能分500を吸収し、残300を新しい盾が吸収する。
+    const { updated, remainingOf, applied } = ignoringHit(0.5, 800, [
+      shieldEffect("SHIELD_OLD", "TARGET", 1000, null),
+      shieldEffect("SHIELD_NEW", "TARGET", 1000, null),
+    ]);
+
+    expect(updated.currentHp).toBe(10000);
+    expect(remainingOf("SHIELD_OLD")).toBe(500);
+    expect(remainingOf("SHIELD_NEW")).toBe(700);
+    expect(applied[0]).toMatchObject({ untypedShieldAbsorbed: 800, hitPointDamage: 0 });
+  });
+
+  it("UT-R-SHD-02-013 (Q-SRV-01): the typed pool and then the untyped pool each use their functioning share before HP", () => {
+    // 物理盾400（機能200）→ タイプなし盾400（機能200）→ 残り100がHPへ。
+    const { updated, remainingOf, applied } = ignoringHit(0.5, 500, [
+      shieldEffect("SHIELD_TYPED", "TARGET", 400, "PHYSICAL"),
+      shieldEffect("SHIELD_UNTYPED", "TARGET", 400, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9900);
+    expect(remainingOf("SHIELD_TYPED")).toBe(200);
+    expect(remainingOf("SHIELD_UNTYPED")).toBe(200);
+    expect(applied[0]).toMatchObject({
+      typedShieldAbsorbed: 200,
+      untypedShieldAbsorbed: 200,
+      hitPointDamage: 100,
+      hpDirectDamage: 100,
+    });
+  });
+
+  it("UT-R-SHD-02-014 (Q-SRV-01): the functioning share is truncated before absorption", () => {
+    // 盾101・無視50% → 機能分 floor(50.5) = 50。60のうち10がHPへ、盾は51残る。
+    const { updated, remainingOf } = ignoringHit(0.5, 60, [
+      shieldEffect("SHIELD", "TARGET", 101, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9990);
+    expect(remainingOf("SHIELD")).toBe(51);
+  });
+
+  it("UT-R-SHD-02-015 (Q-SRV-01): a 0% ignore rate is the ordinary full-shield absorption", () => {
+    const { updated, remainingOf, applied } = ignoringHit(0, 150, [
+      shieldEffect("SHIELD", "TARGET", 100, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9950);
+    expect(remainingOf("SHIELD")).toBeUndefined();
+    expect(applied[0]).toMatchObject({
+      untypedShieldAbsorbed: 100,
+      hitPointDamage: 50,
+      hpDirectDamage: 0,
+    });
+  });
+
+  it("UT-R-SHD-02-016 (Q-SRV-01): a 100% ignore rate leaves the shield untouched and records no ShieldConsumed", () => {
+    const { updated, remainingOf, applied, events } = ignoringHit(1, 150, [
+      shieldEffect("SHIELD", "TARGET", 100, null),
+    ]);
+
+    expect(updated.currentHp).toBe(9850);
+    expect(remainingOf("SHIELD")).toBe(100);
+    expect(events.some((e) => e.eventType === "ShieldConsumed")).toBe(false);
+    expect(applied[0]).toMatchObject({
+      untypedShieldAbsorbed: 0,
+      hitPointDamage: 150,
+      hpDirectDamage: 100,
     });
   });
 
@@ -490,7 +636,7 @@ describe("shield absorption conservation properties (R-SHD-03)", () => {
     );
   });
 
-  it("PROP-SHD-03-002 [R-SHD-03]: the shields absorb exactly min(pool total, damage - shieldIgnoreRate share) for the matching pools", () => {
+  it("PROP-SHD-03-002 [R-SHD-03]: each matching shield absorbs up to its functioning share (Q-SRV-01), oldest first, typed before untyped", () => {
     fc.assert(
       fc.property(
         fc.record({
@@ -560,11 +706,19 @@ describe("shield absorption conservation properties (R-SHD-03)", () => {
           }
           const d = applied.payload as unknown as Record<string, number>;
           const finalDamage = d["calculatedDamage"]!;
-          const bypassed = Math.trunc(finalDamage * scenario.shieldIgnoreRate);
-          const expectedTyped = Math.min(scenario.typedAmount, finalDamage - bypassed);
+          // 各盾は1枚ずつ「切り捨て(残量 × (1 − 無視率))」までしか受け止めない。
+          const functioning = (amount: number) =>
+            Math.trunc(amount * (1 - scenario.shieldIgnoreRate));
+          const expectedTyped = Math.min(functioning(scenario.typedAmount), finalDamage);
           const expectedUntyped = Math.min(
-            scenario.untypedAmount,
-            finalDamage - bypassed - expectedTyped,
+            functioning(scenario.untypedAmount),
+            finalDamage - expectedTyped,
+          );
+          const toHitPoints = finalDamage - expectedTyped - expectedUntyped;
+          // 無視がなければ受け止められていた量。
+          const bypassed = Math.min(
+            toHitPoints,
+            scenario.typedAmount + scenario.untypedAmount - expectedTyped - expectedUntyped,
           );
           const updated = result.units.find(
             (u) => u.battleUnitId === createBattleUnitId("TARGET"),

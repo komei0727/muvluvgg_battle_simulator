@@ -339,7 +339,7 @@ describe("production Catalog UNIT_EVIE_KYONSHI (【キョンシーハッカー�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-EVIE-KYONSHI-004 [R-DMG-03] (R-DMG-03): EXの静的貫通は防御力だけでなくシールドも半分無視する — シールドを張った敵だけがHPへちょうど半分を受ける", () => {
+  it("IT-UNIT-EVIE-KYONSHI-004 [R-DMG-03] (R-DMG-03, Q-SRV-01): EXの静的貫通はシールドを半分無視するが、各ヒットが残量の半分（機能分）に収まる間はHPを減らさない", () => {
     // `-001` のEX行は「防御力50%無視で実効防御250」までを hpDeltas で固定するが、
     // 盤面に吸収体が無いため `shieldIgnoreRate: 0.5` は一切現れない。シールドは実
     // production 定義（ルナのEXが配る最大HP×40%）で用意し、シールドを持たない
@@ -369,10 +369,9 @@ describe("production Catalog UNIT_EVIE_KYONSHI (【キョンシーハッカー�
         { effectActionDefinitionId: "ACT_EVIE_KYONSHI_EX_SELF_BUFF", targets: ["ally:subject"] },
       ],
       // シールド未所持の2体は1ヒット257×5ヒットをHPで受ける。シールド所持者は
-      // 1ヒットにつき floor(257 × 50%) = 128 だけがHPへ抜け、残りは4000のシールドが
-      // 吸収する（枯渇しないため失効も起きない）。
+      // 各ヒットで残量の半分が機能し（4000→2000、3743→1871、…、2972→1486）、
+      // 257はいずれにも収まるためHPは減らない。盾は実際に吸収した1285だけ減る。
       hpDeltas: {
-        "enemy:front": -640,
         "enemy:left": -1285,
         "enemy:back": -1285,
       },

@@ -553,9 +553,9 @@ export interface BattleDomainEventPayloadMap {
     readonly skillType?: SkillType;
     readonly calculatedDamage: number;
     /**
-     * DMG-004（Issue #194、R-SHD-02 #1）: `shieldIgnoreRate`分としてシールドを
-     * 迂回しHPへ直接向かった量。`hitPointDamage`の内訳であり、独立した適用先では
-     * ない（`shield-policy.ts`）。
+     * R-DMG-03／R-SHD-02 #1（Q-SRV-01）: HPへ通った量のうち、`shieldIgnoreRate`が
+     * なければシールド・サブユニットが受け止めていた量。`hitPointDamage`の内訳であり、
+     * 独立した適用先ではない（`damage-absorption.ts`）。
      */
     readonly hpDirectDamage: number;
     /** DMG-004（R-SHD-02 #2）: ダメージタイプに対応するタイプありシールドの吸収量。 */

@@ -59,6 +59,12 @@ export interface ShieldPoolChange {
 
 export interface ShieldPoolAbsorption {
   readonly absorbed: number;
+  /**
+   * このプールで吸収に使える（除外されていない）インスタンスの、吸収後の残量合計。
+   * シールド無視で機能分を使い切っても残った量を含む。呼び出し側はHPへ通った量と
+   * この値の小さい方を「無視がなければ受け止められた量」（`hpDirectDamage`）とする。
+   */
+  readonly remainingAfter: number;
   /** 吸収を反映した`appliedEffects`。吸収が起きなければ入力と同一参照を返す。 */
   readonly appliedEffects: readonly AppliedEffect[];
   /** 吸収量が0（＝プールが空、または残ダメージが0）なら`undefined`。 */
@@ -115,7 +121,7 @@ function poolTotalOf(
 /**
  * R-SHD-02: `shieldType`が選ぶ**1つのプール**から`amount`まで吸収する。
  *
- * R-SHD-02の適用順（`shieldIgnoreRate`分→タイプあり→タイプなし→HP）そのものは
+ * R-SHD-02の適用順（タイプあり→タイプなし→サブユニット→HP）そのものは
  * 呼び出し側（`damage-application-service.ts`）が順に駆動する。プール1つを単位に
  * したのは、`08_ドメインイベント.md`が要求する「各FACTイベントに対応するPS/Memory
  * 候補を直ちに解決する」を満たすため — プールごとに `減少 → ShieldConsumed →
@@ -141,20 +147,17 @@ export function absorbFromShieldPool(
    * 失効を待っているシールド）。プール合計（`poolBefore`）には含めたまま、吸収だけを外す。
    */
   excludedEffectInstanceIds: ReadonlySet<EffectInstanceId> = new Set(),
+  /** R-DMG-03: このヒットのシールド無視率。各インスタンスの機能分を決める。 */
+  shieldIgnoreRate = 0,
 ): ShieldPoolAbsorption {
-  if (amount <= 0) {
-    return { absorbed: 0, appliedEffects: target.appliedEffects };
+  const usableEffects = target.appliedEffects.filter(
+    (effect) => !excludedEffectInstanceIds.has(effect.effectInstanceId),
+  );
+  const usable = poolTotalOf(usableEffects, shieldType);
+  if (amount <= 0 || usable <= 0) {
+    return { absorbed: 0, remainingAfter: usable, appliedEffects: target.appliedEffects };
   }
   const poolBefore = poolTotalOf(target.appliedEffects, shieldType);
-  const usable = poolTotalOf(
-    target.appliedEffects.filter(
-      (effect) => !excludedEffectInstanceIds.has(effect.effectInstanceId),
-    ),
-    shieldType,
-  );
-  if (usable <= 0) {
-    return { absorbed: 0, appliedEffects: target.appliedEffects };
-  }
   const instances: ShieldInstanceChange[] = [];
   const depleted: EffectInstanceId[] = [];
   let remainingDamage = amount;
@@ -170,7 +173,10 @@ export function absorbFromShieldPool(
     ) {
       return effect;
     }
-    const taken = Math.min(shield.remaining, remainingDamage);
+    const taken = Math.min(functioningShare(shield.remaining, shieldIgnoreRate), remainingDamage);
+    if (taken <= 0) {
+      return effect;
+    }
     remainingDamage -= taken;
     absorbed += taken;
     const after = shield.remaining - taken;
@@ -181,8 +187,12 @@ export function absorbFromShieldPool(
     return { ...effect, shield: { ...shield, remaining: after } };
   });
 
+  if (absorbed === 0) {
+    return { absorbed: 0, remainingAfter: usable, appliedEffects: target.appliedEffects };
+  }
   return {
     absorbed,
+    remainingAfter: usable - absorbed,
     appliedEffects,
     change: {
       battleUnitId: target.battleUnitId,
@@ -197,16 +207,25 @@ export function absorbFromShieldPool(
 }
 
 /**
- * R-SHD-02 #1: `shieldIgnoreRate`分としてシールドを迂回しHPへ直接向かう量。
+ * R-DMG-03／Q-SRV-01: シールド無視を受けた吸収体（シールド・サブユニット）1つが、
+ * 1ヒットで受け止められる上限（機能分）。`切り捨て(残量 × (1 − 無視率))`。
  *
- * R-NUM-02の一般規約どおり切り捨て、端数はシールド側（後段）へ残す。これにより
- * `typedShieldAbsorbed + untypedShieldAbsorbed + hitPointDamage + discardedDamage`
- * は常に`calculatedDamage`と厳密に一致する（`08_ドメインイベント.md`の不変条件#6）。
- * 戻り値は`hitPointDamage`の内訳（そのうちシールドを迂回した分）であり、独立した
- * 適用先ではないためこの合計には別項として現れない。
+ * 無視された分はHPへ直通するのではなく、吸収体に残る。機能分を超えたダメージだけが
+ * 次の吸収先・HPへ進み、吸収体が失うのは実際に吸収した量（最大で機能分）だけである。
+ * 多段攻撃の次のヒットは、その時点の残量に改めて無視率を掛ける。同じプールに複数の
+ * インスタンスがあれば1つずつ機能分を求める。
+ *
+ * 無視率は貫通の合成（`1 - Π(1 - 各無視率)`）で2進小数にならない値を取り得るため、
+ * 整数の機能分がわずかに下回って1減らないよう、切り捨ての前に微小な許容を足す。
  */
-export function shieldBypassedDamage(finalDamage: number, shieldIgnoreRate: number): number {
-  return truncateFraction(finalDamage * shieldIgnoreRate);
+export function functioningShare(remaining: number, shieldIgnoreRate: number): number {
+  if (shieldIgnoreRate <= 0) {
+    return remaining;
+  }
+  if (shieldIgnoreRate >= 1) {
+    return 0;
+  }
+  return Math.max(0, truncateFraction(remaining * (1 - shieldIgnoreRate) + 1e-9));
 }
 
 export interface ShieldConsumedContext {
