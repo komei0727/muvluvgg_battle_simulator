@@ -44,7 +44,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_ANIS_SWEETDEVIL_TEX",
   "eventCount": 8144,
-  "eventSequenceHash": "sha256:4b149e43e82c9fc5",
+  "eventSequenceHash": "sha256:0bdf7c5484087ae9",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 139,
     "ACTION_COMPLETING": 139,
@@ -153,7 +153,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_AOI_GUARDIAN_TEX",
   "eventCount": 6963,
-  "eventSequenceHash": "sha256:6ef029ad47dece9e",
+  "eventSequenceHash": "sha256:2a120ebe591d6d7d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 139,
     "ACTION_COMPLETING": 139,
@@ -245,21 +245,21 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1377712,
+      "cumulativeScoreAtBreak": 1377843,
       "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "sourceUnitId": "ally:3",
       "turnNumber": 3,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 1986729,
+      "cumulativeScoreAtBreak": 1986860,
       "sourceUnitDefinitionId": "UNIT_ANIS_TROUBLEMAKER",
       "sourceUnitId": "ally:2",
       "turnNumber": 4,
     },
     {
       "breakNumber": 5,
-      "cumulativeScoreAtBreak": 2664475,
+      "cumulativeScoreAtBreak": 2664606,
       "sourceUnitDefinitionId": "UNIT_ANIS_SWEETDEVIL",
       "sourceUnitId": "ally:1",
       "turnNumber": 5,
@@ -268,8 +268,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_HIIRO_FREEWOLF_TEX",
-  "eventCount": 6973,
-  "eventSequenceHash": "sha256:0cef4a064bc30b79",
+  "eventCount": 6975,
+  "eventSequenceHash": "sha256:e51a877028008721",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 133,
     "ACTION_COMPLETING": 133,
@@ -280,7 +280,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "BATTLE_COMPLETED": 1,
     "BATTLE_STARTED": 1,
     "COMBAT_STAT_CHANGED": 102,
-    "CONTINUOUS_DAMAGE_APPLIED": 20,
+    "CONTINUOUS_DAMAGE_APPLIED": 21,
     "COOLDOWN_COMPLETED": 80,
     "COOLDOWN_REDUCED": 108,
     "COOLDOWN_STARTED": 85,
@@ -301,7 +301,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EFFECT_STEP_COMPLETED": 426,
     "EFFECT_STEP_STARTING": 426,
     "EVASION_ACTIVATED": 7,
-    "EXERCISE_SCORE_ACCUMULATED": 385,
+    "EXERCISE_SCORE_ACCUMULATED": 386,
     "EXERCISE_SCORE_DEDUCTED": 4,
     "EXTRA_GAUGE_INCREASED": 48,
     "EXTRA_GAUGE_OVERFLOW_DISCARDED": 5,
@@ -330,7 +330,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 5,
     "UNIT_REVIVED": 5,
   },
-  "totalScore": 2714284,
+  "totalScore": 2714415,
 }
 `;
 
@@ -378,7 +378,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_LAYLA_NURSE_TEX",
   "eventCount": 7287,
-  "eventSequenceHash": "sha256:729478ecf46dc73f",
+  "eventSequenceHash": "sha256:80639341cb3c29bc",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 138,
     "ACTION_COMPLETING": 138,
@@ -489,7 +489,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_LYDIA_SUMMER_TEX",
   "eventCount": 7838,
-  "eventSequenceHash": "sha256:5ac1effbd4026e47",
+  "eventSequenceHash": "sha256:475c13f00b277933",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 142,
     "ACTION_COMPLETING": 142,
@@ -598,7 +598,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_MAO_SUMMER_TEX",
   "eventCount": 7408,
-  "eventSequenceHash": "sha256:00c26c6e618fc299",
+  "eventSequenceHash": "sha256:10108afe2ac503ef",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 139,
     "ACTION_COMPLETING": 139,
@@ -693,7 +693,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_NANAE_SOVEREIGN_TEX",
   "eventCount": 8979,
-  "eventSequenceHash": "sha256:e8495d6911fd4c49",
+  "eventSequenceHash": "sha256:e82b80feb937f0f3",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 138,
     "ACTION_COMPLETING": 138,
@@ -800,8 +800,8 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
-  "eventCount": 7738,
-  "eventSequenceHash": "sha256:18195eda55b77a2f",
+  "eventCount": 7736,
+  "eventSequenceHash": "sha256:dc1f7026dc74c2b2",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 140,
     "ACTION_COMPLETING": 140,
@@ -828,7 +828,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "EFFECT_CONSUMPTION_CHANGED": 26,
     "EFFECT_DURATION_REDUCED": 118,
     "EFFECT_EXPIRED": 146,
-    "EFFECT_MERGED": 12,
+    "EFFECT_MERGED": 10,
     "EFFECT_REMOVED": 20,
     "EFFECT_STEP_COMPLETED": 431,
     "EFFECT_STEP_STARTING": 431,
@@ -910,7 +910,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_OLGA_NADYA_BOND_TEX",
   "eventCount": 7339,
-  "eventSequenceHash": "sha256:41eb006272dc9da5",
+  "eventSequenceHash": "sha256:18d16b17e3869c2d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 138,
     "ACTION_COMPLETING": 138,
@@ -1019,7 +1019,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_ROSIE_CAMPAIGN_TEX",
   "eventCount": 8215,
-  "eventSequenceHash": "sha256:24f2d09cd029ade5",
+  "eventSequenceHash": "sha256:75bbbca67fcddb7f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 141,
     "ACTION_COMPLETING": 141,
@@ -1129,7 +1129,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_SHIRANA_LUCKY_TEX",
   "eventCount": 6809,
-  "eventSequenceHash": "sha256:06293e18cba01258",
+  "eventSequenceHash": "sha256:7e08bd347f53c6a3",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 134,
     "ACTION_COMPLETING": 134,
@@ -1235,7 +1235,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_SHOUKA_BEACH_TEX",
   "eventCount": 7223,
-  "eventSequenceHash": "sha256:b7bb39cbd753eb81",
+  "eventSequenceHash": "sha256:47056704deb56517",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 133,
     "ACTION_COMPLETING": 133,

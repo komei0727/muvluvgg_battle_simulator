@@ -18,8 +18,8 @@ import {
 import type { DomainEventId } from "../../shared/event-ids.js";
 
 /**
- * R-FUP-01（Issue #474）: AS/EXスキル使用の全step解決後・`SkillUseCompleted`発行前に
- * 1回だけ、捕捉済みライダーの追撃を解決する。
+ * R-FUP-01（Issue #474）: AS/EXスキル使用のDAMAGE区間の終わり（`effect-sequence-resolution.ts`、
+ * サブユニット追加ヒットの解決直後）に1回だけ、捕捉済みライダーの追撃を解決する。
  *
  * - `capture.anyApplied`が偽（元攻撃が1発も命中しなかった・攻撃を含まないスキル）なら
  *   追撃自体を行わない（ライダーの消費はヒット観測時点で既に済んでいる）

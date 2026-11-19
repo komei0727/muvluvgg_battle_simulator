@@ -34,6 +34,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_YUI_HEIR",
   "UNIT_TARISA_TROUBLEMAKER",
   "UNIT_LYDIA_SUMMER",
+  "UNIT_FEE_ACTOR",
 ]);
 
 const ATTACKER_ID = "enemy:attacker";
@@ -162,6 +163,12 @@ const SUBUNIT_III: PrecedingAction = {
   effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
   target: "SELF",
 };
+/** フィーPS1の追撃1ヒット: 所持者攻撃1000・防御500で `(1000-500)×0.2808` の切り捨て140。 */
+const FEE_FOLLOW_UP_HIT = 140;
+const FEE_FOLLOW_UP: PrecedingAction = {
+  effectActionDefinitionId: "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+  target: "SELF",
+};
 const SINGLE_ENEMY: BoardOverrides = {
   enemies: [{ id: "enemy:center", position: { column: "CENTER", row: "FRONT" } }],
 };
@@ -203,6 +210,18 @@ describe("FIX-08 吸収は当該攻撃の本体＋所属する追加の計算ダ
   it("IT-CAT-ATKSUM-013 [R-SKL-08] (SR-363): 複数サブユニット（2体）の追加は各1回だけ合計へ入り、1060＋85×2＝1230の17.5%で215回復する", () => {
     expect(selfHeal("UNIT_OLGA_VETERAN", "SKL_OLGA_VETERAN_AS2", [SUBUNIT_III, SUBUNIT_III])).toBe(
       Math.floor((1060 + 2 * SUBUNIT_III_HIT) * 0.175),
+    );
+  });
+
+  it("IT-CAT-ATKSUM-014 [R-SKL-08] [R-FUP-01] (SR-408): 唯依AS1は追撃（フィーPS1、140）を含む1113＋140＝1253の30%で375回復する", () => {
+    expect(selfHeal("UNIT_YUI_HEIR", "SKL_YUI_HEIR_AS1", [FEE_FOLLOW_UP])).toBe(
+      Math.floor((3 * 371 + FEE_FOLLOW_UP_HIT) * 0.3),
+    );
+  });
+
+  it("IT-CAT-ATKSUM-015 [R-SKL-08] [R-FUP-01] (SR-363): オルガAS2は追撃（フィーPS1、140）を含む1060＋140＝1200の17.5%で210回復する", () => {
+    expect(selfHeal("UNIT_OLGA_VETERAN", "SKL_OLGA_VETERAN_AS2", [FEE_FOLLOW_UP])).toBe(
+      Math.floor((1060 + FEE_FOLLOW_UP_HIT) * 0.175),
     );
   });
 });

@@ -373,7 +373,7 @@ export class PassiveActivationRuntime {
   }
 
   /**
-   * R-TEX-06 #5: 効果処理フェーズの末尾（全stepの解決後・追撃の解決後・完了イベントの
+   * R-TEX-06 #5: 効果処理フェーズの末尾（追撃を含む全stepの解決後・完了イベントの
    * 発行前）で、保留したブレイクを解決する。トップレベルの効果処理（AS/EX使用・
    * チャージ解放）専用の入口で、`beginEffectProcessingPhase`と対で呼ぶ。
    *

@@ -2,6 +2,7 @@ import { expireEffects, expireEffectsSteps } from "../effects/duration-expiry-se
 import type { EffectSequencePlan, EffectStepPlan } from "../skill/skill-resolution-service.js";
 import { emptySubUnitAdditionLedger } from "../combat/damage-event-context.js";
 import { releasePendingSubUnitAdditionsSteps } from "./effect-action/damage-effect-action.js";
+import { resolveFollowUpAttacksAfterSkillUse } from "./follow-up-attack-service.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveDarkness } from "../combat/hit-policy.js";
@@ -379,6 +380,15 @@ export function* resolveEffectSequencePlan(
         interruptedUnresolvedCount = 0;
         break;
       }
+      // R-FUP-01 #3: 追撃は元攻撃に属する追加ダメージであり、サブユニット追加と同じく
+      // DAMAGE区間の終わりで1回だけ解決する。後続stepの吸収（`SUM_DAMAGE_DEALT`）が
+      // 追撃分を含めた攻撃全体の合計を参照できるようにするため（R-SKL-08）。
+      const followUp = resolvePendingFollowUpAttacks(context, box, lastEventId);
+      lastEventId = followUp.lastEventId;
+      if (followUp.interrupted) {
+        interruptedUnresolvedCount = 0;
+        break;
+      }
     }
   }
 
@@ -405,6 +415,26 @@ export function* resolveEffectSequencePlan(
         },
       }
     : { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
+}
+
+/**
+ * R-FUP-01: AS/EXスキル使用が捕捉した追撃をDAMAGE区間の終わりで解決する。捕捉
+ * （`followUpAttackCapture`）を持たないPS・Memory・チャージ解放の解決では何もしない。
+ * 解決済みの捕捉は`resolved`で印を付け、同じスキル使用で2回解決しない。
+ */
+function resolvePendingFollowUpAttacks(
+  context: EffectActionGroupContext,
+  box: UnitsBox,
+  parentEventId: DomainEventId,
+): { readonly lastEventId: DomainEventId; readonly interrupted: boolean } {
+  const capture = context.followUpAttackCapture;
+  if (capture === undefined || capture.resolved) {
+    return { lastEventId: parentEventId, interrupted: false };
+  }
+  capture.resolved = true;
+  const followUp = resolveFollowUpAttacksAfterSkillUse(context, capture, box.units, parentEventId);
+  box.units = followUp.units;
+  return { lastEventId: followUp.lastEventId, interrupted: followUp.interrupted };
 }
 
 /** R-SUB-02: そのトップレベルstepがDAMAGEを解決しうるか（分岐の腕・繰り返しの中も含む）。 */

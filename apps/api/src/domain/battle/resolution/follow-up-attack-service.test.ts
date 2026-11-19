@@ -24,8 +24,8 @@ import { testUnitDefinition } from "../../../testing/fixtures/unit-definitions.j
 import { createActionId } from "../../shared/event-ids.js";
 
 /**
- * R-FUP-01（Issue #474）: AS/EXスキル使用単位の追撃解決。追撃が全step解決後・
- * `SkillUseCompleted`発行前に1回だけ発生し、元攻撃が1発も命中しなければ発生しない
+ * R-FUP-01（Issue #474）: AS/EXスキル使用単位の追撃解決。追撃がDAMAGE区間の終わり
+ * （Issue #832）に1回だけ発生し、元攻撃が1発も命中しなければ発生しない
  * こと、ライダーが「次の攻撃1回」で失効することを、`resolveSkillUse`の実経路で固定する。
  */
 describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", () => {
@@ -263,7 +263,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
       );
   }
 
-  it("UT-R-FUP-01-008: resolves the follow-up once after all steps and before SkillUseCompleted, grants the onHitEffect, and expires the rider", () => {
+  it("UT-R-FUP-01-008: resolves the follow-up once at the end of the DAMAGE section and before SkillUseCompleted, grants the onHitEffect, and expires the rider", () => {
     const { attacker, enemy } = board();
     const recorder = new EventRecorder(createBattleId("B_FUP"));
     const result = resolveSkillUse(
@@ -295,7 +295,8 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
     expect(attackerAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
 
-    // 追撃の`DamageCalculated`は、AS本体の全stepの後・`SkillUseCompleted`の前に1回だけ。
+    // 追撃の`DamageCalculated`は、DAMAGE区間（このASでは唯一のstep）の後・
+    // `SkillUseCompleted`の前に1回だけ。
     const events = recorder.getEvents();
     const followUpDamageIndices = events
       .map((event, index) => ({ event, index }))
@@ -492,6 +493,65 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
     expect(events.indexOf(followUps[0]!)).toBeGreaterThan(asDamageIndices[1]!);
   });
 
+  it("UT-R-FUP-01-017 [R-FUP-01, R-SKL-08]: resolves the follow-up at the end of the DAMAGE section, before a later non-DAMAGE step, so that step's SUM_DAMAGE_DEALT includes the follow-up", () => {
+    const SECTION_AS_ID = "SKL_TEST_FUP_AS_SECTION";
+    const ABSORB_ID = "ACT_TEST_FUP_ABSORB";
+    const base = attackSkill([AS_DAMAGE_ID], SECTION_AS_ID);
+    if (base.resolution.kind !== "IMMEDIATE") {
+      throw new Error("attackSkill builds an IMMEDIATE resolution");
+    }
+    const sectionSkill: SkillDefinition = {
+      ...base,
+      resolution: {
+        ...base.resolution,
+        steps: [
+          ...base.resolution.steps,
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: createEffectActionDefinitionId(ABSORB_ID) }],
+          },
+        ],
+      },
+    };
+    const absorb: EffectActionDefinition = {
+      kind: "HEAL",
+      effectActionDefinitionId: createEffectActionDefinitionId(ABSORB_ID),
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "DAMAGE_DEALT_RATIO", sourceResult: "SUM_DAMAGE_DEALT", ratio: 0.5 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      },
+    };
+    const battleDefinitions = definitions([sectionSkill], [absorb]);
+    const { attacker, enemy } = board({ attackerHp: 500 });
+
+    const { result, recorder } = useSkill(
+      attacker,
+      enemy,
+      battleDefinitions,
+      SECTION_AS_ID,
+      "B_FUP_SECTION",
+    );
+
+    const events = recorder.getEvents();
+    const followUps = followUpDamageEvents(recorder);
+    expect(followUps).toHaveLength(1);
+    const absorbStarted = events.findIndex(
+      (event) =>
+        event.eventType === "EffectActionStarting" &&
+        (event.payload as { effectActionDefinitionId?: string }).effectActionDefinitionId ===
+          ABSORB_ID,
+    );
+    expect(absorbStarted).toBeGreaterThan(events.indexOf(followUps[0]!));
+    // 吸収は本体80＋追撃40＝120の50%＝60。
+    const attackerAfter = result.units.find((unit) => unit.battleUnitId === attacker.battleUnitId)!;
+    expect(attackerAfter.currentHp).toBe(500 + 60);
+  });
+
   it("UT-R-FUP-01-010: each of two rider instances adds its own follow-up hit", () => {
     const { attacker, enemy } = board({
       attackerEffects: [
@@ -651,7 +711,7 @@ describe("resolveFollowUpAttacksAfterSkillUse via resolveSkillUse (R-FUP-01)", (
   });
 
   it("UT-R-FUP-01-013 [R-FUP-01, R-TEX-06] (R-TEX-06 #5): keeps the EffectSequence-scoped counter alive through the follow-up, so the follow-up hit's RuntimeCounterChanged precedes the RuntimeCounterReset", () => {
-    // R-TEX-06 #5 が定めるフェーズ末尾の順序「全stepの解決 → 追撃 → 保留ブレイクの解決
+    // R-TEX-06 #5 が定めるフェーズ末尾の順序「全stepの解決（追撃を含む） → 保留ブレイクの解決
     // → `EffectSequence`スコープの`RuntimeCounterReset` → 完了イベントの発行」のうち、
     // 「追撃 → reset」は演習に限らない通常戦闘の挙動である。resetを追撃より前に戻すと
     // 追撃解決の時点でcounterが破棄済みになり、追撃ヒットの`DamageApplied`が

@@ -94,11 +94,19 @@ export interface FollowUpAttackCapture {
   readonly attackedTargetUnitIds: BattleUnitId[];
   anyApplied: boolean;
   anyCritical: boolean;
+  /** R-FUP-01 #3: このスキル使用の追撃を解決済みか（DAMAGE区間の終わりで1回だけ解決する）。 */
+  resolved: boolean;
 }
 
 /** {@link FollowUpAttackCapture}の初期値。1回のスキル使用ごとに新規生成する。 */
 export function emptyFollowUpAttackCapture(): FollowUpAttackCapture {
-  return { riders: new Map(), attackedTargetUnitIds: [], anyApplied: false, anyCritical: false };
+  return {
+    riders: new Map(),
+    attackedTargetUnitIds: [],
+    anyApplied: false,
+    anyCritical: false,
+    resolved: false,
+  };
 }
 
 export interface ApplyDamageActionResult {

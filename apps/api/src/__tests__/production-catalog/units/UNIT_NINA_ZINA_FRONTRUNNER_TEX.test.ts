@@ -527,7 +527,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       hpDeltas: { "enemy:front": -1113, "enemy:left": -1113 },
+      // R-FUP-01 #3: 追撃はDAMAGE区間の終わり（AS2の刻痕stepより前）で解決するため、
+      // 追撃が配る1行動の刻痕が先に付く。
       effectsApplied: [
+        ...scarTempEffects("enemy:front"),
         {
           unitId: "enemy:front",
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_ATK_DOWN",
@@ -538,7 +541,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_DMG_DOWN",
           magnitude: -0.05,
         },
-        ...scarTempEffects("enemy:front"),
         ...scarTempEffects("enemy:left"),
       ],
       markers: [

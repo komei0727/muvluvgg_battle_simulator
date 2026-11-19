@@ -34,7 +34,7 @@ export interface FollowUpAttackResult {
 }
 
 /**
- * R-FUP-01: スキル使用の全step解決後・`SkillUseCompleted`発行前に1回だけ、捕捉済みの
+ * R-FUP-01: スキル使用のDAMAGE区間の終わりに1回だけ、捕捉済みの
  * ライダーごと×攻撃対象ごとに追撃ヒットを解決する。
  *
  * 1ヒット分の解決は`applyOneAdditionalAttackHitSteps`（追加攻撃と共通）へ委譲する。
