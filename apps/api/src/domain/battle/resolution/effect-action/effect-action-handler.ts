@@ -165,6 +165,11 @@ export interface EffectActionApplicationInput {
    * 未指定ならこの適用だけで1回の攻撃とみなす。
    */
   readonly attack?: { readonly scope: AttackConsumptionScope; readonly final: boolean };
+  /**
+   * R-SUB-02: このDAMAGE適用の直後に対象の追加ヒットを解決するか
+   * （`DamageEventContext.releaseSubUnitAdditions`）。未指定は真。
+   */
+  readonly releaseSubUnitAdditions?: boolean;
 }
 
 /**

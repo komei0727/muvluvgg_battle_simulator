@@ -10,7 +10,13 @@ import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
 import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
 import { evaluateFormula } from "../skill/formula-evaluator.js";
-import type { DamageEventContext, DamageHitOutcome, DamageStep } from "./damage-event-context.js";
+import {
+  emptySubUnitAdditionLedger,
+  type DamageEventContext,
+  type DamageHitOutcome,
+  type DamageStep,
+  type SubUnitAdditionLedger,
+} from "./damage-event-context.js";
 import {
   consumeAndExpire,
   driveRemovalSteps,
@@ -42,31 +48,26 @@ export interface SubUnitAdditionalDamageResult {
 
 /**
  * R-SUB-02（DMG-005）: 1つのDAMAGE EffectActionの解決が終わった直後に、使用者が保持する
- * サブユニットの追加ダメージを解決する。
+ * サブユニットの追加ダメージをスキル使用の台帳（`context.subUnitAdditions`）へ記録し、
+ * 解決してよい位置（`context.releaseSubUnitAdditions`）ならこのDAMAGEの対象の分を解決する。
  *
  * - 「所持者の攻撃対象ごとに追加ダメージを1ヒット加える」「複数対象への攻撃では、
- *   各対象へ1ヒットずつ加える」: この攻撃で実際に適用されたヒットの**対象**を
- *   重複なく（初出順で）並べ、その各対象へ加える。同じ対象への複数ヒットは
- *   1回にまとまる
+ *   各対象へ1ヒットずつ加える」: この攻撃のヒットの**対象**を重複なく（初出順で）並べる。
+ *   同じ対象への複数ヒットは1回にまとまる
  * - 数える単位は攻撃1回（1スキル使用）であり、同じ対象が同じスキル使用の複数DAMAGEに
- *   現れても各体1回に限る（`DamageEventContext.subUnitAdditionalHits`、Issue #836）。
- *   追加は対象が最初に現れたDAMAGEの直後に解決する
+ *   現れても各体1回に限る（Issue #836）。会心は抽選せず、そのスキル使用でその対象への
+ *   ヒットが1つでも会心なら会心にする（攻撃全体ではなく対象ごと、Issue #704）。後続の
+ *   DAMAGEの会心も継承できるよう、追加ヒットはその対象を狙う最後のDAMAGEの後（または
+ *   DAMAGE区間の終わり、`releasePendingSubUnitAdditionsSteps`）まで解決を持ち越す
  * - 所持者が同じサブユニットを複数保持していればその数だけ加える
  *   （production例: `SKL_OLGA_VETERAN_PS1`「サブユニット『カムラッドⅡ』を3つ付与する」）
- * - 「追加ダメージでは通常の防御力減衰を行わない」: 基礎値は`damage-calculator.ts`を
- *   経由せず`SUBUNIT_ADDITIONAL_DAMAGE` Formulaの結果そのもの（所持者の攻撃力が対象の
- *   防御力を下回る場合だけ特殊減衰式になる）。その外側の属性相性・会心・与被ダメージ補正は
- *   通常ヒットと同じく掛け、最終切り捨てと最低1ダメージ（R-DMG-02）を適用する
- *   （`applyOneSubUnitAdditionalDamageSteps`）
- * - 会心は抽選せず、元の攻撃のうち**その対象への**ヒットが1つでも会心なら会心にする
- *   （攻撃全体ではなく対象ごと、Issue #704）
  * - 使用者が途中で戦闘不能になり残りのヒットを中断した場合（R-SKL-01/R-SKL-03）は
  *   追加ダメージも行わない。既に戦闘不能になった対象も飛ばす（R-ACTN-01 #2）
  *
- * サブユニットの並びは**解決を始める前に**確定させる（`shieldDecayPools`と同じ
- * 規約）— 追加ダメージ自身のPS/Memory連鎖が新しいサブユニットを付与しても、同じ
- * 攻撃で連鎖的に追加ダメージが増えないようにするためである。実際の値（所持者の
- * 攻撃力・対象の防御力）だけをそのつど最新状態から求める。
+ * 各対象へ加えるサブユニットの並びは、その対象を狙ったDAMAGEのヒットが終わった時点の
+ * 保持分で確定させる（`shieldDecayPools`と同じ規約）— 追加ダメージ自身のPS/Memory連鎖が
+ * 新しいサブユニットを付与しても、同じ攻撃で連鎖的に追加ダメージが増えないようにする
+ * ためである。実際の値（所持者の攻撃力・対象の防御力）だけを解決のつど最新状態から求める。
  */
 export function* applySubUnitAdditionalDamageSteps(
   context: DamageEventContext,
@@ -78,14 +79,15 @@ export function* applySubUnitAdditionalDamageSteps(
   interrupted: boolean,
   parentEventId: DomainEventId,
 ): Generator<DamageStep, SubUnitAdditionalDamageResult, readonly BattleUnit[] | undefined> {
-  let lastEventId = parentEventId;
+  const lastEventId = parentEventId;
   if (interrupted) {
     // 元のヒット列が既に中断されている（`interruptedCount`が表す）。
     return { lastEventId, interrupted: false };
   }
   const attacker = working.get(attackerUnitId);
   const sources = attacker === undefined ? [] : subUnitAdditionalDamageSources(attacker);
-  if (sources.length === 0) {
+  const ledger = context.subUnitAdditions ?? emptySubUnitAdditionLedger();
+  if (sources.length === 0 && ledger.pending.size === 0) {
     // サブユニットを保持していなければ未解決の追加ヒットも存在しない。
     return { lastEventId, interrupted: false };
   }
@@ -97,22 +99,68 @@ export function* applySubUnitAdditionalDamageSteps(
   // 「所持者の**攻撃対象**ごとに」（R-SUB-02第1項）が数えるのは、その攻撃が誰を
   // 狙ったかであって、攻撃自身のヒットが通ったかではない — 追加ダメージは独立した
   // 1ヒットとして自前の命中判定を持つ（`applyOneSubUnitAdditionalDamageSteps`）ため、
-  // 元のヒットが回避されていても対象からは外さない。既に戦闘不能な対象は下の
-  // `isDefeated`判定が除く（R-ACTN-01 #2）。使用者の戦闘不能による中断
-  // （`interrupted`）はこの関数の冒頭で既に打ち切っている。
+  // 元のヒットが回避されていても対象からは外さない。
   const targetUnitIds = [...new Set(outcomes.map((outcome) => outcome.targetUnitId))];
-  // R-SUB-02（Issue #704）: 追加ヒットの会心は抽選せず、元の攻撃のうち**その対象への**
-  // ヒットが1つでも会心だったかで決まる（攻撃全体ではなく対象ごと）。
-  const criticallyHitTargetUnitIds = new Set(
-    outcomes.filter((outcome) => outcome.isCritical).map((outcome) => outcome.targetUnitId),
-  );
-
-  // 追加ダメージのヒット番号は、この攻撃の追加ダメージ列の中で0から通し番号にする
-  // （元のDAMAGE EffectActionのヒット番号とは別系列であり、`effectActionDefinitionId`
-  // もサブユニット側の定義IDになるため衝突しない）。
-  let additionalHitIndex = 0;
   for (const targetUnitId of targetUnitIds) {
+    const entry = ledger.pending.get(targetUnitId) ?? {
+      damageType: damageAction.payload.damageType,
+      accuracyMode: damageAction.payload.accuracy.mode,
+      critical: false,
+      sourceEffectInstanceIds: [],
+    };
+    entry.critical ||= outcomes.some(
+      (outcome) => outcome.targetUnitId === targetUnitId && outcome.isCritical,
+    );
     for (const source of sources) {
+      if (!entry.sourceEffectInstanceIds.includes(source.effectInstanceId)) {
+        entry.sourceEffectInstanceIds.push(source.effectInstanceId);
+      }
+    }
+    if (entry.sourceEffectInstanceIds.length > 0 || ledger.pending.has(targetUnitId)) {
+      ledger.pending.set(targetUnitId, entry);
+    }
+  }
+  if (context.releaseSubUnitAdditions === false) {
+    return { lastEventId, interrupted: false };
+  }
+  return yield* releaseSubUnitAdditionsSteps(
+    context,
+    working,
+    random,
+    attackerUnitId,
+    ledger,
+    targetUnitIds,
+    parentEventId,
+  );
+}
+
+/**
+ * R-SUB-02: 台帳に保留している追加ヒットのうち、`targetUnitIds`（未指定なら保留中の
+ * 全対象、初出順）の分を解決する。解決した対象は保留から外す。
+ *
+ * DAMAGEの直後（`applySubUnitAdditionalDamageSteps`）と、DAMAGE区間の終わりに残った
+ * 対象をまとめて解決する経路（`resolution/`の`releasePendingSubUnitAdditionsSteps`）が共有する。
+ */
+export function* releaseSubUnitAdditionsSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  random: RandomSource,
+  attackerUnitId: BattleUnitId,
+  ledger: SubUnitAdditionLedger,
+  targetUnitIds: readonly BattleUnitId[] | undefined,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, SubUnitAdditionalDamageResult, readonly BattleUnit[] | undefined> {
+  let lastEventId = parentEventId;
+  const releasing = (targetUnitIds ?? [...ledger.pending.keys()]).flatMap((targetUnitId) => {
+    const entry = ledger.pending.get(targetUnitId);
+    if (entry === undefined) {
+      return [];
+    }
+    ledger.pending.delete(targetUnitId);
+    return [{ targetUnitId, entry }];
+  });
+  for (const { targetUnitId, entry } of releasing) {
+    for (const sourceEffectInstanceId of entry.sourceEffectInstanceIds) {
       const owner = working.get(attackerUnitId);
       if (owner === undefined || isDefeated(owner)) {
         return { lastEventId, interrupted: true };
@@ -122,23 +170,29 @@ export function* applySubUnitAdditionalDamageSteps(
         break;
       }
       // このサブユニットが直前の連鎖で解除・枯渇していれば追加ダメージも起きない。
+      const source = subUnitAdditionalDamageSources(owner).find(
+        (candidate) => candidate.effectInstanceId === sourceEffectInstanceId,
+      );
       const stillHeld = owner.appliedEffects.some(
         (effect) =>
-          effect.effectInstanceId === source.effectInstanceId &&
+          effect.effectInstanceId === sourceEffectInstanceId &&
           effect.subUnit !== undefined &&
           effect.subUnit.durability > 0,
       );
-      if (!stillHeld) {
+      if (source === undefined || !stillHeld) {
         continue;
       }
-      // 同じスキル使用の先行するDAMAGEで、この体がこの対象へ既に加えていれば加えない。
-      const ledgerKey = `${source.effectInstanceId}|${targetUnitId}`;
-      if (context.subUnitAdditionalHits?.has(ledgerKey) === true) {
+      // 同じスキル使用で、この体がこの対象へ既に加えていれば加えない。
+      const addedKey = `${sourceEffectInstanceId}|${targetUnitId}`;
+      if (ledger.added.has(addedKey)) {
         continue;
       }
-      context.subUnitAdditionalHits?.add(ledgerKey);
-      const hitIndex = additionalHitIndex;
-      additionalHitIndex += 1;
+      ledger.added.add(addedKey);
+      // 追加ダメージのヒット番号は、このスキル使用の追加ダメージ列の中で0から通し番号に
+      // する（元のDAMAGE EffectActionのヒット番号とは別系列であり、
+      // `effectActionDefinitionId`もサブユニット側の定義IDになるため衝突しない）。
+      const hitIndex = ledger.nextHitIndex;
+      ledger.nextHitIndex += 1;
       const additionalHit = yield* applyOneSubUnitAdditionalDamageSteps(
         context,
         working,
@@ -151,10 +205,10 @@ export function* applySubUnitAdditionalDamageSteps(
           hitIndex,
           // R-SUB-02（`ApplySubunitPayload.additionalDamage.damageType`）: 明示が
           // なければこの追加ダメージの契機になった攻撃のダメージタイプを引き継ぐ。
-          damageType: source.additionalDamage.damageType ?? damageAction.payload.damageType,
+          damageType: source.additionalDamage.damageType ?? entry.damageType,
           // 命中特性は契機になった攻撃から引き継ぐ（`damageType`の既定と同じ規約）。
-          accuracyMode: damageAction.payload.accuracy.mode,
-          criticalMode: criticallyHitTargetUnitIds.has(targetUnitId) ? "GUARANTEED" : "PREVENTED",
+          accuracyMode: entry.accuracyMode,
+          criticalMode: entry.critical ? "GUARANTEED" : "PREVENTED",
           // R-SUB-02にもCatalogスキーマにも追加ダメージの貫通を表す項が無い。
           piercing: {
             defenseIgnoreRate: 0,

@@ -8,6 +8,9 @@ import { createActionId } from "../../domain/shared/event-ids.js";
 import { SUBUNIT_PROVIDER_ATTACK_KEY } from "../../domain/battle/model/applied-effect.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import { createRuntimeCounterId } from "../../domain/catalog/definitions/catalog-ids.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
+import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
+import { applyPrecedingActions } from "../../testing/production-unit/skill-behaviour.js";
 import { openPassiveChain } from "../../testing/production-unit/passive-activation.js";
 import { skillUseCompleted } from "../../testing/production-unit/trigger-events.js";
 import {
@@ -34,6 +37,8 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_LILY_HERO",
   "UNIT_YIFEI_STORM",
   "UNIT_OLGA_VETERAN",
+  "UNIT_MIRIAM_MAGE",
+  "UNIT_SHIRANA_SORA",
 ]);
 
 /** 「うみのともだちⅢ」1体の追加ダメージ: 付与時攻撃力1000×8.5%（所持者攻撃1000 ≥ 防御500）。 */
@@ -211,5 +216,154 @@ describe("FIX-12 付与時攻撃力の保存とFIX-05の両立（SR-364）", () 
       ).currentHp;
     // 1300×10.6%＝137.8 → 137（所持者攻撃1000 ≥ 防御500）。3体で各1回。
     expect(hpAfter(afterPs) - hpAfter(withoutSubUnits)).toBe(-3 * 137);
+  });
+});
+
+/** 会心率50%の盤面で、サブユニット1体（Ⅲ）を持つ使用者がスキルを1回使ったイベント列。 */
+function eventsOfSkillUseWithSubUnit(
+  unitDefinitionId: string,
+  skillDefinitionId: string,
+  criticalDraws: readonly number[],
+): readonly BattleDomainEvent[] {
+  const board = productionBoard(snapshot, unitDefinitionId, {
+    combatStats: { criticalRate: 0.5 },
+    enemies: [{ id: "enemy:center", position: { column: "CENTER", row: "FRONT" } }],
+  });
+  const units = applyPrecedingActions(board, [SUBUNIT_III]);
+  const skill = snapshot.skills.get(createSkillDefinitionId(skillDefinitionId));
+  if (skill === undefined) {
+    throw new Error(`missing ${skillDefinitionId}`);
+  }
+  const actionType = skill.skillType === "EX" ? "EX" : "AS";
+  const recorder = new EventRecorder(createBattleId("B_SUBACT_CRIT"));
+  const random = new SequenceRandomSource(criticalDraws);
+  resolveSkillUse(
+    unitOf(units, SUBJECT_ID),
+    skill,
+    actionType,
+    actionType,
+    units,
+    board.definitions,
+    random,
+    recorder,
+    1,
+    0,
+    createActionId("B_SUBACT_CRIT:action:1"),
+    recorder.nextResolutionScopeId(),
+  );
+  // 抽選は元攻撃の各ヒットの会心判定だけで、追加ヒットは乱数を使わない。
+  expect(random.consumedValues).toHaveLength(criticalDraws.length);
+  return recorder.getEvents();
+}
+
+function damageCalculations(events: readonly BattleDomainEvent[]) {
+  return events.flatMap((event) => (event.eventType === "DamageCalculated" ? [event.payload] : []));
+}
+
+describe("FIX-12 追加ヒットの会心はスキル使用全体の対象別会心を継承する（R-SUB-02）", () => {
+  it("IT-CAT-SUBACT-006 [R-SUB-02]: 亦菲EXで後続のDAMAGEだけが会心でも、追加ヒットは会心（1000×8.5%×1.5＝127）になり、最後のDAMAGEの後に1回だけ解決する", () => {
+    const calculations = damageCalculations(
+      eventsOfSkillUseWithSubUnit("UNIT_YIFEI_STORM", "SKL_YIFEI_STORM_EX", [
+        ...new Array<number>(7).fill(0.99),
+        0.1,
+      ]),
+    );
+    expect(calculations.map((payload) => payload.effectActionDefinitionId)).toEqual([
+      ...new Array<string>(7).fill("ACT_YIFEI_STORM_EX_DAMAGE_MULTI"),
+      "ACT_YIFEI_STORM_EX_DAMAGE_FINISH",
+      "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
+    ]);
+    expect(calculations[7]!.criticalMultiplier).toBe(1.5);
+    expect(calculations[8]!.criticalMultiplier).toBe(1.5);
+    expect(calculations[8]!.finalDamage).toBe(127);
+  });
+
+  it("IT-CAT-SUBACT-007 [R-SUB-02]: 亦菲EXで最初のヒットだけが会心でも追加ヒットは会心、どのヒットも非会心なら非会心（85）", () => {
+    const firstOnly = damageCalculations(
+      eventsOfSkillUseWithSubUnit("UNIT_YIFEI_STORM", "SKL_YIFEI_STORM_EX", [
+        0.1,
+        ...new Array<number>(7).fill(0.99),
+      ]),
+    );
+    expect(firstOnly.at(-1)!.finalDamage).toBe(127);
+    const none = damageCalculations(
+      eventsOfSkillUseWithSubUnit(
+        "UNIT_YIFEI_STORM",
+        "SKL_YIFEI_STORM_EX",
+        new Array<number>(8).fill(0.99),
+      ),
+    );
+    expect(none.at(-1)!.finalDamage).toBe(85);
+  });
+
+  it("IT-CAT-SUBACT-008 [R-SUB-02]: ミリアムAS1で別stepの後続DAMAGEだけが会心でも追加ヒットは会心になり、後続DAMAGEの後に解決する", () => {
+    const calculations = damageCalculations(
+      eventsOfSkillUseWithSubUnit("UNIT_MIRIAM_MAGE", "SKL_MIRIAM_MAGE_AS1", [0.99, 0.1]),
+    );
+    expect(calculations.map((payload) => payload.effectActionDefinitionId)).toEqual([
+      "ACT_MIRIAM_MAGE_AS1_DAMAGE",
+      "ACT_MIRIAM_MAGE_AS1_DAMAGE_EXTRA",
+      "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
+    ]);
+    expect(calculations[2]!.finalDamage).toBe(127);
+  });
+
+  it("IT-CAT-SUBACT-009 [R-SUB-02]: オルガAS2の追加ヒットは、DAMAGEの後・DAMAGEを含まない吸収stepより前に解決する", () => {
+    const events = eventsOfSkillUseWithSubUnit("UNIT_OLGA_VETERAN", "SKL_OLGA_VETERAN_AS2", [0.99]);
+    const subUnitHit = events.findIndex(
+      (event) =>
+        event.eventType === "DamageCalculated" &&
+        event.payload.effectActionDefinitionId === "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
+    );
+    const heal = events.findIndex(
+      (event) =>
+        event.eventType === "EffectActionStarting" &&
+        event.payload.effectActionDefinitionId === "ACT_OLGA_VETERAN_AS2_HEAL",
+    );
+    expect(subUnitHit).toBeGreaterThan(-1);
+    expect(heal).toBeGreaterThan(subUnitHit);
+  });
+});
+
+describe("FIX-12 分岐の中のDAMAGEでも追加ヒットは同じ攻撃の中で解決する（R-SUB-02・R-EFF-07）", () => {
+  it("IT-CAT-SUBACT-010 [R-SUB-02, R-EFF-07]: 白奈PS1（分岐の腕のDAMAGE）の追加ヒットにも、対象が持つ「次に受けるEN攻撃−75%」が乗る（312→78）", () => {
+    const ps1 = (withSubUnit: boolean) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_SHIRANA_SORA",
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_SHIRANA_SORA_PS1",
+          trigger: skillUseCompleted({
+            actor: SUBJECT_ID,
+            targets: ["ally:front"],
+            skillType: "AS",
+          }),
+          triggeredBy: SUBJECT_ID,
+        },
+        board: {
+          subject: {
+            state: {
+              skillCounters: {
+                [createSkillDefinitionId("SKL_SHIRANA_SORA_PS1")]: {
+                  [createRuntimeCounterId("SKL_SHIRANA_SORA_PS1_TRIGGER_COUNT")]: {
+                    value: 1,
+                    carry: 0,
+                  },
+                },
+              },
+            },
+          },
+          enemies: [{ id: "enemy:front", position: { column: "CENTER", row: "FRONT" } }],
+        },
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_SHIRANA_SORA_PS2_GUARD", target: "ENEMY" },
+          ...(withSubUnit
+            ? [{ effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", target: "SELF" as const }]
+            : []),
+        ],
+      }).hpDeltas?.["enemy:front"] ?? 0;
+    // 子機Ⅱの追加ダメージ1000×31.2%＝312に、同じ攻撃で消費されたガード（EN−75%）が乗る。
+    expect(ps1(true) - ps1(false)).toBe(-78);
   });
 });

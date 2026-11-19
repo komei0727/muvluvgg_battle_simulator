@@ -904,7 +904,12 @@ describe("sub-unit additional damage interruption (R-SUB-02 / R-SKL-01)", () => 
       appliedEffects: [subUnitEffect("TARGET_SUB", TARGET_SUBUNIT_ID, enemyBase.battleUnitId, 200)],
     };
     const attack = damageAction("ACT_ATTACK");
-    const second = damageAction("ACT_SECOND");
+    // 後続stepはDAMAGEを含まない。DAMAGEを含むと追加ヒットはそのDAMAGEの後へ持ち越される
+    // （R-SUB-02、Issue #836）ため、「追加ヒット中の中断で後続stepを始めない」を見られない。
+    const second = consumedStatMod("ACT_SECOND", "ATTACK", 0.1, {
+      kind: "NEXT_OUTGOING_ATTACK",
+      maxCount: 1,
+    });
     const effectActions = new Map([
       [attack.effectActionDefinitionId, attack],
       [second.effectActionDefinitionId, second],

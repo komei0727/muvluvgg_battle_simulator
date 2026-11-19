@@ -211,6 +211,8 @@ export function* resolveOneEffectActionApplication(
   distributionShareCount = 1,
   /** R-EFF-07: DAMAGEが属する1回の攻撃の消費状態（{@link EffectActionApplicationInput}）。 */
   attack?: EffectActionApplicationInput["attack"],
+  /** R-SUB-02: このDAMAGEの直後に対象の追加ヒットを解決するか（未指定は真）。 */
+  releaseSubUnitAdditions?: boolean,
 ): Generator<EffectResolutionStep, OneApplicationResult, void> {
   const effectAction = context.definitions.effectActions.get(application.effectActionDefinitionId);
   if (effectAction === undefined) {
@@ -287,6 +289,7 @@ export function* resolveOneEffectActionApplication(
       distributionShareCount,
       cursor,
       ...(attack !== undefined ? { attack } : {}),
+      ...(releaseSubUnitAdditions !== undefined ? { releaseSubUnitAdditions } : {}),
     });
   }
 
@@ -621,6 +624,16 @@ function* resolveActionApplications(
     }
   };
 
+  // R-SUB-02: DAMAGE区間の最後のACTION stepでは、対象を狙う最後のDAMAGEの直後に追加ヒットを
+  // 解決する（後続DAMAGEの会心も継承するため）。それ以外のstepでは台帳へ持ち越す。
+  const isDamage = (application: EffectActionApplication): boolean =>
+    context.definitions.effectActions.get(application.effectActionDefinitionId)?.kind === "DAMAGE";
+  const releasesSubUnitAdditionsAt = (index: number): boolean =>
+    context.releaseSubUnitAdditionsInStep === true &&
+    !applications
+      .slice(index + 1)
+      .some((later) => isDamage(later) && later.targetUnitId === applications[index]!.targetUnitId);
+
   for (let index = 0; index < applications.length; index += 1) {
     // R-SKL-06 #4a: 命中条件を満たさない適用は`targetCondition`で除外された対象と同じく
     // 一切開始しない（イベント・直前結果・解決数のいずれにも現れない）。判定は直前の
@@ -652,6 +665,7 @@ function* resolveActionApplications(
         lastEventId,
         resolveShareCount(index),
         attackOf(index, effectiveIndex === effective.length - 1),
+        releasesSubUnitAdditionsAt(index),
       );
       lastEventId = applied.lastEventId;
       resolvedCount += applied.resolvedCount;
@@ -1069,10 +1083,17 @@ function* resolveRandomBranchStep(
           };
         }
 
+        // R-SUB-02: 後続のbranchも成立して攻撃しうるため、それが無い場合だけstepの中で解決する。
         const result = yield* resolveStepDefinitionList(
           branch.steps,
           box,
-          context,
+          withSubUnitReleaseInStep(
+            context,
+            context.releaseSubUnitAdditionsInStep === true &&
+              !definition.branches
+                .slice(branchIndex + 1)
+                .some((later) => stepDefinitionMayContainDamage(later.steps, context)),
+          ),
           plan,
           lastResultState,
           eventId,
@@ -1131,10 +1152,15 @@ function* resolveRepeatStep(
             walkResult: walkInterrupted(resolvedCount, resolvedActionCount, 0),
           };
         }
+        // R-SUB-02: 次の繰り返しも同じ対象を攻撃しうるため、追加ヒットは最後の繰り返しまで
+        // 持ち越す。
         const result = yield* resolveStepDefinitionList(
           definition.steps,
           box,
-          context,
+          withSubUnitReleaseInStep(
+            context,
+            context.releaseSubUnitAdditionsInStep === true && iteration === definition.count - 1,
+          ),
           plan,
           lastResultState,
           eventId,
@@ -1410,7 +1436,11 @@ function* resolveStepDefinitionList(
       index,
       step,
       box,
-      context,
+      withSubUnitReleaseInStep(
+        context,
+        context.releaseSubUnitAdditionsInStep === true &&
+          !steps.slice(index + 1).some((later) => stepDefinitionMayContainDamage(later, context)),
+      ),
       plan,
       lastResultState,
       currentEventId,
@@ -1435,4 +1465,36 @@ function* resolveStepDefinitionList(
     lastEventId: currentEventId,
     walkResult: walkCompleted(resolvedCount, resolvedActionCount),
   };
+}
+
+/**
+ * R-SUB-02（Issue #836）: そのstep定義がDAMAGEを解決しうるか。分岐の腕・繰り返しの中も含め、
+ * 定義の中に現れるEffectAction参照のどれかがDAMAGEなら真（通りうるものは含める）。
+ */
+export function stepDefinitionMayContainDamage(
+  node: unknown,
+  context: EffectActionGroupContext,
+): boolean {
+  if (Array.isArray(node)) {
+    return node.some((child) => stepDefinitionMayContainDamage(child, context));
+  }
+  if (node === null || typeof node !== "object") {
+    return false;
+  }
+  return Object.entries(node).some(([key, value]) =>
+    key === "effectActionDefinitionId"
+      ? typeof value === "string" &&
+        context.definitions.effectActions.get(value as EffectActionDefinitionId)?.kind === "DAMAGE"
+      : stepDefinitionMayContainDamage(value, context),
+  );
+}
+
+/** R-SUB-02: 追加ヒットをstepの中で解決してよいかを差し替えたcontext。 */
+function withSubUnitReleaseInStep(
+  context: EffectActionGroupContext,
+  release: boolean,
+): EffectActionGroupContext {
+  return context.releaseSubUnitAdditionsInStep === release
+    ? context
+    : { ...context, releaseSubUnitAdditionsInStep: release };
 }

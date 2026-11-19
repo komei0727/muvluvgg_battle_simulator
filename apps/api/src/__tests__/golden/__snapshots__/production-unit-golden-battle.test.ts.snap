@@ -1976,7 +1976,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LYDIA_SUMMER complete
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 348,
-  "eventSequenceHash": "sha256:b712fe0093566dc6",
+  "eventSequenceHash": "sha256:ef5a23044caa9803",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -2869,7 +2869,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_VETERAN complete
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 737,
-  "eventSequenceHash": "sha256:933c841d1e341fdf",
+  "eventSequenceHash": "sha256:18dd183f9152281c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 15,
     "ACTION_COMPLETING": 15,

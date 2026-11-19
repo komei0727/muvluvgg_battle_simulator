@@ -17,7 +17,10 @@ import type {
 } from "../../../catalog/definitions/catalog-ids.js";
 import type { SkillType } from "../../../catalog/definitions/catalog-enums.js";
 import type { DamageResultRegistry } from "../../skill/formula-evaluator.js";
-import type { FollowUpAttackCapture } from "../../combat/damage-event-context.js";
+import type {
+  FollowUpAttackCapture,
+  SubUnitAdditionLedger,
+} from "../../combat/damage-event-context.js";
 import type { RandomSource } from "../../../ports/random-source.js";
 import { DomainValidationError } from "../../../shared/errors.js";
 import type { MarkerSource } from "../../model/marker-state.js";
@@ -105,10 +108,16 @@ export interface EffectActionGroupContext {
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
-   * R-SUB-02: このEffectSequence（1スキル使用）で加えたサブユニット追加ダメージの
-   * 「インスタンス×対象」。`resolveEffectSequencePlan`がEffectSequenceごとに新規生成する。
+   * R-SUB-02: このEffectSequence（1スキル使用）のサブユニット追加ヒット台帳。
+   * `resolveEffectSequencePlan`がEffectSequenceごとに新規生成する。
    */
-  readonly subUnitAdditionalHits?: Set<string>;
+  readonly subUnitAdditions?: SubUnitAdditionLedger;
+  /**
+   * R-SUB-02: 解決中のトップレベルstepが「DAMAGE区間の最後のACTION step」か。真のときだけ、
+   * そのstepの中で対象を狙う最後のDAMAGEの直後に追加ヒットを解決する。偽なら追加ヒットを
+   * 台帳へ持ち越し、DAMAGE区間の終わりにまとめて解決する（`resolveEffectSequencePlan`）。
+   */
+  readonly releaseSubUnitAdditionsInStep?: boolean;
   /**
    * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
    * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が
