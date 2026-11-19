@@ -359,6 +359,29 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
     expect(run.defeated).toEqual([]);
     expect(run.hpOf("enemy:back")).toBe(1);
   });
+
+  it("IT-CAT-SURVIVAL-012 [R-INT-01, R-SUB-02, R-LNK-02] SR-219: 別のDAMAGE（別の攻撃）で発動した耐えは、他方の攻撃の追加ヒットへ流用しない", () => {
+    // リディアAS1は本体対象A（前列中央）と隣接対象B（前列左）を別のACTION stepのDAMAGEで攻撃する。
+    // A・Bはどちらも後列C（HP500、ラミPS2）へ75%を転送する。CはAへの攻撃から318、Bへの攻撃から
+    // 318を受けてBの攻撃で初めて耐える。Aの追加85から派生する63はAの攻撃の一部であり、Bの攻撃で
+    // 使った耐えでは防げずCは倒れる。
+    const run = useSkillOnGraftedBoard(
+      "UNIT_LYDIA_SUMMER",
+      "SKL_LYDIA_SUMMER_AS1",
+      [
+        { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "RIGHT", row: "BACK" }, state: { currentHp: 500 } },
+      ],
+      [
+        { effectActionDefinitionId: LINK, holder: "enemy:center", linkTo: "enemy:back" },
+        { effectActionDefinitionId: LINK, holder: "enemy:left", linkTo: "enemy:back" },
+        { effectActionDefinitionId: RAMI_SURVIVAL, holder: "enemy:back" },
+      ],
+    );
+    expect(run.linkedDamages.slice(0, 3)).toEqual([318, 318, 63]);
+    expect(run.defeated).toEqual(["enemy:back"]);
+  });
 });
 
 const LINK = "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK";

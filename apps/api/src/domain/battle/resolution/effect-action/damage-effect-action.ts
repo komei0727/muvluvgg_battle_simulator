@@ -635,24 +635,12 @@ export function* releasePendingSubUnitAdditionsSteps(
   // 保留中の消費済み効果のうち、その対象への攻撃のどれも消費していないものは除いて計算する
   // （通常のDAMAGE経路の`suspendedEffectInstanceIdsFor`と同じ扱い）。
   const heldScopes = context.heldAttackConsumptions ?? [];
-  // R-INT-01 #5: 追加ヒットは元攻撃の一部のため、元攻撃で致死を耐えたユニット（リンク・反射の
-  // 派生ダメージで耐えたユニットを含む）は同じ耐えでHPを止める。全対象の追加ヒットで1つの台帳を
-  // 共有し、追加ヒット（とその派生）で初めて耐えた分も残る対象の追加ヒットへ引き継ぐ。精算は
-  // 全対象の追加ヒットを解決し終えてから1回だけ行う（攻撃の終わりはそこだからである）。
-  const releaseSurvivals: AttackDeathSurvivalLedger = new Map();
-  const inheritedLedgers = [
-    ...(context.heldDeathSurvivals ?? []),
-    ...[...(context.attackScopesByDefender?.values() ?? [])].flatMap((scopes) =>
-      scopes.map((scope) => scope.deathSurvivals),
-    ),
-  ];
-  for (const inherited of inheritedLedgers) {
-    for (const [unitId, entry] of inherited) {
-      if (!releaseSurvivals.has(unitId)) {
-        releaseSurvivals.set(unitId, entry);
-      }
-    }
-  }
+  // R-INT-01 #5: 追加ヒットは元攻撃の一部のため、その対象を攻撃した攻撃（DAMAGE）の台帳で
+  // 耐えを共有する。元攻撃で耐えたユニット（リンク・反射の派生ダメージで耐えたユニットを含む）は
+  // 同じ耐えでHPを止め、追加ヒット（とその派生）で初めて耐えた分はその攻撃の台帳へ書き戻して、
+  // 同じ攻撃の残る対象の追加ヒットへ引き継ぐ。別のDAMAGEの台帳は混ぜない（別の攻撃だからである）。
+  // 精算は全対象の追加ヒットを解決し終えてから1回だけ行う（攻撃の終わりはそこだからである）。
+  const settlementLedgers = new Set<AttackDeathSurvivalLedger>(context.heldDeathSurvivals ?? []);
   const reservedDeathSurvivals = reservedDeathSurvivalsFor(context);
   let released: { lastEventId: DomainEventId; interrupted: boolean } = {
     lastEventId: parentEventId,
@@ -670,9 +658,19 @@ export function* releasePendingSubUnitAdditionsSteps(
           }
         }
       }
+      const attackLedgers = attackingScopes.map((scope) => scope.deathSurvivals);
+      const targetSurvivals: AttackDeathSurvivalLedger = new Map();
+      for (const attackLedger of attackLedgers) {
+        settlementLedgers.add(attackLedger);
+        for (const [unitId, entry] of attackLedger) {
+          if (!targetSurvivals.has(unitId)) {
+            targetSurvivals.set(unitId, entry);
+          }
+        }
+      }
       const targetContext: DamageEventContext = {
         ...damageContext,
-        attackDeathSurvivals: releaseSurvivals,
+        attackDeathSurvivals: targetSurvivals,
         // 精算待ちの別の攻撃が使った耐えは、ここで新たに耐える場合も除く。
         reservedDeathSurvivals,
         ...(suspended.size === 0
@@ -693,30 +691,32 @@ export function* releasePendingSubUnitAdditionsSteps(
           released.lastEventId,
         ),
       );
+      for (const [unitId, entry] of targetSurvivals) {
+        for (const attackLedger of attackLedgers) {
+          if (!attackLedger.has(unitId)) {
+            attackLedger.set(unitId, entry);
+          }
+        }
+      }
       if (released.interrupted) {
         break;
       }
     }
   }
   ledger.pending.clear();
-  // R-INT-01 #5: 追加ヒットまで含めた攻撃の終わりとして、致死耐えを精算する。共有台帳の
-  // 精算で済んだものは、預かっていた台帳の側では飛ばす（同じエントリを共有している）。
-  released = {
-    ...released,
-    lastEventId: yield* drive(
-      settleAttackDeathSurvivalsSteps(
-        damageContext,
-        working,
-        releaseSurvivals,
-        released.lastEventId,
-      ),
-    ),
-  };
-  for (const held of context.heldDeathSurvivals?.splice(0) ?? []) {
+  // R-INT-01 #5: 追加ヒットまで含めた攻撃の終わりとして、各攻撃の致死耐えを精算する（複数の
+  // 台帳に載る同じエントリは1回だけ精算される）。
+  context.heldDeathSurvivals?.splice(0);
+  for (const settlementLedger of settlementLedgers) {
     released = {
       ...released,
       lastEventId: yield* drive(
-        settleAttackDeathSurvivalsSteps(damageContext, working, held, released.lastEventId),
+        settleAttackDeathSurvivalsSteps(
+          damageContext,
+          working,
+          settlementLedger,
+          released.lastEventId,
+        ),
       ),
     };
   }
