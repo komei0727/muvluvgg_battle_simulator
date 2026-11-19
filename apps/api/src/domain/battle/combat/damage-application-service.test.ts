@@ -502,7 +502,7 @@ describe("applyDamageAction", () => {
     });
   });
 
-  it("UT-DAMAGE-APPLICATION-021 (DMG-012): damageImmunityNullified explains a finalDamage of 1 that the recorded multipliers alone cannot account for", () => {
+  it("UT-DAMAGE-APPLICATION-021 (DMG-012): damageImmunityNullified explains a finalDamage of 0 that the recorded multipliers alone cannot account for", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
     const target = {
@@ -525,7 +525,7 @@ describe("applyDamageAction", () => {
     expect(details).toMatchObject({
       preTruncationDamage: 20,
       damageImmunityNullified: true,
-      finalDamage: 1,
+      finalDamage: 0,
     });
   });
 
@@ -1617,7 +1617,7 @@ describe("applyDamageAction", () => {
     expect(updatedTarget.appliedEffects[1]!.duration.consumptionRemaining).toBe(1);
   });
 
-  it("UT-R-DMG-02-008 (R-DMG-02): an unconditional DAMAGE_IMMUNITY effect nullifies a hit's damage to exactly 1, still confirming the hit (HitConfirmed/DamageApplied still fire)", () => {
+  it("UT-R-DMG-02-008 (R-DMG-02): an unconditional DAMAGE_IMMUNITY effect nullifies a hit's damage to 0 ahead of the minimum-1 floor, still confirming the hit (HitConfirmed/DamageApplied still fire)", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
     const target = {
@@ -1637,9 +1637,9 @@ describe("applyDamageAction", () => {
     );
 
     expect(result.hits[0]!.applied).toBe(true);
-    expect(result.hits[0]!.damage).toBe(1);
+    expect(result.hits[0]!.damage).toBe(0);
     const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
-    expect(updatedTarget.currentHp).toBe(99);
+    expect(updatedTarget.currentHp).toBe(100);
 
     const eventTypes = context.recorder.getEvents().map((e) => e.eventType);
     expect(eventTypes).toContain("HitConfirmed");
@@ -1653,7 +1653,7 @@ describe("applyDamageAction", () => {
       // nullification overrides just finalDamage — preTruncationDamage keeps
       // auditing the pre-nullification value.
       preTruncationDamage: 20,
-      finalDamage: 1,
+      finalDamage: 0,
     });
   });
 
@@ -1783,7 +1783,7 @@ describe("applyDamageAction", () => {
     expect(result.hits[0]!.damage).toBe(31);
   });
 
-  it("UT-R-STS-03-007 (R-STS-03 interacts with R-DMG-02): freeze still clears even when DAMAGE_IMMUNITY nullifies the (already amplified) triggering damage down to 1", () => {
+  it("UT-R-STS-03-007 (R-STS-03 interacts with R-DMG-02): freeze still clears even when DAMAGE_IMMUNITY nullifies the (already amplified) triggering damage down to 0", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 30 });
     const freeze = freezeEffect("eff-freeze", "TARGET", { damageAmplificationOnBreak: 0.5 });
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
@@ -1803,7 +1803,7 @@ describe("applyDamageAction", () => {
       context,
     );
 
-    expect(result.hits[0]!.damage).toBe(1);
+    expect(result.hits[0]!.damage).toBe(0);
     const updatedTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
     // FREEZE cleared, DAMAGE_IMMUNITY (unrelated effect) remains.
     expect(updatedTarget.appliedEffects).toEqual([immunity]);
@@ -1814,7 +1814,7 @@ describe("applyDamageAction", () => {
       .find((e) => e.eventType === "FreezeRemoved")!;
     // triggeringDamage reflects the final (nullified) damage, not the
     // pre-nullification amplified value.
-    expect(freezeRemoved.payload).toMatchObject({ triggeringDamage: 1 });
+    expect(freezeRemoved.payload).toMatchObject({ triggeringDamage: 0 });
   });
 
   it("UT-R-STS-03-008 (R-STS-03 'MISSでは解除しない'): an evaded hit against a frozen target does not amplify damage or clear FREEZE", () => {
@@ -1967,7 +1967,7 @@ describe("attack bonus attack (R-DMG-06)", () => {
     ).toHaveLength(1);
   });
 
-  it("UT-R-BON-ATTACK-DMG-003 [R-DMG-06] (R-DMG-06 interacts with R-DMG-02 #2): the bonus attack is capped to 1 by the target's DAMAGE_IMMUNITY, same as any other hit", () => {
+  it("UT-R-BON-ATTACK-DMG-003 [R-DMG-06] (R-DMG-06 interacts with R-DMG-02 #2): the bonus attack is nullified to 0 by the target's DAMAGE_IMMUNITY, same as any other hit", () => {
     const bonus = attackDamageBonusEffect("eff-bonus", "ATTACKER", 6);
     const attacker = { ...unit("ATTACKER", "ALLY", { attack: 30 }), appliedEffects: [bonus] };
     const immunity = immunityEffect("eff-immunity", "TARGET", {});
@@ -1986,12 +1986,12 @@ describe("attack bonus attack (R-DMG-06)", () => {
       context,
     );
 
-    expect(result.hits[0]!.damage).toBe(1);
+    expect(result.hits[0]!.damage).toBe(0);
     expect(bonusDamageCalculated(context)[0]).toMatchObject({
       damageImmunityNullified: true,
-      finalDamage: 1,
+      finalDamage: 0,
     });
-    expect(hpOf(result.units, "TARGET")).toBe(100 - 1 - 1);
+    expect(hpOf(result.units, "TARGET")).toBe(100);
   });
 
   it("UT-R-BON-ATTACK-DMG-004 [R-DMG-06] (R-DMG-06, NEGATIVE): an attack whose every hit was evaded produces no bonus attack — the bonus rides on targets that were actually hit", () => {

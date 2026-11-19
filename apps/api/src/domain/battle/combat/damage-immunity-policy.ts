@@ -32,11 +32,11 @@ function immunityThresholdMatches(
 }
 
 /**
- * R-DMG-02「ダメージ無効効果がある場合も結果を1とする」。対象が持つ有効な
+ * R-DMG-02 #2「ダメージ無効が成立すれば結果を0とする」。対象が持つ有効な
  * DAMAGE_IMMUNITY `AppliedEffect`を付与順（`appliedEffects`の配列順）に判定し、
  * 最初に条件を満たした効果が無効化を成立させる。`calculateDamage`自身は
  * この判定を知らない（`AppliedEffect`を受け取らない純粋な数値計算のため）—
- * 呼び出し側がこの関数の結果で`finalDamage`を1へ上書きする。
+ * 呼び出し側がこの関数の結果で`finalDamage`を0へ上書きする（最低1より優先）。
  */
 export function resolveDamageImmunity(
   target: BattleUnit,

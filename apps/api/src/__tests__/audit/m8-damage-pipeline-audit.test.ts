@@ -304,7 +304,6 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
 
   it("IT-AUDIT-M8-002 [R-ACTN-02, R-DMG-05] (08_ドメインイベント.md 不変条件#6): shield, sub unit, HP, and discarded damage always account for the calculated damage", () => {
     const violations: string[] = [];
-    let typedShieldAbsorptions = 0;
     let untypedShieldAbsorptions = 0;
     let subUnitAbsorptions = 0;
     let discards = 0;
@@ -326,7 +325,6 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
             `${battle.unitDefinitionId} seq=${event.sequence} ${JSON.stringify(details)}`,
           );
         }
-        if (typed > 0) typedShieldAbsorptions++;
         if (untyped > 0) untypedShieldAbsorptions++;
         if (subUnit > 0) subUnitAbsorptions++;
         if (discarded > 0) discards++;
@@ -339,7 +337,11 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
       `damage events breaking the conservation law: ${JSON.stringify(violations)}`,
     ).toEqual([]);
     // 空振り防止: 5項のうち0にならない項が実データで観測されていること。
-    expect(typedShieldAbsorptions).toBeGreaterThan(0);
+    // タイプありシールドの吸収だけは鏡像戦に現れない。唯一の実例だったリリーの
+    // ENシールドはダメージ無効（R-DMG-02 #2で0ダメージ）と同時に効くため吸収する
+    // 量が残らず、フルート・ユリアの属性限定シールドは鏡像戦で付与されないか付与後に被弾しない。
+    // この項の非0は実production定義へ攻撃を当てる`IT-UNIT-LILY-SINGER-006`・
+    // `IT-UNIT-FLUTE-INFLUENCER-004`・`IT-UNIT-YURIA-WILDCARD-004`が5項の内訳ごと検証する。
     expect(untypedShieldAbsorptions).toBeGreaterThan(0);
     expect(subUnitAbsorptions).toBeGreaterThan(0);
     expect(discards).toBeGreaterThan(0);
@@ -389,7 +391,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         const truncated = Math.max(1, Math.floor(preTruncation));
         const finalExpected =
           d["damageImmunityNullified"] === true
-            ? 1
+            ? 0
             : Math.max(1, Math.floor(truncated * thresholdMultiplier));
 
         // 浮動小数の積であるため相対誤差で比較する（Q-DMG-01「計算の途中では丸めない」）。

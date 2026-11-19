@@ -1,3 +1,7 @@
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
@@ -6,8 +10,10 @@ import {
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -24,6 +30,10 @@ import { realDamage, unitDefeated } from "../../../testing/production-unit/trigg
  */
 
 const UNIT_DEFINITION_ID = "UNIT_YURIA_WILDCARD";
+
+function subjectOf(units: readonly BattleUnit[]): BattleUnit {
+  return units.find((unit) => unit.battleUnitId === createBattleUnitId("ally:subject"))!;
+}
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
@@ -357,6 +367,58 @@ describe("production Catalog UNIT_YURIA_WILDCARD (【享楽のワイルドカー
       ).toEqual(expected);
     },
   );
+
+  it("IT-UNIT-YURIA-WILDCARD-004 [R-SHD-01, R-SHD-02] SR-158: PS1のシールドは物理ダメージ限定で、物理1060なら500を吸収して560がHPへ抜け、EN1060は全量がHPへ抜ける", () => {
+    // 原文「攻撃力50%の物理ダメージを防ぐシールド」。付与者（自身）の攻撃力1000×50%＝500。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const shielded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_YURIA_WILDCARD_PS1_SHIELD", target: "SELF" },
+    ]);
+    expect(shieldPoolsOf(subjectOf(shielded).appliedEffects)).toEqual({
+      physical: 500,
+      energy: 0,
+      untyped: 0,
+    });
+
+    // 攻撃力1000 - 防御力500 = 500、威力2.12で1060（他の補正なし）。
+    const strike = (damageType: "EN" | "PHYSICAL", battleId: string) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: shielded,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        damageType,
+        power: 2.12,
+        battleId,
+      });
+
+    const byPhysical = strike("PHYSICAL", "B_YURIA_SHIELD_PHYSICAL");
+    expect(byPhysical.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 1060,
+        typedShieldAbsorbed: 500,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 560,
+        discardedDamage: 0,
+      },
+    ]);
+
+    const byEn = strike("EN", "B_YURIA_SHIELD_EN");
+    expect(byEn.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 1060,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 1060,
+        discardedDamage: 0,
+      },
+    ]);
+    expect(shieldPoolsOf(subjectOf(byEn.units).appliedEffects).physical).toBe(500);
+  });
 
   it("IT-UNIT-YURIA-WILDCARD-002: the table covers exactly the Skills the production UnitDefinition declares", () => {
     const unit = unitFrom(snapshot, UNIT_DEFINITION_ID);
