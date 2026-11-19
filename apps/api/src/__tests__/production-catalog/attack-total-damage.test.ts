@@ -35,6 +35,9 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_TARISA_TROUBLEMAKER",
   "UNIT_LYDIA_SUMMER",
   "UNIT_FEE_ACTOR",
+  "UNIT_MEIYA_FATED",
+  "UNIT_SAYA_LONGING",
+  "UNIT_LUCIE_COMPANION",
 ]);
 
 const ATTACKER_ID = "enemy:attacker";
@@ -331,5 +334,73 @@ describe("FIX-08 クララAS1は撃破後も4ヒットを処理し、その合�
     const run = claraAs1Against(5000);
     expect(hpOf(run.units, "enemy:center")).toBe(5000 - 4 * CLARA_HIT);
     expect(hpOf(run.units, SUBJECT_ID) - 5000).toBe(Math.floor(4 * CLARA_HIT * 0.4));
+  });
+});
+
+/** 追撃なしで撃ったときの、敵1体への本体ダメージ（HP減少量）。 */
+function bodyDamage(unitDefinitionId: string, skillDefinitionId: string): number {
+  const deltas =
+    observeSkillUse({
+      snapshot,
+      unitDefinitionId,
+      use: { kind: "ACTIVE", skillDefinitionId },
+      board: SINGLE_ENEMY,
+    }).hpDeltas ?? {};
+  return -(deltas["enemy:center"] ?? 0);
+}
+
+/** 味方側（自身を含む）の回復量の合計。回復先が自身以外になる吸収でも比べられる。 */
+function allyHealTotal(
+  unitDefinitionId: string,
+  skillDefinitionId: string,
+  precedingActions: readonly PrecedingAction[] = [],
+): number {
+  const deltas =
+    observeSkillUse({
+      snapshot,
+      unitDefinitionId,
+      use: { kind: "ACTIVE", skillDefinitionId },
+      board: SINGLE_ENEMY,
+      precedingActions,
+    }).hpDeltas ?? {};
+  return Object.entries(deltas)
+    .filter(([unitId, delta]) => !unitId.startsWith("enemy:") && delta > 0)
+    .reduce((total, [, delta]) => total + delta, 0);
+}
+
+describe("FIX-08 追撃をDAMAGE区間の終わりで解決しても、既存の吸収は本体＋追撃の合計を読む（R-SKL-08・R-FUP-01）", () => {
+  function expectAbsorbIncludesFollowUp(
+    unitDefinitionId: string,
+    skillDefinitionId: string,
+    ratio: number,
+  ): void {
+    const body = bodyDamage(unitDefinitionId, skillDefinitionId);
+    expect(selfHeal(unitDefinitionId, skillDefinitionId)).toBe(Math.floor(body * ratio));
+    expect(selfHeal(unitDefinitionId, skillDefinitionId, [FEE_FOLLOW_UP])).toBe(
+      Math.floor((body + FEE_FOLLOW_UP_HIT) * ratio),
+    );
+  }
+
+  it("IT-CAT-ATKSUM-016 [R-SKL-08] [R-FUP-01]: 冥夜AS2の自己吸収（70%）は本体780＋追撃140＝920から644で、追撃1ヒットの98にしない", () => {
+    expectAbsorbIncludesFollowUp("UNIT_MEIYA_FATED", "SKL_MEIYA_FATED_AS2", 0.7);
+  });
+
+  it("IT-CAT-ATKSUM-017 [R-SKL-08] [R-FUP-01]: 沙耶AS1の自己吸収（50%）は本体＋追撃140の合計で決まり、追撃1ヒットの70にしない", () => {
+    expectAbsorbIncludesFollowUp("UNIT_SAYA_LONGING", "SKL_SAYA_LONGING_AS1", 0.5);
+  });
+
+  it("IT-CAT-ATKSUM-018 [R-SKL-08] [R-FUP-01]: タリサAS3の自己吸収（35%）は本体＋追撃140の合計で決まり、追撃1ヒットの49にしない", () => {
+    expectAbsorbIncludesFollowUp("UNIT_TARISA_TROUBLEMAKER", "SKL_TARISA_TROUBLEMAKER_AS3", 0.35);
+  });
+
+  it("IT-CAT-ATKSUM-019 [R-SKL-08] [R-FUP-01]: ルーシーAS1の味方への吸収（与ダメージ35%）は追撃140を含む合計で増え、追撃1ヒットだけへ減らない", () => {
+    const body = bodyDamage("UNIT_LUCIE_COMPANION", "SKL_LUCIE_COMPANION_AS1");
+    const without = allyHealTotal("UNIT_LUCIE_COMPANION", "SKL_LUCIE_COMPANION_AS1");
+    const withFollowUp = allyHealTotal("UNIT_LUCIE_COMPANION", "SKL_LUCIE_COMPANION_AS1", [
+      FEE_FOLLOW_UP,
+    ]);
+    expect(withFollowUp - without).toBe(
+      Math.floor((body + FEE_FOLLOW_UP_HIT) * 0.35) - Math.floor(body * 0.35),
+    );
   });
 });

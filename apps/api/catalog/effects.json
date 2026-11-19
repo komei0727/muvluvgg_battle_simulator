@@ -5309,7 +5309,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.35
       },
       "overheal": "DISCARD"
@@ -6933,11 +6933,7 @@
     "effectActionDefinitionId": "ACT_MEIYA_FATED_AS2_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.7
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.7 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }
@@ -10942,11 +10938,7 @@
     "effectActionDefinitionId": "ACT_SAYA_LONGING_AS1_HEAL",
     "kind": "HEAL",
     "payload": {
-      "formula": {
-        "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
-        "ratio": 0.5
-      },
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.5 },
       "overheal": "DISCARD"
     },
     "metadata": { "tags": [] }
@@ -12890,7 +12882,7 @@
     "payload": {
       "formula": {
         "kind": "DAMAGE_DEALT_RATIO",
-        "sourceResult": "LAST_DAMAGE_DEALT",
+        "sourceResult": "SUM_DAMAGE_DEALT",
         "ratio": 0.35
       },
       "overheal": "DISCARD"

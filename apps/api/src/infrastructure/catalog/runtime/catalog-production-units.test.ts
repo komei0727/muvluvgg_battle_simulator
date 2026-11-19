@@ -678,7 +678,8 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // EffectActionはない。
     // `2026-11-19.4` は吸収・反撃・低ダメージ条件を元の攻撃全体の計算ダメージ合計へ揃えた
     // （Issue #832）。ステラPS2・葵PS2・ココロPS1の反撃は契機のスキル使用で受けた合計、
-    // オルガAS2・唯依AS1の吸収は当該スキルで与えた合計、タリサPS1の「10以下」は契機の
+    // オルガAS2・唯依AS1・冥夜AS2・沙耶AS1・タリサAS3・ルーシーAS1の吸収は当該スキルで与えた
+    // 合計（追撃はDAMAGE区間の終わりで解決するため、追撃分も含む）、タリサPS1の「10以下」は契機の
     // スキル使用で与えた合計で判定し、クララAS1は撃破後も4ヒットを計算する。新規・削除した
     // Unit・Skill・EffectActionはない。
     expect(catalog.catalogRevision).toBe("2026-11-19.4");
