@@ -41,6 +41,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_LYDIA_SUMMER",
   "UNIT_YIFEI_STORM",
   "UNIT_SHOUKA_BEACH",
+  "UNIT_LILY_HERO",
 ]);
 
 const HOLDER = "ally:subject";
@@ -393,6 +394,37 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
       expect(run.defeated).toEqual(["enemy:back"]);
     },
   );
+
+  it("IT-CAT-SURVIVAL-013 [R-INT-01, R-SUB-02, R-LNK-02] SR-345: 同じ攻撃の複数DAMAGEの台帳へ共有された1回の耐えは、予約数で1回と数える", () => {
+    // リリィAS1は本体対象A（前列中央）へ2つのDAMAGE、隣接対象B（前列左）へ別のDAMAGEを撃つ。
+    // A・BはC（真夏EXの耐え残数2、HP5394）へ75%を転送する。CはAの追加由来63で1回目を使い、
+    // その記録はAを攻撃した2つのDAMAGEの台帳に共有される。Bの追加由来63は残る1回で耐える。
+    const run = useSkillOnGraftedBoard(
+      "UNIT_LILY_HERO",
+      "SKL_LILY_HERO_AS1",
+      [
+        { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        {
+          id: "enemy:back",
+          position: { column: "RIGHT", row: "BACK" },
+          state: { currentHp: 5394 },
+        },
+      ],
+      [
+        { effectActionDefinitionId: LINK, holder: "enemy:center", linkTo: "enemy:back" },
+        { effectActionDefinitionId: LINK, holder: "enemy:left", linkTo: "enemy:back" },
+        {
+          effectActionDefinitionId: "ACT_MAO_SUMMER_EX_DEATH_SURVIVAL",
+          holder: "enemy:back",
+          consumptionRemaining: 2,
+        },
+      ],
+    );
+    expect(run.linkedDamages.slice(-2)).toEqual([63, 63]);
+    expect(run.defeated).toEqual([]);
+    expect(run.hpOf("enemy:back")).toBe(1);
+  });
 });
 
 const LINK = "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK";
@@ -404,6 +436,8 @@ interface Graft {
   readonly holder: string;
   /** `APPLY_DAMAGE_LINK`の転送先（付与者＝転送先として付け替える）。 */
   readonly linkTo?: string;
+  /** 既に一部を使った状態を表す消費残数。 */
+  readonly consumptionRemaining?: number;
 }
 
 /**
@@ -439,6 +473,11 @@ function useSkillOnGraftedBoard(
       ...(effect.damageLink !== undefined && linkToId !== undefined
         ? { damageLink: { ...effect.damageLink, linkToUnitId: linkToId } }
         : {}),
+      ...(graft.consumptionRemaining === undefined
+        ? {}
+        : {
+            duration: { ...effect.duration, consumptionRemaining: graft.consumptionRemaining },
+          }),
     };
     units = units.map((unit) =>
       unit.battleUnitId === holderId

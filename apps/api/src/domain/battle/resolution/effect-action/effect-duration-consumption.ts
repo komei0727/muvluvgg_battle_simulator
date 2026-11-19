@@ -16,7 +16,10 @@ export type { AttackConsumptionScope };
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
 import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
-import type { AttackDeathSurvivalLedger } from "../../combat/defensive-intervention-policy.js";
+import type {
+  AttackDeathSurvivalEntry,
+  AttackDeathSurvivalLedger,
+} from "../../combat/defensive-intervention-policy.js";
 import type { BattleDomainEvent } from "../../events/domain-event.js";
 
 /**
@@ -99,18 +102,28 @@ export function reservedDeathSurvivalsFor(
   return reservedDeathSurvivalsIn(ledgers);
 }
 
-/** R-INT-01 #5: `ledgers`の未精算の耐えが予約している回数（効果インスタンスごと）。 */
+/**
+ * R-INT-01 #5: `ledgers`の未精算の耐えが予約している回数（効果インスタンスごと）。
+ *
+ * 追加ヒットで使った耐えは、その対象を攻撃した複数の攻撃の台帳へ同じエントリとして書き戻され、
+ * 精算もエントリ単位で1回だけ行われる。予約数も同じ単位で数え、共有されたエントリを台帳の数だけ
+ * 重ねて数えない。同じ効果インスタンスでも別々に使ったエントリはそれぞれ1回と数える。
+ */
 export function reservedDeathSurvivalsIn(
   ledgers: Iterable<AttackDeathSurvivalLedger>,
 ): ReadonlyMap<EffectInstanceId, number> {
-  const reserved = new Map<EffectInstanceId, number>();
+  const entries = new Set<AttackDeathSurvivalEntry>();
   for (const ledger of ledgers) {
     for (const entry of ledger.values()) {
       if (!entry.settled) {
-        const id = entry.selection.effectInstanceId;
-        reserved.set(id, (reserved.get(id) ?? 0) + 1);
+        entries.add(entry);
       }
     }
+  }
+  const reserved = new Map<EffectInstanceId, number>();
+  for (const entry of entries) {
+    const id = entry.selection.effectInstanceId;
+    reserved.set(id, (reserved.get(id) ?? 0) + 1);
   }
   return reserved;
 }
