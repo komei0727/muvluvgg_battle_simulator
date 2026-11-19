@@ -617,6 +617,7 @@ export class PassiveActivationRuntime {
       limits: this.limits,
       activatePassiveCandidate: (candidate, event) =>
         this.activatePassiveCandidate(candidate, event),
+      triggerSkillUseHitUnitIds: (event) => this.hitUnitIdsOfCausingSkillUse(event),
       reconfirmMemoryCandidate: (candidate, event) =>
         this.reconfirmMemoryCandidate(candidate, event),
       activateMemoryCandidate: (candidate, event) => this.activateMemoryCandidate(candidate, event),

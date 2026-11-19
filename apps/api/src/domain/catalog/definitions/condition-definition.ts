@@ -117,6 +117,7 @@ export const CONDITION_KINDS = [
   "SELF_MEMORY_EQUIPPED",
   "ATTRIBUTE_ADVANTAGE",
   "SELECTED_TARGET_STATE",
+  "TRIGGER_SKILL_USE_HIT",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
 
@@ -194,7 +195,9 @@ export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
       kind !== "TARGET_EFFECT_COUNT" &&
       kind !== "ATTRIBUTE_ADVANTAGE" &&
       // R-PS-09: PSの発動判定専用。EffectStep評価器は処理しない。
-      kind !== "SELECTED_TARGET_STATE",
+      kind !== "SELECTED_TARGET_STATE" &&
+      // R-PS-04: PSの発動判定専用（契機となったスキル使用の命中を参照する）。
+      kind !== "TRIGGER_SKILL_USE_HIT",
   ),
 );
 
@@ -344,6 +347,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   ],
   ATTRIBUTE_ADVANTAGE: ["kind", "target"],
   SELECTED_TARGET_STATE: ["kind", "selector", "field", "op", "value"],
+  TRIGGER_SKILL_USE_HIT: ["kind", "target"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
 const SIDES = ["ALLY", "ENEMY", "ALL"] as const;
@@ -556,6 +560,15 @@ export type ConditionDefinition =
       readonly field: TargetStateField;
       readonly op: ComparisonOperator;
       readonly value: JsonPrimitive;
+    }
+  | {
+      /**
+       * R-PS-04: このPSの契機イベントが属するスキル使用が、`target`のいずれかへ
+       * 1ヒット以上命中したか（全ヒット回避だけが不成立、`hitCondition`と同じ単位）。
+       * 「元の攻撃の先頭対象が回避した場合は発動しない」をPSの発動判定で表す。
+       */
+      readonly kind: "TRIGGER_SKILL_USE_HIT";
+      readonly target: TargetReference;
     };
 
 export interface ConditionDefinitionInput {
@@ -774,6 +787,13 @@ export function createConditionDefinition(
       const target = requireField(input, "target", path);
       return {
         kind: "ATTRIBUTE_ADVANTAGE",
+        target: createTargetReference(target, `${path}.target`, scope),
+      };
+    }
+    case "TRIGGER_SKILL_USE_HIT": {
+      const target = requireField(input, "target", path);
+      return {
+        kind: "TRIGGER_SKILL_USE_HIT",
         target: createTargetReference(target, `${path}.target`, scope),
       };
     }

@@ -36,6 +36,8 @@ export interface PassiveTriggerMatchInput {
    * へ渡すため、専用フィールドを持たない。
    */
   readonly turnNumber?: number;
+  /** `TRIGGER_SKILL_USE_HIT`（R-PS-04）用。`event`が属するスキル使用が命中させた対象。 */
+  readonly triggerSkillUseHitUnitIds?: () => ReadonlySet<BattleUnitId>;
 }
 
 function findMatchingTrigger(
@@ -47,6 +49,7 @@ function findMatchingTrigger(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   resolutionPhase: ResolutionPhase | undefined,
   turnNumber: number | undefined,
+  triggerSkillUseHitUnitIds: (() => ReadonlySet<BattleUnitId>) | undefined,
 ): TriggerDefinition | undefined {
   return skill.triggers.find(
     (trigger) =>
@@ -62,6 +65,7 @@ function findMatchingTrigger(
         unitDefinitions,
         ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
         ...(turnNumber !== undefined ? { turnNumber } : {}),
+        ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
       }),
   );
 }
@@ -87,6 +91,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
     activationGuard,
     resolutionPhase,
     turnNumber,
+    triggerSkillUseHitUnitIds,
   } = input;
   const unitsById = new Map(units.map((unit) => [unit.battleUnitId, unit] as const));
   const candidates: PassiveCandidate[] = [];
@@ -122,6 +127,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         unitDefinitions,
         resolutionPhase,
         turnNumber,
+        triggerSkillUseHitUnitIds,
       );
       if (
         trigger !== undefined &&
@@ -133,6 +139,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
           unitDefinitions,
           ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
           ...(turnNumber !== undefined ? { turnNumber } : {}),
+          ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
         })
       ) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });

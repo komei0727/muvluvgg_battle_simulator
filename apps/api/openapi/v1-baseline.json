@@ -3610,7 +3610,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   }
                                 }
@@ -3724,7 +3725,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   },
                                   "result": {
@@ -16631,7 +16633,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   }
                                 }
@@ -16745,7 +16748,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   },
                                   "result": {
@@ -30516,7 +30520,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   }
                                 }
@@ -30630,7 +30635,8 @@
                                       "TARGET_EFFECT_COUNT",
                                       "SELF_MEMORY_EQUIPPED",
                                       "ATTRIBUTE_ADVANTAGE",
-                                      "SELECTED_TARGET_STATE"
+                                      "SELECTED_TARGET_STATE",
+                                      "TRIGGER_SKILL_USE_HIT"
                                     ]
                                   },
                                   "result": {

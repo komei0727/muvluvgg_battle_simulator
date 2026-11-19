@@ -60,6 +60,7 @@ export function reconfirmPassiveCandidate(
   units?: readonly BattleUnit[],
   turnNumber?: number,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  triggerSkillUseHitUnitIds?: () => ReadonlySet<BattleUnitId>,
 ): PassiveReconfirmationResult {
   if (isDefeated(currentUnit)) {
     return { ok: false, reason: "OWNER_DEFEATED" };
@@ -89,6 +90,7 @@ export function reconfirmPassiveCandidate(
     ...(units !== undefined ? { units } : {}),
     ...(turnNumber !== undefined ? { turnNumber } : {}),
     ...(unitDefinitions !== undefined ? { unitDefinitions } : {}),
+    ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
   };
   if (
     // `trigger.condition`の`RUNTIME_COUNTER`だけは候補検出時点のownerスナップショット

@@ -1837,13 +1837,20 @@
     "skillDefinitionId": "SKL_CHIYURU_MAZE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE" },
             {
@@ -6482,28 +6489,36 @@
     "skillDefinitionId": "SKL_JULIE_SNOW_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+          "field": "IS_ALIVE",
+          "op": "EQ",
+          "value": true
+        },
+        { "kind": "TRIGGER_SKILL_USE_HIT", "target": { "kind": "TRIGGER_PRIMARY_TARGET" } }
+      ]
+    },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [
-        {
-          "targetBindingId": "TGT_ATTACKED",
-          "selector": { "kind": "TRIGGER_TARGET", "side": "ENEMY", "order": ["DEFAULT"] }
-        }
-      ],
+      "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN" }]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_HAS_EFFECT",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+              "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
               "categories": ["DEBUFF"],
               "effectActionDefinitionIds": ["ACT_JULIE_SNOW_PS2_HEALING_DOWN"]
             }
@@ -8556,13 +8571,20 @@
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS3",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE" }]
         }
       ]
@@ -11581,6 +11603,13 @@
     "skillDefinitionId": "SKL_MAO_COMMITTEE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -11597,7 +11626,7 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DAMAGE" }]
         },
         {
@@ -13182,6 +13211,13 @@
     "skillDefinitionId": "SKL_MERU_SIRIUS_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -13190,12 +13226,12 @@
           "kind": "ACTION",
           "targetCondition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "TRIGGER_TARGET" },
+            "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.3
           },
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED" }]
         },
         {
@@ -13204,13 +13240,13 @@
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_TARGET" },
+              "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.3
             }
           },
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE" }]
         }
       ]

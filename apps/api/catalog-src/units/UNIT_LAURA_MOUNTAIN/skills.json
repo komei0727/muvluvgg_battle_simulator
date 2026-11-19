@@ -182,13 +182,20 @@
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS3",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE" }]
         }
       ]

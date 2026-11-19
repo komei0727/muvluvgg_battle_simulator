@@ -7,6 +7,7 @@ import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js
 import {
   collectConditionEffectActionReferences,
   conditionContainsSelectedTargetState,
+  conditionContainsTriggerSkillUseHit,
   triggerScopedConditionKindIn,
 } from "./condition-inspection.js";
 import { durationOf } from "./effect-action-inspection.js";
@@ -76,6 +77,19 @@ export function validateEffectAction(
       targetId: effectAction.effectActionDefinitionId,
       rule: "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
       message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+    });
+  }
+  if (
+    duration !== undefined &&
+    [
+      ...(duration.expiration?.conditions ?? []),
+      ...(duration.counterUpdates ?? []).map((counterUpdate) => counterUpdate.trigger.condition),
+    ].some(conditionContainsTriggerSkillUseHit)
+  ) {
+    violations.push({
+      targetId: effectAction.effectActionDefinitionId,
+      rule: "TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER",
+      message: `a TRIGGER_SKILL_USE_HIT condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
     });
   }
   if (effectAction.kind === "EFFECT_IMMUNITY" || effectAction.kind === "REMOVE_EFFECTS") {

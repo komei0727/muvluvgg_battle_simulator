@@ -9,8 +9,11 @@ import {
   type SkillUseObservation,
 } from "../../testing/production-unit/skill-behaviour.js";
 import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/target-selector-definition.js";
-import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
-import { turnStarted } from "../../testing/production-unit/trigger-events.js";
+import {
+  createRuntimeCounterId,
+  createSkillDefinitionId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import { skillUseCompleted, turnStarted } from "../../testing/production-unit/trigger-events.js";
 
 /**
  * Issue #831（FIX-07）: 対象優先度・隣接範囲・本人の除外／包含・対象不在時の不発。
@@ -35,6 +38,11 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_INIA_CRYSKA",
   "UNIT_SHIRANA_LUCKY",
   "UNIT_HIIRO_FREEWOLF",
+  "UNIT_MERU_SIRIUS",
+  "UNIT_LAURA_MOUNTAIN",
+  "UNIT_CHIYURU_MAZE",
+  "UNIT_MAO_COMMITTEE",
+  "UNIT_JULIE_SNOW",
 ]);
 
 /** 基準（敵前列中央）の上（後列中央）・左・右・斜めに敵がいる盤面。 */
@@ -286,4 +294,188 @@ describe("FIX-07 本人の除外・包含と2体目の選択順", () => {
       ),
     ).toHaveLength(1);
   });
+});
+
+/**
+ * 元スキルの対象優先度で味方、敵A（左）、敵B（前）、敵C（後）の順。通常の選択順なら
+ * 前列中央の enemy:front が先頭になるが、追撃は元の優先度の先頭敵だけへ向かう。
+ */
+const ORIGINAL_TARGETS = ["ally:back", "enemy:left", "enemy:front", "enemy:back"];
+
+/** ちゆるPS1の「シャイ属性の他の味方」を満たす契機役。 */
+const SHY_TRIGGER_ALLY: BoardOverrides = {
+  allies: [
+    { id: "ally:front", position: { column: "LEFT", row: "FRONT" }, attribute: "SHY" },
+    { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+  ],
+};
+
+function withDefeated(board: BoardOverrides, defeatedId: string): BoardOverrides {
+  return {
+    ...board,
+    enemies: (
+      [
+        { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ] satisfies BoardUnitSpec[]
+    ).map((spec) => (spec.id === defeatedId ? { ...spec, state: { currentHp: 0 } } : spec)),
+  };
+}
+
+const FOLLOW_UPS = [
+  {
+    sr: "SR-047",
+    unitDefinitionId: "UNIT_MERU_SIRIUS",
+    skillDefinitionId: "SKL_MERU_SIRIUS_PS1",
+    damage: "ACT_MERU_SIRIUS_PS1_DAMAGE",
+  },
+  {
+    sr: "SR-064",
+    unitDefinitionId: "UNIT_LAURA_MOUNTAIN",
+    skillDefinitionId: "SKL_LAURA_MOUNTAIN_PS3",
+    damage: "ACT_LAURA_MOUNTAIN_PS3_DAMAGE",
+  },
+  {
+    sr: "SR-162",
+    unitDefinitionId: "UNIT_CHIYURU_MAZE",
+    skillDefinitionId: "SKL_CHIYURU_MAZE_PS1",
+    damage: "ACT_CHIYURU_MAZE_PS1_DAMAGE",
+  },
+];
+
+function followUp(row: (typeof FOLLOW_UPS)[number], board: BoardOverrides) {
+  return observeSkillUse({
+    snapshot,
+    unitDefinitionId: row.unitDefinitionId,
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: row.skillDefinitionId,
+      trigger: skillUseCompleted({
+        actor: "ally:front",
+        targets: ORIGINAL_TARGETS,
+        skillType: "AS",
+      }),
+      triggeredBy: "ally:front",
+    },
+    board,
+  });
+}
+
+describe("FIX-07 元スキルの対象優先度の先頭敵（R-PS-04）", () => {
+  it.each(FOLLOW_UPS)(
+    "IT-CAT-TGTPRI-010 [R-PS-04] ($sr) $skillDefinitionId: 元ASの対象優先度で先頭の敵1体だけへ追撃し、味方・後続の敵へは向かわない",
+    (row) => {
+      const observation = followUp(row, SHY_TRIGGER_ALLY);
+
+      expect(targetsOf(observation, row.damage)).toEqual(["enemy:left"]);
+      expect(Object.keys(observation.hpDeltas ?? {})).toEqual(["enemy:left"]);
+    },
+  );
+
+  it.each(FOLLOW_UPS)(
+    "IT-CAT-TGTPRI-011 [R-PS-04] ($sr) $skillDefinitionId: 先頭の敵が撃破済みなら後続が生存していてもPS全体が不発で、PP・CT・EXも動かない",
+    (row) => {
+      expect(followUp(row, withDefeated(SHY_TRIGGER_ALLY, "enemy:left"))).toEqual({
+        activated: false,
+      });
+    },
+  );
+
+  const MAO_COUNTER_AT_TWO: BoardOverrides = {
+    subject: {
+      state: {
+        skillCounters: {
+          [createSkillDefinitionId("SKL_MAO_COMMITTEE_PS1")]: {
+            [createRuntimeCounterId("SKL_MAO_COMMITTEE_PS1_TRIGGER_COUNT")]: { value: 2, carry: 0 },
+          },
+        },
+      },
+    },
+  };
+
+  function maoThird(targets: readonly string[], board: BoardOverrides = {}) {
+    return observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_MAO_COMMITTEE",
+      use: {
+        kind: "PASSIVE",
+        skillDefinitionId: "SKL_MAO_COMMITTEE_PS1",
+        trigger: skillUseCompleted({
+          actor: "ally:subject",
+          targets,
+          skillType: "AS",
+          skillDefinitionId: "SKL_MAO_COMMITTEE_AS2",
+        }),
+        triggeredBy: "ally:subject",
+      },
+      board: { ...MAO_COUNTER_AT_TWO, ...board },
+    });
+  }
+
+  it("IT-CAT-TGTPRI-012 [R-PS-04] (SR-290): 真央PS1は元の先頭敵だけへ追撃し、他の味方へのバフも付ける", () => {
+    const observation = maoThird(["enemy:left", "enemy:front", "enemy:back"]);
+
+    expect(targetsOf(observation, "ACT_MAO_COMMITTEE_PS1_DAMAGE")).toEqual(["enemy:left"]);
+    expect(appliedTo(observation, "ACT_MAO_COMMITTEE_PS1_DMG_UP").sort()).toEqual(
+      ["ally:back", "ally:front"].sort(),
+    );
+  });
+
+  it("IT-CAT-TGTPRI-013 [R-PS-04] (SR-290): 真央PS1は先頭敵が撃破済み・敵対象なしならPS全体が不発で、味方バフ・PP・EXも動かない", () => {
+    expect(maoThird(["enemy:left", "enemy:front"], withDefeated({}, "enemy:left"))).toEqual({
+      activated: false,
+    });
+    expect(maoThird(["ally:front"])).toEqual({ activated: false });
+  });
+
+  it("IT-CAT-TGTPRI-014 [R-PS-04] (SR-192): ジュリーPS2は元EXの先頭敵1体だけへ炎上・回復量低下を付ける", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_JULIE_SNOW",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_JULIE_SNOW_EX" },
+    });
+
+    expect(targetsOf(observation, "ACT_JULIE_SNOW_PS2_BURN")).toEqual(["enemy:front"]);
+    expect(targetsOf(observation, "ACT_JULIE_SNOW_PS2_HEALING_DOWN")).toEqual(["enemy:front"]);
+  });
+
+  it.each([
+    { evading: "enemy:front", fires: false },
+    { evading: "enemy:left", fires: true },
+  ])(
+    "IT-CAT-TGTPRI-015 [R-PS-04] (SR-192): ジュリーPS2は元EXの先頭敵が回避していればPS全体が不発（$evading 回避 → 発動 $fires）",
+    ({ evading, fires }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_JULIE_SNOW",
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_JULIE_SNOW_EX" },
+        board: {
+          enemies: (
+            [
+              { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+              { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+              { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+            ] satisfies BoardUnitSpec[]
+          ).map((spec) =>
+            spec.id === evading
+              ? { ...spec, state: { appliedEffects: [evasionOf(evading)] } }
+              : spec,
+          ),
+        },
+      });
+
+      expect(targetsOf(observation, "ACT_JULIE_SNOW_PS2_BURN")).toEqual(
+        fires ? ["enemy:front"] : [],
+      );
+      expect(
+        (observation.cooldowns ?? []).some((c) => c.skillDefinitionId === "SKL_JULIE_SNOW_PS2"),
+      ).toBe(fires);
+      expect(
+        (observation.resources ?? []).some(
+          (r) => r.unitId === "ally:subject" && r.resource === "PP",
+        ),
+      ).toBe(fires);
+    },
+  );
 });

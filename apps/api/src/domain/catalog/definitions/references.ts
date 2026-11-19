@@ -36,6 +36,11 @@ export type TargetBindingScope = ReadonlySet<string>;
  * 意味を持たない）。`activationCondition`でこの種別を使いたければ、まず
  * その許可リストへ追加したうえでPS側の`resolveTargetReferenceIds`
  * （`trigger-condition-evaluator.ts`）にも同じexactly-one解決を実装する必要がある。
+ *
+ * `TRIGGER_PRIMARY_TARGET`（R-PS-04、Issue #831）: 契機イベントの対象のうち、PS所有者から
+ * 見た敵の先頭1体（元スキルの対象優先度の先頭敵）。先頭が戦闘不能でも後続へ繰り上げない。
+ * 「攻撃した敵単体へ追撃」のように元の攻撃対象1体だけへ向かう追撃と、その敵の生存を
+ * 発動条件にするPSが使う。高々1体に解決される。
  */
 const TARGET_REFERENCE_KINDS = [
   "BINDING",
@@ -43,6 +48,7 @@ const TARGET_REFERENCE_KINDS = [
   "TRIGGER_SOURCE",
   "TRIGGER_TARGET",
   "TRIGGER_TARGET_SINGLE",
+  "TRIGGER_PRIMARY_TARGET",
   "LAST_ACTION_TARGETS",
   "LAST_DAMAGED_TARGETS",
 ] as const;

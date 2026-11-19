@@ -1,3 +1,4 @@
+import { triggerPrimaryTargetId } from "../targeting/trigger-primary-target.js";
 import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { Side } from "../../shared/side.js";
@@ -240,6 +241,20 @@ export function resolveReference(
       );
     }
     return { units: [unit], includeDefeated: false };
+  }
+  if (reference.kind === "TRIGGER_PRIMARY_TARGET") {
+    if (triggerContext?.triggerTargetUnitIds === undefined) {
+      throw new DomainValidationError(
+        "target.kind",
+        'kind "TRIGGER_PRIMARY_TARGET" requires a triggerContext.triggerTargetUnitIds (only available when a trigger event caused this resolution)',
+      );
+    }
+    const owner = requireSourceUnit(source, 'target reference kind "TRIGGER_PRIMARY_TARGET"');
+    const id = triggerPrimaryTargetId(triggerContext.triggerTargetUnitIds, owner.side, (unitId) =>
+      findUnitById(allUnits, unitId),
+    );
+    const unit = id === undefined ? undefined : findUnitById(allUnits, id);
+    return { units: unit === undefined ? [] : [unit], includeDefeated: false };
   }
   if (reference.kind === "BINDING") {
     const resolved = resolvedBindings.get(reference.targetBindingId as TargetBindingId);
@@ -857,7 +872,10 @@ function resolveObservableTargetUnitIds(
   if (reference.kind === "TRIGGER_SOURCE" && triggerContext?.triggerSourceUnitId === undefined) {
     return [];
   }
-  if (reference.kind === "TRIGGER_TARGET" && triggerContext?.triggerTargetUnitIds === undefined) {
+  if (
+    (reference.kind === "TRIGGER_TARGET" || reference.kind === "TRIGGER_PRIMARY_TARGET") &&
+    triggerContext?.triggerTargetUnitIds === undefined
+  ) {
     return [];
   }
   return resolveReference(

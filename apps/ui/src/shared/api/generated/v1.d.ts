@@ -923,7 +923,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -969,7 +970,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -4795,7 +4797,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -4841,7 +4844,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                       /** @enum {boolean} */
                       result: false;
                     };
@@ -8885,7 +8889,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                     };
                     stateVersionBefore: number;
                     stateVersionAfter: number;
@@ -8931,7 +8936,8 @@ export interface paths {
                         | "TARGET_EFFECT_COUNT"
                         | "SELF_MEMORY_EQUIPPED"
                         | "ATTRIBUTE_ADVANTAGE"
-                        | "SELECTED_TARGET_STATE";
+                        | "SELECTED_TARGET_STATE"
+                        | "TRIGGER_SKILL_USE_HIT";
                       /** @enum {boolean} */
                       result: false;
                     };

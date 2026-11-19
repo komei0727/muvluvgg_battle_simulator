@@ -195,6 +195,11 @@ export interface PassiveChainDependencies {
    */
   readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   /**
+   * `TRIGGER_SKILL_USE_HIT`（R-PS-04）を発動直前確認でも候補検出時と同じ命中記録で
+   * 評価するため、契機イベントが属するスキル使用が命中させた対象を返す。
+   */
+  readonly triggerSkillUseHitUnitIds?: (event: TriggerCandidateEvent) => ReadonlySet<BattleUnitId>;
+  /**
    * R-EFF-08（`expiration.conditions`）は
    * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
    * のため、トップレベルの`event`だけでなく、PS連鎖の内部で発行される
@@ -608,6 +613,9 @@ function resolveTopGroup(
     deps.getAllUnits?.(),
     deps.turnNumber,
     deps.unitDefinitions,
+    deps.triggerSkillUseHitUnitIds === undefined
+      ? undefined
+      : () => deps.triggerSkillUseHitUnitIds!(top.event),
   );
   if (reconfirmation.ok) {
     state.guard = recordActivation(

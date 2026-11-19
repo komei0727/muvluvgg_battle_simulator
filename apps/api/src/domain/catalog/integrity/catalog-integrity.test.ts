@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DomainValidationError } from "../../shared/errors.js";
 import {
   buildCatalogIndex,
   CatalogIntegrityError,
@@ -4664,6 +4665,30 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
       expect(rulesOf(withSkill(psWithBranch, "passive"))).toContain(
         "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
       );
+    });
+
+    it("UT-R-PS-04-021: accepts TRIGGER_SKILL_USE_HIT only in a PS activationCondition or trigger condition", () => {
+      const firstEnemyHit = {
+        kind: "TRIGGER_SKILL_USE_HIT",
+        target: { kind: "TRIGGER_PRIMARY_TARGET" },
+      } as const;
+      for (const where of [{ activationCondition: firstEnemyHit }, { trigger: firstEnemyHit }]) {
+        expect(rulesOf(withSkill(psSkillWithCondition("SKL_PS_HIT", where), "passive"))).toEqual(
+          [],
+        );
+      }
+      expect(
+        rulesOf(
+          withSkill(
+            psSkillWithCondition("SKL_PS_HIT_BAD", { counterUpdateTrigger: firstEnemyHit }),
+            "passive",
+          ),
+        ),
+      ).toContain("TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER");
+      // resolution stepの条件は定義の生成時点で許可kind外として拒否される。
+      expect(() =>
+        psSkillWithCondition("SKL_PS_HIT_STEP", { targetCondition: firstEnemyHit }),
+      ).toThrow(DomainValidationError);
     });
 
     it("UT-R-PS-09-007: rejects SELECTED_TARGET_STATE in an effect's expiration.conditions (a holder-scoped expiry, not a PS activation check)", () => {

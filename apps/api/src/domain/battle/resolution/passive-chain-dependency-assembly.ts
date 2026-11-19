@@ -17,6 +17,7 @@ import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
+import type { BattleUnitId } from "../../shared/ids.js";
 
 /**
  * `PassiveActivationRuntime.buildDependencies()`が`PassiveChainDependencies`を
@@ -54,6 +55,8 @@ export interface PassiveChainDependencySource {
     resolveChild: (recorded: BattleDomainEvent) => PassiveChainLimitViolationReason | undefined,
   ): PassiveChainLimitViolationReason | undefined;
   toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent;
+  /** `TRIGGER_SKILL_USE_HIT`（R-PS-04）: `event`が属するスキル使用が命中させた対象。 */
+  triggerSkillUseHitUnitIds(event: TriggerCandidateEvent): ReadonlySet<BattleUnitId>;
 }
 
 /**
@@ -78,7 +81,9 @@ export function buildPassiveChainDependencies(
         ...(source.resolutionPhase !== undefined
           ? { resolutionPhase: source.resolutionPhase }
           : {}),
+        triggerSkillUseHitUnitIds: () => source.triggerSkillUseHitUnitIds(event),
       }),
+    triggerSkillUseHitUnitIds: (event) => source.triggerSkillUseHitUnitIds(event),
     getCurrentUnit: (battleUnitId) => requireUnit(source.getUnits(), battleUnitId),
     // `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
     // 例外を送出するため、POSITION_RELATIONの対象不在を条件不成立として決定的に
