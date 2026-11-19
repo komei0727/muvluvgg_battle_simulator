@@ -282,6 +282,18 @@ const MATCHUPS: readonly Matchup[] = [
     ],
     randomValue: 0.5,
   },
+  {
+    // 後列のうるう（PS3の後列分岐）が付与ターンの終わりまで生き残る組み合わせ。
+    ally: ["UNIT_ROSIE_CAMPAIGN", "UNIT_NANAE_SOVEREIGN", "UNIT_YURIA_JOKER"],
+    enemy: ["UNIT_ROSIE_CAMPAIGN", "UNIT_NANAE_SOVEREIGN", "UNIT_YURIA_JOKER", "UNIT_URUU_SUMMER"],
+    randomValue: 0.8,
+  },
+  {
+    // ちゆるAS1が毒の残る同じ基準敵へ再使用されるまで長引く組み合わせ。
+    ally: ["UNIT_CHIYURU_MAZE", "UNIT_ROSIE_CAMPAIGN", "UNIT_NANAE_SOVEREIGN", "UNIT_YURIA_JOKER"],
+    enemy: ["UNIT_EVIE_ECO", "UNIT_SIENA_DIVA", "UNIT_CHIZURU_DOMESTIC"],
+    randomValue: 0.5,
+  },
 ];
 
 function detailsOf(event: BattleLogEvent): Readonly<Record<string, unknown>> {

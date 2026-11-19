@@ -99,7 +99,14 @@
         },
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["NEAREST"] }
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }],
+            "order": ["NEAREST"]
+          }
         }
       ],
       "steps": [

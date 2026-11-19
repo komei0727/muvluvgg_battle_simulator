@@ -57,16 +57,6 @@
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
-          "targetBindingId": "TGT_ROW_ALLIES",
-          "optional": true,
-          "selector": {
-            "kind": "BINDING_DERIVED",
-            "side": "ALLY",
-            "base": { "kind": "SELF" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false }
-          }
-        },
-        {
           "targetBindingId": "TGT_ROW_WITH_SELF",
           "selector": {
             "kind": "BINDING_DERIVED",
@@ -84,7 +74,7 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF" }]
         },
         {
@@ -170,6 +160,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],

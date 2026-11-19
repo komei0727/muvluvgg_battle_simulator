@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DomainValidationError } from "../../shared/errors.js";
 import {
   buildCatalogIndex,
   CatalogIntegrityError,
@@ -4666,6 +4667,30 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
       );
     });
 
+    it("UT-R-PS-04-021: accepts TRIGGER_SKILL_USE_HIT only in a PS activationCondition or trigger condition", () => {
+      const firstEnemyHit = {
+        kind: "TRIGGER_SKILL_USE_HIT",
+        target: { kind: "TRIGGER_PRIMARY_TARGET" },
+      } as const;
+      for (const where of [{ activationCondition: firstEnemyHit }, { trigger: firstEnemyHit }]) {
+        expect(rulesOf(withSkill(psSkillWithCondition("SKL_PS_HIT", where), "passive"))).toEqual(
+          [],
+        );
+      }
+      expect(
+        rulesOf(
+          withSkill(
+            psSkillWithCondition("SKL_PS_HIT_BAD", { counterUpdateTrigger: firstEnemyHit }),
+            "passive",
+          ),
+        ),
+      ).toContain("TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER");
+      // resolution stepの条件は定義の生成時点で許可kind外として拒否される。
+      expect(() =>
+        psSkillWithCondition("SKL_PS_HIT_STEP", { targetCondition: firstEnemyHit }),
+      ).toThrow(DomainValidationError);
+    });
+
     it("UT-R-PS-09-007: rejects SELECTED_TARGET_STATE in an effect's expiration.conditions (a holder-scoped expiry, not a PS activation check)", () => {
       const action = createEffectActionDefinition(
         {
@@ -4754,6 +4779,54 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
           }),
         ).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
       }
+    });
+
+    it("UT-R-PS-04-022: rejects TRIGGER_PRIMARY_TARGET / TRIGGER_SKILL_USE_HIT in a Memory, both in the trigger condition and as an EffectSequence target (the primary enemy is relative to an owner unit, R-MEM-04)", () => {
+      const defs = baseDefinitions();
+      const withMemory = (memory: ReturnType<typeof createMemoryDefinition>) =>
+        rulesOf({
+          ...defs,
+          effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+          memories: [memory],
+        });
+      for (const condition of [
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "TRIGGER_PRIMARY_TARGET" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        { kind: "TRIGGER_SKILL_USE_HIT", target: { kind: "TRIGGER_TARGET" } },
+      ] as const) {
+        expect(withMemory(memoryWithTrigger("MEM_PRIMARY_COND", condition))).toContain(
+          "MEMORY_REQUIRES_SOURCE_UNIT",
+        );
+      }
+      const targeting = createMemoryDefinition({
+        memoryDefinitionId: "MEM_PRIMARY_TARGET",
+        triggeredEffects: [
+          {
+            trigger: {
+              eventType: "SkillUseCompleted",
+              category: "FACT",
+              sourceSelector: "ALLY",
+              targetSelector: "ENEMY",
+            },
+            effectSequence: {
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "TRIGGER_PRIMARY_TARGET" },
+                  actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
+                },
+              ],
+            },
+          },
+        ],
+        metadata: { displayName: "MEM_PRIMARY_TARGET" },
+      });
+      expect(withMemory(targeting)).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
     });
   });
 });

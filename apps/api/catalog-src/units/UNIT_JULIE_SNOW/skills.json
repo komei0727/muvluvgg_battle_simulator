@@ -312,25 +312,26 @@
       "resource": "PP",
       "amount": 1
     },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+          "field": "IS_ALIVE",
+          "op": "EQ",
+          "value": true
+        },
+        { "kind": "TRIGGER_SKILL_USE_HIT", "target": { "kind": "TRIGGER_PRIMARY_TARGET" } }
+      ]
+    },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [
-        {
-          "targetBindingId": "TGT_ATTACKED",
-          "selector": {
-            "kind": "TRIGGER_TARGET",
-            "side": "ENEMY",
-            "order": ["DEFAULT"]
-          }
-        }
-      ],
+      "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ATTACKED"
-          },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [
             {
               "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN"
@@ -339,18 +340,12 @@
         },
         {
           "kind": "ACTION",
-          "target": {
-            "kind": "BINDING",
-            "targetBindingId": "TGT_ATTACKED"
-          },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_HAS_EFFECT",
-              "target": {
-                "kind": "BINDING",
-                "targetBindingId": "TGT_ATTACKED"
-              },
+              "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
               "categories": ["DEBUFF"],
               "effectActionDefinitionIds": ["ACT_JULIE_SNOW_PS2_HEALING_DOWN"]
             }

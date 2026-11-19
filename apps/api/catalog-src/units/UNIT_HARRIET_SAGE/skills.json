@@ -43,7 +43,9 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],

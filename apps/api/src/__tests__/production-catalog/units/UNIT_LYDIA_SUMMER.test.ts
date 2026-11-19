@@ -125,8 +125,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS1_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS1_DAMAGE", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS1_DAMAGE", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS1_DAMAGE", targets: ["enemy:left"] },
         {
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_AS1_BACKROW_BONUS",
           targets: ["enemy:back"],

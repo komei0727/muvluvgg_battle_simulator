@@ -102,10 +102,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SELF_SPD_DOWN",
           targets: ["ally:subject"],
         },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_DAMAGE2", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2", targets: ["enemy:left"] },
+        // 2体目は最初の対象を除いた通常順（SR-028）で、HP割合2位の enemy:left ではない。
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_DAMAGE2", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2", targets: ["enemy:front"] },
       ],
-      hpDeltas: { "enemy:back": -741, "enemy:left": -325 },
+      hpDeltas: { "enemy:back": -741, "enemy:front": -325 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -114,7 +115,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "BATTLE", count: 1 },
         },
         {
-          unitId: "enemy:left",
+          unitId: "enemy:front",
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS1_SPD_DOWN2",
           magnitude: -20,
           timeLimit: { unit: "BATTLE", count: 1 },
@@ -145,10 +146,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       actions: [
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE1", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_DAMAGE2", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SPD_DOWN", targets: ["enemy:left"] },
         {
           effectActionDefinitionId: "ACT_MIHIME_SNIPER_AS2_SELF_SPD_DOWN",
           targets: ["ally:subject"],

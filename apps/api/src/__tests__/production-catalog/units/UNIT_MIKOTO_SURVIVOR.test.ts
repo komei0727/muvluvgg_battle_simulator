@@ -170,10 +170,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["enemy:front"],
         },
         { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ", targets: ["enemy:left"] },
-        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN", targets: ["enemy:back"] },
+        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DAMAGE_ADJ", targets: ["enemy:left"] },
+        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN", targets: ["enemy:left"] },
         PS2_CHAIN_ACTION,
       ],
       hpDeltas: {

@@ -159,6 +159,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_DAMAGE", targets: ["enemy:front"] },
+        // 横列のデバフ解除は本人を含む（SR-336）。本人はデバフを持たないので空振り。
+        {
+          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF",
+          targets: ["ally:subject"],
+          resultKind: "SKIPPED",
+        },
         {
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF",
           targets: ["ally:front"],

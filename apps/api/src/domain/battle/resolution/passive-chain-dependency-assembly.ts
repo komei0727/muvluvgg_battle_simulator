@@ -17,6 +17,7 @@ import type { TriggerCandidateEvent } from "../triggering/trigger-event.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
+import type { TriggerSkillUseRecord } from "../targeting/trigger-primary-target.js";
 
 /**
  * `PassiveActivationRuntime.buildDependencies()`が`PassiveChainDependencies`を
@@ -54,6 +55,8 @@ export interface PassiveChainDependencySource {
     resolveChild: (recorded: BattleDomainEvent) => PassiveChainLimitViolationReason | undefined,
   ): PassiveChainLimitViolationReason | undefined;
   toTriggerEvent(event: BattleDomainEvent): TriggerCandidateEvent;
+  /** R-PS-04: `event`が属するスキル使用の記録（命中・実際に処理した対象の順）。 */
+  triggerSkillUse(event: TriggerCandidateEvent): TriggerSkillUseRecord;
 }
 
 /**
@@ -78,7 +81,9 @@ export function buildPassiveChainDependencies(
         ...(source.resolutionPhase !== undefined
           ? { resolutionPhase: source.resolutionPhase }
           : {}),
+        triggerSkillUse: source.triggerSkillUse(event),
       }),
+    triggerSkillUse: (event) => source.triggerSkillUse(event),
     getCurrentUnit: (battleUnitId) => requireUnit(source.getUnits(), battleUnitId),
     // `getCurrentUnit`（`requireUnit`）は未知のBattleUnitIdに
     // 例外を送出するため、POSITION_RELATIONの対象不在を条件不成立として決定的に

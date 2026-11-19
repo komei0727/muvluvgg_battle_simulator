@@ -104,7 +104,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:left"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_EX_DAMAGE_FOLLOWUP", targets: ["enemy:back"] },
-        ...ps2Actions("enemy:front", "enemy:left", "enemy:back"),
+        // PS2は元EXの対象優先度で先頭の敵1体だけへ付ける（SR-192）。
+        ...ps2Actions("enemy:front"),
       ],
       hpDeltas: {
         "enemy:front": -1503,
@@ -126,8 +127,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "ACTION", count: 1 },
         },
         ...burnAndHealingDown("enemy:front"),
-        ...burnAndHealingDown("enemy:left"),
-        ...burnAndHealingDown("enemy:back"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
@@ -174,14 +173,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "ACTION", count: 1 },
         },
       ],
-      // PS2自体は発動するが、攻撃した敵が全員倒れているため対象が残らない。
-      resources: [
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
-      ],
-      cooldowns: [
-        { unitId: "ally:subject", skillDefinitionId: "SKL_JULIE_SNOW_PS2", remaining: 2 },
-      ],
+      // 元EXの先頭敵が倒れているためPS2は発動せず、PP・EX・CTも動かない（SR-192）。
     },
   },
   {
@@ -195,7 +187,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_DAMAGE", targets: ["enemy:back"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_HEAL", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_JULIE_SNOW_AS1_DMG_DOWN", targets: ["ally:subject"] },
-        ...ps2Actions("enemy:front", "enemy:back"),
+        ...ps2Actions("enemy:front"),
       ],
       // 回復は与えた合計1908の20%。
       hpDeltas: {
@@ -211,7 +203,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           consumption: { kind: "NEXT_INCOMING_ATTACK", maxCount: 1 },
         },
         ...burnAndHealingDown("enemy:front"),
-        ...burnAndHealingDown("enemy:back"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
@@ -355,7 +346,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_JULIE_SNOW_PS2",
     intent:
-      "自身がアクティブスキルまたはEXスキルで攻撃した後に発動。攻撃した敵単体に対して2行動の炎上と、2行動の間回復量を30%減少させるデバフを付与する。炎上は攻撃力×30%の持続ダメージを与える",
+      "(不成立): 攻撃した敵単体（元の先頭敵）へ1ヒットも命中していなければ発動しない — 合成した契機イベントには命中の記録が無い。命中した場合はAS1・AS2・EXの行が示す",
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_JULIE_SNOW_PS2",
@@ -367,15 +358,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       triggeredBy: "ally:subject",
     },
     expected: {
-      actions: [...ps2Actions("enemy:left")],
-      effectsApplied: [...burnAndHealingDown("enemy:left")],
-      resources: [
-        { unitId: "ally:subject", resource: "PP", delta: -1 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
-      ],
-      cooldowns: [
-        { unitId: "ally:subject", skillDefinitionId: "SKL_JULIE_SNOW_PS2", remaining: 2 },
-      ],
+      activated: false,
     },
   },
   {
@@ -452,16 +435,7 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
     const observed = observeSkillUse({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
-      use: {
-        kind: "PASSIVE",
-        skillDefinitionId: "SKL_JULIE_SNOW_PS2",
-        trigger: skillUseCompleted({
-          actor: "ally:subject",
-          targets: ["enemy:front"],
-          skillType: "AS",
-        }),
-        triggeredBy: "ally:subject",
-      },
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_JULIE_SNOW_AS2" },
       precedingActions: [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", target: "ENEMY" },
       ],
@@ -476,54 +450,21 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
     );
   });
 
-  it("IT-UNIT-JULIE-SNOW-005 [R-SKL-06] (BOUNDARY, Q-CAT-EFF-16, R-SKL-06): 契機が複数の敵へ解決するとき、既に保持している対象だけが除外され、残りには付与される", () => {
-    // `TGT_ATTACKED` は `TRIGGER_TARGET` で複数体へ解決するため `BRANCH`
-    // （step全体を一度だけ評価する）では表せない。ACTIONの `targetCondition` は
-    // 対象ごとに評価されるという、この選択そのものを固定する。
+  it("IT-UNIT-JULIE-SNOW-005 [R-SKL-06] (SR-192, Q-CAT-EFF-16): 元EXが3体を攻撃しても、PS2は先頭の敵だけを見る — 先頭が回復量デバフを保持していれば炎上だけが付き、後続の敵へは何も付かない", () => {
     // 前提アクションは `ENEMY_ONE`（`DEFAULT`順の1体＝`enemy:front`）へ解決する。
     const observed = observeSkillUse({
       snapshot,
       unitDefinitionId: UNIT_DEFINITION_ID,
-      use: {
-        kind: "PASSIVE",
-        skillDefinitionId: "SKL_JULIE_SNOW_PS2",
-        trigger: skillUseCompleted({
-          actor: "ally:subject",
-          targets: ["enemy:front", "enemy:left", "enemy:back"],
-          skillType: "AS",
-        }),
-        triggeredBy: "ally:subject",
-      },
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_JULIE_SNOW_EX" },
       precedingActions: [
         { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", target: "ENEMY" },
       ],
     });
 
-    // 炎上は3体すべてへ。回復量デバフは保持していない2体だけへ。
-    expect(observed.actions).toEqual([
-      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:front"] },
-      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:left"] },
-      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:back"] },
-      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:left"] },
-      { effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN", targets: ["enemy:back"] },
-    ]);
     expect(
-      observed.effectsApplied?.filter(
-        (effect) => effect.effectActionDefinitionId === "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
+      observed.actions?.filter((action) =>
+        action.effectActionDefinitionId.startsWith("ACT_JULIE_SNOW_PS2_"),
       ),
-    ).toEqual([
-      {
-        unitId: "enemy:left",
-        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
-        magnitude: -0.3,
-        timeLimit: { unit: "ACTION", count: 2 },
-      },
-      {
-        unitId: "enemy:back",
-        effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_HEALING_DOWN",
-        magnitude: -0.3,
-        timeLimit: { unit: "ACTION", count: 2 },
-      },
-    ]);
+    ).toEqual([{ effectActionDefinitionId: "ACT_JULIE_SNOW_PS2_BURN", targets: ["enemy:front"] }]);
   });
 });

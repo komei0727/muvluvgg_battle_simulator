@@ -599,6 +599,32 @@ export class PassiveActivationRuntime {
   }
 
   /**
+   * R-PS-04（`TRIGGER_PRIMARY_TARGET`）: 原因イベントが属するスキル使用が実際にEffectActionを
+   * 処理した対象を、処理した順に重複なく並べたもの。`SkillUseCompleted`の`targetUnitIds`は
+   * 実行されなかった分岐の候補も含むため、元スキルの対象優先度はこちらから読む。
+   * 原因イベントがスキル使用に属さなければ`undefined`。
+   */
+  private processedTargetUnitIdsOfCausingSkillUse(
+    event: TriggerCandidateEvent,
+  ): readonly BattleUnitId[] | undefined {
+    const skillUseId = this.skillUseIdOfCausingEvent(event);
+    if (skillUseId === undefined) {
+      return undefined;
+    }
+    const ordered: BattleUnitId[] = [];
+    for (const recorded of this.context.recorder.getEvents()) {
+      if (recorded.eventType === "EffectActionStarting" && recorded.skillUseId === skillUseId) {
+        for (const id of recorded.payload.targetUnitIds) {
+          if (!ordered.includes(id)) {
+            ordered.push(id);
+          }
+        }
+      }
+    }
+    return ordered;
+  }
+
+  /**
    * `resolvePassiveChain`/`resolvePendingCandidateGroups`へ注入する
    * `PassiveChainDependencies`の組み立て。実装・詳細な理由は
    * `./passive-chain-dependency-assembly.js`（REF-063 #3）へ抽出した。
@@ -617,6 +643,10 @@ export class PassiveActivationRuntime {
       limits: this.limits,
       activatePassiveCandidate: (candidate, event) =>
         this.activatePassiveCandidate(candidate, event),
+      triggerSkillUse: (event) => ({
+        hitUnitIds: () => this.hitUnitIdsOfCausingSkillUse(event),
+        processedTargetUnitIds: () => this.processedTargetUnitIdsOfCausingSkillUse(event),
+      }),
       reconfirmMemoryCandidate: (candidate, event) =>
         this.reconfirmMemoryCandidate(candidate, event),
       activateMemoryCandidate: (candidate, event) => this.activateMemoryCandidate(candidate, event),
@@ -1592,9 +1622,15 @@ export class PassiveActivationRuntime {
     // イベントの`payload`も、`resolution.steps`側の`EVENT_PAYLOAD`条件が
     // 参照できるよう素通しする（`triggers[].condition`が参照する
     // `EVENT_PAYLOAD`とは独立に、発動後の一部stepだけを条件付けられる）。
+    const processedTargetUnitIds = usesTriggerPrimaryTarget(skill)
+      ? this.processedTargetUnitIdsOfCausingSkillUse(event)
+      : undefined;
     const triggerContext: TriggerContext = {
       ...(event.sourceUnitId !== undefined ? { triggerSourceUnitId: event.sourceUnitId } : {}),
       ...(event.targetUnitIds !== undefined ? { triggerTargetUnitIds: event.targetUnitIds } : {}),
+      ...(processedTargetUnitIds !== undefined
+        ? { triggerProcessedTargetUnitIds: processedTargetUnitIds }
+        : {}),
       triggerEventPayload: event.payload,
     };
 
@@ -1952,6 +1988,18 @@ export class PassiveActivationRuntime {
 
     return { interrupted: outcome.status === "INTERRUPTED" };
   }
+}
+
+const TRIGGER_PRIMARY_TARGET_USAGE = new WeakMap<SkillDefinition, boolean>();
+
+/** 記録の走査はこの参照を持つPSの発動時だけ行う。定義は不変なので判定を覚えておく。 */
+function usesTriggerPrimaryTarget(skill: SkillDefinition): boolean {
+  let uses = TRIGGER_PRIMARY_TARGET_USAGE.get(skill);
+  if (uses === undefined) {
+    uses = JSON.stringify(skill.resolution).includes('"TRIGGER_PRIMARY_TARGET"');
+    TRIGGER_PRIMARY_TARGET_USAGE.set(skill, uses);
+  }
+  return uses;
 }
 
 function usesTriggerSkillUseHitCondition(skill: SkillDefinition): boolean {

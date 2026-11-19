@@ -567,6 +567,96 @@ describe("resolveTargets", () => {
 
       expect(targets).toEqual([]);
     });
+
+    function adjacentTwoOf(baseBindingId: string): TargetSelectorDefinition {
+      return {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: createTargetBindingId(baseBindingId) },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        filters: [],
+        order: ["ADJACENT_DIRECTION"],
+        count: 2,
+        includeDefeated: false,
+      };
+    }
+
+    it("UT-R-TGT-04-003: ADJACENT_DIRECTION picks up, then left, then right (enemy board: back row is up)", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const base = unit("BASE", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const up = unit("UP", "ENEMY", { column: "CENTER", row: "BACK" });
+      const left = unit("LEFT", "ENEMY", { column: "LEFT", row: "FRONT" });
+      const right = unit("RIGHT", "ENEMY", { column: "RIGHT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        adjacentTwoOf("TGT_BASE"),
+        actor,
+        [actor, right, left, up, base],
+        new Map([[createTargetBindingId("TGT_BASE"), [base]]]),
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("UP"),
+        createBattleUnitId("LEFT"),
+      ]);
+    });
+
+    it("UT-R-TGT-04-004: ADJACENT_DIRECTION puts down last, so left and right win over it", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const base = unit("BASE", "ENEMY", { column: "CENTER", row: "BACK" });
+      const down = unit("DOWN", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const left = unit("LEFT", "ENEMY", { column: "LEFT", row: "BACK" });
+      const right = unit("RIGHT", "ENEMY", { column: "RIGHT", row: "BACK" });
+      const diagonal = unit("DIAG", "ENEMY", { column: "LEFT", row: "FRONT" });
+
+      const targets = resolveTargets(
+        adjacentTwoOf("TGT_BASE"),
+        actor,
+        [actor, down, diagonal, right, left, base],
+        new Map([[createTargetBindingId("TGT_BASE"), [base]]]),
+      );
+
+      expect(targets.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("LEFT"),
+        createBattleUnitId("RIGHT"),
+      ]);
+    });
+
+    it("UT-R-TGT-04-005: ADJACENT_DIRECTION keeps the absolute order on the ally board (front row is up) and takes what exists", () => {
+      const enemyActor = unit("ACTOR", "ENEMY", { column: "CENTER", row: "FRONT" });
+      const base = unit("BASE", "ALLY", { column: "LEFT", row: "BACK" });
+      const up = unit("UP", "ALLY", { column: "LEFT", row: "FRONT" });
+      const right = unit("RIGHT", "ALLY", { column: "CENTER", row: "BACK" });
+      const selectorDef = { ...adjacentTwoOf("TGT_BASE"), side: "ENEMY" as const };
+
+      const both = resolveTargets(
+        selectorDef,
+        enemyActor,
+        [enemyActor, right, up, base],
+        new Map([[createTargetBindingId("TGT_BASE"), [base]]]),
+      );
+      const onlyRight = resolveTargets(
+        selectorDef,
+        enemyActor,
+        [enemyActor, right, base],
+        new Map([[createTargetBindingId("TGT_BASE"), [base]]]),
+      );
+
+      expect(both.map((t) => t.battleUnitId)).toEqual([
+        createBattleUnitId("UP"),
+        createBattleUnitId("RIGHT"),
+      ]);
+      expect(onlyRight.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("RIGHT")]);
+    });
+
+    it("UT-R-TGT-04-006: ADJACENT_DIRECTION without an area-giving base is rejected", () => {
+      const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+      const enemy = unit("ENEMY", "ENEMY", { column: "CENTER", row: "FRONT" });
+
+      expect(() =>
+        resolveTargets(selector({ order: ["ADJACENT_DIRECTION"] }), actor, [actor, enemy]),
+      ).toThrow(DomainValidationError);
+    });
   });
 
   describe("R-TGT-05: DIRECTLY_AHEAD_OF_BASE area", () => {

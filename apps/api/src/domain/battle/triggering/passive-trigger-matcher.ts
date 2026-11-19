@@ -1,3 +1,4 @@
+import type { TriggerSkillUseRecord } from "../targeting/trigger-primary-target.js";
 import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
@@ -36,6 +37,8 @@ export interface PassiveTriggerMatchInput {
    * へ渡すため、専用フィールドを持たない。
    */
   readonly turnNumber?: number;
+  /** R-PS-04: `event`が属するスキル使用の記録（`TRIGGER_SKILL_USE_HIT`・`TRIGGER_PRIMARY_TARGET`用）。 */
+  readonly triggerSkillUse?: TriggerSkillUseRecord;
 }
 
 function findMatchingTrigger(
@@ -47,6 +50,7 @@ function findMatchingTrigger(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   resolutionPhase: ResolutionPhase | undefined,
   turnNumber: number | undefined,
+  triggerSkillUse: TriggerSkillUseRecord | undefined,
 ): TriggerDefinition | undefined {
   return skill.triggers.find(
     (trigger) =>
@@ -62,6 +66,7 @@ function findMatchingTrigger(
         unitDefinitions,
         ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
         ...(turnNumber !== undefined ? { turnNumber } : {}),
+        ...(triggerSkillUse !== undefined ? { triggerSkillUse } : {}),
       }),
   );
 }
@@ -87,6 +92,7 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
     activationGuard,
     resolutionPhase,
     turnNumber,
+    triggerSkillUse,
   } = input;
   const unitsById = new Map(units.map((unit) => [unit.battleUnitId, unit] as const));
   const candidates: PassiveCandidate[] = [];
@@ -122,18 +128,23 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         unitDefinitions,
         resolutionPhase,
         turnNumber,
+        triggerSkillUse,
       );
+      // R-PS-07 `firstTriggerOnly`: 最初に一致した契機を発動判定へかけるため、発動条件は
+      // 候補にした後の発動直前確認（R-PS-04）だけで評価し、不成立でもその契機を使い切る。
       if (
         trigger !== undefined &&
-        evaluateTriggerCondition(skill.activationCondition, event, {
-          owner,
-          skillDefinitionId: skill.skillDefinitionId,
-          getUnit: (id) => unitsById.get(id),
-          units,
-          unitDefinitions,
-          ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
-          ...(turnNumber !== undefined ? { turnNumber } : {}),
-        })
+        (skill.traits.firstTriggerOnly === true ||
+          evaluateTriggerCondition(skill.activationCondition, event, {
+            owner,
+            skillDefinitionId: skill.skillDefinitionId,
+            getUnit: (id) => unitsById.get(id),
+            units,
+            unitDefinitions,
+            ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
+            ...(turnNumber !== undefined ? { turnNumber } : {}),
+            ...(triggerSkillUse !== undefined ? { triggerSkillUse } : {}),
+          }))
       ) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });
       }

@@ -37,6 +37,7 @@ export function collectConditionTargetReferences(
     case "ATTRIBUTE_ADVANTAGE":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
+    case "TRIGGER_SKILL_USE_HIT":
       return [condition.target];
     case "AND":
     case "OR":
@@ -196,6 +197,7 @@ export function collectConditionTargetReferencePaths(
     case "ATTRIBUTE_ADVANTAGE":
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
+    case "TRIGGER_SKILL_USE_HIT":
       return [{ reference: condition.target, path }];
     case "AND":
     case "OR":
@@ -260,6 +262,15 @@ export function conditionContainsSelectedTargetState(condition: ConditionDefinit
   return conditionContainsKind(condition, "SELECTED_TARGET_STATE");
 }
 
+/**
+ * R-PS-04: `TRIGGER_SKILL_USE_HIT`を評価できるのはPSの候補検出・発動直前確認
+ * （trigger条件・PSの`activationCondition`）だけで、契機のスキル使用の命中を
+ * 渡す経路は他に無い。
+ */
+export function conditionContainsTriggerSkillUseHit(condition: ConditionDefinition): boolean {
+  return conditionContainsKind(condition, "TRIGGER_SKILL_USE_HIT");
+}
+
 /** R-SKL-08: conditionのどこかに`LAST_RESULT`が含まれるか。 */
 export function conditionReferencesLastResult(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
@@ -284,15 +295,17 @@ export function conditionReferencesLastResult(condition: ConditionDefinition): b
  * - `RUNTIME_COUNTER`: `SkillRuntime`/`AppliedEffect`スコープのcounter保持者を要求する
  *   （Memoryはどちらも持たない）。
  * - `ALIVE_UNIT_COUNT`の`excludeSelf`: 除外すべき「自身」が存在しない。
- * - 対象参照`SELF`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
+ * - 対象参照`SELF`・`TRIGGER_PRIMARY_TARGET`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
  */
 export function conditionRequiresSourceUnit(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
     // R-ATR-05: 攻撃側は評価しているユニット自身。R-PS-09: 選択の起点も同じ。
+    // R-PS-04: 契機となったスキル使用の命中はPS所有者の発動判定でしか読めない。
     case "POSITION_RELATION":
     case "RUNTIME_COUNTER":
     case "ATTRIBUTE_ADVANTAGE":
     case "SELECTED_TARGET_STATE":
+    case "TRIGGER_SKILL_USE_HIT":
       return true;
     case "ALIVE_UNIT_COUNT":
       return condition.excludeSelf === true;
@@ -302,8 +315,9 @@ export function conditionRequiresSourceUnit(condition: ConditionDefinition): boo
     case "NOT":
       return conditionRequiresSourceUnit(condition.condition);
     default:
+      // `TRIGGER_PRIMARY_TARGET`は所有者から見た敵の先頭なので、所有者が要る。
       return collectConditionTargetReferences(condition).some(
-        (reference) => reference.kind === "SELF",
+        (reference) => reference.kind === "SELF" || reference.kind === "TRIGGER_PRIMARY_TARGET",
       );
   }
 }

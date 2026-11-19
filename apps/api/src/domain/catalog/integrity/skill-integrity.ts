@@ -10,6 +10,7 @@ import {
   collectTargetStateOrMarkerReferences,
   conditionContainsSelectedTargetState,
   triggerScopedConditionKindIn,
+  conditionContainsTriggerSkillUseHit,
 } from "./condition-inspection.js";
 import {
   collectStepConditionEffectActionReferences,
@@ -41,14 +42,15 @@ import { validateTrigger } from "./trigger-integrity.js";
  *   使用者自身（`SELF`）と行動選択時点で解決済みの`BINDING`だけを解決する。行動選択には
  *   トリガーイベントも直前結果も存在しないため、それ以外は実行時に必ず例外になる。
  * - PS: `evaluateTriggerCondition`（`triggering/trigger-condition-evaluator.ts`）の
- *   `resolveTargetReferenceIds`が`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`だけを解決する。
+ *   `resolveTargetReferenceIds`が`SELF`/`TRIGGER_SOURCE`/`TRIGGER_TARGET`/
+ *   `TRIGGER_PRIMARY_TARGET`だけを解決する。
  *   `BINDING`はEffectSequence文脈を前提とするため候補判定時には解決できない。
  */
 const ACTIVATION_CONDITION_REFERENCE_KINDS: Readonly<
   Record<"ACTION" | "PASSIVE", ReadonlySet<TargetReference["kind"]>>
 > = {
   ACTION: new Set(["SELF", "BINDING"]),
-  PASSIVE: new Set(["SELF", "TRIGGER_SOURCE", "TRIGGER_TARGET"]),
+  PASSIVE: new Set(["SELF", "TRIGGER_SOURCE", "TRIGGER_TARGET", "TRIGGER_PRIMARY_TARGET"]),
 };
 
 /**
@@ -257,6 +259,27 @@ export function validateSkill(
       targetId: skill.skillDefinitionId,
       rule: "SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER",
       message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it in a resolution step or an ${skill.skillType} activationCondition`,
+    });
+  }
+  // R-PS-04: `TRIGGER_SKILL_USE_HIT`はPSの候補検出・発動直前確認（trigger条件・PSの
+  // `activationCondition`）専用。counterUpdatesの契機判定は命中を受け取らない。
+  if (
+    sequences.some((sequence) =>
+      stepsSomeCondition(sequence.steps, conditionContainsTriggerSkillUseHit),
+    ) ||
+    (skill.skillType !== "PS" &&
+      skill.activationCondition !== undefined &&
+      conditionContainsTriggerSkillUseHit(skill.activationCondition)) ||
+    (skill.skillType !== "PS" &&
+      skill.triggers.some((trigger) => conditionContainsTriggerSkillUseHit(trigger.condition))) ||
+    skill.counterUpdates.some((counterUpdate) =>
+      conditionContainsTriggerSkillUseHit(counterUpdate.trigger.condition),
+    )
+  ) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER",
+      message: `a TRIGGER_SKILL_USE_HIT condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it elsewhere`,
     });
   }
   for (const trigger of skill.triggers) {

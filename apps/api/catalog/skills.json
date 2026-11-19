@@ -1212,6 +1212,8 @@
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2,
             "side": "ENEMY"
           }
         }
@@ -1835,13 +1837,20 @@
     "skillDefinitionId": "SKL_CHIYURU_MAZE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_MAZE_PS1_DAMAGE" },
             {
@@ -4034,6 +4043,8 @@
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
             "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2,
             "side": "ENEMY"
           }
         }
@@ -4958,7 +4969,9 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -5247,16 +5260,6 @@
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
-          "targetBindingId": "TGT_ROW_ALLIES",
-          "optional": true,
-          "selector": {
-            "kind": "BINDING_DERIVED",
-            "side": "ALLY",
-            "base": { "kind": "SELF" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false }
-          }
-        },
-        {
           "targetBindingId": "TGT_ROW_WITH_SELF",
           "selector": {
             "kind": "BINDING_DERIVED",
@@ -5274,7 +5277,7 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF" }]
         },
         {
@@ -5360,6 +5363,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -5664,6 +5674,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_TEX_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -6486,28 +6503,36 @@
     "skillDefinitionId": "SKL_JULIE_SNOW_PS2",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "AND",
+      "conditions": [
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+          "field": "IS_ALIVE",
+          "op": "EQ",
+          "value": true
+        },
+        { "kind": "TRIGGER_SKILL_USE_HIT", "target": { "kind": "TRIGGER_PRIMARY_TARGET" } }
+      ]
+    },
     "resolution": {
       "kind": "IMMEDIATE",
-      "targetBindings": [
-        {
-          "targetBindingId": "TGT_ATTACKED",
-          "selector": { "kind": "TRIGGER_TARGET", "side": "ENEMY", "order": ["DEFAULT"] }
-        }
-      ],
+      "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_JULIE_SNOW_PS2_BURN" }]
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "targetCondition": {
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_HAS_EFFECT",
-              "target": { "kind": "BINDING", "targetBindingId": "TGT_ATTACKED" },
+              "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
               "categories": ["DEBUFF"],
               "effectActionDefinitionIds": ["ACT_JULIE_SNOW_PS2_HEALING_DOWN"]
             }
@@ -7704,7 +7729,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -7730,6 +7757,18 @@
             {
               "kind": "ACTION",
               "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
+                  "hitCondition": {
+                    "effectActionDefinitionIds": ["ACT_KOKORO_SPORTSDAY_PS2_DAMAGE"]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "ACTION",
+              "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJACENT" },
               "actions": [
                 {
                   "effectActionDefinitionId": "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN",
@@ -8546,13 +8585,20 @@
     "skillDefinitionId": "SKL_LAURA_MOUNTAIN_PS3",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_LAURA_MOUNTAIN_PS3_DAMAGE" }]
         }
       ]
@@ -10561,7 +10607,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -10799,7 +10847,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -11567,6 +11617,13 @@
     "skillDefinitionId": "SKL_MAO_COMMITTEE_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -11583,7 +11640,7 @@
       "steps": [
         {
           "kind": "ACTION",
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MAO_COMMITTEE_PS1_DAMAGE" }]
         },
         {
@@ -13168,6 +13225,13 @@
     "skillDefinitionId": "SKL_MERU_SIRIUS_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -13176,12 +13240,12 @@
           "kind": "ACTION",
           "targetCondition": {
             "kind": "TARGET_STATE",
-            "target": { "kind": "TRIGGER_TARGET" },
+            "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
             "field": "HP_RATIO",
             "op": "LTE",
             "value": 0.3
           },
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE_BOOSTED" }]
         },
         {
@@ -13190,13 +13254,13 @@
             "kind": "NOT",
             "condition": {
               "kind": "TARGET_STATE",
-              "target": { "kind": "TRIGGER_TARGET" },
+              "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
               "field": "HP_RATIO",
               "op": "LTE",
               "value": 0.3
             }
           },
-          "target": { "kind": "TRIGGER_TARGET" },
+          "target": { "kind": "TRIGGER_PRIMARY_TARGET" },
           "actions": [{ "effectActionDefinitionId": "ACT_MERU_SIRIUS_PS1_DAMAGE" }]
         }
       ]
@@ -13320,7 +13384,7 @@
                 "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
               }
             ],
-            "order": ["LOWEST_HP_RATIO"]
+            "order": ["DEFAULT"]
           }
         }
       ],
@@ -13386,7 +13450,9 @@
             "kind": "BINDING_DERIVED",
             "side": "ENEMY",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -13554,7 +13620,9 @@
           "selector": {
             "kind": "BINDING_DERIVED",
             "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
-            "area": { "kind": "ADJACENT_ORTHOGONAL" }
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],
@@ -16000,6 +16068,13 @@
           "field": "RESOURCE_AP",
           "op": "GTE",
           "value": 2
+        },
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "field": "IS_ALIVE",
+          "op": "EQ",
+          "value": true
         }
       ]
     },
@@ -16069,7 +16144,7 @@
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
+    "traits": { "firstTriggerOnly": true },
     "metadata": { "displayName": "ストレラ", "tags": [] },
     "triggers": [
       {
@@ -16270,6 +16345,13 @@
     "skillDefinitionId": "SKL_OLGA_NADYA_BOND_TEX_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -16311,7 +16393,7 @@
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
+    "traits": { "firstTriggerOnly": true },
     "metadata": { "displayName": "ストレラ+", "tags": [] },
     "triggers": [
       {
@@ -18958,7 +19040,14 @@
         },
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["NEAREST"] }
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }],
+            "order": ["NEAREST"]
+          }
         }
       ],
       "steps": [

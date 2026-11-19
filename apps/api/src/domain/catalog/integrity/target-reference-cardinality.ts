@@ -48,6 +48,7 @@ export function targetReferenceIsSingleUnit(
     case "SELF":
     case "TRIGGER_SOURCE":
     case "TRIGGER_TARGET_SINGLE":
+    case "TRIGGER_PRIMARY_TARGET":
       return true;
     case "TRIGGER_TARGET":
     case "LAST_ACTION_TARGETS":

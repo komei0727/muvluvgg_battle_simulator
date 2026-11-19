@@ -95,7 +95,7 @@
                 "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
               }
             ],
-            "order": ["LOWEST_HP_RATIO"]
+            "order": ["DEFAULT"]
           }
         }
       ],
@@ -191,7 +191,9 @@
             },
             "area": {
               "kind": "ADJACENT_ORTHOGONAL"
-            }
+            },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
           }
         }
       ],

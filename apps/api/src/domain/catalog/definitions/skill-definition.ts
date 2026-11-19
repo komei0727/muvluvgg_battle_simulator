@@ -41,6 +41,7 @@ const TRAITS_ALLOWED_KEYS = [
   "exclusiveActivationGroupId",
   "accuracy",
   "piercing",
+  "firstTriggerOnly",
 ] as const;
 const TRAITS_ACCURACY_ALLOWED_KEYS = ["guaranteedHit"] as const;
 const TRAITS_PIERCING_ALLOWED_KEYS = [
@@ -63,6 +64,12 @@ export interface SkillCost {
 }
 
 export interface SkillTraits {
+  /**
+   * R-PS-07（Issue #831）: PSだけが持てる。同じ解決スコープでこのPSのtriggerが最初に
+   * 一致した契機だけを発動判定にかけ、それが不成立なら同じスコープの後続の契機では
+   * 発動しない（「最初に攻撃した対象が倒れていれば発動しない」を表す）。
+   */
+  readonly firstTriggerOnly?: true;
   readonly priorityAttack: boolean;
   readonly simultaneousActivationLimited: boolean;
   readonly exclusiveActivationGroupId: string | null;
@@ -102,6 +109,7 @@ export interface SkillCostInput {
 }
 
 export interface SkillTraitsInput {
+  readonly firstTriggerOnly?: boolean;
   readonly priorityAttack?: boolean;
   readonly simultaneousActivationLimited?: boolean;
   readonly exclusiveActivationGroupId?: string | null;
@@ -213,7 +221,12 @@ function createTraits(input: SkillTraitsInput, path: string): SkillTraits {
     guaranteedHit = input.accuracy.guaranteedHit;
   }
 
+  if (input.firstTriggerOnly !== undefined) {
+    assertBoolean(input.firstTriggerOnly, `${path}.firstTriggerOnly`);
+  }
+
   return {
+    ...(input.firstTriggerOnly === true ? { firstTriggerOnly: true as const } : {}),
     priorityAttack,
     simultaneousActivationLimited,
     exclusiveActivationGroupId: input.exclusiveActivationGroupId ?? null,
@@ -366,6 +379,12 @@ export function createSkillDefinition(
     throw new DomainValidationError(
       `${path}.triggers`,
       `${input.skillType} skills must not declare triggers`,
+    );
+  }
+  if (input.skillType !== "PS" && input.traits.firstTriggerOnly !== undefined) {
+    throw new DomainValidationError(
+      `${path}.traits.firstTriggerOnly`,
+      `only PS skills can declare firstTriggerOnly (got ${input.skillType})`,
     );
   }
 

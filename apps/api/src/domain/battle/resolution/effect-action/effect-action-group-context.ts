@@ -135,6 +135,8 @@ export interface EffectActionGroupContext {
    */
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
+  /** R-PS-04（`TRIGGER_PRIMARY_TARGET`）: 契機のスキル使用が実際に処理した対象（処理順）。 */
+  readonly triggerProcessedTargetUnitIds?: readonly BattleUnitId[];
   /**
    * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（M7-001D）: このPSを発動
    * させた原因イベント自身の`payload`。`ACTION.stepCondition`/`BRANCH.condition`

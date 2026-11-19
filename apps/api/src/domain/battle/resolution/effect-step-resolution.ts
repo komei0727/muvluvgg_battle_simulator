@@ -936,6 +936,9 @@ function* resolveBranchStep(
         ...(context.triggerTargetUnitIds !== undefined
           ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
           : {}),
+        ...(context.triggerProcessedTargetUnitIds !== undefined
+          ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
+          : {}),
       };
       const resolveTargetSet = buildTargetSetResolver(
         plan.resolvedBindings,
@@ -1215,6 +1218,9 @@ export function* resolveRawStep(
             ...(context.triggerTargetUnitIds !== undefined
               ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
               : {}),
+            ...(context.triggerProcessedTargetUnitIds !== undefined
+              ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
+              : {}),
             ...(context.triggerEventPayload !== undefined
               ? { triggerEventPayload: context.triggerEventPayload }
               : {}),
@@ -1306,6 +1312,9 @@ export function* resolveRawStep(
           : {}),
         ...(context.triggerTargetUnitIds !== undefined
           ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+          : {}),
+        ...(context.triggerProcessedTargetUnitIds !== undefined
+          ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
           : {}),
       };
       const satisfied = evaluateEffectStepCondition(
