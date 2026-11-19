@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import { loadProductionSnapshot } from "../../testing/fixtures/index.js";
+import { loadProductionSnapshot, noMissNoCrit } from "../../testing/fixtures/index.js";
+import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
+import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
+import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
+import { createActionId } from "../../domain/shared/event-ids.js";
+import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import {
   observeLifecycleDamageProbe,
   type DamageProbeObservation,
@@ -35,6 +40,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_YUI_HEIR",
   "UNIT_LYDIA_SUMMER",
   "UNIT_YIFEI_STORM",
+  "UNIT_SHOUKA_BEACH",
 ]);
 
 const HOLDER = "ally:subject";
@@ -283,5 +289,89 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
     // オルガPS2も同じ耐えを締めのDAMAGEへ持ち越さない。回復は追加ヒットの解決後（攻撃の
     // 終わり）のため、締めのDAMAGEで倒れた敵は回復しない。
     expect(yifeiExWith("ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL").hpDeltas?.["enemy:center"]).toBe(-50);
+  });
+
+  it("IT-CAT-SURVIVAL-009 [R-INT-01, R-SUB-02, R-LNK-02] SR-219: リンクの派生ダメージで耐えたリンク先は、保留した追加ヒットから派生するダメージでも同じ耐えでHP1に留まる", () => {
+    // 唯依AS1（371×3）＋リディアPS2「うみのともだちⅢ」の追加85が敵Aへ向かい、AはBへ75%を
+    // 転送する（小花PS2のリンク）。HP50のBはラミPS2の耐えで本体由来の278をHP1で耐え、追加由来の
+    // 63も同じ攻撃なのでHP1で止まる。
+    const LINK_SOURCE = "enemy:center";
+    const LINK_DESTINATION = "enemy:back";
+    const board = productionBoard(snapshot, "UNIT_YUI_HEIR", {
+      enemies: [
+        { id: LINK_SOURCE, position: { column: "CENTER", row: "FRONT" } },
+        {
+          id: LINK_DESTINATION,
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 50 },
+        },
+      ],
+    });
+    const prepared = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", target: "SELF" },
+      { effectActionDefinitionId: "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK", target: "ENEMY" },
+      { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL", target: "SELF" },
+    ]);
+    // 前提アクションの付与者は検証対象のため、リンク先とラミPS2の保持者をBへ付け替える。
+    const destinationId = createBattleUnitId(LINK_DESTINATION);
+    const survival = holderOf(prepared).appliedEffects.find(
+      (effect) => effect.effectActionDefinitionId === "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL",
+    )!;
+    const units = prepared.map((unit) => {
+      if (unit.battleUnitId === HOLDER) {
+        return {
+          ...unit,
+          appliedEffects: unit.appliedEffects.filter((effect) => effect !== survival),
+        };
+      }
+      if (unit.battleUnitId === LINK_SOURCE) {
+        return {
+          ...unit,
+          appliedEffects: unit.appliedEffects.map((effect) =>
+            effect.damageLink === undefined
+              ? effect
+              : {
+                  ...effect,
+                  sourceUnitId: destinationId,
+                  damageLink: { ...effect.damageLink, linkToUnitId: destinationId },
+                },
+          ),
+        };
+      }
+      if (unit.battleUnitId === LINK_DESTINATION) {
+        return {
+          ...unit,
+          appliedEffects: [
+            ...unit.appliedEffects,
+            { ...survival, sourceUnitId: destinationId, targetUnitId: destinationId },
+          ],
+        };
+      }
+      return unit;
+    });
+    const skill = snapshot.skills.get(createSkillDefinitionId("SKL_YUI_HEIR_AS1"))!;
+    const recorder = new EventRecorder(createBattleId("B_SURVIVAL_LINK"));
+    const after = resolveSkillUse(
+      units.find((unit) => unit.battleUnitId === HOLDER)!,
+      skill,
+      "AS",
+      "AS",
+      units,
+      board.definitions,
+      noMissNoCrit(),
+      recorder,
+      1,
+      0,
+      createActionId("B_SURVIVAL_LINK:action:1"),
+      recorder.nextResolutionScopeId(),
+    ).units;
+
+    const linkedDamages = recorder
+      .getEvents()
+      .flatMap((event) =>
+        event.eventType === "LinkedDamageGenerated" ? [event.payload.linkedDamage] : [],
+      );
+    expect(linkedDamages).toEqual([278, 278, 278, 63]);
+    expect(after.find((unit) => unit.battleUnitId === LINK_DESTINATION)?.currentHp).toBe(1);
   });
 });

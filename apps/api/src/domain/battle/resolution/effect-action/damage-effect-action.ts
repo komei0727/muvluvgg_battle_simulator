@@ -651,14 +651,16 @@ export function* releasePendingSubUnitAdditionsSteps(
           }
         }
       }
-      // R-INT-01 #5: 追加ヒットは元攻撃の一部のため、元攻撃で致死を耐えた対象は同じ耐えで
-      // HPを止める（回数は元攻撃の終了で消費済み）。追加ヒットで初めて致死になった場合は
-      // ここで1回分を消費する。
+      // R-INT-01 #5: 追加ヒットは元攻撃の一部のため、元攻撃で致死を耐えたユニットは同じ耐えで
+      // HPを止める。直接の対象だけでなく、リンク・反射の派生ダメージで耐えたユニットも同じ
+      // 攻撃の台帳に載っているため、その対象を攻撃した攻撃の台帳を丸ごと引き継ぐ。追加ヒット
+      // （とその派生）で初めて致死になった場合は、ここで1回分を消費する。
       const deathSurvivals: AttackDeathSurvivalLedger = new Map();
       for (const scope of attackingScopes) {
-        const entry = scope.deathSurvivals.get(targetUnitId);
-        if (entry !== undefined) {
-          deathSurvivals.set(targetUnitId, entry);
+        for (const [unitId, entry] of scope.deathSurvivals) {
+          if (!deathSurvivals.has(unitId)) {
+            deathSurvivals.set(unitId, entry);
+          }
         }
       }
       const targetContext: DamageEventContext = {
