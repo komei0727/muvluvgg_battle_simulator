@@ -11,6 +11,10 @@ import { CONTINUOUS_DAMAGE_SOURCE_ATTACK_KEY } from "../../model/applied-effect.
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleDomainEvent } from "../../events/domain-event.js";
 import { requireUnit } from "../action-resolution-shared.js";
+import {
+  hasLinkedParentForGrant,
+  recordLinkedParentGrant,
+} from "../../model/linked-effect-group.js";
 import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
 import { evaluateFormula, damageResultsFor } from "../../skill/formula-evaluator.js";
 import { DomainValidationError } from "../../../shared/errors.js";
@@ -68,6 +72,23 @@ export function* grantOnHitEffectSteps(
   const attacker = requireUnit(units, attackerUnitId);
   const target = requireUnit(units, targetUnitId);
   const sourceUnitId = riderSourceUnitId ?? attackerUnitId;
+  // R-EFF-09: 通常のEffectAction解決（`effect-action-dispatch.ts`）と同じく、付与されなかった
+  // 親の付与分の子は付与せず、親の付与結果を後続の子のために記録する。
+  const linkedDuration = definition.payload.duration;
+  if (
+    !hasLinkedParentForGrant(target, linkedDuration, context.skillUseId, context.linkedGroupGrants)
+  ) {
+    return { units, lastEventId: parentEventId };
+  }
+  const recordParentGrant = (after: readonly BattleUnit[], granted: boolean): void =>
+    recordLinkedParentGrant(
+      context.linkedGroupGrants,
+      linkedDuration,
+      after.find((unit) => unit.battleUnitId === targetUnitId),
+      targetUnitId,
+      granted,
+      context.skillUseId,
+    );
   // `APPLY_MARKER`はFormulaを持たない（通常解決の`resolveApplyMarker`と同じく0）。
   const magnitude =
     definition.kind === "APPLY_MARKER"
@@ -96,6 +117,7 @@ export function* grantOnHitEffectSteps(
       },
       parentEventId,
     );
+    recordParentGrant(rejection.units, false);
     const injected = yield {
       events: context.recorder.getEvents().slice(eventsStart),
       units: rejection.units,
@@ -185,6 +207,8 @@ export function* grantOnHitEffectSteps(
                   )
                 : grantEffect(eventContext, units, grantRequest, parentEventId);
             })();
+  // `stack.max`到達のADD・既存維持のKEEP_EXISTINGは付与分を作らずイベントも発行しない。
+  recordParentGrant(grantResult.units, grantResult.lastEventId !== parentEventId);
   // R-TEX-03 #2: 再計算の中間stepを連鎖driverへ返す（`grantSubUnitAdditionalDamageDebuffSteps`
   // と同じ理由 — 同期wrapperでまとめると演習ブレイクの解決順が逆転する）。
   let cursor = eventsStart;

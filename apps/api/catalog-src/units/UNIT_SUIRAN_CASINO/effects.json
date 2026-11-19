@@ -19,8 +19,8 @@
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
       "stack": {
-        "policy": "REPLACE",
-        "max": 1
+        "policy": "ADD",
+        "max": null
       },
       "duration": {
         "dispellable": true,
@@ -213,8 +213,8 @@
     "payload": {
       "markerId": "MARKER_SUIRAN_CASINO_THREE_CARD",
       "stack": {
-        "policy": "REPLACE",
-        "max": 1
+        "policy": "ADD",
+        "max": null
       },
       "duration": {
         "dispellable": true,

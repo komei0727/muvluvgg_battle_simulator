@@ -44,7 +44,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }
@@ -57,7 +58,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -74,7 +76,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "NANAE_SOVEREIGN_EX_KOUSEI_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": { "tags": [] }

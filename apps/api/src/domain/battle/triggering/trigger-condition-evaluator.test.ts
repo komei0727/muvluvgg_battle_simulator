@@ -1109,6 +1109,32 @@ describe("evaluateTriggerCondition", () => {
       expect(evaluate(condition(5))).toBe(false);
     });
 
+    it("UT-R-PS-01-158 [R-EFF-10]: countCondition counts every grant instance of the same markerId", () => {
+      const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
+      const owner = {
+        ...self,
+        markerStates: [
+          marker(self, "MARKER_SCAR", 1),
+          { ...marker(self, "MARKER_SCAR", 1), markerInstanceId: createMarkerInstanceId("MI_2") },
+        ],
+      };
+      const condition = (value: number): ConditionDefinition => ({
+        kind: "TARGET_HAS_MARKER",
+        target: { kind: "SELF" },
+        markerId: createMarkerId("MARKER_SCAR"),
+        countCondition: { op: "GTE", value },
+      });
+      const evaluate = (c: ConditionDefinition): boolean =>
+        evaluateTriggerCondition(
+          c,
+          { payload: {} },
+          { owner, skillDefinitionId: SKILL_ID, getUnit: () => owner },
+        );
+
+      expect(evaluate(condition(2))).toBe(true);
+      expect(evaluate(condition(3))).toBe(false);
+    });
+
     it("UT-R-PS-01-153: markerIds does not match when the target holds none of the listed markers, even for an LT countCondition", () => {
       const self = unitAt("OWNER", "ALLY", "FRONT", "LEFT");
       const owner = { ...self, markerStates: [marker(self, "MARKER_OTHER", 1)] };

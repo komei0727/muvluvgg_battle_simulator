@@ -213,21 +213,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         "enemy:left": -429,
         "enemy:back": -429,
       },
-      // 「カース」の攻撃力・与ダメージデバフは解除の対象外（解除不可）で、4つ目の
-      // 分だけがここに現れる。
+      // 「カース」の攻撃力・与ダメージデバフは付与分ごとに親の「カース」へ連動する
+      // （SR-297）。4つ目を数えた対象では全カース消去で今回の付与分の両低下も解除される
+      // ため、残るのは清算しなかった対象の分だけ。
       effectsApplied: [
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-        {
-          unitId: "enemy:front",
-          effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
         {
           unitId: "enemy:left",
           effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
@@ -542,20 +531,28 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-HARRIET-SAGE-004 [R-EFF-09] (R-EFF-09): AS1の攻撃力低下と与ダメージ低下は`HARRIET_CURSE_LINK`で連動し、片方が失効するともう片方も巻き添えで失効する", () => {
-    // どちらも `timeLimit: { unit: BATTLE, count: 1 }` かつ `dispellable: false` で、
-    // 実戦闘には失効させる契機が存在しない。連動そのものを見るために、片方1件だけを
-    // 名指しで失効させる（契機の側は R-EFF-04/06/07・R-EFF-02 が持つ責務）。
+  it("IT-UNIT-HARRIET-SAGE-004 [R-EFF-09, R-EFF-10] (R-EFF-09/SR-297): AS1の攻撃力低下と与ダメージ低下は同じ付与の「カース」の子で、片方だけの失効では連動せず、全カース消去で全付与分の両低下が解除される", () => {
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
-    const granted = applyPrecedingActions(board, [
-      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN", target: "ENEMY" },
-    ]);
-    // 攻撃力7.5%低下が乗った状態（1000 → 925）。
+    const curseGrant = [
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_MARKER", target: "ENEMY" as const },
+      {
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
+        target: "ENEMY" as const,
+        withPrevious: true as const,
+      },
+      {
+        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
+        target: "ENEMY" as const,
+        withPrevious: true as const,
+      },
+    ];
+    const granted = applyPrecedingActions(board, [...curseGrant, ...curseGrant]);
+    // 攻撃力7.5%低下が2付与分乗った状態（1000 → 850）。
     expect(granted.find((unit) => unit.battleUnitId === "enemy:front")!.combatStats.attack).toBe(
-      925,
+      850,
     );
 
+    // 子の片方だけが失効しても、親の「カース」も同じ付与分のもう片方も残る。
     const expiry = expireInstance({
       units: granted,
       definitions: board.definitions,
@@ -564,15 +561,7 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
       reason: "TIME_LIMIT",
       battleId: "B_HARRIET_CURSE_LINK",
     });
-
-    // 子を先に、親を後に発行する（`08_ドメインイベント.md`「EffectExpiredの順序」）。
     expect(expiry.expired).toEqual([
-      {
-        unitId: "enemy:front",
-        effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_DMGDOWN",
-        reason: "LINKED_GROUP_CASCADE",
-        cascaded: true,
-      },
       {
         unitId: "enemy:front",
         effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_ATKDOWN",
@@ -580,9 +569,18 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
         cascaded: false,
       },
     ]);
-    const after = expiry.units.find((unit) => unit.battleUnitId === "enemy:front")!;
-    expect(after.appliedEffects).toEqual([]);
-    expect(after.combatStats.attack).toBe(1000);
+    const afterExpiry = expiry.units.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(afterExpiry.markerStates).toHaveLength(2);
+    expect(afterExpiry.appliedEffects).toHaveLength(3);
+
+    // 全カース消去は各付与分の子へ連動し、他由来でない両低下が全て外れる。
+    const cleared = applyPrecedingActions({ ...board, units: expiry.units }, [
+      { effectActionDefinitionId: "ACT_HARRIET_SAGE_AS1_REMOVE_CURSE", target: "ENEMY" },
+    ]);
+    const holder = cleared.find((unit) => unit.battleUnitId === "enemy:front")!;
+    expect(holder.markerStates).toEqual([]);
+    expect(holder.appliedEffects).toEqual([]);
+    expect(holder.combatStats.attack).toBe(1000);
   });
 
   it("IT-UNIT-HARRIET-SAGE-005 [R-EFF-09] (R-EFF-09/R-EFF-07): AS2のダメージ無効が実被弾2回で消費し切って失効すると、`HARRIET_BARRIER`の子である継続回復も巻き添えで失効する — カスケードは親の失効理由に依存しない", () => {

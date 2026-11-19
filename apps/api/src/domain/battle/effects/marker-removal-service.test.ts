@@ -5,6 +5,7 @@ import {
   emitMarkerStackDecayedEvents,
   reduceMarkerStack,
   reduceMarkerStackSteps,
+  removeAllMarkerGrantsSteps,
   removeMarkers,
   type MarkerRemovalSeed,
 } from "./marker-removal-service.js";
@@ -13,6 +14,7 @@ import {
   decrementActionMarkerDurations,
 } from "../model/marker-duration.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
+import type { MarkerState } from "../model/marker-state.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
@@ -20,6 +22,7 @@ import type { BattleDomainEvent } from "../events/domain-event.js";
 import {
   createActionId,
   createEffectInstanceId,
+  createSkillUseId,
   type DomainEventId,
 } from "../../shared/event-ids.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
@@ -185,7 +188,7 @@ describe("removeMarkers", () => {
     });
   });
 
-  it("UT-R-EFF-10-035 (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes only `count` stacks and emits MarkerUpdated when a positive stack remains", () => {
+  it("UT-R-EFF-10-035 [R-EFF-10] (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes `count` grants, oldest first, and keeps the newer grants", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -225,12 +228,20 @@ describe("removeMarkers", () => {
     );
 
     expect(result.changed).toBe(true);
+    const grantsBefore = units.find((u) => u.battleUnitId === target.battleUnitId)!.markerStates;
     const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
-    expect(nextTarget.markerStates).toHaveLength(1);
-    expect(nextTarget.markerStates[0]!.stackCount).toBe(2);
+    expect(nextTarget.markerStates.map((marker) => marker.markerInstanceId)).toEqual(
+      grantsBefore.slice(3).map((marker) => marker.markerInstanceId),
+    );
     const emitted = recorder.getEvents().slice(before);
-    expect(emitted.map((e) => e.eventType)).toEqual(["MarkerUpdated"]);
-    expect(emitted[0]!.payload).toMatchObject({ stackBefore: 5, stackAfter: 2 });
+    expect(emitted.map((e) => e.eventType)).toEqual([
+      "MarkerRemoved",
+      "MarkerRemoved",
+      "MarkerRemoved",
+    ]);
+    expect(
+      emitted.map((e) => (e.payload as { markerInstanceId: string }).markerInstanceId),
+    ).toEqual(grantsBefore.slice(0, 3).map((marker) => marker.markerInstanceId));
   });
 
   it("UT-R-EFF-10-036 (REMOVE_EFFECTS_COUNT_LIMIT, M7-001): reduceMarkerStack removes the instance (MarkerRemoved) when count meets or exceeds the stacks", () => {
@@ -274,6 +285,123 @@ describe("removeMarkers", () => {
         .slice(before)
         .map((e) => e.eventType),
     ).toEqual(["MarkerRemoved"]);
+  });
+
+  it("UT-R-EFF-10-055 [R-EFF-09, R-EFF-10]: removing one SKILL_USE-linked Marker grant cascades only to the children of that grant", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const other = unit("target-2");
+    const { recorder, rootEventId } = seedRecorder();
+    const markerId = createMarkerId("MARKER_PARENT");
+    const definition = statModDefinition("ACT_CHILD_ATK_UP");
+    const parentDuration: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_1",
+      linkedEffectGroupRole: "PARENT",
+      linkedEffectGroupScope: "SKILL_USE",
+    };
+    const grant = (units: readonly BattleUnit[], holder: BattleUnit, skillUseId: string) =>
+      applyMarker(
+        {
+          ...baseContext(recorder, rootEventId),
+          skillUseId: createSkillUseId(skillUseId),
+        },
+        units,
+        {
+          markerId,
+          sourceUnitId: source.battleUnitId,
+          targetUnitId: holder.battleUnitId,
+          stackPolicy: "ADD",
+          stackMax: null,
+          durationDefinition: parentDuration,
+        },
+        rootEventId,
+      );
+    const childOf = (id: string, holder: BattleUnit, parent: MarkerState) =>
+      linkedEffect(id, holder, definition.effectActionDefinitionId, {
+        duration: {
+          definition: { ...parentDuration, linkedEffectGroupRole: "CHILD" },
+          ...(parent.duration.linkedGroupSkillUseId !== undefined
+            ? { linkedGroupSkillUseId: parent.duration.linkedGroupSkillUseId }
+            : {}),
+          ...(parent.duration.linkedGroupAnchor !== undefined
+            ? { linkedGroupAnchor: parent.duration.linkedGroupAnchor }
+            : {}),
+        },
+      });
+    const first = grant([source, target, other], target, "SU_1");
+    const second = grant(first.units, target, "SU_2");
+    const third = grant(second.units, other, "SU_1");
+    const units = third.units.map((u) =>
+      u.battleUnitId === target.battleUnitId
+        ? {
+            ...u,
+            appliedEffects: [
+              childOf("child-1", target, first.markerState),
+              childOf("child-2", target, second.markerState),
+            ],
+          }
+        : u.battleUnitId === other.battleUnitId
+          ? { ...u, appliedEffects: [childOf("child-3", other, third.markerState)] }
+          : u,
+    );
+
+    const result = reduceMarkerStack(
+      baseContext(recorder, rootEventId),
+      units,
+      target.battleUnitId,
+      markerId,
+      1,
+      new Map([[definition.effectActionDefinitionId, definition]]),
+      rootEventId,
+    );
+
+    const nextTarget = result.units.find((u) => u.battleUnitId === target.battleUnitId)!;
+    const nextOther = result.units.find((u) => u.battleUnitId === other.battleUnitId)!;
+    expect(nextTarget.markerStates.map((m) => m.duration.linkedGroupSkillUseId)).toEqual([
+      createSkillUseId("SU_2"),
+    ]);
+    expect(nextTarget.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+      createEffectInstanceId("child-2"),
+    ]);
+    expect(nextOther.markerStates).toHaveLength(1);
+    expect(nextOther.appliedEffects).toHaveLength(1);
+  });
+
+  it("UT-R-EFF-10-056 [R-EFF-10]: removeAllMarkerGrantsSteps removes every grant of the markerId held by the target", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const context = baseContext(recorder, rootEventId);
+    const markerId = createMarkerId("MARKER_OMEN");
+    const request = {
+      markerId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
+      stackPolicy: "ADD" as const,
+      stackMax: null,
+      durationDefinition: BATTLE_DURATION,
+    };
+    const first = applyMarker(context, [source, target], request, rootEventId);
+    const second = applyMarker(context, first.units, request, first.lastEventId);
+
+    const steps = removeAllMarkerGrantsSteps(
+      context,
+      second.units,
+      target.battleUnitId,
+      markerId,
+      NO_EFFECT_ACTIONS,
+      second.lastEventId,
+    );
+    let step = steps.next();
+    while (!step.done) {
+      step = steps.next(step.value.units);
+    }
+
+    expect(step.value.changed).toBe(true);
+    expect(
+      step.value.units.find((u) => u.battleUnitId === target.battleUnitId)!.markerStates,
+    ).toHaveLength(0);
   });
 
   it("UT-R-EFF-10-037: reduceMarkerStack is a no-op (changed=false) when the target does not hold the marker", () => {
@@ -789,30 +917,32 @@ describe("removeMarkers", () => {
   it("UT-R-EFF-09-026 (R-EFF-09 通知順序): reduceMarkerStackSteps yields the stack-reduction MarkerUpdated too, so no event of that branch is dropped from the chain", () => {
     // 残スタックが正のまま終わる分岐にはカスケードが無いが、この`MarkerUpdated`も
     // 1ステップとしてyieldしないと、除去分だけをyieldする呼び出し側から連鎖が落ちる。
+    // 付与分は通常スタック1のため、この分岐は複数スタックを持つ1付与分（初期状態の
+    // 入力など）でだけ起こる。
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);
     const markerId = createMarkerId("MARKER_STACKED");
-    let units: readonly BattleUnit[] = [source, target];
-    let lastEventId = rootEventId;
-    for (let index = 0; index < 3; index += 1) {
-      const granted = applyMarker(
-        context,
-        units,
-        {
-          markerId,
-          sourceUnitId: source.battleUnitId,
-          targetUnitId: target.battleUnitId,
-          stackPolicy: "ADD",
-          stackMax: null,
-          durationDefinition: { dispellable: true, linkedEffectGroupId: null },
-        },
-        lastEventId,
-      );
-      units = granted.units;
-      lastEventId = granted.lastEventId;
-    }
+    const granted = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "ADD",
+        stackMax: null,
+        durationDefinition: { dispellable: true, linkedEffectGroupId: null },
+      },
+      rootEventId,
+    );
+    const units = granted.units.map((u) =>
+      u.battleUnitId === target.battleUnitId
+        ? { ...u, markerStates: u.markerStates.map((marker) => ({ ...marker, stackCount: 3 })) }
+        : u,
+    );
+    const lastEventId = granted.lastEventId;
 
     const steps = reduceMarkerStackSteps(
       context,
@@ -902,7 +1032,7 @@ describe("action-boundary Marker duration decrement + removal", () => {
 
   // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのADDで積んだ
   // スタックだけが行動ごとに減る。非逓減のADDで積み増した分は巻き込まれない。
-  it("UT-R-EFF-10-040: decayActionMarkerStacks reduces only up to decayingStackCount, leaving non-decaying stacks untouched", () => {
+  it("UT-R-EFF-10-040 [R-EFF-10]: decayActionMarkerStacks reduces only the decaying grant, leaving the non-decaying grant untouched", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -936,17 +1066,20 @@ describe("action-boundary Marker duration decrement + removal", () => {
       },
       decaying.lastEventId,
     );
-    expect(skillGranted.markerState.stackCount).toBe(2);
-    expect(skillGranted.markerState.decayingStackCount).toBe(1);
-
     const decay = decayActionMarkerStacks(skillGranted.units, target.battleUnitId);
 
-    expect(decay.changes).toHaveLength(1);
-    expect(decay.changes[0]).toMatchObject({ stackBefore: 2, stackAfter: 1 });
+    expect(decay.changes).toEqual([
+      expect.objectContaining({
+        markerInstanceId: decaying.markerState.markerInstanceId,
+        stackBefore: 1,
+        stackAfter: 0,
+      }),
+    ]);
     const nextTarget = decay.units.find((u) => u.battleUnitId === target.battleUnitId)!;
-    const nextMarker = nextTarget.markerStates.find((m) => m.markerId === markerId)!;
-    expect(nextMarker.stackCount).toBe(1);
-    expect(nextMarker.decayingStackCount).toBe(0);
+    const nonDecaying = nextTarget.markerStates.find(
+      (m) => m.markerInstanceId === skillGranted.markerState.markerInstanceId,
+    )!;
+    expect(nonDecaying.stackCount).toBe(1);
 
     // 逓減対象が尽きた後は、非逓減の残りスタックへ触れない（再度呼んでも無変化）。
     const secondDecay = decayActionMarkerStacks(decay.units, target.battleUnitId);

@@ -223,7 +223,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -245,7 +246,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -268,7 +270,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -283,6 +286,9 @@
       "probability": 0.5,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 1
@@ -316,7 +322,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -339,7 +346,8 @@
       "duration": {
         "dispellable": false,
         "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -354,6 +362,9 @@
       "probability": 1,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": {
           "kind": "OUTGOING_HIT",
           "maxCount": 2
@@ -370,11 +381,14 @@
     "payload": {
       "markerId": "MARKER_MERU_BESIDE_MAGOKORO_TIMED",
       "stack": {
-        "policy": "REFRESH",
-        "max": 1
+        "policy": "ADD",
+        "max": null
       },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 2
@@ -399,6 +413,9 @@
       },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 2
@@ -424,6 +441,9 @@
       },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 2
@@ -442,6 +462,9 @@
       "probability": 0.5,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 1
@@ -474,6 +497,9 @@
       },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 2
@@ -499,6 +525,9 @@
       },
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "timeLimit": {
           "unit": "ACTION",
           "count": 2
@@ -517,6 +546,9 @@
       "probability": 1,
       "duration": {
         "dispellable": false,
+        "linkedEffectGroupId": "MERU_BESIDE_MAGOKORO_TIMED_LINK",
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE",
         "consumption": {
           "kind": "OUTGOING_HIT",
           "maxCount": 2

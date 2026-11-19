@@ -131,10 +131,10 @@ export interface DecayMarkerStacksResult {
 
 /**
  * `SHIELD_DECAY_OVER_TIME`の`decayActionShields`（`shield-policy.ts`）と同じ
- * COMPLETING契機のMarker版。`decay`を宣言したMarkerのうち、`decayingStackCount`
- * （`decay`宣言付きの付与で積まれた分だけ）を上限に`stackCount`を減らす —
- * 同じMarkerへ`decay`未宣言の付与（例: スキル側の非逓減スタック）が積み増した
- * 分は`decayingStackCount`に含まれないため巻き込まない。
+ * COMPLETING契機のMarker版。`decay`を宣言した付与分のうち逓減対象（`decayingStackCount`）
+ * だけを、同じ保持者・同じ`markerId`ごとに`decay.amount`スタック分、付与の古い順に減らす
+ * — 同じMarkerの`decay`未宣言の付与分（例: スキル側の非逓減スタック）は巻き込まない。
+ * 1回の逓減量は、対象になる付与分のうち最も新しい付与の`decay.amount`を使う。
  *
  * `decrementDurations`と同じく、0になったインスタンスをこの関数自身は除去しない
  * （呼び出し側が`removeMarkers`へ`reason: "STACK_DECAY"`のseedとして渡す）。
@@ -145,31 +145,42 @@ export function decayActionMarkerStacks(
 ): DecayMarkerStacksResult {
   const changes: MarkerStackDecayChange[] = [];
   const nextUnits = units.map((battleUnit) => {
-    let changedInUnit = false;
-    const nextMarkers = battleUnit.markerStates.map((marker) => {
+    const eligible = battleUnit.markerStates.filter((marker) => {
       if (marker.decay === undefined || marker.decayingStackCount <= 0) {
-        return marker;
+        return false;
       }
       const owner = resolveMarkerStackDecayOwnerUnitId(marker);
-      if (owner !== "BATTLE" && owner !== actingUnitId) {
+      return owner === "BATTLE" || owner === actingUnitId;
+    });
+    if (eligible.length === 0) {
+      return battleUnit;
+    }
+    const budgetByMarkerId = new Map<MarkerState["markerId"], number>();
+    for (const marker of eligible) {
+      budgetByMarkerId.set(marker.markerId, marker.decay!.amount);
+    }
+    const eligibleIds = new Set(eligible.map((marker) => marker.markerInstanceId));
+    const nextMarkers = battleUnit.markerStates.map((marker) => {
+      const budget = budgetByMarkerId.get(marker.markerId) ?? 0;
+      if (!eligibleIds.has(marker.markerInstanceId) || budget <= 0) {
         return marker;
       }
-      const step = Math.min(marker.decay.amount, marker.decayingStackCount);
-      const stackAfter = Math.max(0, marker.stackCount - step);
+      const step = Math.min(budget, marker.decayingStackCount, marker.stackCount);
+      budgetByMarkerId.set(marker.markerId, budget - step);
+      const stackAfter = marker.stackCount - step;
       changes.push({
         battleUnitId: battleUnit.battleUnitId,
         markerInstanceId: marker.markerInstanceId,
         stackBefore: marker.stackCount,
         stackAfter,
       });
-      changedInUnit = true;
       return {
         ...marker,
         stackCount: stackAfter,
         decayingStackCount: marker.decayingStackCount - step,
       };
     });
-    return changedInUnit ? { ...battleUnit, markerStates: nextMarkers } : battleUnit;
+    return { ...battleUnit, markerStates: nextMarkers };
   });
   return { units: nextUnits, changes };
 }

@@ -152,8 +152,10 @@ function markersOf(
     if (unit === undefined) {
       throw new Error(`no unit "${unitId}" on the board`);
     }
+    // 同じ`markerId`でも付与分ごとに別インスタンスを持つため、所持数は合計で読む（R-EFF-10）。
     for (const marker of unit.markerStates) {
-      markers[`${unitId}/${marker.markerId}`] = marker.stackCount;
+      const key = `${unitId}/${marker.markerId}`;
+      markers[key] = (markers[key] ?? 0) + marker.stackCount;
     }
   }
   return markers;

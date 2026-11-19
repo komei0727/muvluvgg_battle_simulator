@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createMarkerId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { markerStackTotal } from "../../../domain/battle/model/marker-state.js";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -70,8 +72,12 @@ const ALLY_STUNNED: readonly PrecedingAction[] = [
  */
 const ONE_AS1_SELF_GRANT: readonly PrecedingAction[] = [
   { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_MARKER", target: "SELF" },
-  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", target: "SELF" },
-  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP", target: "SELF" },
+  { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", target: "SELF", withPrevious: true },
+  {
+    effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP",
+    target: "SELF",
+    withPrevious: true,
+  },
 ];
 
 /** AS2の「闘志4つ以上」分岐を成立させる盤面。 */
@@ -330,26 +336,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         event: "HitPointReduced",
       }),
     },
-    board: SUBJECT_WITH_ONE_FIGHTING_SPIRIT,
     // 「闘志」1個につきATK/会心ダメージバフ1組が連動する設計（レビュー対応）を
-    // 検証するため、AS1が付与するのと同じバフ1組を前提として持たせる。
-    precedingActions: [
-      { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_ATK_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_AS1_CRIT_DMG_UP", target: "SELF" },
-    ],
+    // 検証するため、AS1が付与するのと闘志1個とバフ1組を、同じ付与として前提に持たせる。
+    precedingActions: ONE_AS1_SELF_GRANT,
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_HEAL", targets: ["ally:subject"] },
         {
           effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_REMOVE_MARKER",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_REMOVE_ATK_UP",
-          targets: ["ally:subject"],
-        },
-        {
-          effectActionDefinitionId: "ACT_HIIRO_FREEWOLF_PS1_REMOVE_CRIT_DMG_UP",
           targets: ["ally:subject"],
         },
         {
@@ -521,10 +515,7 @@ describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の孤狼
     // 積み上がるだけで、旧`MARKER_COUNT_SCALE`実装のような+12%/+9%への過剰計上はない）。
     const afterTwo = applyPrecedingActions(board, [...ONE_AS1_SELF_GRANT, ...ONE_AS1_SELF_GRANT]);
     const subjectAfterTwo = afterTwo.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
-    expect(
-      subjectAfterTwo.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
-        ?.stackCount,
-    ).toBe(2);
+    expect(markerStackTotal(subjectAfterTwo.markerStates, createMarkerId(FIGHTING_SPIRIT))).toBe(2);
     expect(subjectAfterTwo.combatStats.attack).toBe(BOARD_COMBAT_STATS.attack * 1.08);
     expect(subjectAfterTwo.combatStats.criticalDamageBonus).toBeCloseTo(
       BOARD_COMBAT_STATS.criticalDamageBonus + 2 * 0.03,
@@ -535,10 +526,9 @@ describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の孤狼
     const eightGrants = Array.from({ length: 8 }, () => ONE_AS1_SELF_GRANT).flat();
     const afterEight = applyPrecedingActions(board, eightGrants);
     const subjectAfterEight = afterEight.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
-    expect(
-      subjectAfterEight.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
-        ?.stackCount,
-    ).toBe(8);
+    expect(markerStackTotal(subjectAfterEight.markerStates, createMarkerId(FIGHTING_SPIRIT))).toBe(
+      8,
+    );
     expect(subjectAfterEight.combatStats.attack).toBe(BOARD_COMBAT_STATS.attack * 1.32);
     expect(subjectAfterEight.combatStats.criticalDamageBonus).toBeCloseTo(
       BOARD_COMBAT_STATS.criticalDamageBonus + 8 * 0.03,
@@ -550,10 +540,9 @@ describe("production Catalog UNIT_HIIRO_FREEWOLF (【疾走する自由の孤狼
     const nineGrants = Array.from({ length: 9 }, () => ONE_AS1_SELF_GRANT).flat();
     const afterNine = applyPrecedingActions(board, nineGrants);
     const subjectAfterNine = afterNine.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
-    expect(
-      subjectAfterNine.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)
-        ?.stackCount,
-    ).toBe(8);
+    expect(markerStackTotal(subjectAfterNine.markerStates, createMarkerId(FIGHTING_SPIRIT))).toBe(
+      8,
+    );
     expect(subjectAfterNine.combatStats.attack).toBe(subjectAfterEight.combatStats.attack);
     expect(subjectAfterNine.combatStats.criticalDamageBonus).toBeCloseTo(
       subjectAfterEight.combatStats.criticalDamageBonus,

@@ -322,8 +322,8 @@ export function toEffectSnapshot(effect: AppliedEffect, isEffective: boolean): E
 /**
  * `05_ドメインモデル.md`「MarkerState」/R-EFF-10の外部公開形。`EffectSnapshot`と
  * 同じ設計（`duration`はACTION/TURN単位の場合だけ、`consumptionRemaining`は
- * 消費条件を持つ場合だけ存在する）。`sourceUnitId`は直近の付与者（インスタンス
- * 識別には使わない、`marker-state.ts`参照）。
+ * 消費条件を持つ場合だけ存在する）。`sourceUnitId`はこの付与分の付与者
+ * （`marker-state.ts`参照）。
  */
 export interface MarkerSnapshot {
   readonly markerInstanceId: MarkerInstanceId;

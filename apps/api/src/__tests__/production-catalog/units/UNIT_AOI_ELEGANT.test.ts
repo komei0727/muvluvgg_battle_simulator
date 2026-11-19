@@ -589,8 +589,16 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     // 付与と付与者の戦闘不能を同じ観測へ載せられない）。
     const granted = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS1_MARKER_KOUYOU", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT", target: "ENEMY" },
+      {
+        effectActionDefinitionId: "ACT_AOI_ELEGANT_AS1_KOUYOU_CRIT_DOWN",
+        target: "ENEMY",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_AOI_ELEGANT_AS1_KOUYOU_DOT",
+        target: "ENEMY",
+        withPrevious: true,
+      },
     ]);
     const holderBefore = granted.find((unit) => unit.battleUnitId === "enemy:front")!;
     expect(holderBefore.markerStates.map((marker) => marker.markerId)).toEqual([KOUYOU]);
@@ -779,6 +787,7 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
       ...KOUYOU_CHILD_ACTION_IDS.map((id) => ({
         effectActionDefinitionId: id,
         target: "ENEMY" as const,
+        withPrevious: true as const,
       })),
       // PS2の解除条件は「「高揚」を2つ以上所持している敵」。
       { effectActionDefinitionId: KOUYOU_MARKER_ACTION_ID, target: "ENEMY" },
@@ -789,8 +798,12 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
     expect(holderBefore.appliedEffects.map((effect) => effect.effectActionDefinitionId)).toEqual([
       ...KOUYOU_CHILD_ACTION_IDS,
     ]);
+    // 2回の付与は付与分ごとに別インスタンスとして持つ（R-EFF-10）。
     expect(holderBefore.markerStates.map((marker) => [marker.markerId, marker.stackCount])).toEqual(
-      [[KOUYOU, 2]],
+      [
+        [KOUYOU, 1],
+        [KOUYOU, 1],
+      ],
     );
     expect(holderBefore.combatStats.criticalRate).toBeCloseTo(BASE_CRITICAL_RATE - 0.25, 9);
 
@@ -820,9 +833,12 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
         (event) => event.eventType === "EffectExpired" || event.eventType === "MarkerRemoved",
       );
     // R-EFF-09「同時失効では、子効果を先に失効させ、最後に親効果を失効させる」。
+    // 専用解除は対象が持つ「高揚」の付与分すべてを外し、子を持つ1回目の付与分の子だけが
+    // 連動する（R-EFF-10）。
     expect(cascade.map((event) => event.eventType)).toEqual([
       "EffectExpired",
       "EffectExpired",
+      "MarkerRemoved",
       "MarkerRemoved",
     ]);
     KOUYOU_CHILD_ACTION_IDS.forEach((childId, index) => {
@@ -833,12 +849,14 @@ describe("production Catalog UNIT_AOI_ELEGANT (【優雅なる規律の花】生
         cascaded: true,
       });
     });
-    expect(cascade[2]!.payload).toMatchObject({
-      markerId: KOUYOU,
-      reason: "REMOVED",
-      linkedEffectGroupId: KOUYOU_LINK,
-      cascaded: false,
-    });
+    for (const removed of cascade.slice(2)) {
+      expect(removed.payload).toMatchObject({
+        markerId: KOUYOU,
+        reason: "REMOVED",
+        linkedEffectGroupId: KOUYOU_LINK,
+        cascaded: false,
+      });
+    }
   });
 
   it("IT-UNIT-AOI-ELEGANT-008 [R-STA-03] (Q-CAT-EFF-16, R-STA-03): PS1の攻撃力35%低下は原文に「重複可」が無く重複しない — EXがクールタイムをリセットして再発動しても実効値は1件分にとどまる", () => {

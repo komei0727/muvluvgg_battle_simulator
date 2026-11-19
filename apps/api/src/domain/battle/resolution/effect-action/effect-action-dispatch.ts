@@ -1,7 +1,14 @@
 import { DomainValidationError } from "../../../shared/errors.js";
-import type {
-  EffectActionApplicationInput,
-  EffectActionResolution,
+import { durationOf } from "../../../catalog/integrity/effect-action-inspection.js";
+import {
+  hasLinkedParentForGrant,
+  recordLinkedParentGrant,
+} from "../../model/linked-effect-group.js";
+import { requireUnit } from "../action-resolution-shared.js";
+import {
+  settledOutcome,
+  type EffectActionApplicationInput,
+  type EffectActionResolution,
 } from "./effect-action-handler.js";
 import { resolveDamage } from "./damage-effect-action.js";
 import { resolveHeal } from "./heal-effect-action.js";
@@ -39,6 +46,35 @@ import { resolveDefensiveIntervention } from "./defensive-intervention-effect-ac
 export function* resolveEffectActionByKind(
   input: EffectActionApplicationInput,
 ): EffectActionResolution {
+  const duration = durationOf(input.effectAction);
+  const { skillUseId, linkedGroupGrants } = input.context;
+  const targetUnitId = input.application.targetUnitId;
+  if (
+    duration !== undefined &&
+    !hasLinkedParentForGrant(
+      requireUnit(input.box.units, targetUnitId),
+      duration,
+      skillUseId,
+      linkedGroupGrants,
+    )
+  ) {
+    return settledOutcome(input, input.startingEventId, "SKIPPED");
+  }
+  const outcome = yield* resolveByKind(input);
+  // R-EFF-09: `SKILL_USE`範囲の親の付与結果を記録し、後続の子が付与されなかった
+  // 付与分を先の付与分と取り違えないようにする。
+  recordLinkedParentGrant(
+    linkedGroupGrants,
+    duration,
+    input.box.units.find((unit) => unit.battleUnitId === targetUnitId),
+    targetUnitId,
+    outcome.resultKind === "APPLIED",
+    skillUseId,
+  );
+  return outcome;
+}
+
+function* resolveByKind(input: EffectActionApplicationInput): EffectActionResolution {
   const effectAction = input.effectAction;
   switch (effectAction.kind) {
     case "DAMAGE":

@@ -1000,24 +1000,24 @@ BattleUnitStateResponse {
 }
 ```
 
-| プロパティ          | 型                        | 説明                                                                                                                                                                                                   |
-| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `battleUnitId`      | string                    | この戦闘内の参加枠ID。                                                                                                                                                                                 |
-| `unitDefinitionId`  | string                    | 元となるユニット定義ID。                                                                                                                                                                               |
-| `side`              | string                    | `ALLY` または `ENEMY`。                                                                                                                                                                                |
-| `formationPosition` | object                    | `{ column, row }`。リクエストと同じ陣営内表現。                                                                                                                                                        |
-| `coordinate`        | object                    | `{ x, y }`。3×4共通座標。                                                                                                                                                                              |
-| `combatStatus`      | string                    | `ACTIVE` または `DEFEATED`。                                                                                                                                                                           |
-| `formationNumber`   | integer                   | 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する（任意プロパティ）。                                                                                                             |
-| `hp`                | `CurrentMaximumValue`     | 現在HPと最大HP。                                                                                                                                                                                       |
-| `resources`         | `ResourceStateResponse`   | AP、PP、EXゲージ。                                                                                                                                                                                     |
-| `combatStats`       | `CombatStatsResponse`     | 現時点で有効な戦闘ステータス。                                                                                                                                                                         |
-| `shields`           | `ShieldStateResponse`     | タイプ別シールドプール。                                                                                                                                                                               |
-| `subUnits`          | `SubUnitStateResponse[]`  | サブユニットごとの耐久状態。                                                                                                                                                                           |
-| `effects`           | `EffectStateResponse[]`   | 個別管理される全効果インスタンス。                                                                                                                                                                     |
-| `markers`           | `MarkerStateResponse[]`   | 対象ごとに1インスタンスのMarker。EFF-004でv1へ追加した任意プロパティ（「schemaVersion」の後方互換規則により必須にしない）。Response Mapperは常に値を設定する（`charge`のように省略されることはない）。 |
-| `cooldowns`         | `CooldownStateResponse[]` | 残数があるスキルクールタイム。                                                                                                                                                                         |
-| `charge`            | `ChargeStateResponse`     | チャージ中だけ存在する。                                                                                                                                                                               |
+| プロパティ          | 型                        | 説明                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `battleUnitId`      | string                    | この戦闘内の参加枠ID。                                                                                                                                                                                                                    |
+| `unitDefinitionId`  | string                    | 元となるユニット定義ID。                                                                                                                                                                                                                  |
+| `side`              | string                    | `ALLY` または `ENEMY`。                                                                                                                                                                                                                   |
+| `formationPosition` | object                    | `{ column, row }`。リクエストと同じ陣営内表現。                                                                                                                                                                                           |
+| `coordinate`        | object                    | `{ x, y }`。3×4共通座標。                                                                                                                                                                                                                 |
+| `combatStatus`      | string                    | `ACTIVE` または `DEFEATED`。                                                                                                                                                                                                              |
+| `formationNumber`   | integer                   | 総力戦のみ。所属する編成の番号（1～3）。他のエンドポイントでは省略する（任意プロパティ）。                                                                                                                                                |
+| `hp`                | `CurrentMaximumValue`     | 現在HPと最大HP。                                                                                                                                                                                                                          |
+| `resources`         | `ResourceStateResponse`   | AP、PP、EXゲージ。                                                                                                                                                                                                                        |
+| `combatStats`       | `CombatStatsResponse`     | 現時点で有効な戦闘ステータス。                                                                                                                                                                                                            |
+| `shields`           | `ShieldStateResponse`     | タイプ別シールドプール。                                                                                                                                                                                                                  |
+| `subUnits`          | `SubUnitStateResponse[]`  | サブユニットごとの耐久状態。                                                                                                                                                                                                              |
+| `effects`           | `EffectStateResponse[]`   | 個別管理される全効果インスタンス。                                                                                                                                                                                                        |
+| `markers`           | `MarkerStateResponse[]`   | 付与分ごとのMarker（同じ`markerId`でも付与ごとに別要素、R-EFF-10）。EFF-004でv1へ追加した任意プロパティ（「schemaVersion」の後方互換規則により必須にしない）。Response Mapperは常に値を設定する（`charge`のように省略されることはない）。 |
+| `cooldowns`         | `CooldownStateResponse[]` | 残数があるスキルクールタイム。                                                                                                                                                                                                            |
+| `charge`            | `ChargeStateResponse`     | チャージ中だけ存在する。                                                                                                                                                                                                                  |
 
 ### HP・リソース
 
@@ -1121,13 +1121,13 @@ MarkerStateResponse {
 | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | `markerInstanceId` | 個別インスタンスの安定したドメインID。                                                                              |
 | `markerId`         | Marker種別を識別するID（`MARKER_` 接頭辞）。                                                                        |
-| `sourceUnitId`     | 直近の付与者。複数付与元から同じMarkerが付与された場合も対象ごとに単一インスタンスへ積む。                          |
+| `sourceUnitId`     | この付与分の付与者。同じMarkerを複数回付与した場合は付与分ごとに別要素になる。                                      |
 | `sourceSide`       | Memory の `triggeredEffects` 由来のMarkerだけが持つ付与元の陣営（`R-MEM-04`）。この場合 `sourceUnitId` は持たない。 |
 | `stackCount`       | 現在のスタック数（0未満にならない）。                                                                               |
 | `stackMax`         | スタック上限。上限なしは `null`。                                                                                   |
 | `duration`         | `{ unit: "ACTION" \| "TURN", remaining: integer }`。永続効果では省略する。                                          |
 
-`EffectStateResponse` と異なり `category`/`stackMode`/`isEffective`/`value` を持たない。Markerは重複あり・なしの選択（R-EFF-05）の対象ではなく、対象ごとに常に1インスタンスだけが存在し、`ADD`/`KEEP_EXISTING`/`REFRESH`/`REPLACE`の付与方針でこのインスタンスを更新する（R-EFF-10）。
+`EffectStateResponse` と異なり `category`/`stackMode`/`isEffective`/`value` を持たない。Markerは重複あり・なしの選択（R-EFF-05）の対象ではなく、付与ごとに別インスタンス（付与分）として存在する。`ADD`は付与分を追加し、`KEEP_EXISTING`/`REFRESH`/`REPLACE`は保持する付与分を維持・更新する。所持数は同じ`markerId`の付与分の`stackCount`の合計で読む（R-EFF-10）。
 
 #### Memory由来Markerの付与元（M7-008 / Issue #176、REL-008 / Issue #263）
 

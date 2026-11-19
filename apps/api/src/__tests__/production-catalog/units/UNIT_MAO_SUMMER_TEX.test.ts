@@ -482,9 +482,21 @@ describe("production Catalog UNIT_MAO_SUMMER_TEX (【真夏の風紀委員長】
       steps: [{ kind: "ACTION_END", actor: "ally:subject" }],
     });
     const granted = applyPrecedingActions({ ...board, units: aged.units }, [
-      { effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_ATK_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_DMG_UP", target: "SELF" },
-      { effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_EX_GAIN_DOWN", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_ATK_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_DMG_UP",
+        target: "SELF",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_MAO_SUMMER_TEX_EX_EX_GAIN_DOWN",
+        target: "SELF",
+        withPrevious: true,
+      },
     ]);
     // 攻撃力15%上昇が乗った状態（1000 → 1150）。
     expect(granted.find((unit) => unit.battleUnitId === "ally:subject")!.combatStats.attack).toBe(

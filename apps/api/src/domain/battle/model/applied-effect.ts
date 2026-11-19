@@ -350,11 +350,21 @@ export interface EffectDurationState {
   /**
    * R-EFF-09: `definition.linkedEffectGroupScope === "SKILL_USE"`の場合、付与時の
    * `SkillUseId`。同じスキル使用で付与されたメンバーだけを連動させるキーに使う。
-   * スキル使用の外の付与（Memory由来など）では持たず、その場合は保持ユニット単位で
-   * 連動する（`HOLDER`と同じ）。`MarkerState`は`SKILL_USE`をCatalogロード時に拒否するため
-   * 持たない。
+   * スキル使用の外の付与では持たず、その場合は保持ユニット単位で連動する（`HOLDER`と同じ）。
    */
   readonly linkedGroupSkillUseId?: SkillUseId;
+  /**
+   * R-EFF-09: `SKILL_USE`範囲で親子ロールを持つメンバーの付与分の識別子。`PARENT`は
+   * 自身のインスタンス、`CHILD`は付与時点で同じ保持者・同じスキル使用の最新の`PARENT`
+   * の値を持つ。1回のスキル使用が同じ保持者へ親を繰り返し付与しても（`REPEAT`など）、
+   * 各親と、その直後に付与した子だけが連動する。
+   */
+  readonly linkedGroupAnchor?: string;
+  /**
+   * R-EFF-09: `SKILL_USE`範囲の`PARENT`を付与した順序（付与時点の記録済みイベント数）。
+   * 親が`MarkerState`と`AppliedEffect`の両方にあっても、付与順で最新の親を選ぶために使う。
+   */
+  readonly linkedGroupGrantOrder?: number;
   /**
    * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（R-EFF-11、
    * EFF-005/Issue #162）。`definition.counterUpdates`が存在する場合だけ空の
@@ -373,6 +383,8 @@ export function buildInitialDurationState(
     readonly actionId?: ActionId;
     readonly turnNumber: number;
     readonly skillUseId?: SkillUseId;
+    readonly linkedGroupAnchor?: string;
+    readonly linkedGroupGrantOrder?: number;
   },
 ): EffectDurationState {
   const timeLimit = definition.timeLimit;
@@ -391,6 +403,14 @@ export function buildInitialDurationState(
       : {}),
     ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.skillUseId !== undefined
       ? { linkedGroupSkillUseId: context.skillUseId }
+      : {}),
+    ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.linkedGroupAnchor !== undefined
+      ? { linkedGroupAnchor: context.linkedGroupAnchor }
+      : {}),
+    ...(definition.linkedEffectGroupScope === "SKILL_USE" &&
+    definition.linkedEffectGroupRole === "PARENT" &&
+    context.linkedGroupGrantOrder !== undefined
+      ? { linkedGroupGrantOrder: context.linkedGroupGrantOrder }
       : {}),
     ...(definition.counterUpdates !== undefined && definition.counterUpdates.length > 0
       ? { counters: {} }

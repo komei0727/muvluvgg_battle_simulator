@@ -234,8 +234,7 @@ function toSubUnitStateResponseBody(effect: EffectSnapshot): SubUnitStateRespons
 
 /**
  * `10_API設計.md`「MarkerStateResponse」(R-EFF-10、EFF-004):
- * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`は直近の付与者を表す
- * 監査用の値）。
+ * `MarkerSnapshot`をそのまま外部形へ写す（`sourceUnitId`はこの付与分の付与者）。
  *
  * R-MEM-04のMemory由来Markerは付与者ユニットを持たず付与元陣営だけを持つため、
  * `EffectStateResponse`と同じ「どちらか一方だけを持つ」形で公開する（REL-008／

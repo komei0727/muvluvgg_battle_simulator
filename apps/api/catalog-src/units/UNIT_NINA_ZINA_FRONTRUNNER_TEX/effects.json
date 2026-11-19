@@ -19,8 +19,8 @@
     "payload": {
       "markerId": "MARKER_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF",
       "stack": {
-        "policy": "REFRESH",
-        "max": 1
+        "policy": "ADD",
+        "max": null
       },
       "duration": {
         "dispellable": false,
@@ -31,7 +31,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -61,7 +61,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -84,7 +84,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       },
       "maxBlocks": null
     },
@@ -188,7 +188,7 @@
         "dispellable": true,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -213,7 +213,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -237,7 +237,7 @@
         "dispellable": false,
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -336,7 +336,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "PARENT",
-        "linkedEffectGroupScope": "HOLDER",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -365,7 +365,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -393,7 +393,7 @@
         },
         "linkedEffectGroupId": "NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_LINK",
         "linkedEffectGroupRole": "CHILD",
-        "linkedEffectGroupScope": "HOLDER"
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {

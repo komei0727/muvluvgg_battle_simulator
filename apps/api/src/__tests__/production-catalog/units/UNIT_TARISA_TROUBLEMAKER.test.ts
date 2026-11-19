@@ -168,8 +168,9 @@ const PS1_FIRST_STACK = {
 } as const;
 
 /** 既に「負けん気」を5つ持つ前提。`REMOVE_MARKER` の `count: 3` が観測できる。 */
+/** 「負けん気」を5回分の付与として持つ（付与分ごとに別インスタンス — R-EFF-10）。 */
 const HOLDS_FIVE_SPIRIT: BoardOverrides = {
-  subject: { markers: [{ markerId: FIGHTING_SPIRIT, stackCount: 5 }] },
+  subject: { markers: Array.from({ length: 5 }, () => ({ markerId: FIGHTING_SPIRIT })) },
 };
 
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
@@ -394,11 +395,12 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
 ];
 
 /** 同じ実 production 定義（PS1の攻撃力バフ）を `count` 回、自身へ適用する。 */
+/** PS1の1回分の付与（「負けん気」1個と、その付与分の子である攻撃力バフ1件）を`count`回。 */
 function grantAtkUp(count: number): readonly PrecedingAction[] {
-  return Array.from({ length: count }, () => ({
-    effectActionDefinitionId: PS1_ATK_UP,
-    target: "SELF" as const,
-  }));
+  return Array.from({ length: count }, (): readonly PrecedingAction[] => [
+    { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
+    { effectActionDefinitionId: PS1_ATK_UP, target: "SELF", withPrevious: true },
+  ]).flat();
 }
 
 const PROBE_ACTION_ID = "ACT_TEST_TARISA_TEN_DAMAGE";
@@ -558,9 +560,9 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
   });
 
   it("IT-UNIT-TARISA-TROUBLEMAKER-006 [R-SKL-06] (R-SKL-06): 条件付きstepは契機イベントのpayload（`calculatedDamage`）で分かれ、無条件stepと同じ1回の発動の中で解決される。公開差分だけからも同じ段数へ復元できる", () => {
-    // `-001` の表は「どちらの腕が走ったか」を見る。ここは同じ発動の中で
-    // `MarkerUpdated` が2回（無条件の+1と条件付きの-3）出ることと、その公開差分
-    // だけで最終段数が再構成できることを見る。
+    // `-001` の表は「どちらの腕が走ったか」を見る。ここは同じ発動の中で、無条件の
+    // +1が新しい付与分を作り（`MarkerApplied`）、条件付きの-3が古い付与分から3つを
+    // 外す（`MarkerRemoved`×3）ことと、その公開差分だけで最終個数が再構成できることを見る。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID, HOLDS_FIVE_SPIRIT);
     const chain = openPassiveChain({
       definitions: board.definitions,
@@ -572,17 +574,29 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     const struck = strikeForCondition(chain, board.units, 0.02, 10);
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 
-    const markerUpdates = chain.recorder
+    const heldBefore = board.units
+      .find((unit) => unit.battleUnitId === "ally:subject")!
+      .markerStates.map((marker) => marker.markerInstanceId);
+    const markerEvents = chain.recorder
       .getEvents()
       .filter(
-        (event): event is Extract<BattleDomainEvent, { eventType: "MarkerUpdated" }> =>
-          event.eventType === "MarkerUpdated" && event.payload.markerId === FIGHTING_SPIRIT,
+        (event) =>
+          (event.eventType === "MarkerApplied" || event.eventType === "MarkerRemoved") &&
+          (event.payload as { markerId: string }).markerId === FIGHTING_SPIRIT,
       )
-      .map((event) => [event.payload.stackBefore, event.payload.stackAfter]);
-    expect(markerUpdates).toEqual([
-      [5, 6],
-      [6, 3],
+      .map((event) => [
+        event.eventType,
+        (event.payload as { markerInstanceId: string }).markerInstanceId,
+      ]);
+    expect(markerEvents.map(([eventType]) => eventType)).toEqual([
+      "MarkerApplied",
+      "MarkerRemoved",
+      "MarkerRemoved",
+      "MarkerRemoved",
     ]);
+    expect(markerEvents.slice(1).map(([, instanceId]) => instanceId)).toEqual(
+      heldBefore.slice(0, 3),
+    );
 
     // recorderには契機を作った攻撃の差分も載るため、素の盤面から当て直す。
     const restored = reconstruct(
@@ -590,15 +604,15 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
       chain.recorder,
     );
     expect(
-      restored.units[createBattleUnitId("ally:subject")]!.markers!.find(
+      restored.units[createBattleUnitId("ally:subject")]!.markers!.filter(
         (marker) => marker.markerId === FIGHTING_SPIRIT,
-      )?.stackCount,
-    ).toBe(3);
+      ),
+    ).toHaveLength(3);
     expect(
       after
         .find((unit) => unit.battleUnitId === "ally:subject")!
-        .markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)?.stackCount,
-    ).toBe(3);
+        .markerStates.filter((marker) => marker.markerId === FIGHTING_SPIRIT),
+    ).toHaveLength(3);
   });
 
   it("IT-UNIT-TARISA-TROUBLEMAKER-005 [R-EFF-05] (R-EFF-05): 上限で頭打ちになった攻撃力バフは、公開差分だけからも14インスタンスとして復元できる", () => {
@@ -636,16 +650,13 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     // 持たない素のMarkerになるため、カスケードの前提にはできない。
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const baseline = applyPrecedingActions(board, [
-      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
-      { effectActionDefinitionId: PS1_ATK_UP, target: "SELF" },
-      { effectActionDefinitionId: PS1_MARKER, target: "SELF" },
-      { effectActionDefinitionId: PS1_ATK_UP, target: "SELF" },
+      ...grantAtkUp(2),
       // 「解除不可」側: バフを全解除する実 production 定義を通しても1件も落ちない。
       { effectActionDefinitionId: DISPEL_BUFFS_ACTION_ID, target: "SELF" },
     ]);
     const before = baseline.find((unit) => unit.battleUnitId === "ally:subject")!;
     expect(atkUpsOf(baseline)).toHaveLength(2);
-    expect(before.markerStates.map((marker) => marker.stackCount)).toEqual([2]);
+    expect(before.markerStates.map((marker) => marker.stackCount)).toEqual([1, 1]);
     expect(before.combatStats.attack).toBeCloseTo(1000 * (1 + 0.025 * 2), 9);
 
     const chain = openPassiveChain({
@@ -659,8 +670,8 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
     const eventsBefore = chain.recorder.getEvents().length;
     const after = chain.fireRecorded(struck.triggerEvent, struck.units);
 
-    // 発動で「負けん気」は2→3になり、`REMOVE_MARKER` の `count: 3` が保持ごと消す。
-    // 巻き込まれるのは前提の2件＋この発動が付けた1件。
+    // 発動で「負けん気」は2→3になり、`REMOVE_MARKER` の `count: 3` が3つの付与分を
+    // 古い順に外す。各付与分の攻撃力バフ（前提の2件＋この発動が付けた1件）が連動する。
     const holder = after.find((unit) => unit.battleUnitId === "ally:subject")!;
     expect(holder.markerStates).toEqual([]);
     expect(holder.appliedEffects).toEqual([]);
@@ -678,6 +689,8 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
       "EffectExpired",
       "EffectExpired",
       "MarkerRemoved",
+      "MarkerRemoved",
+      "MarkerRemoved",
     ]);
     for (const expired of cascade.slice(0, 3)) {
       expect(expired.payload).toMatchObject({
@@ -687,12 +700,14 @@ describe("production Catalog UNIT_TARISA_TROUBLEMAKER (【天真爛漫トラブ�
         cascaded: true,
       });
     }
-    expect(cascade[3]!.payload).toMatchObject({
-      markerId: FIGHTING_SPIRIT,
-      reason: "REMOVED",
-      linkedEffectGroupId: PS1_LINK,
-      cascaded: false,
-    });
+    for (const removed of cascade.slice(3)) {
+      expect(removed.payload).toMatchObject({
+        markerId: FIGHTING_SPIRIT,
+        reason: "REMOVED",
+        linkedEffectGroupId: PS1_LINK,
+        cascaded: false,
+      });
+    }
 
     const restored = reconstruct(
       initialSnapshotFor(baseline, { include: ["effects", "markers"] }),

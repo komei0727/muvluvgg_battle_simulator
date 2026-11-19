@@ -4,7 +4,7 @@ import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import type { BattlePartyMember } from "../model/battle-party.js";
 import { EventRecorder } from "../events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../shared/ids.js";
-import type { DomainEventId } from "../../shared/event-ids.js";
+import { createActionId, createSkillUseId, type DomainEventId } from "../../shared/event-ids.js";
 import { createMarkerId, createUnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { FormationPosition } from "../model/formation-input.js";
 import { toGlobalCoordinate } from "../model/global-coordinate.js";
@@ -96,12 +96,13 @@ describe("applyMarker", () => {
     expect(events[1]!.eventType).toBe("MarkerApplied");
   });
 
-  it("UT-R-EFF-10-002: ADD increments the stack of an existing MarkerState", () => {
+  it("UT-R-EFF-10-002 [R-EFF-10]: ADD onto an existing Marker creates a separate instance that keeps its own source and duration", () => {
     const source = unit("source-1");
+    const otherSource = unit("source-2");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
     const context = baseContext(recorder, rootEventId);
-    const request = {
+    const permanent = {
       markerId,
       sourceUnitId: source.battleUnitId,
       targetUnitId: target.battleUnitId,
@@ -109,15 +110,33 @@ describe("applyMarker", () => {
       stackMax: null,
       durationDefinition: BATTLE_DURATION,
     };
+    const timed = {
+      ...permanent,
+      sourceUnitId: otherSource.battleUnitId,
+      durationDefinition: {
+        dispellable: true,
+        linkedEffectGroupId: null,
+        timeLimit: { unit: "ACTION", count: 2, owner: "EFFECT_SOURCE" },
+      } satisfies DurationDefinition,
+    };
 
-    const first = applyMarker(context, [source, target], request, rootEventId);
-    const second = applyMarker(context, first.units, request, first.lastEventId);
+    const first = applyMarker(context, [source, otherSource, target], permanent, rootEventId);
+    const second = applyMarker(context, first.units, timed, first.lastEventId);
 
-    expect(second.markerState.stackCount).toBe(2);
     const nextTarget = second.units.find((u) => u.battleUnitId === target.battleUnitId)!;
-    expect(nextTarget.markerStates).toHaveLength(1);
+    expect(nextTarget.markerStates).toHaveLength(2);
+    const [older, newer] = nextTarget.markerStates;
+    expect(older!.markerInstanceId).not.toBe(newer!.markerInstanceId);
+    expect(older!.stackCount).toBe(1);
+    expect(older!.sourceUnitId).toBe(source.battleUnitId);
+    expect(older!.duration.timeLimitRemaining).toBeUndefined();
+    expect(older!.duration.definition.timeLimit).toBeUndefined();
+    expect(newer!.stackCount).toBe(1);
+    expect(newer!.sourceUnitId).toBe(otherSource.battleUnitId);
+    expect(newer!.duration.timeLimitRemaining).toBe(2);
+    expect(second.markerState).toBe(newer);
     const events = recorder.getEvents();
-    expect(events[events.length - 1]!.eventType).toBe("MarkerUpdated");
+    expect(events[events.length - 1]!.eventType).toBe("MarkerApplied");
   });
 
   // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: `decay`宣言付きのADDだけが
@@ -184,14 +203,17 @@ describe("applyMarker", () => {
       decaying.lastEventId,
     );
 
-    expect(nonDecaying.markerState.stackCount).toBe(2);
-    expect(nonDecaying.markerState.decayingStackCount).toBe(1);
+    const markers = nonDecaying.units.find(
+      (u) => u.battleUnitId === target.battleUnitId,
+    )!.markerStates;
+    expect(markers.map((marker) => marker.decayingStackCount)).toEqual([1, 0]);
+    expect(nonDecaying.markerState.decay).toBeUndefined();
   });
 
   // レビュー指摘（PR #675, P1）: stackMaxで頭打ちのADDは`stackCount`が実際には
   // 増えないため、`decayingStackCount`も増やしてはならない。増やすと、次の
   // 逓減で本来残るべき非逓減スタックまで消えてしまう。
-  it("UT-R-EFF-10-042: a decaying ADD clamped at stack.max does not increment decayingStackCount beyond the actual stack increase", () => {
+  it("UT-R-EFF-10-042: a decaying ADD at stack.max creates no instance, so the decaying count does not grow", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -222,17 +244,20 @@ describe("applyMarker", () => {
       decayingRequest,
       nonDecaying.lastEventId,
     );
-    expect(decaying.markerState.stackCount).toBe(2);
-    expect(decaying.markerState.decayingStackCount).toBe(1);
+    const decayingOf = (units: readonly BattleUnit[]) =>
+      units
+        .find((u) => u.battleUnitId === target.battleUnitId)!
+        .markerStates.map((marker) => marker.decayingStackCount);
+    expect(decayingOf(decaying.units)).toEqual([0, 1]);
 
-    // 上限に達した状態でさらに逓減ADDを適用しても、stackCountは増えないため
-    // decayingStackCountも増えない（非逓減スタックを巻き込まない）。
+    // 合計が上限に達した状態の逓減ADDは付与分を作らないため、逓減対象も増えない。
+    const eventsBefore = recorder.getEvents().length;
     const clamped = applyMarker(context, decaying.units, decayingRequest, decaying.lastEventId);
-    expect(clamped.markerState.stackCount).toBe(2);
-    expect(clamped.markerState.decayingStackCount).toBe(1);
+    expect(decayingOf(clamped.units)).toEqual([0, 1]);
+    expect(recorder.getEvents()).toHaveLength(eventsBefore);
   });
 
-  it("UT-R-EFF-10-003: ADD clamps at stack.max", () => {
+  it("UT-R-EFF-10-003 [R-EFF-10]: ADD stops creating instances once the total of the same markerId reaches stack.max", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -255,7 +280,8 @@ describe("applyMarker", () => {
     }
 
     const nextTarget = current.find((u) => u.battleUnitId === target.battleUnitId)!;
-    expect(nextTarget.markerStates[0]!.stackCount).toBe(3);
+    expect(nextTarget.markerStates).toHaveLength(3);
+    expect(nextTarget.markerStates.every((marker) => marker.stackCount === 1)).toBe(true);
   });
 
   it("UT-R-EFF-10-004: KEEP_EXISTING does not change an existing MarkerState and emits no event", () => {
@@ -326,32 +352,52 @@ describe("applyMarker", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
-    const context = baseContext(recorder, rootEventId);
     const actionDuration: DurationDefinition = {
       dispellable: true,
       linkedEffectGroupId: null,
       timeLimit: { unit: "ACTION", count: 3 },
     };
-    const addRequest = {
+    const request = {
       markerId,
       sourceUnitId: source.battleUnitId,
       targetUnitId: target.battleUnitId,
-      stackPolicy: "ADD" as const,
-      stackMax: null,
+      stackPolicy: "REFRESH" as const,
+      stackMax: 1,
       durationDefinition: actionDuration,
     };
 
-    const first = applyMarker(context, [source, target], addRequest, rootEventId);
-    const grown = applyMarker(context, first.units, addRequest, first.lastEventId);
+    const first = applyMarker(
+      { ...baseContext(recorder, rootEventId), actionId: createActionId("A_1") },
+      [source, target],
+      request,
+      rootEventId,
+    );
+    const worn = first.units.map((u) =>
+      u.battleUnitId === target.battleUnitId
+        ? {
+            ...u,
+            markerStates: u.markerStates.map((marker) => ({
+              ...marker,
+              duration: { ...marker.duration, timeLimitRemaining: 1 },
+            })),
+          }
+        : u,
+    );
     const refreshed = applyMarker(
-      context,
-      grown.units,
-      { ...addRequest, stackPolicy: "REFRESH" },
-      grown.lastEventId,
+      { ...baseContext(recorder, rootEventId), actionId: createActionId("A_2") },
+      worn,
+      request,
+      first.lastEventId,
     );
 
-    expect(refreshed.markerState.stackCount).toBe(2);
+    const markers = refreshed.units.find(
+      (u) => u.battleUnitId === target.battleUnitId,
+    )!.markerStates;
+    expect(markers).toHaveLength(1);
+    expect(markers[0]!.markerInstanceId).toBe(first.markerState.markerInstanceId);
+    expect(refreshed.markerState.stackCount).toBe(1);
     expect(refreshed.markerState.duration.timeLimitRemaining).toBe(3);
+    expect(refreshed.markerState.duration.grantedActionId).toBe(createActionId("A_2"));
     const events = recorder.getEvents();
     expect(events[events.length - 1]!.eventType).toBe("MarkerUpdated");
   });
@@ -366,17 +412,20 @@ describe("applyMarker", () => {
       linkedEffectGroupId: null,
       timeLimit: { unit: "ACTION", count: 3 },
     };
-    const addRequest = {
-      markerId,
-      sourceUnitId: source.battleUnitId,
-      targetUnitId: target.battleUnitId,
-      stackPolicy: "ADD" as const,
-      stackMax: null,
-      durationDefinition: actionDuration,
-    };
-
-    const first = applyMarker(context, [source, target], addRequest, rootEventId);
-    const grown = applyMarker(context, first.units, addRequest, first.lastEventId);
+    const first = applyMarker(
+      context,
+      [source, target],
+      {
+        markerId,
+        sourceUnitId: source.battleUnitId,
+        targetUnitId: target.battleUnitId,
+        stackPolicy: "REPLACE",
+        stackMax: 1,
+        durationDefinition: actionDuration,
+      },
+      rootEventId,
+    );
+    const grown = first;
 
     const replacedDuration: DurationDefinition = {
       dispellable: true,
@@ -397,6 +446,10 @@ describe("applyMarker", () => {
       grown.lastEventId,
     );
 
+    expect(
+      replaced.units.find((u) => u.battleUnitId === target.battleUnitId)!.markerStates,
+    ).toHaveLength(1);
+    expect(replaced.markerState.markerInstanceId).toBe(first.markerState.markerInstanceId);
     expect(replaced.markerState.stackCount).toBe(1);
     expect(replaced.markerState.stackMax).toBe(5);
     expect(replaced.markerState.duration.definition.timeLimit?.unit).toBe("TURN");
@@ -419,7 +472,48 @@ describe("applyMarker", () => {
     const first = applyMarker(context, [source, target], request, rootEventId);
     const second = applyMarker(context, first.units, request, first.lastEventId);
 
-    expect(second.markerState.stackCount).toBe(1);
+    expect(second.markerState).toBe(first.markerState);
+    expect(
+      second.units.find((u) => u.battleUnitId === target.battleUnitId)!.markerStates,
+    ).toHaveLength(1);
+  });
+
+  it("UT-R-EFF-10-054 [R-EFF-09, R-EFF-10]: a SKILL_USE-scoped Marker records the granting SkillUseId for each grant", () => {
+    const source = unit("source-1");
+    const target = unit("target-1");
+    const { recorder, rootEventId } = seedRecorder();
+    const request = {
+      markerId,
+      sourceUnitId: source.battleUnitId,
+      targetUnitId: target.battleUnitId,
+      stackPolicy: "ADD" as const,
+      stackMax: null,
+      durationDefinition: {
+        dispellable: true,
+        linkedEffectGroupId: "GROUP_A",
+        linkedEffectGroupRole: "PARENT",
+        linkedEffectGroupScope: "SKILL_USE",
+      } satisfies DurationDefinition,
+    };
+
+    const first = applyMarker(
+      { ...baseContext(recorder, rootEventId), skillUseId: createSkillUseId("SU_1") },
+      [source, target],
+      request,
+      rootEventId,
+    );
+    const second = applyMarker(
+      { ...baseContext(recorder, rootEventId), skillUseId: createSkillUseId("SU_2") },
+      first.units,
+      request,
+      first.lastEventId,
+    );
+
+    const markers = second.units.find((u) => u.battleUnitId === target.battleUnitId)!.markerStates;
+    expect(markers.map((marker) => marker.duration.linkedGroupSkillUseId)).toEqual([
+      createSkillUseId("SU_1"),
+      createSkillUseId("SU_2"),
+    ]);
   });
 
   it("UT-R-EFF-10-019 [R-EFF-10, R-MEM-04]: a Memory-granted Marker (R-MEM-04) carries sourceSide instead of a granter unit, in the MarkerState, the MarkerApplied envelope and its payload", () => {
@@ -458,7 +552,7 @@ describe("applyMarker", () => {
     expect(snapshot?.sourceSide).toBe("ALLY");
   });
 
-  it("UT-R-EFF-10-020 [R-EFF-10, R-MEM-04]: re-applying a Memory-granted Marker from a real unit records the granter, and vice versa", () => {
+  it("UT-R-EFF-10-020 [R-EFF-10, R-MEM-04]: a Memory grant and a unit grant of the same Marker keep their own source", () => {
     const source = unit("source-1");
     const target = unit("target-1");
     const { recorder, rootEventId } = seedRecorder();
@@ -491,10 +585,13 @@ describe("applyMarker", () => {
       fromMemory.lastEventId,
     );
 
-    // `sourceUnitId`/`sourceSide`は「直近の付与者」を表す監査用の値であり、後から
-    // 実ユニットが積み増したら、その時点の付与元へ入れ替わる（片方だけを持つ）。
-    expect(fromUnit.markerState.stackCount).toBe(2);
-    expect(fromUnit.markerState.sourceUnitId).toBe(source.battleUnitId);
-    expect(fromUnit.markerState.sourceSide).toBeUndefined();
+    // 付与元は付与分ごとに持ち、後の付与で前の付与分の付与元を上書きしない。
+    const [memoryGrant, unitGrant] = fromUnit.units.find(
+      (u) => u.battleUnitId === target.battleUnitId,
+    )!.markerStates;
+    expect(memoryGrant!.sourceSide).toBe("ALLY");
+    expect(memoryGrant!.sourceUnitId).toBeUndefined();
+    expect(unitGrant!.sourceUnitId).toBe(source.battleUnitId);
+    expect(unitGrant!.sourceSide).toBeUndefined();
   });
 });

@@ -81,6 +81,14 @@ export interface EffectActionGroupContext {
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[];
   /**
+   * R-EFF-09: このEffectSequenceで直近に試みた`SKILL_USE`範囲の`PARENT`の付与結果。
+   * キーは`linkedGroupGrantKey`（グループと保持者）、値は付与できた付与分の識別子、
+   * 付与できなかった（`stack.max`到達・`KEEP_EXISTING`など）場合は`null`。後続の`CHILD`は
+   * これを見て、付与されなかった付与分の子を先の付与分へ紐づけずにスキップする。
+   * `resolveEffectSequencePlan`がEffectSequenceごとに新規生成する。
+   */
+  readonly linkedGroupGrants?: Map<string, string | null>;
+  /**
    * R-SKL-08: `DAMAGE_DEALT_RATIO`/`DAMAGE_RECEIVED_RATIO`
    * が参照する「同じ解決スコープ内の直前DAMAGE結果」を保持する共有registry。
    * 呼び出し側（`action-skill-use-resolver.ts`/`action-charge-resolver.ts`）が
@@ -187,6 +195,8 @@ export interface EffectResolutionEventContext {
    */
   readonly exercise?: ExerciseRuntime;
   readonly resolveBreak?: ResolveBreakHook;
+  /** R-EFF-09: `EffectActionGroupContext.linkedGroupGrants`を付与サービスへ素通しする。 */
+  readonly linkedGroupGrants?: Map<string, string | null>;
 }
 
 /**
@@ -206,6 +216,9 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
     skillUseId: context.skillUseId,
     resolutionScopeId: context.actionScope,
     rootEventId: context.rootEventId,
+    ...(context.linkedGroupGrants !== undefined
+      ? { linkedGroupGrants: context.linkedGroupGrants }
+      : {}),
   };
   const exercise = context.exercise;
   if (exercise === undefined) {
@@ -344,7 +357,7 @@ export function grantSourceOf(
 }
 
 /**
- * `MarkerState`はR-EFF-10「直近の付与者」を必ず1つ持つ（`MarkerSource`のexactly-one
+ * `MarkerState`はR-EFF-10の付与分ごとに付与者を必ず1つ持つ（`MarkerSource`のexactly-one
  * union）。スキル解決は`actorUnitId`を、Memory解決（R-MEM-04）は`sourceSide`を必ず持つ
  * ため実際には両方欠落しないが、`grantSourceOf`の型はそれを保証しない。付与元不明の
  * Markerを黙って作らないよう、この境界で明確に拒否する。

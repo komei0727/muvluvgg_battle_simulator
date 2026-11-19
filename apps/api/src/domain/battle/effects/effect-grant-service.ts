@@ -18,6 +18,7 @@ import {
 } from "../model/applied-effect.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
 import { selectEffectiveInstances } from "../model/effective-effect-selector.js";
+import { findLinkedGroupAnchor, ownLinkedGroupAnchor } from "../model/linked-effect-group.js";
 import { toEffectSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -42,6 +43,8 @@ export interface GrantEffectContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /** R-EFF-09: EffectSequence内の直近の親付与結果（`EffectActionGroupContext`と同じ）。 */
+  readonly linkedGroupGrants?: ReadonlyMap<string, string | null>;
 }
 
 export interface GrantEffectRequest {
@@ -265,8 +268,17 @@ export function grantEffect(
     ),
   ].sort();
 
+  const effectInstanceId = context.recorder.nextEffectInstanceId();
+  const linkedGroupAnchor =
+    ownLinkedGroupAnchor(durationDefinition, { kind: "EFFECT", effectInstanceId }) ??
+    findLinkedGroupAnchor(
+      target,
+      durationDefinition,
+      context.skillUseId,
+      context.linkedGroupGrants,
+    );
   const newEffect: AppliedEffect = {
-    effectInstanceId: context.recorder.nextEffectInstanceId(),
+    effectInstanceId,
     effectActionDefinitionId,
     kindKey,
     duplicate: request.duplicate,
@@ -304,6 +316,8 @@ export function grantEffect(
       ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
       turnNumber: context.turnNumber,
       ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+      ...(linkedGroupAnchor !== undefined ? { linkedGroupAnchor } : {}),
+      linkedGroupGrantOrder: context.recorder.getEvents().length,
     }),
     appliedTurnNumber: context.turnNumber,
     ...(context.actionId !== undefined ? { appliedActionId: context.actionId } : {}),

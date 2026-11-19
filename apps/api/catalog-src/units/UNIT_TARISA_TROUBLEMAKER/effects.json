@@ -200,7 +200,8 @@
           "count": 1
         },
         "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
-        "linkedEffectGroupRole": "PARENT"
+        "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -228,7 +229,8 @@
           "count": 1
         },
         "linkedEffectGroupId": "TARISA_TROUBLEMAKER_PS1_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {

@@ -842,8 +842,16 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const units = applyPrecedingActions(board, [
       { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_MARKER", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_ATK_DOWN", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_DMG_DOWN", target: "ENEMY" },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_ATK_DOWN",
+        target: "ENEMY",
+        withPrevious: true,
+      },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_DMG_DOWN",
+        target: "ENEMY",
+        withPrevious: true,
+      },
       {
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_MARKER",
         target: "ENEMY",
@@ -851,10 +859,12 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
       {
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_ATK_DOWN",
         target: "ENEMY",
+        withPrevious: true,
       },
       {
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_SCAR_TEMP_DMG_DOWN",
         target: "ENEMY",
+        withPrevious: true,
       },
     ]);
     const scarredId = units.find((unit) =>
@@ -902,10 +912,15 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER_TEX (破壊：ニーナ�
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_DEBUFF_MARKER",
         target: "ENEMY",
       },
-      { effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_DOWN", target: "ENEMY" },
+      {
+        effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_DOWN",
+        target: "ENEMY",
+        withPrevious: true,
+      },
       {
         effectActionDefinitionId: "ACT_NINA_ZINA_FRONTRUNNER_TEX_EX_ATK_BUFF_SEAL",
         target: "ENEMY",
+        withPrevious: true,
       },
     ]);
     const debuffed = units.find((unit) =>

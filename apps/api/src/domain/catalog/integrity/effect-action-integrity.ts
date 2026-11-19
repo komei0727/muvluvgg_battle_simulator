@@ -305,7 +305,7 @@ export function validateEffectAction(
   }
   // R-EFF-10（`MARKER_REMOVAL_ON_SOURCE_DEATH`、M7-020、Issue #279）: 付与者の
   // 戦闘不能による解除は、`APPLY_MARKER`なら`marker-source-defeat-service.ts`の
-  // `findMarkersRemovedOnSourceDefeat`が`MarkerState.sourceUnitId`（直近の付与者）を
+  // `findMarkersRemovedOnSourceDefeat`が`MarkerState.sourceUnitId`（付与分ごとの付与者）を
   // 見て判定する。`APPLY_SHIELD`（Issue #660）は同じファイルの
   // `findEffectsRemovedOnSourceDefeat`が`AppliedEffect.sourceUnitId`を見て判定し、
   // `expireEffects`（R-EFF-08と同じ`EffectExpired`経路）へ合流する。それ以外の
@@ -324,15 +324,19 @@ export function validateEffectAction(
       message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER and APPLY_SHIELD (R-EFF-10, M7-020, Issue #660): this kind has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
     });
   }
-  // R-EFF-09: `SKILL_USE`範囲は付与ごとのインスタンスが付与時の`SkillUseId`を持つことを
-  // 前提にする。Markerは再付与が既存の1つの`MarkerState`へスタックとして積まれ、
-  // 最初の付与の`SkillUseId`しか保持できないため、スキル使用ごとの連動を表せない
-  // （後の付与分のスタックが連動せず、最初のセットの失効でMarker全体が消える）。
-  if (effectAction.kind === "APPLY_MARKER" && duration?.linkedEffectGroupScope === "SKILL_USE") {
+  // R-EFF-09: `SKILL_USE`範囲は付与分ごとのインスタンスが付与時の`SkillUseId`を持つことを
+  // 前提にする。REFRESH/REPLACEは既存の付与分をその場で作り直し、付与キーが新しい
+  // スキル使用へ移るため、前の付与で紐づけた子がどの親の解除でも消えなくなる。
+  if (
+    effectAction.kind === "APPLY_MARKER" &&
+    duration?.linkedEffectGroupScope === "SKILL_USE" &&
+    (effectAction.payload.stack.policy === "REFRESH" ||
+      effectAction.payload.stack.policy === "REPLACE")
+  ) {
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE",
-      message: `duration.linkedEffectGroupScope "SKILL_USE" is not supported on APPLY_MARKER (R-EFF-09): re-applications stack into one MarkerState that keeps a single SkillUseId, so per-skill-use linking cannot be represented`,
+      message: `duration.linkedEffectGroupScope "SKILL_USE" is not supported on APPLY_MARKER with stack.policy "${effectAction.payload.stack.policy}" (R-EFF-09): the grant is rebuilt in place under the new SkillUseId, orphaning the children linked to the previous grant`,
     });
   }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的
@@ -473,6 +477,45 @@ export function validateLinkedEffectGroupScopes(
           targetId: effectAction.effectActionDefinitionId,
           rule: "INCONSISTENT_LINKED_EFFECT_GROUP_SCOPE",
           message: `linkedEffectGroupId "${groupId}" is shared with "${representative!.effectActionDefinitionId}", but their linkedEffectGroupScope differ ("${scopeOf(representative!)}" vs "${scopeOf(effectAction)}")`,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * R-EFF-10: `ADD`は同じ`markerId`の付与分を複数保持するが、`REFRESH`／`REPLACE`は
+ * 保持する1つの付与分を作り直す前提で、どの付与分を更新するかを決められない。
+ * 同じ`markerId`をADDとREFRESH/REPLACEの両方で付与する定義は拒否し、REFRESH/REPLACE
+ * 側へ報告する。
+ */
+export function validateMarkerStackPolicies(
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const byMarkerId = new Map<string, EffectActionDefinition[]>();
+  for (const effectAction of effectActions.values()) {
+    if (effectAction.kind !== "APPLY_MARKER") {
+      continue;
+    }
+    const group = byMarkerId.get(effectAction.payload.markerId) ?? [];
+    group.push(effectAction);
+    byMarkerId.set(effectAction.payload.markerId, group);
+  }
+  const policyOf = (effectAction: EffectActionDefinition): string =>
+    effectAction.kind === "APPLY_MARKER" ? effectAction.payload.stack.policy : "";
+  for (const [markerId, group] of byMarkerId) {
+    const additive = group.find((effectAction) => policyOf(effectAction) === "ADD");
+    if (additive === undefined) {
+      continue;
+    }
+    for (const effectAction of group) {
+      const policy = policyOf(effectAction);
+      if (policy === "REFRESH" || policy === "REPLACE") {
+        violations.push({
+          targetId: effectAction.effectActionDefinitionId,
+          rule: "MIXED_MARKER_STACK_POLICY",
+          message: `markerId "${markerId}" is granted with stack.policy "${policy}" here and "ADD" by "${additive.effectActionDefinitionId}" (R-EFF-10): ADD keeps several grants, so ${policy} cannot tell which grant to rebuild`,
         });
       }
     }

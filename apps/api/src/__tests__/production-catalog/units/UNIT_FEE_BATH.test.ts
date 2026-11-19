@@ -446,11 +446,12 @@ describe("production Catalog UNIT_FEE_BATH (【自己に揺れる白湯気】フ
       ),
     );
     expect(restored).toEqual(snapshotOf(aboveCap.result.units));
-    // 増加後の所持数（7 + 1）が復元後も生きていることは名指しで残す。
+    // 増加後の所持数（7 + 1）が復元後も生きていることは名指しで残す。付与分ごとに別
+    // インスタンスのため、所持数は同じ`markerId`の合計で読む（R-EFF-10）。
     expect(
-      restored.units[createBattleUnitId("enemy:front")]?.markers?.find(
-        (marker) => marker.markerId === FLUSH,
-      )?.stackCount,
+      (restored.units[createBattleUnitId("enemy:front")]?.markers ?? [])
+        .filter((marker) => marker.markerId === FLUSH)
+        .reduce((total, marker) => total + marker.stackCount, 0),
     ).toBe(8);
   });
 });

@@ -111,6 +111,7 @@
         },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
         "linkedEffectGroupRole": "PARENT",
+        "linkedEffectGroupScope": "SKILL_USE",
         "removeOnSourceDefeated": true
       }
     },
@@ -138,7 +139,8 @@
           "count": 1
         },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {
@@ -170,7 +172,8 @@
           "count": 1
         },
         "linkedEffectGroupId": "AOI_ELEGANT_AS1_KOUYOU_LINK",
-        "linkedEffectGroupRole": "CHILD"
+        "linkedEffectGroupRole": "CHILD",
+        "linkedEffectGroupScope": "SKILL_USE"
       }
     },
     "metadata": {

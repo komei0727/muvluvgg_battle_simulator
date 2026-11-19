@@ -716,6 +716,426 @@ describe("applyEffectActionGroups", () => {
       expect(completed.payload.resultKind).toBe("APPLIED");
     });
 
+    it("UT-R-EFF-09-037 [R-EFF-09, R-EFF-10]: a SKILL_USE-scoped CHILD is granted only when the same skill use granted its PARENT Marker to that holder", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const markerId = createMarkerId("MARKER_SPIRIT");
+      const group = {
+        linkedEffectGroupId: "SPIRIT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseMarker = markerAction("ACT_SPIRIT_MARKER", markerId);
+      const parent: EffectActionDefinition =
+        baseMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseMarker,
+              payload: {
+                ...baseMarker.payload,
+                stack: { policy: "ADD", max: 1 },
+                duration: {
+                  dispellable: false,
+                  ...group,
+                  linkedEffectGroupRole: "PARENT",
+                },
+              },
+            }
+          : baseMarker;
+      const baseChild = statModAction("ACT_SPIRIT_ATK_UP");
+      const child: EffectActionDefinition =
+        baseChild.kind === "APPLY_STAT_MOD"
+          ? {
+              ...baseChild,
+              payload: {
+                ...baseChild.payload,
+                duration: { dispellable: false, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChild;
+      const effectActions = new Map([
+        [parent.effectActionDefinitionId, parent],
+        [child.effectActionDefinitionId, child],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, child.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const first = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+      const second = applyEffectActionGroups(
+        plan,
+        first.units,
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = second.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toHaveLength(1);
+      expect(holder.appliedEffects).toHaveLength(1);
+      const childResults = recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+            e.eventType === "EffectActionCompleted" &&
+            e.payload.effectActionDefinitionId === child.effectActionDefinitionId,
+        )
+        .map((e) => e.payload.resultKind);
+      expect(childResults).toEqual(["APPLIED", "SKIPPED"]);
+    });
+
+    it("UT-R-EFF-09-039 [R-EFF-09, R-EFF-10]: within one skill use, a CHILD that follows a PARENT Marker grant that did not happen (stack.max / KEEP_EXISTING) is skipped instead of linking to the earlier grant", () => {
+      for (const policy of ["ADD", "KEEP_EXISTING"] as const) {
+        const actor = unit("ACTOR", "ALLY");
+        const ally = unit("ALLY", "ALLY");
+        const markerId = createMarkerId("MARKER_SPIRIT");
+        const group = {
+          linkedEffectGroupId: "SPIRIT_LINK",
+          linkedEffectGroupScope: "SKILL_USE",
+        } as const;
+        const baseMarker = markerAction("ACT_SPIRIT_MARKER", markerId);
+        const parent: EffectActionDefinition =
+          baseMarker.kind === "APPLY_MARKER"
+            ? {
+                ...baseMarker,
+                payload: {
+                  ...baseMarker.payload,
+                  stack: { policy, max: 1 },
+                  duration: { dispellable: false, ...group, linkedEffectGroupRole: "PARENT" },
+                },
+              }
+            : baseMarker;
+        const baseChild = statModAction("ACT_SPIRIT_ATK_UP");
+        const child: EffectActionDefinition =
+          baseChild.kind === "APPLY_STAT_MOD"
+            ? {
+                ...baseChild,
+                payload: {
+                  ...baseChild.payload,
+                  duration: { dispellable: false, ...group, linkedEffectGroupRole: "CHILD" },
+                },
+              }
+            : baseChild;
+        const effectActions = new Map([
+          [parent.effectActionDefinitionId, parent],
+          [child.effectActionDefinitionId, child],
+        ]);
+        const { recorder, rootEventId } = seedRecorder();
+        const plan: EffectSequencePlan = {
+          stealthConsumptions: [],
+          steps: [
+            singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+            singleActionStep(1, true, ally.battleUnitId, child.effectActionDefinitionId),
+            singleActionStep(2, true, ally.battleUnitId, parent.effectActionDefinitionId),
+            singleActionStep(3, true, ally.battleUnitId, child.effectActionDefinitionId),
+          ],
+          targetUnitIds: [ally.battleUnitId],
+          resolvedBindings: new Map(),
+        };
+
+        const result = applyEffectActionGroups(
+          plan,
+          [actor, ally],
+          contextFor(actor, effectActions, recorder, rootEventId),
+        );
+
+        const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+        expect(holder.markerStates).toHaveLength(1);
+        expect(holder.appliedEffects).toHaveLength(1);
+        const resultsOf = (id: string) =>
+          recorder
+            .getEvents()
+            .filter(
+              (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+                e.eventType === "EffectActionCompleted" &&
+                e.payload.effectActionDefinitionId === id,
+            )
+            .map((e) => e.payload.resultKind);
+        expect(resultsOf(parent.effectActionDefinitionId)).toEqual(["APPLIED", "SKIPPED"]);
+        expect(resultsOf(child.effectActionDefinitionId)).toEqual(["APPLIED", "SKIPPED"]);
+      }
+    });
+
+    it("UT-R-EFF-09-040 [R-EFF-09, R-EFF-10]: a SKILL_USE-scoped CHILD Marker keeps the grant key of its PARENT, so removing the PARENT removes the CHILD Marker too", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const parentMarkerId = createMarkerId("MARKER_PARENT");
+      const childMarkerId = createMarkerId("MARKER_CHILD");
+      const group = {
+        linkedEffectGroupId: "MARKER_PAIR_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const markerWith = (
+        id: string,
+        markerId: ReturnType<typeof createMarkerId>,
+        role: "PARENT" | "CHILD",
+      ): EffectActionDefinition => {
+        const base = markerAction(id, markerId);
+        return base.kind === "APPLY_MARKER"
+          ? {
+              ...base,
+              payload: {
+                ...base.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: role },
+              },
+            }
+          : base;
+      };
+      const parent = markerWith("ACT_PARENT_MARKER", parentMarkerId, "PARENT");
+      const child = markerWith("ACT_CHILD_MARKER", childMarkerId, "CHILD");
+      const remove = removeMarkerAction("ACT_REMOVE_PARENT", parentMarkerId);
+      const effectActions = new Map([
+        [parent.effectActionDefinitionId, parent],
+        [child.effectActionDefinitionId, child],
+        [remove.effectActionDefinitionId, remove],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, child.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      expect(result.units.find((u) => u.battleUnitId === ally.battleUnitId)!.markerStates).toEqual(
+        [],
+      );
+    });
+
+    it("UT-R-EFF-09-041 [R-EFF-09, R-EFF-10]: a CHILD granted after the recorded PARENT grant was removed in the same skill use is skipped, and does not fall back to an older grant", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const parentMarkerId = createMarkerId("MARKER_PARENT");
+      const group = {
+        linkedEffectGroupId: "REMOVED_PARENT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseParent = markerAction("ACT_PARENT_MARKER", parentMarkerId);
+      const parent: EffectActionDefinition =
+        baseParent.kind === "APPLY_MARKER"
+          ? {
+              ...baseParent,
+              payload: {
+                ...baseParent.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "PARENT" },
+              },
+            }
+          : baseParent;
+      const baseChildMarker = markerAction("ACT_CHILD_MARKER", createMarkerId("MARKER_CHILD"));
+      const childMarker: EffectActionDefinition =
+        baseChildMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseChildMarker,
+              payload: {
+                ...baseChildMarker.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChildMarker;
+      const baseChild = statModAction("ACT_CHILD_ATK_UP");
+      const childEffect: EffectActionDefinition =
+        baseChild.kind === "APPLY_STAT_MOD"
+          ? {
+              ...baseChild,
+              payload: {
+                ...baseChild.payload,
+                duration: { dispellable: false, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChild;
+      const removeOne: EffectActionDefinition = {
+        ...removeMarkerAction("ACT_REMOVE_ONE_PARENT", parentMarkerId),
+        payload: { markerId: parentMarkerId, count: 1 },
+      } as EffectActionDefinition;
+      const effectActions = new Map(
+        [parent, childMarker, childEffect, removeOne].map((d) => [d.effectActionDefinitionId, d]),
+      );
+      const { recorder, rootEventId } = seedRecorder();
+      // 親A → 親B（記録される直近の付与分）→ 古い順に1個ずつ2回解除して両方を外した
+      // あとに子を付与する。記録が残っていても、その付与分はもう存在しない。
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, removeOne.effectActionDefinitionId),
+          singleActionStep(3, true, ally.battleUnitId, removeOne.effectActionDefinitionId),
+          singleActionStep(4, true, ally.battleUnitId, childEffect.effectActionDefinitionId),
+          singleActionStep(5, true, ally.battleUnitId, childMarker.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toEqual([]);
+      expect(holder.appliedEffects).toEqual([]);
+      const childResults = recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+            e.eventType === "EffectActionCompleted" &&
+            (e.payload.effectActionDefinitionId === childEffect.effectActionDefinitionId ||
+              e.payload.effectActionDefinitionId === childMarker.effectActionDefinitionId),
+        )
+        .map((e) => e.payload.resultKind);
+      expect(childResults).toEqual(["SKIPPED", "SKIPPED"]);
+    });
+
+    it("UT-R-EFF-09-043 [R-EFF-09]: a CHILD links to the most recent PARENT grant across Marker and AppliedEffect parents, so removing the earlier Marker parent keeps the child of the later effect parent", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const markerId = createMarkerId("MARKER_MIXED_PARENT");
+      const group = {
+        linkedEffectGroupId: "MIXED_PARENT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseMarker = markerAction("ACT_MIXED_MARKER_PARENT", markerId);
+      const markerParent: EffectActionDefinition =
+        baseMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseMarker,
+              payload: {
+                ...baseMarker.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "PARENT" },
+              },
+            }
+          : baseMarker;
+      const withRole = (id: string, role: "PARENT" | "CHILD"): EffectActionDefinition => {
+        const base = statModAction(id);
+        return base.kind === "APPLY_STAT_MOD"
+          ? {
+              ...base,
+              payload: {
+                ...base.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: role },
+              },
+            }
+          : base;
+      };
+      const effectParent = withRole("ACT_MIXED_EFFECT_PARENT", "PARENT");
+      const child = withRole("ACT_MIXED_CHILD", "CHILD");
+      const remove = removeMarkerAction("ACT_MIXED_REMOVE_MARKER", markerId);
+      const effectActions = new Map(
+        [markerParent, effectParent, child, remove].map((d) => [d.effectActionDefinitionId, d]),
+      );
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, markerParent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, effectParent.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, child.effectActionDefinitionId),
+          singleActionStep(3, true, ally.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toEqual([]);
+      expect(holder.appliedEffects.map((e) => e.effectActionDefinitionId)).toEqual([
+        effectParent.effectActionDefinitionId,
+        child.effectActionDefinitionId,
+      ]);
+    });
+
+    it("UT-R-EFF-09-038 [R-EFF-09, R-EFF-10]: when one skill use grants the same PARENT Marker twice to a holder, each CHILD links to the grant made just before it, so removing one grant removes only its own child", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const markerId = createMarkerId("MARKER_SPIRIT");
+      const group = {
+        linkedEffectGroupId: "SPIRIT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseMarker = markerAction("ACT_SPIRIT_MARKER", markerId);
+      const parent: EffectActionDefinition =
+        baseMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseMarker,
+              payload: {
+                ...baseMarker.payload,
+                duration: { dispellable: false, ...group, linkedEffectGroupRole: "PARENT" },
+              },
+            }
+          : baseMarker;
+      const baseChild = statModAction("ACT_SPIRIT_ATK_UP");
+      const child: EffectActionDefinition =
+        baseChild.kind === "APPLY_STAT_MOD"
+          ? {
+              ...baseChild,
+              payload: {
+                ...baseChild.payload,
+                duration: { dispellable: false, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChild;
+      const remove: EffectActionDefinition = {
+        ...removeMarkerAction("ACT_SPIRIT_REMOVE", markerId),
+        payload: { markerId, count: 1 },
+      } as EffectActionDefinition;
+      const effectActions = new Map([
+        [parent.effectActionDefinitionId, parent],
+        [child.effectActionDefinitionId, child],
+        [remove.effectActionDefinitionId, remove],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, child.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(3, true, ally.battleUnitId, child.effectActionDefinitionId),
+          singleActionStep(4, true, ally.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toHaveLength(1);
+      expect(holder.appliedEffects).toHaveLength(1);
+      expect(holder.appliedEffects[0]!.duration.linkedGroupAnchor).toBe(
+        `M:${holder.markerStates[0]!.markerInstanceId}`,
+      );
+    });
+
     it("UT-R-ACTN-01-006: APPLY_STAT_MOD still applies to an already-defeated target when its TargetSelectorDefinition.includeDefeated is true (explicit override)", () => {
       const actor = unit("ACTOR", "ALLY");
       const defeatedEnemy = unit("ENEMY", "ENEMY", { currentHp: 0 });

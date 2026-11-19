@@ -667,7 +667,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // `2026-11-18.6` は効果の期間を宣言した時計（戦闘中永続・付与ターン末・契機の敵行動末・
     // 付与したスキル使用の末・受け手の次行動末）へ揃えた（Issue #829、戦術演習版の同じスキルを含む）。差分は`effects.json`だけで、
     // 新規・削除したUnit・Skill・EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-18.6");
+    // `2026-11-19.1` はマーカーを付与分ごとに独立管理し、紐づく補正を付与分単位の連動
+    // （`linkedEffectGroupScope: SKILL_USE`）へ揃えた（Issue #830、戦術演習版の同じスキルを
+    // 含む）。闘志の補正は親の解除へ連動させ、`SKL_HIIRO_FREEWOLF_PS1`（戦術演習版を含む）の
+    // 補正を個別に外す`REMOVE_EFFECTS`4件を削除した。新規・削除したUnit・Skillはない。
+    expect(catalog.catalogRevision).toBe("2026-11-19.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {

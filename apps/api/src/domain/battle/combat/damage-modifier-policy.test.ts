@@ -255,6 +255,33 @@ describe("composeDamageModifiers (R-DMG-04, R-DMG-03)", () => {
     expect(compose(plainAttacker, guarded).incomingMultiplier).toBe(1);
   });
 
+  it("UT-R-DMG-04-018 [R-EFF-10]: a UNIT_HAS_MARKER countCondition totals every grant instance of the same markerId", () => {
+    const defender = unitAt("U_DEF", "ENEMY");
+    const modifier: DamageModifierState = {
+      direction: "INCOMING",
+      damageType: null,
+      condition: {
+        kind: "UNIT_HAS_MARKER",
+        unit: "OPPONENT",
+        markerId: createMarkerId("MARKER_UKIASHI"),
+        countCondition: { op: "GTE", value: 2 },
+      },
+    };
+    const guarded = holding(defender, damageMod(defender, -0.4, modifier));
+    const attacker = unitAt("U_ATK", "ALLY");
+    const twoGrants = {
+      ...attacker,
+      markerStates: [
+        markerOn(attacker, "MARKER_UKIASHI"),
+        {
+          ...markerOn(attacker, "MARKER_UKIASHI"),
+          markerInstanceId: createMarkerInstanceId("MI_2"),
+        },
+      ],
+    };
+    expect(compose(twoGrants, guarded).incomingMultiplier).toBeCloseTo(0.6);
+  });
+
   it("UT-R-DMG-04-008: an HP_RATIO_COMPARISON condition compares the two units in this hit", () => {
     const defender = unitAt("U_DEF", "ENEMY");
     const modifier: DamageModifierState = {

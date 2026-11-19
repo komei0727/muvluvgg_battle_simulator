@@ -342,8 +342,8 @@ describe("production Catalog UNIT_LAYLA_NURSE (【商売上手のエンジェル
     const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
     const units = applyPrecedingActions(board, [
       { effectActionDefinitionId: KANSATSU_MARK_ID, target: "ENEMY" },
-      { effectActionDefinitionId: ATK_DOWN_ID, target: "ENEMY" },
-      { effectActionDefinitionId: HEALING_LINK_ID, target: "ENEMY" },
+      { effectActionDefinitionId: ATK_DOWN_ID, target: "ENEMY", withPrevious: true },
+      { effectActionDefinitionId: HEALING_LINK_ID, target: "ENEMY", withPrevious: true },
     ]);
     return { board, units };
   }

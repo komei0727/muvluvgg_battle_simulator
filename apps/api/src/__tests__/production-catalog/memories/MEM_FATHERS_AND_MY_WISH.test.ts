@@ -65,16 +65,24 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     );
     expect(others).toHaveLength(5);
 
-    expect(hiiro?.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)).toMatchObject(
-      {
-        stackCount: 4,
-        decayingStackCount: 4,
-      },
-    );
+    // 「闘志」は付与分ごとに別インスタンスで持ち、各付与分がバフ1組の親になる（R-EFF-10）。
+    const grantsOf = (unit: (typeof others)[number] | undefined) =>
+      (unit?.markerStates ?? [])
+        .filter((marker) => marker.markerId === FIGHTING_SPIRIT)
+        .map((marker) => [marker.stackCount, marker.decayingStackCount]);
+    expect(grantsOf(hiiro)).toEqual([
+      [1, 1],
+      [1, 1],
+      [1, 1],
+      [1, 1],
+    ]);
+    expect(hiiro?.appliedEffects).toHaveLength(8);
     for (const unit of others) {
-      expect(unit.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)).toMatchObject(
-        { stackCount: 2, decayingStackCount: 2 },
-      );
+      expect(grantsOf(unit)).toEqual([
+        [1, 1],
+        [1, 1],
+      ]);
+      expect(unit.appliedEffects).toHaveLength(4);
     }
     // 敵側には一切付与されない。
     expect(
@@ -89,9 +97,9 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     const hiiro = observed.started.enemyUnits.find(
       (unit) => unit.battleUnitId === "enemy:FRONT_LEFT",
     );
-    expect(hiiro?.markerStates.find((marker) => marker.markerId === FIGHTING_SPIRIT)).toMatchObject(
-      { stackCount: 4 },
-    );
+    expect(
+      hiiro?.markerStates.filter((marker) => marker.markerId === FIGHTING_SPIRIT),
+    ).toHaveLength(4);
     expect(
       observed.started.allyUnits.some((unit) =>
         unit.markerStates.some((marker) => marker.markerId === FIGHTING_SPIRIT),
@@ -123,7 +131,7 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     ).toEqual([]);
   });
 
-  it("IT-MEM-FATHERS-AND-MY-WISH-005 [R-EFF-10 MARKER_STACK_DECAY_OVER_TIME]: both grants decay by exactly 1 stack per action taken by their holder, and decay.linkedEffects removes exactly one instance of each buff (ATK/CRITICAL_DAMAGE_BONUS) per decayed stack (レビュー対応: マーカーだけでなくバフ組の実効値も結合検証する)", () => {
+  it("IT-MEM-FATHERS-AND-MY-WISH-005 [R-EFF-10 MARKER_STACK_DECAY_OVER_TIME]: both grants decay by exactly 1 stack per action taken by their holder, and the decayed grant takes its own buff pair (ATK/CRITICAL_DAMAGE_BONUS) with it through the linked group (R-EFF-09)", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", HIIRO_ON_BOARD);
     const units = [...observed.started.allyUnits, ...observed.started.enemyUnits];
 
@@ -148,12 +156,26 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
     // 開始直後: ヒイロ(闘志4)はATK 1000×1.16=1160・会心ダメージ0.5+4×0.03=0.62、
     // 他の味方(闘志2)はATK 1000×1.08=1080・会心ダメージ0.5+2×0.03=0.56
     // （`IT-MEM-FATHERS-AND-MY-WISH-001`で確認済みのスタック数と対応）。
-    // 各行動終了で闘志が1つ減るたび、`decay.linkedEffects`がATK・会心ダメージの
-    // バフインスタンスも1個ずつ解除し、CombatStatが連動して下がる。
+    // 各行動終了で闘志の付与分が1つ消えるたび、その付与分の子であるATK・会心ダメージの
+    // バフ1組も連動して失効し（R-EFF-09）、CombatStatが連動して下がる。
     expect(decay.steps).toEqual([
       {
         step: "ACTION_END(ally:FRONT_LEFT)",
         remaining: {},
+        expired: [
+          {
+            unitId: "ally:FRONT_LEFT",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+          {
+            unitId: "ally:FRONT_LEFT",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+        ],
         markers: {
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 3,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
@@ -167,6 +189,20 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
       {
         step: "ACTION_END(ally:FRONT_LEFT)",
         remaining: {},
+        expired: [
+          {
+            unitId: "ally:FRONT_LEFT",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+          {
+            unitId: "ally:FRONT_LEFT",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+        ],
         markers: {
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
@@ -180,6 +216,20 @@ describe("production Catalog MEM_FATHERS_AND_MY_WISH (父さんの、そして�
       {
         step: "ACTION_END(ally:FRONT_CENTER)",
         remaining: {},
+        expired: [
+          {
+            unitId: "ally:FRONT_CENTER",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_ATK_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+          {
+            unitId: "ally:FRONT_CENTER",
+            effectActionDefinitionId: "ACT_MEM_FATHERS_AND_MY_WISH_CRIT_DMG_UP",
+            reason: "LINKED_GROUP_CASCADE",
+            cascaded: true,
+          },
+        ],
         markers: {
           "ally:FRONT_LEFT/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 2,
           "ally:FRONT_CENTER/MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT": 1,

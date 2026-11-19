@@ -2,11 +2,13 @@ import { buildInitialDurationState } from "../model/applied-effect.js";
 import {
   buildInitialMarkerState,
   clampMarkerStack,
+  markerAnchorOf,
   markerSourceFields,
   type MarkerSource,
   type MarkerState,
 } from "../model/marker-state.js";
 import { requireUnit, type BattleUnit } from "../model/battle-unit.js";
+import { findLinkedGroupAnchor } from "../model/linked-effect-group.js";
 import { toMarkerSnapshot } from "../events/state-delta.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type {
@@ -30,6 +32,8 @@ export interface ApplyMarkerContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /** R-EFF-09: EffectSequence内の直近の親付与結果（`EffectActionGroupContext`と同じ）。 */
+  readonly linkedGroupGrants?: ReadonlyMap<string, string | null>;
 }
 
 /**
@@ -78,17 +82,19 @@ function actionTurnDurationOf(
 
 /**
  * R-EFF-10: `APPLY_MARKER`のADD/KEEP_EXISTING/REFRESH/REPLACEを対象1件・
- * Marker1件単位で適用する。既存Markerが無い場合はいずれの方針でもスタック1の
- * 新規インスタンスを作り`MarkerApplied`を発行する。既存Markerがある場合の挙動は
- * 方針ごとに異なる：
- * - `ADD`: スタック数へ1加算し（`stack.max`でclamp）、Durationは変更しない。
+ * Marker1件単位で適用する。同じ`markerId`でも付与ごとに別の`MarkerState`を持ち、
+ * 付与元・期限・連動グループの付与キーを付与分ごとに保持する。
+ * - 既存Markerが無い場合: いずれの方針でもスタック1の新規インスタンスを作り
+ *   `MarkerApplied`を発行する。
+ * - `ADD`: 既存の付与分には触れず、新しい付与分を1インスタンス追加する。
+ *   `stack.max`は同じ`markerId`の付与分の合計で判定し、到達済みなら付与分を作らず
+ *   イベントも発行しない。
  * - `KEEP_EXISTING`: 何も変更せず、イベントも発行しない（`CombatStatChanged`と
  *   同じ「変化が無ければ発行しない」規約）。
  * - `REFRESH`: スタック数を維持し、Durationだけ新しい定義から再構築する。
  * - `REPLACE`: スタック数を1へ、Duration・stackMaxを新しい定義で丸ごと置き換える。
- * `sourceUnitId`はMarkerを最後に触れた付与者を表す監査用の値であり、インスタンス
- * 識別（`markerId` + `targetUnitId`）には使わない — 複数の付与元から同じMarkerが
- * 付与されても対象ごとに単一の`MarkerState`へ積み上がる。
+ * REFRESH/REPLACEは同じ`markerId`へADDと混在させない（`catalog-integrity.ts`の
+ * `MIXED_MARKER_STACK_POLICY`）ため付与分は高々1つで、その1つを更新する。
  */
 export function applyMarker(
   context: ApplyMarkerContext,
@@ -97,9 +103,29 @@ export function applyMarker(
   parentEventId: DomainEventId,
 ): ApplyMarkerResult {
   const target = requireUnit(units, request.targetUnitId);
-  const existing = target.markerStates.find((marker) => marker.markerId === request.markerId);
+  const sameMarker = target.markerStates.filter((marker) => marker.markerId === request.markerId);
+  const existing = sameMarker.at(-1);
+  if (existing !== undefined && request.stackPolicy === "ADD") {
+    const heldTotal = sameMarker.reduce((total, marker) => total + marker.stackCount, 0);
+    if (request.stackMax !== null && heldTotal >= request.stackMax) {
+      return { units, markerState: existing, lastEventId: parentEventId };
+    }
+  }
+  const grantContext = {
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    turnNumber: context.turnNumber,
+    linkedGroupGrantOrder: context.recorder.getEvents().length,
+  };
 
-  if (existing === undefined) {
+  if (existing === undefined || request.stackPolicy === "ADD") {
+    // R-EFF-09: `SKILL_USE`範囲の子Markerは、紐づく親の付与分の識別子を持つ。
+    const childAnchor = findLinkedGroupAnchor(
+      target,
+      request.durationDefinition,
+      context.skillUseId,
+      context.linkedGroupGrants,
+    );
     const markerState = buildInitialMarkerState(
       context.recorder.nextMarkerInstanceId(),
       request.markerId,
@@ -107,10 +133,7 @@ export function applyMarker(
       request.targetUnitId,
       request.stackMax,
       request.durationDefinition,
-      {
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        turnNumber: context.turnNumber,
-      },
+      { ...grantContext, ...(childAnchor !== undefined ? { linkedGroupAnchor: childAnchor } : {}) },
       request.decay,
     );
     const nextUnits = units.map((unit) =>
@@ -182,8 +205,8 @@ export function applyMarker(
   const stackBefore = existing.stackCount;
   const durationBefore = actionTurnDurationOf(existing);
 
-  // 「直近の付与者」は片方だけを持つため、`sourceUnitId`/`sourceSide`は
-  // 上書きではなく両方を落としてから入れ替える。
+  // 付与者は片方だけを持つため、REFRESH/REPLACEで作り直す付与分の`sourceUnitId`/
+  // `sourceSide`は上書きではなく両方を落としてから入れ替える。
   const {
     sourceUnitId: _previousSourceId,
     sourceSide: _previousSourceSide,
@@ -196,32 +219,12 @@ export function applyMarker(
   const { decay: _previousDecay, ...carriedWithoutDecay } = carried;
 
   let nextMarker: MarkerState;
-  if (request.stackPolicy === "ADD") {
-    // MARKER_STACK_DECAY_OVER_TIME（Issue #674）: この付与が`decay`を宣言した場合だけ
-    // `decayingStackCount`を増やす。宣言が無い付与（例: スキル側の非逓減スタック）は
-    // `stackCount`だけを増やし、既存の逓減対象数・逓減宣言はそのまま引き継ぐ
-    // （Durationを変更しないADDの既存規約と同じ「積み増しは上書きしない」方針）。
-    // `stackCount`は`stack.max`で頭打ちになり得るため、`decayingStackCount`は
-    // 常に+1ではなく実際に増えた分（`stackAfter - existing.stackCount`、0か1）
-    // だけ増やす — さもないと上限到達後の逓減ADDが、実在しないスタックを
-    // 逓減対象に数え、後続の逓減で本来残るべき非逓減スタックまで消してしまう
-    // （PR #675レビュー指摘）。
-    const stackAfter = clampMarkerStack(existing.stackCount + 1, request.stackMax);
-    const stackIncrease = stackAfter - existing.stackCount;
-    nextMarker = {
-      ...carried,
-      stackCount: stackAfter,
-      stackMax: request.stackMax,
-      ...(request.decay !== undefined
-        ? { decayingStackCount: existing.decayingStackCount + stackIncrease, decay: request.decay }
-        : {}),
-    };
-  } else if (request.stackPolicy === "REFRESH") {
+  if (request.stackPolicy === "REFRESH") {
     nextMarker = {
       ...carried,
       duration: buildInitialDurationState(request.durationDefinition, {
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        turnNumber: context.turnNumber,
+        ...grantContext,
+        ...markerAnchorOf(request.durationDefinition, existing.markerInstanceId),
       }),
     };
   } else {
@@ -232,8 +235,8 @@ export function applyMarker(
       stackCount: clampMarkerStack(1, request.stackMax),
       stackMax: request.stackMax,
       duration: buildInitialDurationState(request.durationDefinition, {
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        turnNumber: context.turnNumber,
+        ...grantContext,
+        ...markerAnchorOf(request.durationDefinition, existing.markerInstanceId),
       }),
       decayingStackCount: request.decay !== undefined ? 1 : 0,
       ...(request.decay !== undefined ? { decay: request.decay } : {}),

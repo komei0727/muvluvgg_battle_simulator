@@ -1,7 +1,7 @@
 import { applyMarker } from "../../effects/marker-apply-service.js";
 import {
   reduceMarkerStackSteps,
-  removeMarkersSteps,
+  removeAllMarkerGrantsSteps,
 } from "../../effects/marker-removal-service.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import {
@@ -29,24 +29,27 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
   if (rejected !== undefined) {
     return rejected;
   }
+  const granted = applyMarker(
+    eventContextOf(context),
+    box.units,
+    {
+      markerId: effectAction.payload.markerId,
+      // R-MEM-04（M7-008）: Memory由来の`APPLY_MARKER`は付与者ユニットを持たないため、
+      // `AppliedEffect`と同じく`sourceSide`（そのMemoryを指定した陣営）を渡す。
+      ...requireMarkerSource(context),
+      targetUnitId: application.targetUnitId,
+      stackPolicy: effectAction.payload.stack.policy,
+      stackMax: effectAction.payload.stack.max,
+      durationDefinition: effectAction.payload.duration,
+      ...(effectAction.payload.decay !== undefined ? { decay: effectAction.payload.decay } : {}),
+    },
+    startingEventId,
+  );
+  // `stack.max`到達のADD・既存維持のKEEP_EXISTINGは付与分を作らず、イベントも発行しない。
   return completeGrant(
     input,
-    applyMarker(
-      eventContextOf(context),
-      box.units,
-      {
-        markerId: effectAction.payload.markerId,
-        // R-MEM-04（M7-008）: Memory由来の`APPLY_MARKER`は付与者ユニットを持たないため、
-        // `AppliedEffect`と同じく`sourceSide`（そのMemoryを指定した陣営）を渡す。
-        ...requireMarkerSource(context),
-        targetUnitId: application.targetUnitId,
-        stackPolicy: effectAction.payload.stack.policy,
-        stackMax: effectAction.payload.stack.max,
-        durationDefinition: effectAction.payload.duration,
-        ...(effectAction.payload.decay !== undefined ? { decay: effectAction.payload.decay } : {}),
-      },
-      startingEventId,
-    ),
+    granted,
+    granted.lastEventId === startingEventId ? "SKIPPED" : "APPLIED",
   );
 };
 
@@ -73,14 +76,15 @@ export const resolveRemoveMarker: SteppedEffectActionHandler<"REMOVE_MARKER"> = 
   // 所持判定は先行イベントのPS連鎖を反映した`box.units`から取る — 上の通知で対象の
   // Markerが既に解除されていた場合、この解除はno-op（SKIPPED）になる。
   const target = requireUnit(box.units, application.targetUnitId);
-  const existingMarker = target.markerStates.find(
+  const holdsMarker = target.markerStates.some(
     (marker) => marker.markerId === effectAction.payload.markerId,
   );
-  if (existingMarker === undefined) {
+  if (!holdsMarker) {
     return settledOutcome(input, startingEventId, "SKIPPED");
   }
 
-  // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: `count`があれば指定スタック数だけ部分解除。
+  // M7-001（`REMOVE_EFFECTS_COUNT_LIMIT`）: `count`があれば付与の古い順に指定スタック数だけ
+  // 部分解除し、無ければ同じ`markerId`の付与分をすべて解除する（R-EFF-10）。
   const removalGen =
     effectAction.payload.count !== undefined
       ? reduceMarkerStackSteps(
@@ -92,24 +96,15 @@ export const resolveRemoveMarker: SteppedEffectActionHandler<"REMOVE_MARKER"> = 
           context.definitions.effectActions,
           startingEventId,
         )
-      : removeMarkersSteps(
+      : removeAllMarkerGrantsSteps(
           removalContext,
           box.units,
-          [
-            {
-              battleUnitId: application.targetUnitId,
-              markerInstanceId: existingMarker.markerInstanceId,
-              reason: "REMOVED",
-            },
-          ],
+          application.targetUnitId,
+          effectAction.payload.markerId,
           context.definitions.effectActions,
           startingEventId,
         );
   const removal = yield* driveRemovalSteps(input, removalGen);
   cursor.notifyPending();
-  return settledOutcome(
-    input,
-    removal.lastEventId,
-    "changed" in removal && !removal.changed ? "SKIPPED" : "APPLIED",
-  );
+  return settledOutcome(input, removal.lastEventId, removal.changed ? "APPLIED" : "SKIPPED");
 };

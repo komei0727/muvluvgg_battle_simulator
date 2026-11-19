@@ -67,8 +67,16 @@ const SUBJECT_WITH_KOUSEI: BoardOverrides = {
  */
 const ONE_EX_KOUSEI_GRANT: readonly PrecedingAction[] = [
   { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_KOUSEI_MARKER", target: "SELF" },
-  { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_KOUSEI_IMMUNITY", target: "SELF" },
-  { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_KOUSEI_DMG_REDUCE", target: "SELF" },
+  {
+    effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_KOUSEI_IMMUNITY",
+    target: "SELF",
+    withPrevious: true,
+  },
+  {
+    effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_TEX_EX_KOUSEI_DMG_REDUCE",
+    target: "SELF",
+    withPrevious: true,
+  },
 ];
 
 /** PS1/PS3の「自身のHPが50%未満」を作る盤面。 */

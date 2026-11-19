@@ -39,7 +39,11 @@ import type { TargetSelectorDefinition } from "../../domain/catalog/definitions/
 import type { BattleCatalogSnapshot } from "../../domain/ports/battle-catalog.js";
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { BattleDomainEventType } from "../../domain/battle/events/domain-event.js";
-import { createActionId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
+import {
+  createActionId,
+  createEffectInstanceId,
+  type SkillUseId,
+} from "../../domain/shared/event-ids.js";
 import { createBattleId } from "../../domain/shared/ids.js";
 import type { Side } from "../../domain/shared/side.js";
 import {
@@ -460,14 +464,22 @@ function effectSummaries(units: readonly BattleUnit[]): readonly ObservedEffect[
   );
 }
 
+/**
+ * 保持者・`markerId`ごとの所持数。R-EFF-10により同じ`markerId`でも付与分ごとに別の
+ * インスタンスを持つため、観測は条件・Formulaと同じ合計で表す。
+ */
 function markerSummaries(units: readonly BattleUnit[]): readonly ObservedMarker[] {
-  return units.flatMap((unit) =>
-    unit.markerStates.map((marker) => ({
+  return units.flatMap((unit) => {
+    const totals = new Map<string, number>();
+    for (const marker of unit.markerStates) {
+      totals.set(marker.markerId, (totals.get(marker.markerId) ?? 0) + marker.stackCount);
+    }
+    return [...totals].map(([markerId, stackCount]) => ({
       unitId: unit.battleUnitId,
-      markerId: marker.markerId,
-      stackCount: marker.stackCount,
-    })),
-  );
+      markerId,
+      stackCount,
+    }));
+  });
 }
 
 function cooldownEntries(units: readonly BattleUnit[]): readonly ObservedCooldown[] {
@@ -738,6 +750,12 @@ export interface PrecedingAction {
    * 前提アクションが作るのは「その効果を保持している」状態そのものだけである。
    */
   readonly payloadBindingIds?: readonly string[];
+  /**
+   * 直前の前提アクションと同じスキル使用として適用する。R-EFF-09の`SKILL_USE`範囲では
+   * 親Markerとその子効果は同じスキル使用で付与されたものだけが連動するため、production
+   * スキルが1回の使用で付ける親子を前提として作るときに指定する。
+   */
+  readonly withPrevious?: true;
 }
 
 export interface ObserveSkillUseOptions {
@@ -798,6 +816,7 @@ export function applyPrecedingActions(
   const random = options.random;
   let baseline = board.units;
   const { recorder, rootEventId } = options.recorder ?? seedRecorder("B_PRECEDING");
+  let previousSkillUseId: SkillUseId | undefined;
   for (const action of actions) {
     const skillDefinition = precedingSkill(action);
     const definitions: BattleDefinitions = {
@@ -808,6 +827,18 @@ export function applyPrecedingActions(
       ),
     };
     const actor = subjectOf(baseline, board.subject.battleUnitId);
+    const context = effectActionGroupContext({
+      actor,
+      skillId: PRECEDING_SKILL_ID,
+      definitions,
+      recorder,
+      rootEventId,
+      ...(random === undefined ? {} : { random }),
+      ...(action.withPrevious === true && previousSkillUseId !== undefined
+        ? { extras: { skillUseId: previousSkillUseId } }
+        : {}),
+    });
+    previousSkillUseId = context.skillUseId;
     baseline = applyEffectActionGroups(
       resolveSkillOrder(
         skillDefinition,
@@ -818,14 +849,7 @@ export function applyPrecedingActions(
         definitions.unitDefinitions,
       ),
       baseline,
-      effectActionGroupContext({
-        actor,
-        skillId: PRECEDING_SKILL_ID,
-        definitions,
-        recorder,
-        rootEventId,
-        ...(random === undefined ? {} : { random }),
-      }),
+      context,
     ).units;
   }
   return baseline;
