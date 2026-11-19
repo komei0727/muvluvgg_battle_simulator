@@ -6,10 +6,17 @@ import {
 } from "../../effects/duration-expiry-service.js";
 import { consumeEffectDurations } from "../../model/applied-effect-duration.js";
 import type { ConsumptionKind } from "../../../catalog/definitions/catalog-enums.js";
-import { eventContextOf, type EffectActionGroupContext } from "./effect-action-group-context.js";
+import {
+  eventContextOf,
+  type AttackConsumptionScope,
+  type EffectActionGroupContext,
+} from "./effect-action-group-context.js";
+
+export type { AttackConsumptionScope };
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
-import type { EffectInstanceId } from "../../../shared/event-ids.js";
+import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
+import type { BattleDomainEvent } from "../../events/domain-event.js";
 
 /**
  * `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`は「効果ownerが次に攻撃/攻撃対象に
@@ -27,26 +34,6 @@ const DEFERRED_EXPIRY_CONSUMPTION_KINDS: ReadonlySet<ConsumptionKind> = new Set(
   "NEXT_OUTGOING_ATTACK",
   "NEXT_INCOMING_ATTACK",
 ]);
-
-/**
- * R-EFF-07: 1回の攻撃（1 DAMAGE EffectAction参照の全対象・全ヒット）の間で共有する
- * `NEXT_*_ATTACK`消費の状態。ACTION stepは対象ごとに`actions`を並べて解決するため、
- * 同じ攻撃が複数の適用（対象）にまたがり、別のDAMAGE（別の攻撃）の適用と交互に進む。
- *
- * 消費で0になったインスタンスは、それを消費した攻撃の全適用が終わるまで失効させず
- * （肩代わりで同じ保持者が同じ攻撃を何度受けても効く）、その間は消費していない攻撃からは
- * 見えなくする（{@link suspendedEffectInstanceIdsFor}）。失効は、そのインスタンスを消費した
- * 攻撃のうち最後に終わったものの終了時に行う。
- */
-export interface AttackConsumptionScope {
-  /** この攻撃で既に1回分消費したインスタンス（`保持ユニット|インスタンスID`）。 */
-  readonly consumedInstanceKeys: Set<string>;
-  /** 消費で0になり、失効を待っているインスタンス。 */
-  readonly pendingExpirySeeds: ExpirationSeed[];
-  /** 同じstepで解決する攻撃（自身を含む）。失効の引き継ぎと非表示の判定に使う。 */
-  readonly siblings: AttackConsumptionScope[];
-  finished: boolean;
-}
 
 /** `siblings`を渡すと、同じstepの攻撃としてそこへ加わる。 */
 export function createAttackConsumptionScope(
@@ -75,9 +62,11 @@ function instanceKeyOf(seed: {
  */
 export function suspendedEffectInstanceIdsFor(
   scope: AttackConsumptionScope,
+  /** R-SUB-02: サブユニット追加ヒットの解決まで失効を待っている先行の攻撃。 */
+  held: readonly AttackConsumptionScope[] = [],
 ): ReadonlySet<EffectInstanceId> {
   const suspended = new Set<EffectInstanceId>();
-  for (const sibling of scope.siblings) {
+  for (const sibling of [...scope.siblings, ...held]) {
     for (const seed of sibling.pendingExpirySeeds) {
       if (!scope.consumedInstanceKeys.has(instanceKeyOf(seed))) {
         suspended.add(seed.effectInstanceId);
@@ -248,6 +237,20 @@ export function buildConsumeEffectDurationHooks(
     if (seeds.length === 0) {
       return { units, lastEventId: parentEventId };
     }
+    // R-SUB-02＋R-EFF-07: サブユニット追加ヒットを保留している間は、元攻撃が消費した効果を
+    // 追加ヒットの解決まで残す（後続の別の攻撃からは`suspendedEffectInstanceIdsFor`で隠す）。
+    if (
+      context.heldAttackConsumptions !== undefined &&
+      (context.subUnitAdditions?.pending.size ?? 0) > 0
+    ) {
+      context.heldAttackConsumptions.push({
+        consumedInstanceKeys: scope.consumedInstanceKeys,
+        pendingExpirySeeds: seeds,
+        siblings: [],
+        finished: true,
+      });
+      return { units, lastEventId: parentEventId };
+    }
     const expiry = yield* expireEffectsSteps(
       eventContext,
       units,
@@ -264,4 +267,31 @@ export function buildConsumeEffectDurationHooks(
   };
 
   return { consumeEffectDuration, finalizeConsumedEffectDurations, beginNextAttack };
+}
+
+/**
+ * R-SUB-02＋R-EFF-07: サブユニット追加ヒットの解決まで待たせていた、元攻撃が消費して0にした
+ * 効果を失効させる（DAMAGE区間の終わり、追加ヒットを解決した後。中断時も同じ）。
+ */
+export function* expireHeldAttackConsumptionsSteps(
+  context: EffectActionGroupContext,
+  units: readonly BattleUnit[],
+  parentEventId: DomainEventId,
+): Generator<
+  { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
+  { readonly units: readonly BattleUnit[]; readonly lastEventId: DomainEventId },
+  readonly BattleUnit[] | undefined
+> {
+  const held = context.heldAttackConsumptions?.splice(0) ?? [];
+  const seeds = held.flatMap((scope) => scope.pendingExpirySeeds.splice(0));
+  if (seeds.length === 0) {
+    return { units, lastEventId: parentEventId };
+  }
+  return yield* expireEffectsSteps(
+    eventContextOf(context),
+    units,
+    seeds,
+    context.definitions.effectActions,
+    parentEventId,
+  );
 }

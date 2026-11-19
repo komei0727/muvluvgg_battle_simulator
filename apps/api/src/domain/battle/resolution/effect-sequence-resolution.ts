@@ -177,6 +177,7 @@ export function* resolveEffectSequencePlan(
     resolvedBindings: plan.resolvedBindings,
     linkedGroupGrants: new Map(),
     subUnitAdditions: emptySubUnitAdditionLedger(),
+    heldAttackConsumptions: [],
   };
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
@@ -337,14 +338,7 @@ export function* resolveEffectSequencePlan(
       break;
     }
     const endsDamageSection = containsDamageFrom[stepPosition + 1] !== true;
-    // DAMAGE区間の最後のstepでは、対象を狙う最後のDAMAGEの直後に追加ヒットを解決する
-    // （`resolveActionApplications`。分岐の腕・繰り返しの中では`resolveStepDefinitionList`が
-    // その位置を絞り込む）。そこで解決されずに残った対象は、このstepの後にまとめて解決する。
     const step = plannedStep;
-    const stepContext: EffectActionGroupContext = {
-      ...context,
-      releaseSubUnitAdditionsInStep: endsDamageSection,
-    };
 
     const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =
       step.planKind === "ACTION_PLAN"
@@ -355,7 +349,7 @@ export function* resolveEffectSequencePlan(
             step.actions,
             step.applications,
             box,
-            stepContext,
+            context,
             lastResultState,
             lastEventId,
           )
@@ -363,7 +357,7 @@ export function* resolveEffectSequencePlan(
             step.stepIndex,
             step.definition,
             box,
-            stepContext,
+            context,
             plan,
             lastResultState,
             lastEventId,
@@ -385,6 +379,13 @@ export function* resolveEffectSequencePlan(
         break;
       }
     }
+  }
+
+  // R-SUB-02: 中断で抜けた場合も、追加ヒットのために残していた消費済み効果を失効させる
+  // （使用者が戦闘不能なので追加ヒット自体は解決しない）。
+  if (interruptedUnresolvedCount !== undefined) {
+    lastEventId = (yield* releasePendingSubUnitAdditionsSteps(context, box, lastEventId, false))
+      .lastEventId;
   }
 
   // 正常終了・中断のどちらでも掃除する。付与自体は確定済みの状態変更であり、

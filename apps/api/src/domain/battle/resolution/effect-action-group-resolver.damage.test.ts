@@ -943,11 +943,22 @@ describe("sub-unit additional damage interruption (R-SUB-02 / R-SKL-01)", () => 
 
     // 追加ヒットの`SubUnitDamaged`連鎖が使用者を倒したので、この解決は中断扱いになる。
     expect(result.outcome.status).toBe("INTERRUPTED");
+    // R-SUB-02（Issue #836）: 追加ヒットはDAMAGE区間の終わり（元のDAMAGE stepの完了後）に
+    // 解決するため、元のDAMAGE自体は`APPLIED`で完了し、中断は追加ヒットの解決で起きる。
     const completed = recorder
       .getEvents()
       .filter((e) => e.eventType === "EffectActionCompleted")
       .map((e) => e.payload.resultKind);
-    expect(completed).toEqual(["INTERRUPTED"]);
+    expect(completed).toEqual(["APPLIED"]);
+    expect(
+      recorder
+        .getEvents()
+        .some(
+          (e) =>
+            e.eventType === "DamageCalculated" &&
+            e.payload.effectActionDefinitionId === OWNER_SUBUNIT_ID,
+        ),
+    ).toBe(true);
     // 後続stepのEffectActionは一度も開始されない（R-SKL-01「未解決効果を中断する」）。
     expect(
       recorder
@@ -958,7 +969,12 @@ describe("sub-unit additional damage interruption (R-SUB-02 / R-SKL-01)", () => 
             e.payload.effectActionDefinitionId === second.effectActionDefinitionId,
         ),
     ).toBe(false);
-    expect(recorder.getEvents().filter((e) => e.eventType === "EffectStepCompleted")).toEqual([]);
+    expect(
+      recorder
+        .getEvents()
+        .filter((e) => e.eventType === "EffectStepStarting")
+        .map((e) => e.payload.stepIndex),
+    ).toEqual([0]);
   });
 });
 

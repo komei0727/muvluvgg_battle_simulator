@@ -532,7 +532,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 7 completes
     "UNIT_MEIYA_FATED",
   ],
   "eventCount": 1152,
-  "eventSequenceHash": "sha256:c6e3e7d64eba0e1c",
+  "eventSequenceHash": "sha256:0496d295650e43c8",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 18,
     "ACTION_COMPLETING": 18,
@@ -888,7 +888,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 12 complete
     "UNIT_SHOUKA_BEACH",
   ],
   "eventCount": 716,
-  "eventSequenceHash": "sha256:678957a7c27a69c0",
+  "eventSequenceHash": "sha256:b6153fadd4d8ed99",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 13,
     "ACTION_COMPLETING": 13,

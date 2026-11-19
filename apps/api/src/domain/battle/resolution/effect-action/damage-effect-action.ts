@@ -38,6 +38,7 @@ import {
 } from "./effect-action-group-context.js";
 import {
   buildConsumeEffectDurationHooks,
+  expireHeldAttackConsumptionsSteps,
   suspendedEffectInstanceIdsFor,
 } from "./effect-duration-consumption.js";
 import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
@@ -292,7 +293,7 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   const suspendedEffectInstanceIds =
     input.attack === undefined
       ? new Set<EffectInstanceId>()
-      : suspendedEffectInstanceIdsFor(input.attack.scope);
+      : suspendedEffectInstanceIdsFor(input.attack.scope, context.heldAttackConsumptions);
   const skillType = skillTypeOf(context);
   const damageGen = applyDamageActionSteps(
     currentActor,
@@ -416,7 +417,6 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       ...(context.subUnitAdditions !== undefined
         ? { subUnitAdditions: context.subUnitAdditions }
         : {}),
-      releaseSubUnitAdditions: input.releaseSubUnitAdditions ?? true,
       // R-FUP-01: AS/EXスキル使用だけが渡す追撃捕捉をヒット処理へ素通しする。
       ...(context.followUpAttackCapture !== undefined
         ? { followUpAttackCapture: context.followUpAttackCapture }
@@ -473,14 +473,18 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
 };
 
 /**
- * R-SUB-02（Issue #836）: DAMAGE区間の終わりに、スキル使用の台帳へ残っている追加ヒット
- * （その対象を狙う最後のDAMAGEが、DAMAGE区間の最後のACTION stepより前にあった対象）を
- * 対象の初出順でまとめて解決する。
+ * R-SUB-02（Issue #836）: DAMAGE区間の終わりに、スキル使用の台帳へ保留した追加ヒットを
+ * 対象の初出順でまとめて解決し、その後で元攻撃が消費して0にした効果を失効させる。
  *
  * 追加ヒットは元攻撃の一部であり、攻撃単位の消費（`NEXT_INCOMING_ATTACK`／
  * `NEXT_OUTGOING_ATTACK`）は元攻撃のDAMAGEで済んでいる。ここで新しい攻撃として数え直すと
  * 「次の攻撃」効果を追加ヒットだけで1回分消費してしまうため、攻撃単位の消費は行わない。
- * ヒット単位の消費（`OUTGOING_HIT`／`INCOMING_HIT`等）は通常の追加ヒットと同じく行う。
+ * 元攻撃が消費した効果は`heldAttackConsumptions`がまだ失効させずに残しているため、
+ * 追加ヒットにも元攻撃と同じく乗る（R-EFF-07）。ヒット単位の消費（`OUTGOING_HIT`／
+ * `INCOMING_HIT`等）は通常のヒットと同じく行う。
+ *
+ * `releaseAdditions`が偽（使用者の戦闘不能で中断した解決の後始末）なら追加ヒットは解決せず、
+ * 残していた効果の失効だけを行う。
  *
  * `onFactEventForPassiveChain`未指定（PS自身のEffectSequence）の経路では、`resolveDamage`と
  * 同じく未通知イベントを`EFFECT_RESOLVED`として`yield`し、driverへ連鎖を委ねる。
@@ -489,13 +493,17 @@ export function* releasePendingSubUnitAdditionsSteps(
   context: EffectActionGroupContext,
   box: UnitsBox,
   parentEventId: DomainEventId,
+  releaseAdditions = true,
 ): Generator<
   EffectResolutionStep,
   { readonly lastEventId: DomainEventId; readonly interrupted: boolean },
   void
 > {
   const ledger = context.subUnitAdditions;
-  if (ledger === undefined || ledger.pending.size === 0 || context.actorUnitId === undefined) {
+  if (
+    ledger === undefined ||
+    (ledger.pending.size === 0 && (context.heldAttackConsumptions?.length ?? 0) === 0)
+  ) {
     return { lastEventId: parentEventId, interrupted: false };
   }
   const { consumeEffectDuration, finalizeConsumedEffectDurations } =
@@ -581,17 +589,21 @@ export function* releasePendingSubUnitAdditionsSteps(
     }
     return step.value;
   };
-  const released = yield* drive(
-    releaseSubUnitAdditionsSteps(
-      damageContext,
-      working,
-      context.random,
-      context.actorUnitId,
-      ledger,
-      undefined,
-      parentEventId,
-    ),
-  );
+  const released =
+    releaseAdditions && context.actorUnitId !== undefined && ledger.pending.size > 0
+      ? yield* drive(
+          releaseSubUnitAdditionsSteps(
+            damageContext,
+            working,
+            context.random,
+            context.actorUnitId,
+            ledger,
+            undefined,
+            parentEventId,
+          ),
+        )
+      : { lastEventId: parentEventId, interrupted: false };
+  ledger.pending.clear();
   const finalized = yield* drive(
     driveRemovalSteps(
       damageContext,
@@ -599,12 +611,23 @@ export function* releasePendingSubUnitAdditionsSteps(
       finalizeConsumedEffectDurations(Array.from(working.values()), released.lastEventId),
     ),
   );
+  const expired = yield* drive(
+    driveRemovalSteps(
+      damageContext,
+      working,
+      expireHeldAttackConsumptionsSteps(
+        context,
+        Array.from(working.values()),
+        finalized.lastEventId,
+      ),
+    ),
+  );
   box.units = box.units.map((unit) => working.get(unit.battleUnitId) ?? unit);
   const pending = cursor.takePending();
   if (pending.length > 0 && context.onFactEventForPassiveChain === undefined) {
     yield { kind: "EFFECT_RESOLVED", events: pending };
   }
-  return { lastEventId: finalized.lastEventId, interrupted: released.interrupted };
+  return { lastEventId: expired.lastEventId, interrupted: released.interrupted };
 }
 
 function* noConsumption(

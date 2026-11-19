@@ -48,8 +48,8 @@ export interface SubUnitAdditionalDamageResult {
 
 /**
  * R-SUB-02（DMG-005）: 1つのDAMAGE EffectActionの解決が終わった直後に、使用者が保持する
- * サブユニットの追加ダメージをスキル使用の台帳（`context.subUnitAdditions`）へ記録し、
- * 解決してよい位置（`context.releaseSubUnitAdditions`）ならこのDAMAGEの対象の分を解決する。
+ * サブユニットの追加ダメージをスキル使用の台帳（`context.subUnitAdditions`）へ記録する。
+ * 台帳が無い（単体のDAMAGE解決）場合はこのDAMAGEの対象の分をその場で解決する。
  *
  * - 「所持者の攻撃対象ごとに追加ダメージを1ヒット加える」「複数対象への攻撃では、
  *   各対象へ1ヒットずつ加える」: この攻撃のヒットの**対象**を重複なく（初出順で）並べる。
@@ -57,8 +57,8 @@ export interface SubUnitAdditionalDamageResult {
  * - 数える単位は攻撃1回（1スキル使用）であり、同じ対象が同じスキル使用の複数DAMAGEに
  *   現れても各体1回に限る（Issue #836）。会心は抽選せず、そのスキル使用でその対象への
  *   ヒットが1つでも会心なら会心にする（攻撃全体ではなく対象ごと、Issue #704）。後続の
- *   DAMAGEの会心も継承できるよう、追加ヒットはその対象を狙う最後のDAMAGEの後（または
- *   DAMAGE区間の終わり、`releasePendingSubUnitAdditionsSteps`）まで解決を持ち越す
+ *   DAMAGE・肩代わりで同じ対象が受けた分の会心も継承できるよう、追加ヒットはDAMAGE区間の
+ *   終わり（`releasePendingSubUnitAdditionsSteps`）まで解決を持ち越す
  * - 所持者が同じサブユニットを複数保持していればその数だけ加える
  *   （production例: `SKL_OLGA_VETERAN_PS1`「サブユニット『カムラッドⅡ』を3つ付与する」）
  * - 使用者が途中で戦闘不能になり残りのヒットを中断した場合（R-SKL-01/R-SKL-03）は
@@ -120,7 +120,9 @@ export function* applySubUnitAdditionalDamageSteps(
       ledger.pending.set(targetUnitId, entry);
     }
   }
-  if (context.releaseSubUnitAdditions === false) {
+  if (context.subUnitAdditions !== undefined) {
+    // スキル使用の中ではDAMAGE区間の終わりまで持ち越す（後続DAMAGEの会心・肩代わり先も
+    // 合わせて集計するため）。
     return { lastEventId, interrupted: false };
   }
   return yield* releaseSubUnitAdditionsSteps(

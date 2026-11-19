@@ -168,18 +168,13 @@ export interface DamageEventContext {
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
-   * R-SUB-02: このスキル使用（EffectSequence）のサブユニット追加ヒット台帳。追加は
-   * 攻撃1回につき元攻撃の対象ごと・各体1ヒットで、会心はスキル使用全体のその対象への
-   * ヒットから継承する。未指定ならこのDAMAGE EffectActionだけで完結させる（単体の
-   * DAMAGE解決テスト用）。
+   * R-SUB-02: このスキル使用（EffectSequence）のサブユニット追加ヒット台帳。指定時は
+   * 台帳へ記録するだけで、追加ヒットはDAMAGE区間の終わりにまとめて解決する
+   * （`releasePendingSubUnitAdditionsSteps`）。追加は攻撃1回につき元攻撃の対象ごと・
+   * 各体1ヒットで、会心はスキル使用全体のその対象へのヒットから継承する。未指定なら
+   * このDAMAGE EffectActionの直後に解決する（単体のDAMAGE解決テスト用）。
    */
   readonly subUnitAdditions?: SubUnitAdditionLedger;
-  /**
-   * R-SUB-02: このDAMAGEの直後に、対象の保留中の追加ヒットを解決するか。偽なら台帳へ
-   * 記録するだけで、同じスキル使用の後続DAMAGE（またはDAMAGE区間の終わり）へ持ち越す。
-   * 未指定は真。
-   */
-  readonly releaseSubUnitAdditions?: boolean;
   /**
    * `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を同期的に解決するフック。
    * 呼び出し側（`lifecycle/`、Domain層のmodule境界により`combat/`自身は`triggering/`へ

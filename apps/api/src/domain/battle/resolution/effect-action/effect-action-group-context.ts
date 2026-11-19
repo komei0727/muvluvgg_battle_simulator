@@ -32,6 +32,7 @@ import {
   type ResolutionSource,
 } from "../../targeting/target-selection-policy.js";
 import { requireUnit } from "../action-resolution-shared.js";
+import type { ExpirationSeed } from "../../effects/duration-expiry-service.js";
 
 /**
  * `resolveSkillOrder`/`resolveChargeReleaseOrder`が計画した`EffectSequencePlan`を
@@ -113,11 +114,13 @@ export interface EffectActionGroupContext {
    */
   readonly subUnitAdditions?: SubUnitAdditionLedger;
   /**
-   * R-SUB-02: 解決中のトップレベルstepが「DAMAGE区間の最後のACTION step」か。真のときだけ、
-   * そのstepの中で対象を狙う最後のDAMAGEの直後に追加ヒットを解決する。偽なら追加ヒットを
-   * 台帳へ持ち越し、DAMAGE区間の終わりにまとめて解決する（`resolveEffectSequencePlan`）。
+   * R-SUB-02＋R-EFF-07: 追加ヒットを保留している間、元攻撃が消費して0にした効果の失効を
+   * 追加ヒットの解決まで待たせる攻撃（`finalizeConsumedEffectDurations`がここへ移す）。
+   * 追加ヒットは元攻撃の一部であり、元攻撃の全ヒット（追加ヒットを含む）の解決まで消費済みの
+   * 効果を維持するためである。`resolveEffectSequencePlan`がEffectSequenceごとに新規生成し、
+   * DAMAGE区間の終わりに追加ヒットを解決した後で失効させる。
    */
-  readonly releaseSubUnitAdditionsInStep?: boolean;
+  readonly heldAttackConsumptions?: AttackConsumptionScope[];
   /**
    * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
    * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が
@@ -389,4 +392,24 @@ export function requireMarkerSource(context: EffectActionGroupContext): MarkerSo
     "effectActionGroupContext",
     "APPLY_MARKER requires either an actor BattleUnit or a Memory source side (R-EFF-10 MarkerState always records its latest granter)",
   );
+}
+
+/**
+ * R-EFF-07: 1回の攻撃（1 DAMAGE EffectAction参照の全対象・全ヒット）の間で共有する
+ * `NEXT_*_ATTACK`消費の状態。ACTION stepは対象ごとに`actions`を並べて解決するため、
+ * 同じ攻撃が複数の適用（対象）にまたがり、別のDAMAGE（別の攻撃）の適用と交互に進む。
+ *
+ * 消費で0になったインスタンスは、それを消費した攻撃の全適用が終わるまで失効させず
+ * （肩代わりで同じ保持者が同じ攻撃を何度受けても効く）、その間は消費していない攻撃からは
+ * 見えなくする（`suspendedEffectInstanceIdsFor`）。失効は、そのインスタンスを消費した
+ * 攻撃のうち最後に終わったものの終了時に行う。
+ */
+export interface AttackConsumptionScope {
+  /** この攻撃で既に1回分消費したインスタンス（`保持ユニット|インスタンスID`）。 */
+  readonly consumedInstanceKeys: Set<string>;
+  /** 消費で0になり、失効を待っているインスタンス。 */
+  readonly pendingExpirySeeds: ExpirationSeed[];
+  /** 同じstepで解決する攻撃（自身を含む）。失効の引き継ぎと非表示の判定に使う。 */
+  readonly siblings: AttackConsumptionScope[];
+  finished: boolean;
 }

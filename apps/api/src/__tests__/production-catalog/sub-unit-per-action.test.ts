@@ -7,7 +7,16 @@ import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalo
 import { createActionId } from "../../domain/shared/event-ids.js";
 import { SUBUNIT_PROVIDER_ATTACK_KEY } from "../../domain/battle/model/applied-effect.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
-import { createRuntimeCounterId } from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  createEffectActionDefinitionId,
+  createRuntimeCounterId,
+} from "../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../domain/battle/model/applied-effect.js";
+import { createBattleUnitId } from "../../domain/shared/ids.js";
+import { createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { SequenceRandomSource } from "../../testing/random/sequence-random-source.js";
 import { applyPrecedingActions } from "../../testing/production-unit/skill-behaviour.js";
@@ -224,12 +233,19 @@ function eventsOfSkillUseWithSubUnit(
   unitDefinitionId: string,
   skillDefinitionId: string,
   criticalDraws: readonly number[],
+  options: {
+    readonly enemies?: BoardOverrides["enemies"];
+    readonly prepare?: (units: readonly BattleUnit[]) => readonly BattleUnit[];
+  } = {},
 ): readonly BattleDomainEvent[] {
   const board = productionBoard(snapshot, unitDefinitionId, {
     combatStats: { criticalRate: 0.5 },
-    enemies: [{ id: "enemy:center", position: { column: "CENTER", row: "FRONT" } }],
+    enemies: options.enemies ?? [
+      { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+    ],
   });
-  const units = applyPrecedingActions(board, [SUBUNIT_III]);
+  const prepared = applyPrecedingActions(board, [SUBUNIT_III]);
+  const units = options.prepare === undefined ? prepared : options.prepare(prepared);
   const skill = snapshot.skills.get(createSkillDefinitionId(skillDefinitionId));
   if (skill === undefined) {
     throw new Error(`missing ${skillDefinitionId}`);
@@ -365,5 +381,78 @@ describe("FIX-12 分岐の中のDAMAGEでも追加ヒットは同じ攻撃の中
       }).hpDeltas?.["enemy:front"] ?? 0;
     // 子機Ⅱの追加ダメージ1000×31.2%＝312に、同じ攻撃で消費されたガード（EN−75%）が乗る。
     expect(ps1(true) - ps1(false)).toBe(-78);
+  });
+});
+
+/** 使用者の攻撃を`covererUnitId`が全量肩代わりする状態（R-INT-02）。 */
+function coveredBy(covererUnitId: string) {
+  return (units: readonly BattleUnit[]): readonly BattleUnit[] => {
+    const coverDefinitionId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    const cover: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: coverDefinitionId,
+      kindKey: effectKindKeyFromDefinitionId(coverDefinitionId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId(covererUnitId),
+      targetUnitId: createBattleUnitId(SUBJECT_ID),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId(covererUnitId),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    return units.map((unit) =>
+      unit.battleUnitId === SUBJECT_ID
+        ? { ...unit, appliedEffects: [...unit.appliedEffects, cover] }
+        : unit,
+    );
+  };
+}
+
+describe("FIX-12 肩代わり・後続stepでも追加ヒットは元攻撃の一部として解決する（R-SUB-02・R-INT-02・R-EFF-07）", () => {
+  it("IT-CAT-SUBACT-011 [R-SUB-02, R-INT-02]: リディアAS2の全ヒットを後列中央が肩代わりし、最後のヒットだけが会心なら、肩代わり役への追加ヒットは全ヒットの後に1回だけ会心（127）", () => {
+    const calculations = damageCalculations(
+      eventsOfSkillUseWithSubUnit("UNIT_LYDIA_SUMMER", "SKL_LYDIA_SUMMER_AS2", [0.9, 0.9, 0.1], {
+        enemies: [
+          { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+          { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+          { id: "enemy:right", position: { column: "RIGHT", row: "FRONT" } },
+        ],
+        prepare: coveredBy("enemy:back"),
+      }),
+    );
+    expect(
+      calculations.map((payload) => [payload.effectActionDefinitionId, payload.targetUnitId]),
+    ).toEqual([
+      ["ACT_LYDIA_SUMMER_AS2_DAMAGE_CENTER", "enemy:back"],
+      ["ACT_LYDIA_SUMMER_AS2_DAMAGE_OTHERS", "enemy:back"],
+      ["ACT_LYDIA_SUMMER_AS2_DAMAGE_OTHERS", "enemy:back"],
+      ["ACT_LYDIA_SUMMER_PS2_SUBUNIT", "enemy:back"],
+    ]);
+    expect(calculations[3]!.finalDamage).toBe(127);
+  });
+
+  it("IT-CAT-SUBACT-012 [R-SUB-02, R-EFF-07]: オルガAS1（後続の分岐が不成立）の追加ヒットにも、元攻撃で消費された対象の「次に受けるEN攻撃−75%」が乗る（312→78）", () => {
+    const as1 = (withSubUnit: boolean) =>
+      observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_OLGA_VETERAN",
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_OLGA_VETERAN_AS1" },
+        board: {
+          enemies: [{ id: "enemy:center", position: { column: "CENTER", row: "FRONT" } }],
+        },
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_SHIRANA_SORA_PS2_GUARD", target: "ENEMY" },
+          ...(withSubUnit
+            ? [{ effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", target: "SELF" as const }]
+            : []),
+        ],
+      }).hpDeltas?.["enemy:center"] ?? 0;
+    expect(as1(true) - as1(false)).toBe(-78);
   });
 });
