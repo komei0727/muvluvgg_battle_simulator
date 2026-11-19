@@ -57,6 +57,16 @@ const SINGLE_BACK_CENTER_ENEMY = {
   enemies: [{ id: "enemy:back", position: { column: "CENTER", row: "BACK" } as const }],
 };
 
+/** サブユニット付与と同時に所持者へ付く攻撃力低下（_L: Ⅰ・Ⅱの−7.5%、_S: Ⅲの−2.5%）。 */
+function holderAtkDown(size: "L" | "S", unitId: string) {
+  return {
+    unitId,
+    effectActionDefinitionId: `ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_${size}`,
+    magnitude: size === "L" ? -0.075 : -0.025,
+    timeLimit: { unit: "BATTLE", count: 1 },
+  } as const;
+}
+
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
@@ -65,29 +75,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "自身に対しサブユニット「うみのともだちⅡ」を3つ付与する。「うみのともだちⅡ」は自身の最大HP×2.5%のHPを持ち、攻撃時に攻撃力×25%のダメージを追加するが、同時に付与された対象の攻撃力を7.5%低下させる（重複可）",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_TEX_EX" },
     expected: {
-      actions: [
+      // 1体付与するたびに所持者へ攻撃力−7.5%を付ける（SR-371と同じ）。
+      actions: Array.from({ length: 3 }, () => [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT", targets: ["ally:subject"] },
-      ],
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
+      ]).flat(),
       // 最大HP10000×2.5%＝250。
-      effectsApplied: [
+      effectsApplied: Array.from({ length: 3 }, () => [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT",
           magnitude: 250,
         },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT",
-          magnitude: 250,
-        },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT",
-          magnitude: 250,
-        },
-      ],
+        holderAtkDown("L", "ally:subject"),
+      ]).flat(),
     },
   },
   {
@@ -175,16 +179,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_LYDIA_SUMMER_TEX_AS2",
     intent:
-      "（「うみのともだちⅡ」保持下）攻撃時に自身の攻撃力×25%のダメージを追加し、対象の攻撃力を7.5%低下させる",
+      "（「うみのともだちⅡ」保持下）攻撃時に自身の攻撃力×25%のダメージを追加する。攻撃対象の攻撃力は下げない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_TEX_AS2" },
     board: SINGLE_BACK_CENTER_ENEMY,
     precedingActions: [
       { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT", target: "SELF" },
     ],
     expected: {
-      // 追加ダメージとデバフはEffectAction群の解決器ではなくサブユニットの付与
-      // フックから直接適用されるため、実行済みEffectActionの列には現れない
-      // （SHIRANA_SORAの子機Ⅰと同じ規約）。
+      // 追加ダメージはEffectAction群の解決器ではなくサブユニットの付与フックから直接
+      // 適用されるため、実行済みEffectActionの列には現れない。
       actions: [
         {
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_AS2_DAMAGE_CENTER",
@@ -194,14 +197,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 通常攻撃848に、付与時攻撃力1000×25%＝250が乗る（保持者の攻撃力1000 ≥ 対象防御力500
       // のため防御による減衰なし、R-SUB-02）。
       hpDeltas: { "enemy:back": -(848 + 250) },
-      effectsApplied: [
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -211,7 +206,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_LYDIA_SUMMER_TEX_AS2",
     intent:
-      "（「うみのともだちⅢ」保持下）攻撃時に自身の攻撃力×8.5%のダメージを追加し、対象の攻撃力を2.5%低下させる",
+      "（「うみのともだちⅢ」保持下）攻撃時に自身の攻撃力×8.5%のダメージを追加する。攻撃対象の攻撃力は下げない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_TEX_AS2" },
     board: SINGLE_BACK_CENTER_ENEMY,
     precedingActions: [
@@ -227,14 +222,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 通常攻撃848に、付与時攻撃力1000×8.5%＝85が乗る（保持者の攻撃力1000 ≥ 対象防御力500
       // のため防御による減衰なし、R-SUB-02）。
       hpDeltas: { "enemy:back": -(848 + 85) },
-      effectsApplied: [
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
-          magnitude: -0.025,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -256,8 +243,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       }),
       triggeredBy: "ally:subject",
     },
+    // 解除されるデバフは、付与時に付く所持者低下（_L）と区別できる別定義（_S）で置く。
     precedingActions: [
-      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L", target: "SELF" },
+      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S", target: "SELF" },
     ],
     expected: {
       actions: [
@@ -269,6 +257,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS1_SUBUNIT",
           targets: ["ally:subject"],
         },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
       ],
       // 最大HP10000×2.5%＝250。
       effectsApplied: [
@@ -277,15 +269,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS1_SUBUNIT",
           magnitude: 250,
         },
+        holderAtkDown("L", "ally:subject"),
       ],
-      effectsRemoved: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
+      effectsRemoved: [holderAtkDown("S", "ally:subject")],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -390,7 +376,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           targets: ["ally:subject"],
         },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:subject"],
+        },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT", targets: ["ally:front"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:front"],
+        },
       ],
       // 最大HP10000×0.75%＝75。
       effectsApplied: [
@@ -399,11 +393,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           magnitude: 75,
         },
+        holderAtkDown("S", "ally:subject"),
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           magnitude: 75,
         },
+        holderAtkDown("S", "ally:front"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
@@ -428,7 +424,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           targets: ["ally:subject"],
         },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:subject"],
+        },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT", targets: ["ally:front"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:front"],
+        },
       ],
       effectsApplied: [
         {
@@ -436,11 +440,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           magnitude: 75,
         },
+        holderAtkDown("S", "ally:subject"),
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           magnitude: 75,
         },
+        holderAtkDown("S", "ally:front"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
@@ -465,6 +471,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           targets: ["ally:subject"],
         },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:subject"],
+        },
       ],
       effectsApplied: [
         {
@@ -472,6 +482,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT",
           magnitude: 75,
         },
+        holderAtkDown("S", "ally:subject"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },

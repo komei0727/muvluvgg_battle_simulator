@@ -47,8 +47,7 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.25,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        },
-        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L" }
+        }
       },
       "duration": { "dispellable": true }
     },
@@ -81,8 +80,7 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.25,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        },
-        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L" }
+        }
       },
       "duration": { "dispellable": true }
     },
@@ -106,8 +104,7 @@
           "providerAttack": "SOURCE_SNAPSHOT_ATTACK",
           "skillMultiplier": 0.085,
           "targetDefense": "TARGET_CURRENT_DEFENSE"
-        },
-        "debuff": { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S" }
+        }
       },
       "duration": { "dispellable": true }
     },

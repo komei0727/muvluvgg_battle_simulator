@@ -29,15 +29,7 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_SHIRANA_SORA_EX_DEF_UP"
-            }
-          ]
-        },
-        {
-          "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
+            },
             {
               "effectActionDefinitionId": "ACT_SHIRANA_SORA_EX_SUBUNIT"
             }
@@ -72,11 +64,11 @@
             "side": "ALLY",
             "count": 1,
             "order": [
+              "SELF_LOWEST_PRIORITY",
               {
                 "kind": "UNIT_TYPE_PRIORITY",
                 "unitType": "ENERGY"
-              },
-              "SELF_LOWEST_PRIORITY"
+              }
             ]
           }
         }
@@ -91,15 +83,7 @@
           "actions": [
             {
               "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_ATK_UP"
-            }
-          ]
-        },
-        {
-          "kind": "ACTION",
-          "target": {
-            "kind": "SELF"
-          },
-          "actions": [
+            },
             {
               "effectActionDefinitionId": "ACT_SHIRANA_SORA_AS1_SUBUNIT"
             }

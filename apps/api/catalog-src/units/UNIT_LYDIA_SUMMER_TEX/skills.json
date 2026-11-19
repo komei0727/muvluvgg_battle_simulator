@@ -12,8 +12,11 @@
           "target": { "kind": "SELF" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L" },
             { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" },
-            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" }
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_EX_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L" }
           ]
         }
       ]
@@ -150,7 +153,8 @@
           "target": { "kind": "SELF" },
           "actions": [
             { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS1_REMOVE_DEBUFF" },
-            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS1_SUBUNIT" }
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS1_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_L" }
           ]
         }
       ]
@@ -197,7 +201,10 @@
         {
           "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
-          "actions": [{ "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT" }]
+          "actions": [
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_PS2_SUBUNIT" },
+            { "effectActionDefinitionId": "ACT_LYDIA_SUMMER_TEX_SUBUNIT_ATK_DOWN_S" }
+          ]
         }
       ]
     },
