@@ -233,8 +233,8 @@ export interface ReflectState {
 
 /**
  * R-LNK-01〜03（DMG-007、Issue #187、`APPLY_DAMAGE_LINK`由来の付与だけが持つ）:
- * 保持者が**受けた**ダメージと同じ量（`linkRate`の割合）を`linkToUnitId`へ追加で
- * 発生させる。`ReflectState`と同じく状態は**受け手側**が保持するが、反射が
+ * 保持者が**受けた**ダメージ（軽減後・シールド吸収前）の`linkRate`の割合を元の被害から
+ * 差し引き、`linkToUnitId`へ分配する。`ReflectState`と同じく状態は**受け手側**が保持するが、反射が
  * 「元ダメージの攻撃者へ返す」のに対し、リンクは付与時点で確定した固定の
  * リンク先へ送る点が異なる。
  *

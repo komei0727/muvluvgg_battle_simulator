@@ -294,6 +294,42 @@ const MATCHUPS: readonly Matchup[] = [
     enemy: ["UNIT_EVIE_ECO", "UNIT_SIENA_DIVA", "UNIT_CHIZURU_DOMESTIC"],
     randomValue: 0.5,
   },
+  {
+    // 小花(水着)PS1・ユイEX・七枝EXの付与から終了までが揃う組み合わせ。
+    ally: [
+      "UNIT_SHOUKA_BEACH",
+      "UNIT_CHIZURU_DOMESTIC",
+      "UNIT_YURIA_JOKER",
+      "UNIT_EVIE_ECO",
+      "UNIT_ELENA_MOODMAKER",
+    ],
+    enemy: [
+      "UNIT_SIENA_DIVA",
+      "UNIT_URUU_SUMMER",
+      "UNIT_ROSIE_CAMPAIGN",
+      "UNIT_YUI_HEIR",
+      "UNIT_NANAE_SOVEREIGN",
+    ],
+    randomValue: 0.2,
+  },
+  {
+    // ユリアAS2の防御低下がそのスキル使用の末で終わる組み合わせ。
+    ally: [
+      "UNIT_NANAE_SOVEREIGN",
+      "UNIT_SIENA_DIVA",
+      "UNIT_HARRIET_SAGE",
+      "UNIT_KARINA_DOWNER",
+      "UNIT_YURIA_JOKER",
+    ],
+    enemy: [
+      "UNIT_EVIE_ECO",
+      "UNIT_YUI_HEIR",
+      "UNIT_CLARA_TSUNDERE",
+      "UNIT_OLGA_VETERAN",
+      "UNIT_CHIZURU_DOMESTIC",
+    ],
+    randomValue: 0.5,
+  },
 ];
 
 function detailsOf(event: BattleLogEvent): Readonly<Record<string, unknown>> {

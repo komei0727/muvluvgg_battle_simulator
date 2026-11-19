@@ -368,6 +368,50 @@ describe("applyHealAction with healing links (R-HEAL-04, M7-005-HEAL-LINK Issue 
     expect(result.changed).toBe(true);
   });
 
+  it("UT-R-HEAL-04-023 (BOUNDARY): the transfer base is the holder's healable amount (heal capped by its missing HP), so a full-HP holder transfers 0 and a 100% link keeps the holder's HP", () => {
+    // 敵最大HP10000・回復400: HP9500 → 400、9900 → 100、10000 → 0を転送する。
+    const cases = [
+      { holderHp: 9500, transferred: 400 },
+      { holderHp: 9900, transferred: 100 },
+      { holderHp: 10000, transferred: 0 },
+    ];
+    for (const { holderHp, transferred } of cases) {
+      const healer = unit("HEALER", "ALLY");
+      const destination = unit("DEST", "ALLY", { currentHp: 1000, maximumHp: 10000 });
+      const holder: BattleUnit = {
+        ...unit("TARGET", "ENEMY", { currentHp: holderHp, maximumHp: 10000 }),
+        appliedEffects: [link("ACT_LINK", "DEST", 1)],
+      };
+      const { recorder, rootEventId } = seedRecorder();
+
+      const result = applyHealAction(
+        [hit("TARGET", "ACT_HEAL")],
+        healer,
+        plainHeal(0.04),
+        [healer, destination, holder],
+        context(recorder, rootEventId),
+      );
+
+      expect(
+        result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
+      ).toBe(holderHp);
+      expect(
+        result.units.find((u) => u.battleUnitId === createBattleUnitId("DEST"))!.currentHp,
+      ).toBe(1000 + transferred);
+      expect(
+        recorder.getEvents().find((e) => e.eventType === "HealApplied")!.payload,
+      ).toMatchObject({
+        healAmount: 400,
+        transferredAmount: transferred,
+        appliedAmount: 0,
+        discardedAmount: 400 - transferred,
+      });
+      expect(recorder.getEvents().filter((e) => e.eventType === "HealingTransferred")).toHaveLength(
+        transferred > 0 ? 1 : 0,
+      );
+    }
+  });
+
   it("UT-R-HEAL-04-006: a partial healing link splits the heal, truncating the transferred share once (R-NUM-02)", () => {
     const healer = unit("HEALER", "ALLY");
     const destination = unit("DEST", "ALLY", { currentHp: 40, maximumHp: 100 });

@@ -5,6 +5,15 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { createHitPoint } from "../../../domain/battle/model/resource-gauge.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import {
   activatedPassiveSkillIds,
   openPassiveChain,
@@ -386,5 +395,55 @@ describe("production Catalog UNIT_LUNA_HUNGRY (【博識なハングリーガー
     ]);
     // R-INT-03第1項: 元ダメージは巻き戻さない — ルナは500を受けたままである。
     expect(hit.hpDeltas).toEqual({ "ally:subject": -500, "enemy:front": -375 });
+  });
+
+  it("IT-UNIT-LUNA-HUNGRY-005 [R-INT-03] (R-INT-03): PS1の反射は軽減後・シールド吸収前の計算ダメージ75%を基準にし（SR-217）、ルナのシールドが全て吸収しても、ルナがその元ヒットで倒れても、そのヒット分を反射する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "enemy:front",
+      battleId: "B_LUNA_REFLECT_EDGE",
+    }).fire(unitBeingAttacked({ source: "enemy:front", target: "ally:front" }), board.units);
+    const withLuna = (update: (unit: BattleUnit) => BattleUnit): readonly BattleUnit[] =>
+      granted.map((unit) => (unit.battleUnitId === "ally:subject" ? update(unit) : unit));
+
+    const shieldId = createEffectActionDefinitionId("ACT_TEST_LUNA_HUNGRY_SHIELD");
+    const shield: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("B_LUNA_REFLECT_EDGE:effect:shield"),
+      effectActionDefinitionId: shieldId,
+      kindKey: effectKindKeyFromDefinitionId(shieldId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("ally:subject"),
+      targetUnitId: createBattleUnitId("ally:subject"),
+      magnitude: 2000,
+      categories: ["SHIELD"],
+      shield: { shieldType: null, remaining: 2000 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    // 計算1060をルナの盾が全て吸収しても、反射は1060×75%＝795。
+    const shielded = observeDamageProbe({
+      units: withLuna((unit) => ({ ...unit, appliedEffects: [shield, ...unit.appliedEffects] })),
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: 2.12,
+      battleId: "B_LUNA_REFLECT_SHIELD",
+    });
+    expect(shielded.reflected).toMatchObject([{ sourceDamage: 1060, reflectedDamage: 795 }]);
+    expect(shielded.hpDeltas).toEqual({ "enemy:front": -795 });
+
+    // ルナHP500で1060を受けて倒れても、そのヒット分の795は反射する。
+    const lethal = observeDamageProbe({
+      units: withLuna((unit) => ({
+        ...unit,
+        currentHp: createHitPoint(500, Math.trunc(unit.combatStats.maximumHp)),
+      })),
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: 2.12,
+      battleId: "B_LUNA_REFLECT_LETHAL",
+    });
+    expect(lethal.reflected).toMatchObject([{ sourceDamage: 1060, reflectedDamage: 795 }]);
+    expect(lethal.hpDeltas).toEqual({ "ally:subject": -500, "enemy:front": -795 });
   });
 });

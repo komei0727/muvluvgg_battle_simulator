@@ -8,7 +8,19 @@ import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
-import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import {
+  observeDamageProbe,
+  observeLifecycleDamageProbe,
+} from "../../../testing/production-unit/damage-probe.js";
+import { createHitPoint } from "../../../domain/battle/model/resource-gauge.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -538,5 +550,93 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
     expect(control.isCritical).toBe(true);
     expect(control.criticalMultiplier).toBeGreaterThan(1);
     expect(control.randomDraws - ruled.randomDraws).toBe(1);
+  });
+
+  it("IT-UNIT-SHOUKA-BEACH-006 [R-LNK-02] (R-LNK-01/02): PS2が味方へ配る75%リンクは、味方が受けた計算ダメージから小花の分を差し引いて分配する（SR-231）。元の味方の盾は分配後の分だけを吸収し、元の味方がそのヒットで倒れても小花への分配分は発生する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_SHOUKA_BEACH_LINK",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+    const withAlly = (
+      units: readonly BattleUnit[],
+      update: (unit: BattleUnit) => BattleUnit,
+    ): readonly BattleUnit[] =>
+      units.map((unit) => (unit.battleUnitId === "ally:front" ? update(unit) : unit));
+
+    // 威力2.12で1060。1060×75%＝795を小花へ、残り265を元の味方が受ける。
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: 2.12,
+      battleId: "B_SHOUKA_BEACH_LINK_HIT",
+    });
+    expect(hit.linked).toMatchObject([
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK",
+        linkedFromUnitId: "ally:front",
+        linkToUnitId: "ally:subject",
+        sourceDamage: 1060,
+        linkedDamage: 795,
+      },
+    ]);
+    expect(hit.hpDeltas).toEqual({ "ally:front": -265, "ally:subject": -795 });
+
+    // 元の味方HP200で265に倒れても、小花への795は失われない。
+    const lethal = observeDamageProbe({
+      units: withAlly(granted, (unit) => ({
+        ...unit,
+        currentHp: createHitPoint(200, Math.trunc(unit.combatStats.maximumHp)),
+      })),
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: 2.12,
+      battleId: "B_SHOUKA_BEACH_LINK_LETHAL",
+    });
+    expect(lethal.hpDeltas).toEqual({ "ally:front": -200, "ally:subject": -795 });
+
+    // 元の味方の盾（1000）は分配後の265だけを吸収し、小花へは795がそのまま向かう。
+    const shieldId = createEffectActionDefinitionId("ACT_TEST_SHOUKA_BEACH_ALLY_SHIELD");
+    const shield: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("B_SHOUKA_BEACH_LINK:effect:shield"),
+      effectActionDefinitionId: shieldId,
+      kindKey: effectKindKeyFromDefinitionId(shieldId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("ally:front"),
+      targetUnitId: createBattleUnitId("ally:front"),
+      magnitude: 1000,
+      categories: ["SHIELD"],
+      shield: { shieldType: null, remaining: 1000 },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const shielded = observeDamageProbe({
+      units: withAlly(granted, (unit) => ({
+        ...unit,
+        appliedEffects: [shield, ...unit.appliedEffects],
+      })),
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:front",
+      power: 2.12,
+      battleId: "B_SHOUKA_BEACH_LINK_SHIELD",
+    });
+    expect(shielded.applications).toEqual([
+      {
+        targetUnitId: "ally:front",
+        calculatedDamage: 265,
+        hitPointDamage: 0,
+        untypedShieldAbsorbed: 265,
+        isLinkedDamage: false,
+      },
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 795,
+        hitPointDamage: 795,
+        untypedShieldAbsorbed: 0,
+        isLinkedDamage: true,
+      },
+    ]);
   });
 });

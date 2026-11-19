@@ -1,4 +1,4 @@
-import type { BattleUnit } from "../model/battle-unit.js";
+import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import { absorbFromShieldPool, emitShieldConsumed } from "./shield-policy.js";
 import { absorbFromNextSubUnit, emitSubUnitDamaged } from "./sub-unit-policy.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
@@ -60,6 +60,14 @@ export function* absorbBeforeHitPointsSteps(
     readonly effectActionDefinitionId: EffectActionDefinitionId;
     readonly hitIndex: number;
   },
+  options: {
+    /**
+     * R-LNK-02／R-INT-03: 量が確定済みのリンク・反射では、発生源（保持者）が元ヒットで
+     * 戦闘不能になっていても中断しない。保持者は攻撃の使用者ではなく、確定した伝播を
+     * 吸収の途中で失わせないためである。対象の戦闘不能による打ち切りはそのまま行う。
+     */
+    readonly continueAfterSourceDefeat?: boolean;
+  } = {},
 ): Generator<DamageStep, AbsorptionBeforeHitPoints, readonly BattleUnit[] | undefined> {
   const absorbedByPool = new Map<DamageType | null, number>();
   let remaining = poolDamage;
@@ -77,6 +85,14 @@ export function* absorbBeforeHitPointsSteps(
     const revalidation = revalidateHit(context, working, attackerUnitId, targetUnitId);
     if (revalidation.kind === "CONTINUE") {
       return false;
+    }
+    if (revalidation.kind === "INTERRUPT" && options.continueAfterSourceDefeat === true) {
+      const target = working.get(targetUnitId);
+      if (target !== undefined && ((context.includeDefeated ?? false) || !isDefeated(target))) {
+        return false;
+      }
+      interruption = "SKIP";
+      return true;
     }
     interruption = revalidation.kind;
     return true;

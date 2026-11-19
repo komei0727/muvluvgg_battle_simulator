@@ -98,6 +98,10 @@ export function* applyConfirmedDamageSteps(
     finalDamage - hpDirectDamage,
     lastEventId,
     { effectActionDefinitionId: profile.effectActionDefinitionId, hitIndex: profile.hitIndex },
+    {
+      continueAfterSourceDefeat:
+        options.isLinkedDamage === true || options.isReflectedDamage === true,
+    },
   );
   lastEventId = absorption.lastEventId;
   if (absorption.interruption !== "NONE") {

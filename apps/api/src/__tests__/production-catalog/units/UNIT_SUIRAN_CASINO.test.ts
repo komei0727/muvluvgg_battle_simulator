@@ -452,7 +452,7 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
     return { board, recorder, units: resolved.units };
   }
 
-  it("IT-UNIT-SUIRAN-CASINO-004 [R-LNK-01] (R-LNK-01/02/03): AS1が配る実ダメージリンクは、味方が受けたダメージの50%を**追加で**劉翠蘭へ発生させる。元ダメージは減らず、リンクダメージは `isLinkedDamage` を持ち、リンク先自身のシールドで受ける", () => {
+  it("IT-UNIT-SUIRAN-CASINO-004 [R-LNK-01] (R-LNK-01/02/03): AS1が配る実ダメージリンクは、味方が受けた計算ダメージの50%を元の被害から差し引いて劉翠蘭へ分配する（SR-403）。リンクダメージは `isLinkedDamage` を持ち、リンク先自身のシールドで受ける", () => {
     // `-001` のAS1行は付与そのもの（`linkTo: SELF`の解決先・50%・期間の所有者）を持つが、
     // 転送は**別のスキル使用**である被弾でしか起きないため表の外にある。
     const { board, recorder, units } = grantDamageLink("B_SUIRAN_LINK");
@@ -496,6 +496,7 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
       units,
       attackerUnitId: "enemy:front",
       targetUnitId: "ally:front",
+      power: 2.12,
       battleId: "B_SUIRAN_LINK_HIT",
     });
     expect(hit.linked).toEqual([
@@ -503,32 +504,32 @@ describe("production Catalog UNIT_SUIRAN_CASINO (【恥じらうカジノラビ�
         effectActionDefinitionId: "ACT_SUIRAN_CASINO_AS1_DAMAGE_LINK",
         linkedFromUnitId: "ally:front",
         linkToUnitId: "ally:subject",
-        sourceDamage: 500,
+        sourceDamage: 1060,
         linkRate: 0.5,
-        linkedDamage: 250,
+        linkedDamage: 530,
         damageType: "PHYSICAL",
         shieldApplicable: true,
       },
     ]);
-    // R-LNK-01: 元ダメージは減らず、リンクは**追加で**発生する。
-    // R-LNK-02第4項: リンク先自身のシールド（AS1が劉翠蘭へ張った1枚目）が250を吸収する。
+    // R-LNK-02: 計算1060を元の味方530・劉翠蘭530へ分配する（総被害は増えない）。
+    // リンク先自身のシールド（AS1が劉翠蘭へ張った1枚目）が分配分530を吸収する。
     expect(hit.applications).toEqual([
       {
         targetUnitId: "ally:front",
-        calculatedDamage: 500,
-        hitPointDamage: 500,
+        calculatedDamage: 530,
+        hitPointDamage: 530,
         untypedShieldAbsorbed: 0,
         isLinkedDamage: false,
       },
       {
         targetUnitId: "ally:subject",
-        calculatedDamage: 250,
+        calculatedDamage: 530,
         hitPointDamage: 0,
-        untypedShieldAbsorbed: 250,
+        untypedShieldAbsorbed: 530,
         isLinkedDamage: true,
       },
     ]);
-    expect(hit.hpDeltas).toEqual({ "ally:front": -500 });
+    expect(hit.hpDeltas).toEqual({ "ally:front": -530 });
   });
 
   it("IT-UNIT-SUIRAN-CASINO-005 [R-LNK-01] (R-EFF-01): 味方が保持するリンクの「2行動」は付与者（劉翠蘭）の時計で減る。素早い味方が2回行動してもリンクは残り、劉翠蘭が2回行動して初めて親の2枚目シールドと同時に失効する", () => {
