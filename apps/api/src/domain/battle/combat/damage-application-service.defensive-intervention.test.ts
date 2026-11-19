@@ -557,6 +557,60 @@ describe("defensive interventions in the damage pipeline (DMG-006 R-INT-01〜03)
     expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(90);
   });
 
+  it("UT-R-LNK-01-013: a link and a reflect from a holder killed by the original hit keep going after the destination's shield absorbs part of them", () => {
+    const shieldOf = (id: string, holderId: string): AppliedEffect =>
+      interventionEffect(id, holderId, {
+        magnitude: 3,
+        categories: ["SHIELD"],
+        shield: { shieldType: "PHYSICAL", remaining: 3 },
+      });
+    const attacker = {
+      ...unit("ATTACKER", "ALLY", { attack: 30, maximumHp: 100 }),
+      appliedEffects: [shieldOf("ATTACKER_SHIELD", "ATTACKER")],
+    };
+    const dying = {
+      ...unit("TARGET", "ENEMY", { defense: 10, maximumHp: 100 }),
+      currentHp: createHitPoint(5, 100),
+      appliedEffects: [
+        damageLinkHeldByDamaged("LINK", "TARGET", "PEER", 0.5),
+        reflectHeldByDefender("REFLECT", "TARGET", 0.75),
+      ],
+    };
+    const peer = {
+      ...unit("PEER", "ENEMY", { defense: 10, maximumHp: 100 }),
+      appliedEffects: [shieldOf("PEER_SHIELD", "PEER")],
+    };
+    const context = damageEventContext();
+
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      damageAction("PREVENTED"),
+      [attacker, dying, peer],
+      new SequenceRandomSource([]),
+      { ...context, damageResults: new Map() },
+    );
+
+    // 20を元対象10・リンク先10へ分配し、元対象はHP5で倒れる。リンク10は盾3の後に残り7が
+    // HPへ、反射15（20×75%）は攻撃者の盾3の後に残り12がHPへ届く。
+    expect(isDefeated(result.units.find((u) => u.battleUnitId === dying.battleUnitId)!)).toBe(true);
+    expect(result.units.find((u) => u.battleUnitId === peer.battleUnitId)!.currentHp).toBe(93);
+    expect(result.units.find((u) => u.battleUnitId === attacker.battleUnitId)!.currentHp).toBe(88);
+    const derivedApplied = context.recorder
+      .getEvents()
+      .filter(
+        (e) =>
+          e.eventType === "DamageApplied" &&
+          ((e.payload as { isLinkedDamage?: true }).isLinkedDamage === true ||
+            (e.payload as { isReflectedDamage?: true }).isReflectedDamage === true),
+      )
+      .map((e) => e.payload as { typedShieldAbsorbed: number; hitPointDamage: number });
+    expect(derivedApplied).toMatchObject([
+      { typedShieldAbsorbed: 3, hitPointDamage: 7 },
+      { typedShieldAbsorbed: 3, hitPointDamage: 12 },
+    ]);
+  });
+
   it("UT-R-LNK-02-013 (BOUNDARY): the linked share is truncated without a 1-damage floor, so a share truncated to 0 does not link and the original keeps the whole hit", () => {
     const attacker = unit("ATTACKER", "ALLY", { attack: 11, maximumHp: 100 });
     const target = {
