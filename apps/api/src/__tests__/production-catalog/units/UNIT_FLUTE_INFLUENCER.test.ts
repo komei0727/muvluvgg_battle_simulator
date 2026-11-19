@@ -1,3 +1,7 @@
+import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
+import { shieldPoolsOf } from "../../../domain/battle/combat/shield-policy.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
 import {
@@ -6,8 +10,10 @@ import {
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -25,6 +31,10 @@ import { realDamage } from "../../../testing/production-unit/trigger-events.js";
  */
 
 const UNIT_DEFINITION_ID = "UNIT_FLUTE_INFLUENCER";
+
+function subjectOf(units: readonly BattleUnit[]): BattleUnit {
+  return units.find((unit) => unit.battleUnitId === createBattleUnitId("ally:subject"))!;
+}
 
 /**
  * PS2の「デバフがかけられていた場合」の腕は、前提としてデバフの実在を要求する。
@@ -324,6 +334,64 @@ describe("production Catalog UNIT_FLUTE_INFLUENCER (【ギャルインフルエ�
       ).toEqual(expected);
     },
   );
+
+  it("IT-UNIT-FLUTE-INFLUENCER-004 [R-SHD-01, R-SHD-02] SR-116: PS1のシールドはENダメージ限定で、EN攻撃を吸収して1ヒットで消え、物理攻撃は吸収しない", () => {
+    // 原文「攻撃力×150%までのENダメージを防ぐシールド。シールドは攻撃を1ヒット受けたら消滅する」。
+    // 付与者（自身）の攻撃力1000×150%＝1500。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const shielded = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_FLUTE_INFLUENCER_PS1_SHIELD", target: "SELF" },
+    ]);
+    expect(shieldPoolsOf(subjectOf(shielded).appliedEffects)).toEqual({
+      physical: 0,
+      energy: 1500,
+      untyped: 0,
+    });
+
+    // 攻撃力1000 - 防御力500 = 500（他の補正なし）。
+    const strike = (damageType: "EN" | "PHYSICAL", battleId: string) =>
+      observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: shielded,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        damageType,
+        power: 1,
+        battleId,
+      });
+
+    const byEn = strike("EN", "B_FLUTE_SHIELD_EN");
+    expect(byEn.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 500,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 0,
+        discardedDamage: 0,
+      },
+    ]);
+    // 残量1000があっても1ヒットで消える。
+    expect(shieldPoolsOf(subjectOf(byEn.units).appliedEffects)).toEqual({
+      physical: 0,
+      energy: 0,
+      untyped: 0,
+    });
+
+    const byPhysical = strike("PHYSICAL", "B_FLUTE_SHIELD_PHYSICAL");
+    expect(byPhysical.distributions).toEqual([
+      {
+        targetUnitId: "ally:subject",
+        calculatedDamage: 500,
+        typedShieldAbsorbed: 0,
+        untypedShieldAbsorbed: 0,
+        subUnitAbsorbed: 0,
+        hitPointDamage: 500,
+        discardedDamage: 0,
+      },
+    ]);
+  });
 
   it("IT-UNIT-FLUTE-INFLUENCER-002: the table covers exactly the Skills the production UnitDefinition declares", () => {
     const unit = unitFrom(snapshot, UNIT_DEFINITION_ID);

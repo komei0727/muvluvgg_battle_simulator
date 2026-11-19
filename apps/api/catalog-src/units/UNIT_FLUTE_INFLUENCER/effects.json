@@ -97,6 +97,7 @@
         "stat": "ATTACK",
         "ratio": 1.5
       },
+      "shieldType": "EN",
       "duration": {
         "dispellable": true,
         "consumption": {

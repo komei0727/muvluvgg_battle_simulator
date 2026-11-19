@@ -220,10 +220,10 @@ describe("applyDamageAction hit-level damage event order (DMG-001)", () => {
       context,
     );
 
-    // R-DMG-02: 無効化されたダメージは1になる（20ではない）。
-    expect(result.hits[0]!.damage).toBe(1);
+    // R-DMG-02 #2: 無効化されたダメージは0になる（20ではない）。
+    expect(result.hits[0]!.damage).toBe(0);
     expect(
       result.units.find((u) => u.battleUnitId === createBattleUnitId("TARGET"))!.currentHp,
-    ).toBe(99);
+    ).toBe(100);
   });
 });

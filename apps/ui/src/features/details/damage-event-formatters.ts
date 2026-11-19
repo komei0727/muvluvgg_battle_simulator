@@ -132,7 +132,7 @@ function formulaKindTerm(details: Record<string, unknown>): string | undefined {
 }
 
 /**
- * R-DMG-02 #2のダメージ無効（DMG-012）。成立時は`finalDamage`が1へ上書きされるため、
+ * R-DMG-02 #2のダメージ無効（DMG-012）。成立時は`finalDamage`が0へ上書きされるため、
  * 不成立も明示しないと「無効化されていない」と「DMG-012以前で項目自体が無い」を
  * 要約の上で区別できない。他の監査項目と同じく、落とすのは項目が無いときだけ。
  */

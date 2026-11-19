@@ -371,11 +371,11 @@ function* applyOneSubUnitAdditionalDamageSteps(
     1,
     Math.floor(truncatedDamage * thresholdReduction.multiplier),
   );
-  // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: 通常ヒットと同じく、
+  // R-DMG-02 #2「ダメージ無効が成立すれば結果を0とする」: 通常ヒットと同じく、
   // 切り捨て・R-DMG-07軽減後の値を「incoming raw damage」として対象の有効な
   // DAMAGE_IMMUNITYを判定する。
   const damageImmunity = resolveDamageImmunity(target, thresholdReducedDamage, formulaContext);
-  const finalDamage = damageImmunity.nullified ? 1 : thresholdReducedDamage;
+  const finalDamage = damageImmunity.nullified ? 0 : thresholdReducedDamage;
 
   const damageCalculated = context.recorder.record({
     eventType: "DamageCalculated",

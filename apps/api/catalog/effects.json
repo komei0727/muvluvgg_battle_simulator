@@ -2471,6 +2471,7 @@
         "stat": "ATTACK",
         "ratio": 1.5
       },
+      "shieldType": "EN",
       "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
     },
     "metadata": { "tags": [] }
@@ -14036,6 +14037,7 @@
         "stat": "ATTACK",
         "ratio": 0.5
       },
+      "shieldType": "PHYSICAL",
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }

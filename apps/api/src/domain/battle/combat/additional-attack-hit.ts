@@ -186,9 +186,9 @@ export function* applyOneAdditionalAttackHitSteps(
     1,
     Math.floor(truncatedDamage * thresholdReduction.multiplier),
   );
-  // R-DMG-02 #2: ダメージ無効は軽減後の値を判定素材とし、成立すれば最終結果を1にする。
+  // R-DMG-02 #2: ダメージ無効は軽減後の値を判定素材とし、成立すれば最低1より優先して最終結果を0にする。
   const damageImmunity = resolveDamageImmunity(target, thresholdReducedDamage, formulaContext);
-  const finalDamage = damageImmunity.nullified ? 1 : thresholdReducedDamage;
+  const finalDamage = damageImmunity.nullified ? 0 : thresholdReducedDamage;
 
   const damageCalculated = context.recorder.record({
     eventType: "DamageCalculated",

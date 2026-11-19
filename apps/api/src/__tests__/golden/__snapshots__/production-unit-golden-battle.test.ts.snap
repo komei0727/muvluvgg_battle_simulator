@@ -1710,8 +1710,8 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_SINGER completes
 {
   "completedTurn": 4,
   "completionReason": "ENEMY_DEFEATED",
-  "eventCount": 906,
-  "eventSequenceHash": "sha256:0c47f450526b5715",
+  "eventCount": 905,
+  "eventSequenceHash": "sha256:11c6b749635e997c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 33,
     "ACTION_COMPLETING": 33,
@@ -1744,7 +1744,6 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_SINGER completes
     "PASSIVE_RESOLVED": 2,
     "RESOURCES_RECOVERED": 4,
     "RESOURCE_CHANGED": 79,
-    "SHIELD_CONSUMED": 1,
     "SKILL_USE_COMPLETED": 33,
     "SKILL_USE_STARTED": 33,
     "SKILL_USE_STARTING": 33,

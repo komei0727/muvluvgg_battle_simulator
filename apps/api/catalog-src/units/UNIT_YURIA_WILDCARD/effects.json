@@ -97,6 +97,7 @@
         "stat": "ATTACK",
         "ratio": 0.5
       },
+      "shieldType": "PHYSICAL",
       "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }

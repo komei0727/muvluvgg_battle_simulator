@@ -442,9 +442,10 @@ export function* applyDamageActionSteps(
       1,
       Math.floor(combinedFinalDamage * thresholdReduction.multiplier),
     );
-    // R-DMG-02「ダメージ無効効果がある場合も結果を1とする」: `calculateDamage`
+    // R-DMG-02 #2「ダメージ無効が成立すれば結果を0とする」: `calculateDamage`
     // 自身は`AppliedEffect`を知らない純粋な数値計算のため、ここで対象の
-    // 有効なDAMAGE_IMMUNITYを判定し、成立すれば`finalDamage`を1へ上書きする。
+    // 有効なDAMAGE_IMMUNITYを判定し、成立すれば`finalDamage`を0へ上書きする
+    // （#3の最低1より優先する。与ダメージ−100%のような倍率だけの0は最低1のまま）。
     // R-DMG-02の順序どおり（#1切り捨て→#2無効化）、切り捨て・R-DMG-07軽減済みの
     // `thresholdReducedDamage`を「incoming raw damage」として判定する（無効化は
     // 常に最後の砦 — 閾値軽減と共存する場合、G-06の判定素材は軽減後の値になる）。
@@ -456,7 +457,7 @@ export function* applyDamageActionSteps(
     const damageResult = {
       ...rawDamageResult,
       preTruncationDamage: combinedPreTruncationDamage,
-      finalDamage: damageImmunity.nullified ? 1 : thresholdReducedDamage,
+      finalDamage: damageImmunity.nullified ? 0 : thresholdReducedDamage,
     };
 
     const damageCalculated = context.recorder.record({
