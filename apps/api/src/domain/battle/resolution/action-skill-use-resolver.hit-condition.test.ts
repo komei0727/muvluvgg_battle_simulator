@@ -142,6 +142,7 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
     hitConfirmedEffectIds?: readonly string[],
     firstEnemyExtraEffects: readonly AppliedEffect[] = [],
     attackerEffects: readonly AppliedEffect[] = [],
+    extraActions: readonly EffectActionDefinition[] = [],
   ): { units: readonly BattleUnit[]; events: readonly BattleDomainEvent[] } {
     const attacker = {
       ...testBattleUnit({
@@ -171,6 +172,7 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
         },
         "effectAction",
       ),
+      ...extraActions,
     ];
     const attackerDefinition = testUnitDefinition("UNIT_TEST_ATTACKER");
     const enemyDefinition = testUnitDefinition("UNIT_TEST_ENEMY");
@@ -461,6 +463,65 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
   });
 
   describe("DAMAGE hitConfirmedEffects (R-DMG-05 #2a)", () => {
+    it("UT-R-EFF-09-042 [R-EFF-09, R-DMG-05]: hitConfirmedEffects skip a SKILL_USE CHILD whose PARENT Marker was not granted (stack.max), so one parent keeps one child", () => {
+      const group = {
+        linkedEffectGroupId: "HIT_RIDER_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const parent = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_TEST_RIDER_MARKER",
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: "MARKER_TEST_RIDER",
+            stack: { policy: "ADD", max: 1 },
+            duration: { dispellable: true, ...group, linkedEffectGroupRole: "PARENT" },
+          },
+        },
+        "effectAction",
+      );
+      const child = createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_TEST_RIDER_ATK_DOWN",
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: -5 },
+            stacking: { mode: "STACKABLE" },
+            duration: { dispellable: true, ...group, linkedEffectGroupRole: "CHILD" },
+          },
+        },
+        "effectAction",
+      );
+      const damageStep: EffectStepDefinitionInput = {
+        kind: "ACTION",
+        target: ENEMIES,
+        actions: [{ effectActionDefinitionId: DAMAGE_ID }],
+      };
+      // 同じスキル内で同じDAMAGEを2回解決する（各回とも両方の敵へ1ヒット命中）。
+      const { units } = run(
+        [damageStep, damageStep],
+        1,
+        [HIT, HIT, HIT, HIT],
+        1000,
+        [parent.effectActionDefinitionId, child.effectActionDefinitionId],
+        [],
+        [],
+        [parent, child],
+      );
+
+      for (const enemyId of ["enemy:1", "enemy:2"]) {
+        const enemy = units.find((u) => u.battleUnitId === enemyId)!;
+        expect(enemy.markerStates).toHaveLength(1);
+        expect(
+          enemy.appliedEffects.filter(
+            (e) => e.effectActionDefinitionId === child.effectActionDefinitionId,
+          ),
+        ).toHaveLength(1);
+      }
+    });
+
     it("UT-R-DMG-05-010 [R-DMG-05]: grants the effect once per target at its first confirmed hit, after HitConfirmed and before the critical check, and never to a target that evaded every hit", () => {
       const { units, events } = runHitConfirmed([EVADE, EVADE, HIT, HIT]);
 

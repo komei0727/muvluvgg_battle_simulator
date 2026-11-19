@@ -115,6 +115,7 @@ export function applyMarker(
     ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
     ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
     turnNumber: context.turnNumber,
+    linkedGroupGrantOrder: context.recorder.getEvents().length,
   };
 
   if (existing === undefined || request.stackPolicy === "ADD") {

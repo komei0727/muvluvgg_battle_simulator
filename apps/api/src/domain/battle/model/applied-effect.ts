@@ -361,6 +361,11 @@ export interface EffectDurationState {
    */
   readonly linkedGroupAnchor?: string;
   /**
+   * R-EFF-09: `SKILL_USE`範囲の`PARENT`を付与した順序（付与時点の記録済みイベント数）。
+   * 親が`MarkerState`と`AppliedEffect`の両方にあっても、付与順で最新の親を選ぶために使う。
+   */
+  readonly linkedGroupGrantOrder?: number;
+  /**
    * `05_ドメインモデル.md`「RuntimeCounter」`AppliedEffect`スコープ（R-EFF-11、
    * EFF-005/Issue #162）。`definition.counterUpdates`が存在する場合だけ空の
    * マップから始まる（`AppliedEffect`／`MarkerState`のどちらも同じ
@@ -379,6 +384,7 @@ export function buildInitialDurationState(
     readonly turnNumber: number;
     readonly skillUseId?: SkillUseId;
     readonly linkedGroupAnchor?: string;
+    readonly linkedGroupGrantOrder?: number;
   },
 ): EffectDurationState {
   const timeLimit = definition.timeLimit;
@@ -400,6 +406,11 @@ export function buildInitialDurationState(
       : {}),
     ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.linkedGroupAnchor !== undefined
       ? { linkedGroupAnchor: context.linkedGroupAnchor }
+      : {}),
+    ...(definition.linkedEffectGroupScope === "SKILL_USE" &&
+    definition.linkedEffectGroupRole === "PARENT" &&
+    context.linkedGroupGrantOrder !== undefined
+      ? { linkedGroupGrantOrder: context.linkedGroupGrantOrder }
       : {}),
     ...(definition.counterUpdates !== undefined && definition.counterUpdates.length > 0
       ? { counters: {} }

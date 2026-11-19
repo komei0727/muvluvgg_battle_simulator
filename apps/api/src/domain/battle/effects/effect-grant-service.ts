@@ -43,6 +43,8 @@ export interface GrantEffectContext {
   readonly skillUseId?: SkillUseId;
   readonly resolutionScopeId: ResolutionScopeId;
   readonly rootEventId: DomainEventId;
+  /** R-EFF-09: EffectSequence内の直近の親付与結果（`EffectActionGroupContext`と同じ）。 */
+  readonly linkedGroupGrants?: ReadonlyMap<string, string | null>;
 }
 
 export interface GrantEffectRequest {
@@ -269,7 +271,12 @@ export function grantEffect(
   const effectInstanceId = context.recorder.nextEffectInstanceId();
   const linkedGroupAnchor =
     ownLinkedGroupAnchor(durationDefinition, { kind: "EFFECT", effectInstanceId }) ??
-    findLinkedGroupAnchor(target, durationDefinition, context.skillUseId);
+    findLinkedGroupAnchor(
+      target,
+      durationDefinition,
+      context.skillUseId,
+      context.linkedGroupGrants,
+    );
   const newEffect: AppliedEffect = {
     effectInstanceId,
     effectActionDefinitionId,
@@ -310,6 +317,7 @@ export function grantEffect(
       turnNumber: context.turnNumber,
       ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
       ...(linkedGroupAnchor !== undefined ? { linkedGroupAnchor } : {}),
+      linkedGroupGrantOrder: context.recorder.getEvents().length,
     }),
     appliedTurnNumber: context.turnNumber,
     ...(context.actionId !== undefined ? { appliedActionId: context.actionId } : {}),

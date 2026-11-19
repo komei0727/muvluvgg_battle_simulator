@@ -30,12 +30,7 @@ export const resolveApplyMarker: EffectActionHandler<"APPLY_MARKER"> = (
     return rejected;
   }
   const granted = applyMarker(
-    {
-      ...eventContextOf(context),
-      ...(context.linkedGroupGrants !== undefined
-        ? { linkedGroupGrants: context.linkedGroupGrants }
-        : {}),
-    },
+    eventContextOf(context),
     box.units,
     {
       markerId: effectAction.payload.markerId,

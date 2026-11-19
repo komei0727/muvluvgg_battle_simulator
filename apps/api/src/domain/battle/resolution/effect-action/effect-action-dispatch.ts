@@ -2,8 +2,7 @@ import { DomainValidationError } from "../../../shared/errors.js";
 import { durationOf } from "../../../catalog/integrity/effect-action-inspection.js";
 import {
   hasLinkedParentForGrant,
-  latestLinkedParentAnchor,
-  linkedGroupGrantKey,
+  recordLinkedParentGrant,
 } from "../../model/linked-effect-group.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import {
@@ -64,21 +63,14 @@ export function* resolveEffectActionByKind(
   const outcome = yield* resolveByKind(input);
   // R-EFF-09: `SKILL_USE`範囲の親の付与結果を記録し、後続の子が付与されなかった
   // 付与分を先の付与分と取り違えないようにする。
-  const groupId = duration?.linkedEffectGroupId;
-  if (
-    linkedGroupGrants !== undefined &&
-    duration?.linkedEffectGroupScope === "SKILL_USE" &&
-    duration.linkedEffectGroupRole === "PARENT" &&
-    groupId !== undefined &&
-    groupId !== null
-  ) {
-    const holder = input.box.units.find((unit) => unit.battleUnitId === targetUnitId);
-    const anchor =
-      outcome.resultKind === "APPLIED" && holder !== undefined
-        ? latestLinkedParentAnchor(holder, groupId, skillUseId)
-        : undefined;
-    linkedGroupGrants.set(linkedGroupGrantKey(groupId, targetUnitId), anchor ?? null);
-  }
+  recordLinkedParentGrant(
+    linkedGroupGrants,
+    duration,
+    input.box.units.find((unit) => unit.battleUnitId === targetUnitId),
+    targetUnitId,
+    outcome.resultKind === "APPLIED",
+    skillUseId,
+  );
   return outcome;
 }
 

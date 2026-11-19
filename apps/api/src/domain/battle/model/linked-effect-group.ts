@@ -116,7 +116,8 @@ export function linkedGroupGrantKey(groupId: string, holderUnitId: BattleUnitId)
 
 /**
  * R-EFF-09: 同じ保持ユニットへ同じスキル使用で付与された同じグループの`PARENT`のうち、
- * 最も新しいものの付与分を返す。無ければ`undefined`。
+ * 最も新しいものの付与分を返す。親が`MarkerState`と`AppliedEffect`の両方にあっても
+ * 付与順（`linkedGroupGrantOrder`）で比べる。無ければ`undefined`。
  */
 export function latestLinkedParentAnchor(
   holder: BattleUnit,
@@ -128,12 +129,50 @@ export function latestLinkedParentAnchor(
     duration.definition.linkedEffectGroupRole === "PARENT" &&
     duration.definition.linkedEffectGroupId === groupId &&
     duration.linkedGroupSkillUseId === skillUseId;
-  const parentMarker = holder.markerStates.findLast((marker) => isParentOfGrant(marker.duration));
-  if (parentMarker !== undefined) {
-    return parentMarker.duration.linkedGroupAnchor;
+  let latest: EffectDurationState | undefined;
+  for (const duration of [
+    ...holder.markerStates.map((marker) => marker.duration),
+    ...holder.appliedEffects.map((effect) => effect.duration),
+  ]) {
+    if (
+      isParentOfGrant(duration) &&
+      (latest === undefined ||
+        (duration.linkedGroupGrantOrder ?? -1) >= (latest.linkedGroupGrantOrder ?? -1))
+    ) {
+      latest = duration;
+    }
   }
-  return holder.appliedEffects.findLast((effect) => isParentOfGrant(effect.duration))?.duration
-    .linkedGroupAnchor;
+  return latest?.linkedGroupAnchor;
+}
+
+/**
+ * R-EFF-09: `SKILL_USE`範囲の`PARENT`を付与しようとした結果を`grants`へ記録する。
+ * 付与できた場合はその付与分、できなかった場合（上限・既存維持・免疫など）は`null`。
+ * 後続の`CHILD`はこの記録で、付与されなかった付与分の子を先の付与分へ紐づけない。
+ */
+export function recordLinkedParentGrant(
+  grants: Map<string, string | null> | undefined,
+  definition: DurationDefinition | undefined,
+  holder: BattleUnit | undefined,
+  holderUnitId: BattleUnitId,
+  granted: boolean,
+  skillUseId: SkillUseId,
+): void {
+  const groupId = definition?.linkedEffectGroupId;
+  if (
+    grants === undefined ||
+    definition?.linkedEffectGroupScope !== "SKILL_USE" ||
+    definition.linkedEffectGroupRole !== "PARENT" ||
+    groupId === undefined ||
+    groupId === null
+  ) {
+    return;
+  }
+  const anchor =
+    granted && holder !== undefined
+      ? latestLinkedParentAnchor(holder, groupId, skillUseId)
+      : undefined;
+  grants.set(linkedGroupGrantKey(groupId, holderUnitId), anchor ?? null);
 }
 
 /**

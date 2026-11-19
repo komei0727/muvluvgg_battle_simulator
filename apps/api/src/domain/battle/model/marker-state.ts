@@ -103,6 +103,7 @@ export function buildInitialMarkerState(
     readonly skillUseId?: SkillUseId;
     readonly turnNumber: number;
     readonly linkedGroupAnchor?: string;
+    readonly linkedGroupGrantOrder?: number;
   },
   decay?: MarkerStackDecayDefinition,
 ): MarkerState {

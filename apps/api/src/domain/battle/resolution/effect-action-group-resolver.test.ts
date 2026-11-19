@@ -1005,6 +1005,70 @@ describe("applyEffectActionGroups", () => {
       expect(childResults).toEqual(["SKIPPED", "SKIPPED"]);
     });
 
+    it("UT-R-EFF-09-043 [R-EFF-09]: a CHILD links to the most recent PARENT grant across Marker and AppliedEffect parents, so removing the earlier Marker parent keeps the child of the later effect parent", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const markerId = createMarkerId("MARKER_MIXED_PARENT");
+      const group = {
+        linkedEffectGroupId: "MIXED_PARENT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseMarker = markerAction("ACT_MIXED_MARKER_PARENT", markerId);
+      const markerParent: EffectActionDefinition =
+        baseMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseMarker,
+              payload: {
+                ...baseMarker.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "PARENT" },
+              },
+            }
+          : baseMarker;
+      const withRole = (id: string, role: "PARENT" | "CHILD"): EffectActionDefinition => {
+        const base = statModAction(id);
+        return base.kind === "APPLY_STAT_MOD"
+          ? {
+              ...base,
+              payload: {
+                ...base.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: role },
+              },
+            }
+          : base;
+      };
+      const effectParent = withRole("ACT_MIXED_EFFECT_PARENT", "PARENT");
+      const child = withRole("ACT_MIXED_CHILD", "CHILD");
+      const remove = removeMarkerAction("ACT_MIXED_REMOVE_MARKER", markerId);
+      const effectActions = new Map(
+        [markerParent, effectParent, child, remove].map((d) => [d.effectActionDefinitionId, d]),
+      );
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, markerParent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, effectParent.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, child.effectActionDefinitionId),
+          singleActionStep(3, true, ally.battleUnitId, remove.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toEqual([]);
+      expect(holder.appliedEffects.map((e) => e.effectActionDefinitionId)).toEqual([
+        effectParent.effectActionDefinitionId,
+        child.effectActionDefinitionId,
+      ]);
+    });
+
     it("UT-R-EFF-09-038 [R-EFF-09, R-EFF-10]: when one skill use grants the same PARENT Marker twice to a holder, each CHILD links to the grant made just before it, so removing one grant removes only its own child", () => {
       const actor = unit("ACTOR", "ALLY");
       const ally = unit("ALLY", "ALLY");

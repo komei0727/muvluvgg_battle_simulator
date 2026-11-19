@@ -195,6 +195,8 @@ export interface EffectResolutionEventContext {
    */
   readonly exercise?: ExerciseRuntime;
   readonly resolveBreak?: ResolveBreakHook;
+  /** R-EFF-09: `EffectActionGroupContext.linkedGroupGrants`を付与サービスへ素通しする。 */
+  readonly linkedGroupGrants?: Map<string, string | null>;
 }
 
 /**
@@ -214,6 +216,9 @@ export function eventContextOf(context: EffectActionGroupContext): EffectResolut
     skillUseId: context.skillUseId,
     resolutionScopeId: context.actionScope,
     rootEventId: context.rootEventId,
+    ...(context.linkedGroupGrants !== undefined
+      ? { linkedGroupGrants: context.linkedGroupGrants }
+      : {}),
   };
   const exercise = context.exercise;
   if (exercise === undefined) {
