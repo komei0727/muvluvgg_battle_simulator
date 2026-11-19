@@ -89,6 +89,9 @@ export function resolveFollowUpAttacksAfterSkillUse(
     consumeEffectDuration,
     finalizeConsumedEffectDurations,
     beginNextAttack,
+    // R-INT-01 #5: 追撃ごとの1回の攻撃で致死耐えを共有する（`applyFollowUpAttacksSteps`が
+    // 攻撃の終了ごとに精算して空にする）。
+    attackDeathSurvivals: new Map(),
     // R-SHD-01第3項＋R-SUB-01: 追撃ヒットが枯渇させたシールド・サブユニットの失効も
     // 通常ヒットと同じ経路（`expireEffectsSteps`のR-EFF-09カスケード）をたどる。
     expireDepletedAbsorbers: (

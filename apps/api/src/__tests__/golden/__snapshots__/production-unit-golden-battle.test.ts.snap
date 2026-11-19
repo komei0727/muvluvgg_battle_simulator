@@ -309,7 +309,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CHIZURU_DOMESTIC comp
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 679,
-  "eventSequenceHash": "sha256:9ded1205246b959b",
+  "eventSequenceHash": "sha256:6d26591b8147d7fe",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 21,
     "ACTION_COMPLETING": 21,
@@ -1455,7 +1455,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOTOHA_REBEL complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 326,
-  "eventSequenceHash": "sha256:01ba9db66b20c78e",
+  "eventSequenceHash": "sha256:ff6b76fee9c9ab5b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -2867,8 +2867,8 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_VETERAN complete
 {
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
-  "eventCount": 737,
-  "eventSequenceHash": "sha256:bad384998a18f4a9",
+  "eventCount": 739,
+  "eventSequenceHash": "sha256:5f5f2eefdb1e185d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 15,
     "ACTION_COMPLETING": 15,
@@ -2897,7 +2897,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_VETERAN complete
     "HEAL_APPLIED": 15,
     "HIT_CONFIRMED": 22,
     "HIT_POINT_REDUCED": 22,
-    "LETHAL_DAMAGE_SURVIVED": 2,
+    "LETHAL_DAMAGE_SURVIVED": 4,
     "MARKER_APPLIED": 8,
     "MARKER_REMOVED": 6,
     "MARKER_UPDATED": 14,

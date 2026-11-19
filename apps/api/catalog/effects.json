@@ -9924,6 +9924,7 @@
       "trigger": { "lethalDamageOnly": true },
       "survivalHp": { "kind": "CONSTANT", "value": 1 },
       "healAfterSurvival": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.5 },
+      "healTiming": "AFTER_ATTACK",
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
@@ -10558,6 +10559,7 @@
       "trigger": { "lethalDamageOnly": true },
       "survivalHp": { "kind": "CONSTANT", "value": 1 },
       "healAfterSurvival": { "kind": "MAX_HP_RATIO", "source": { "kind": "TARGET" }, "ratio": 0.3 },
+      "healTiming": "AFTER_ATTACK",
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "BATTLE", "count": 1 },
@@ -13136,6 +13138,7 @@
         "source": { "kind": "TARGET" },
         "ratio": 0.25
       },
+      "healTiming": "AFTER_ATTACK",
       "duration": {
         "dispellable": true,
         "timeLimit": { "unit": "BATTLE", "count": 1 },

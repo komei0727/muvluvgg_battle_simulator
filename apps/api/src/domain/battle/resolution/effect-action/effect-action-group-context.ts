@@ -33,6 +33,7 @@ import {
 } from "../../targeting/target-selection-policy.js";
 import { requireUnit } from "../action-resolution-shared.js";
 import type { ExpirationSeed } from "../../effects/duration-expiry-service.js";
+import type { AttackDeathSurvivalLedger } from "../../combat/defensive-intervention-policy.js";
 
 /**
  * `resolveSkillOrder`/`resolveChargeReleaseOrder`が計画した`EffectSequencePlan`を
@@ -121,6 +122,12 @@ export interface EffectActionGroupContext {
    * DAMAGE区間の終わりに追加ヒットを解決した後で失効させる。
    */
   readonly heldAttackConsumptions?: AttackConsumptionScope[];
+  /**
+   * R-INT-01 #5＋R-SUB-02: 追加ヒットを保留している間、攻撃で使った致死耐えの精算（回数の
+   * 消費・攻撃後の回復）を追加ヒットの解決まで待たせる台帳。追加ヒットは元攻撃の一部であり、
+   * 攻撃の終了はその解決後だからである。DAMAGE区間の終わりに追加ヒットを解決した後で精算する。
+   */
+  readonly heldDeathSurvivals?: AttackDeathSurvivalLedger[];
   /**
    * R-SUB-02＋R-EFF-07: このEffectSequenceで各ユニットへ実際に向かった攻撃（肩代わり・引き寄せ
    * 後の防御側ごと）。保留した追加ヒットをDAMAGE区間の終わりに解決するとき、その対象を攻撃した
@@ -423,5 +430,7 @@ export interface AttackConsumptionScope {
   readonly pendingExpirySeeds: ExpirationSeed[];
   /** 同じstepで解決する攻撃（自身を含む）。失効の引き継ぎと非表示の判定に使う。 */
   readonly siblings: AttackConsumptionScope[];
+  /** R-INT-01 #5: この攻撃で致死を耐えたユニットと、その耐え。攻撃の全適用で共有する。 */
+  readonly deathSurvivals: AttackDeathSurvivalLedger;
   finished: boolean;
 }

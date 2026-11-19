@@ -26,7 +26,11 @@ import {
   resolveDefensiveInterventionsSteps,
   type DefensiveInterventionResolution,
 } from "./damage-defensive-intervention.js";
-import { applyConfirmedDamageSteps } from "./damage-hit-point-application.js";
+import {
+  applyConfirmedDamageSteps,
+  settleAttackDeathSurvivalsSteps,
+} from "./damage-hit-point-application.js";
+import type { AttackDeathSurvivalLedger } from "./defensive-intervention-policy.js";
 import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
 import { applySubUnitAdditionalDamageSteps } from "./sub-unit-additional-damage.js";
 import { applyAttackBonusAttacksSteps } from "./attack-bonus-attack.js";
@@ -126,12 +130,19 @@ export function* applyDamageActionSteps(
   damageAction: Extract<EffectActionDefinition, { kind: "DAMAGE" }>,
   units: readonly BattleUnit[],
   random: RandomSource,
-  context: DamageEventContext,
+  inputContext: DamageEventContext,
 ): Generator<
   { readonly events: readonly BattleDomainEvent[]; readonly units: readonly BattleUnit[] },
   ApplyDamageActionResult,
   readonly BattleUnit[] | undefined
 > {
+  // R-INT-01 #5: 攻撃の台帳を渡されなければ、このDAMAGE 1回を1回の攻撃として台帳を持つ。
+  const ownsDeathSurvivalLedger = inputContext.attackDeathSurvivals === undefined;
+  const deathSurvivalLedger: AttackDeathSurvivalLedger =
+    inputContext.attackDeathSurvivals ?? (new Map() as AttackDeathSurvivalLedger);
+  const context: DamageEventContext = ownsDeathSurvivalLedger
+    ? { ...inputContext, attackDeathSurvivals: deathSurvivalLedger }
+    : inputContext;
   const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
   const outcomes: DamageHitOutcome[] = [];
   let interruptedCount = 0;
@@ -739,6 +750,22 @@ export function* applyDamageActionSteps(
   );
   lastEventId = bonusAttacks.lastEventId;
   interrupted = interrupted || bonusAttacks.interrupted;
+
+  // R-INT-01 #5: 攻撃の終了で、この攻撃で使った致死耐えを1回分ずつ消費し、攻撃後の回復を
+  // 行う。範囲攻撃の途中の対象（`finalizeConsumedEffectDurations`を持たない適用）では
+  // まだ攻撃が続くため行わない。保留した追加ヒット（R-SUB-02）が残っていれば、その解決が
+  // 攻撃の終わりのため呼び出し側へ預ける。
+  if (
+    (ownsDeathSurvivalLedger || context.finalizeConsumedEffectDurations !== undefined) &&
+    !(context.holdAttackDeathSurvivals?.(deathSurvivalLedger) ?? false)
+  ) {
+    lastEventId = yield* settleAttackDeathSurvivalsSteps(
+      context,
+      working,
+      deathSurvivalLedger,
+      lastEventId,
+    );
+  }
 
   // `NEXT_OUTGOING_ATTACK`/`NEXT_INCOMING_ATTACK`の消費で0になったインスタンスは、
   // このEffectAction（全ヒット）の解決が終わった今ここで初めて実際に失効させる

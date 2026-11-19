@@ -92,7 +92,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 1 completes
     "UNIT_FEE_ACTOR",
   ],
   "eventCount": 1332,
-  "eventSequenceHash": "sha256:9772de441954e62f",
+  "eventSequenceHash": "sha256:168e4438f6423dc5",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 19,
     "ACTION_COMPLETING": 19,
@@ -317,7 +317,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 4 completes
     "UNIT_KOTOHA_REBEL",
   ],
   "eventCount": 1202,
-  "eventSequenceHash": "sha256:2b4ec206cbd51c70",
+  "eventSequenceHash": "sha256:018cb940936bf3b1",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 16,
     "ACTION_COMPLETING": 16,
@@ -387,7 +387,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 5 completes
     "UNIT_LILY_SINGER",
   ],
   "eventCount": 937,
-  "eventSequenceHash": "sha256:aa7cbafe14e07659",
+  "eventSequenceHash": "sha256:a3693fac87fabc08",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 14,
     "ACTION_COMPLETING": 14,

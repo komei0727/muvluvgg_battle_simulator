@@ -179,6 +179,7 @@ export function* resolveEffectSequencePlan(
     linkedGroupGrants: new Map(),
     subUnitAdditions: emptySubUnitAdditionLedger(),
     heldAttackConsumptions: [],
+    heldDeathSurvivals: [],
     attackScopesByDefender: new Map(),
   };
   const lastResultState: LastResultState = {

@@ -395,6 +395,7 @@
         },
         "ratio": 0.25
       },
+      "healTiming": "AFTER_ATTACK",
       "duration": {
         "dispellable": true,
         "timeLimit": {

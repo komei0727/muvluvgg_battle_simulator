@@ -1,6 +1,8 @@
 import { applyDamageActionSteps } from "../../combat/damage-application-service.js";
 import { releaseSubUnitAdditionsSteps } from "../../combat/sub-unit-additional-damage.js";
 import { driveRemovalSteps } from "../../combat/damage-hit-chain.js";
+import { settleAttackDeathSurvivalsSteps } from "../../combat/damage-hit-point-application.js";
+import type { AttackDeathSurvivalLedger } from "../../combat/defensive-intervention-policy.js";
 import type { DamageEventContext } from "../../combat/damage-event-context.js";
 import { grantEffect } from "../../effects/effect-grant-service.js";
 import {
@@ -39,8 +41,12 @@ import {
 import {
   buildConsumeEffectDurationHooks,
   expireHeldAttackConsumptionsSteps,
+  holdDeathSurvivalsForSubUnitAdditions,
   instanceKeyOf,
+  reservedDeathSurvivalsFor,
+  reservedDeathSurvivalsIn,
   suspendedEffectInstanceIdsFor,
+  type AttackConsumptionScope,
 } from "./effect-duration-consumption.js";
 import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
 
@@ -318,6 +324,12 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       ...(skillType !== undefined ? { skillType } : {}),
       consumeEffectDuration,
       ...(finalizesAttack ? { finalizeConsumedEffectDurations } : {}),
+      holdAttackDeathSurvivals: (ledger) => holdDeathSurvivalsForSubUnitAdditions(context, ledger),
+      // R-INT-01 #5: 範囲攻撃の各対象への適用は同じ1回の攻撃のため、致死耐えの台帳を共有する。
+      ...(input.attack === undefined
+        ? {}
+        : { attackDeathSurvivals: input.attack.scope.deathSurvivals }),
+      reservedDeathSurvivals: reservedDeathSurvivalsFor(context, input.attack?.scope),
       ...(suspendedEffectInstanceIds.size > 0
         ? {
             suspendedEffectInstanceIds,
@@ -528,7 +540,9 @@ export function* releasePendingSubUnitAdditionsSteps(
   const ledger = context.subUnitAdditions;
   if (
     ledger === undefined ||
-    (ledger.pending.size === 0 && (context.heldAttackConsumptions?.length ?? 0) === 0)
+    (ledger.pending.size === 0 &&
+      (context.heldAttackConsumptions?.length ?? 0) === 0 &&
+      (context.heldDeathSurvivals?.length ?? 0) === 0)
   ) {
     return { lastEventId: parentEventId, interrupted: false };
   }
@@ -622,6 +636,18 @@ export function* releasePendingSubUnitAdditionsSteps(
   // 保留中の消費済み効果のうち、その対象への攻撃のどれも消費していないものは除いて計算する
   // （通常のDAMAGE経路の`suspendedEffectInstanceIdsFor`と同じ扱い）。
   const heldScopes = context.heldAttackConsumptions ?? [];
+  // R-INT-01 #5: 追加ヒットは元攻撃の一部のため、その対象を攻撃した攻撃（DAMAGE）の台帳で
+  // 耐えを共有する。元攻撃で耐えたユニット（リンク・反射の派生ダメージで耐えたユニットを含む）は
+  // 同じ耐えでHPを止め、追加ヒット（とその派生）で初めて耐えた分はその攻撃の台帳へ書き戻して、
+  // 同じ攻撃の残る対象の追加ヒットへ引き継ぐ。別のDAMAGEの台帳は混ぜない（別の攻撃だからである）。
+  // 精算は全対象の追加ヒットを解決し終えてから1回だけ行う（攻撃の終わりはそこだからである）。
+  const settlementLedgers = new Set<AttackDeathSurvivalLedger>(context.heldDeathSurvivals ?? []);
+  const allAttackLedgers = new Set<AttackDeathSurvivalLedger>([
+    ...(context.heldDeathSurvivals ?? []),
+    ...[...(context.attackScopesByDefender?.values() ?? [])].flatMap((scopes) =>
+      scopes.map((scope) => scope.deathSurvivals),
+    ),
+  ]);
   let released: { lastEventId: DomainEventId; interrupted: boolean } = {
     lastEventId: parentEventId,
     interrupted: false,
@@ -638,14 +664,31 @@ export function* releasePendingSubUnitAdditionsSteps(
           }
         }
       }
-      const targetContext: DamageEventContext =
-        suspended.size === 0
-          ? damageContext
+      const attackLedgers = attackingScopes.map((scope) => scope.deathSurvivals);
+      const targetSurvivals: AttackDeathSurvivalLedger = new Map();
+      for (const attackLedger of attackLedgers) {
+        settlementLedgers.add(attackLedger);
+        for (const [unitId, entry] of attackLedger) {
+          if (!targetSurvivals.has(unitId)) {
+            targetSurvivals.set(unitId, entry);
+          }
+        }
+      }
+      const targetContext: DamageEventContext = {
+        ...damageContext,
+        attackDeathSurvivals: targetSurvivals,
+        // 別の攻撃が使い、まだ精算していない耐えは、ここで新たに耐える場合も除く。先行する
+        // 対象の追加ヒットで初めて使った分も含めるため、対象ごとに数え直す。
+        reservedDeathSurvivals: reservedDeathSurvivalsIn(
+          [...allAttackLedgers].filter((attackLedger) => !attackLedgers.includes(attackLedger)),
+        ),
+        ...(suspended.size === 0
+          ? {}
           : {
-              ...damageContext,
               suspendedEffectInstanceIds: suspended,
               unitView: unitViewWithout(suspended, context),
-            };
+            }),
+      };
       released = yield* drive(
         releaseSubUnitAdditionsSteps(
           targetContext,
@@ -657,12 +700,35 @@ export function* releasePendingSubUnitAdditionsSteps(
           released.lastEventId,
         ),
       );
+      for (const [unitId, entry] of targetSurvivals) {
+        for (const attackLedger of attackLedgers) {
+          if (!attackLedger.has(unitId)) {
+            attackLedger.set(unitId, entry);
+          }
+        }
+      }
       if (released.interrupted) {
         break;
       }
     }
   }
   ledger.pending.clear();
+  // R-INT-01 #5: 追加ヒットまで含めた攻撃の終わりとして、各攻撃の致死耐えを精算する（複数の
+  // 台帳に載る同じエントリは1回だけ精算される）。
+  context.heldDeathSurvivals?.splice(0);
+  for (const settlementLedger of settlementLedgers) {
+    released = {
+      ...released,
+      lastEventId: yield* drive(
+        settleAttackDeathSurvivalsSteps(
+          damageContext,
+          working,
+          settlementLedger,
+          released.lastEventId,
+        ),
+      ),
+    };
+  }
   const finalized = yield* drive(
     driveRemovalSteps(
       damageContext,
@@ -687,6 +753,48 @@ export function* releasePendingSubUnitAdditionsSteps(
     yield { kind: "EFFECT_RESOLVED", events: pending };
   }
   return { lastEventId: expired.lastEventId, interrupted: released.interrupted };
+}
+
+/**
+ * R-INT-01 #5: 最後の適用が開始されなかった攻撃（命中条件で除外・使用者の戦闘不能で中断）で
+ * 致死を耐えた分を、stepの終わりに精算する。耐えの回数を次の攻撃へ持ち越さないためである。
+ */
+export function* settleUnfinishedAttackDeathSurvivalsSteps(
+  context: EffectActionGroupContext,
+  units: readonly BattleUnit[],
+  scope: AttackConsumptionScope,
+  parentEventId: DomainEventId,
+): DamageHookSteps {
+  const { consumeEffectDuration } = buildConsumeEffectDurationHooks(context, scope);
+  const damageContext: DamageEventContext = {
+    ...eventContextOf(context),
+    parentEventId,
+    skillDefinitionId: requireSkillDefinitionId(context),
+    consumeEffectDuration,
+    applyDeathSurvivalHeal: (
+      targetUnitId,
+      effectActionDefinitionId,
+      formula,
+      unitsForHeal,
+      healParentEventId,
+    ) =>
+      applyDeathSurvivalHealSteps(
+        context,
+        unitsForHeal,
+        targetUnitId,
+        effectActionDefinitionId,
+        formula,
+        healParentEventId,
+      ),
+  };
+  const working = new Map(units.map((unit) => [unit.battleUnitId, unit]));
+  const lastEventId = yield* settleAttackDeathSurvivalsSteps(
+    damageContext,
+    working,
+    scope.deathSurvivals,
+    parentEventId,
+  );
+  return { units: units.map((unit) => working.get(unit.battleUnitId) ?? unit), lastEventId };
 }
 
 function* noConsumption(

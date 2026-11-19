@@ -27,6 +27,7 @@ import { DomainValidationError } from "../../shared/errors.js";
 import { isDefeated, type BattleUnit } from "../model/battle-unit.js";
 import type { BattleUnitId } from "../../shared/ids.js";
 import { resolveEffectActionByKind } from "./effect-action/effect-action-dispatch.js";
+import { settleUnfinishedAttackDeathSurvivalsSteps } from "./effect-action/damage-effect-action.js";
 import {
   createEffectActionEventCursor,
   driveRemovalSteps,
@@ -36,6 +37,7 @@ import {
 import {
   buildConsumeEffectDurationHooks,
   createAttackConsumptionScope,
+  holdDeathSurvivalsForSubUnitAdditions,
   type AttackConsumptionScope,
 } from "./effect-action/effect-duration-consumption.js";
 import {
@@ -611,6 +613,16 @@ function* resolveActionApplications(
       scope.finished = true;
     }
     for (const scope of stepAttacks) {
+      if (
+        [...scope.deathSurvivals.values()].some((entry) => !entry.settled) &&
+        !holdDeathSurvivalsForSubUnitAdditions(context, scope.deathSurvivals)
+      ) {
+        const settled = yield* driveRemovalSteps(
+          { context, box, cursor: createEffectActionEventCursor(context, box) },
+          settleUnfinishedAttackDeathSurvivalsSteps(context, box.units, scope, lastEventId),
+        );
+        lastEventId = settled.lastEventId;
+      }
       if (scope.pendingExpirySeeds.length === 0) {
         continue;
       }

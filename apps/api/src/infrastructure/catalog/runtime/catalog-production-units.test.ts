@@ -682,7 +682,7 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 合計（追撃はDAMAGE区間の終わりで解決するため、追撃分も含む）、タリサPS1の「10以下」は契機の
     // スキル使用で与えた合計で判定し、クララAS1は撃破後も4ヒットを計算する。新規・削除した
     // Unit・Skill・EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-19.5");
+    expect(catalog.catalogRevision).toBe("2026-11-19.6");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
