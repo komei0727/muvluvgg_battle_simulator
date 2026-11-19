@@ -768,6 +768,7 @@
       "details": {
         "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
         "skillType": "AS",
+        "isAttack": true,
         "resolvedStepCount": 1,
         "targetUnitIds": ["enemy:1"]
       },

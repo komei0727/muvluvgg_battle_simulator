@@ -2113,6 +2113,7 @@ condition:
 | `ATTRIBUTE_ADVANTAGE`      | `target`                                                | 自身が`target`に対して有利属性か（`R-ATR-05`、Issue #762、後述）                                                                                           |
 | `SELECTED_TARGET_STATE`    | `selector`, `field`, `op`, `value`                      | 評価時点に`selector`で選んだ対象の`TARGET_STATE`比較。PSの発動判定専用（`R-PS-09`、Issue #762、後述）                                                      |
 | `TRIGGER_SKILL_USE_HIT`    | `target`                                                | 契機のスキル使用が`target`へ1ヒット以上命中したか。PSの発動判定専用（`R-PS-04`、Issue #831、後述）                                                         |
+| `TRIGGER_SKILL_USE_TARGET` | `target`                                                | 契機のスキル使用が`target`へ実際にEffectActionを処理したか。PSの発動判定専用（`R-PS-04`、Issue #837、後述）                                                |
 | `TRIGGER_SKILL_USE_DAMAGE` | `field`, `op`, `value`                                  | PS所有者が契機のスキル使用全体で与えた（`DEALT`）・受けた（`RECEIVED`）計算ダメージ合計の数値比較。PSのresolution step専用（`R-SKL-08`、Issue #832、後述） |
 
 `MARKER_COUNT_SCALE`・`MARKER_COUNT`（order）・`TARGET_HAS_MARKER`はいずれも、単一の`markerId`に代えて`markerIds`（1件以上、重複不可）を指定できる。両方の指定や、どちらも無い指定はCatalogロード時点で拒否する。`markerIds`を指定した場合、所持数は列挙したマーカーのスタック数の合計になる。`TARGET_HAS_MARKER`は、列挙したマーカーを1つも所持していなければ`countCondition`に関わらず不成立とする（単一`markerId`の不所持と同じ規約）。用途は寿命の違う同名マーカーを合算して数えることである — `MarkerState`はmarkerIdごとに1インスタンス・1 Durationしか持てないため（R-EFF-10）、寿命の違うスタックはmarkerIdを分けて付与し、所持数を問う側で合計する。
@@ -2154,6 +2155,18 @@ activationCondition:
     - { kind: TRIGGER_SKILL_USE_HIT, target: { kind: TRIGGER_PRIMARY_TARGET } }
 ```
 
+`TRIGGER_SKILL_USE_TARGET`（`R-PS-04`）は、PSの契機イベントが属するスキル使用が`target`のいずれかへ実際にEffectActionを処理したか（その使用の`EffectActionStarting`の対象に含まれるか）を問う。実行されなかった分岐の候補は含まない。契機がスキル使用に属さなければ不成立とする。「自身以外の味方のパッシブスキルを自身が受けたとき」を、他の味方の自己バフや自身を含まないPSと区別するために使う（`SKL_ROSIE_ARTIST_PS3`）。`PassiveResolved`は対象を持たないため、`targetSelector: SELF`だけでは「自身が受けた」を表せない。置ける位置と拒否規則は`TRIGGER_SKILL_USE_HIT`と同じ（同じ`TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER`・`MEMORY_REQUIRES_SOURCE_UNIT`で拒否する）。
+
+```yaml
+# 例: 「自身以外の味方のパッシブスキルを自身が受けた後に発動」（SKL_ROSIE_ARTIST_PS3）
+triggers:
+  - eventType: PassiveResolved
+    category: FACT
+    sourceSelector: OTHER_ALLY
+    targetSelector: SELF
+    condition: { kind: TRIGGER_SKILL_USE_TARGET, target: { kind: SELF } }
+```
+
 `TRIGGER_SKILL_USE_DAMAGE`（`R-SKL-08`）は、`sourceResult: TRIGGER_SKILL_USE_DAMAGE_*`と同じ合計（前述「`TRIGGER_SKILL_USE_DAMAGE_*`」節）を`value`と比べる。「攻撃で与えたダメージが10以下の場合」を契機の1ヒット（`EVENT_PAYLOAD`の`calculatedDamage`）ではなく元の攻撃全体で判定するために使う。置けるのはPSのresolution step（`stepCondition`・`BRANCH.condition`）だけで、trigger条件・`activationCondition`・`counterUpdates`・効果の`expiration.conditions`は元攻撃の効果処理中に評価され得て合計が確定していないため、AS/EXのstepは契機のスキル使用を持たないため、いずれもCatalogロード時点で`TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL`として拒否する。
 
 ```yaml
@@ -2175,7 +2188,7 @@ stepCondition: { kind: TRIGGER_SKILL_USE_DAMAGE, field: DEALT, op: LTE, value: 1
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
 ```
 
-`SkillUseStarting`の`isAttack`（boolean）は、そのスキルが攻撃を含むか（`07_戦闘ルール詳細.md` `R-ATM-02`）を表す。原文が「アクティブスキルで**攻撃する前**に発動」のPSは`skillType`と併せてこれを`AND`で要求し、攻撃を含まないASで発動させない。自身のASだけが契機になる場合でも、攻撃ASを`skillDefinitionId IN [...]`で列挙する代わりに使える。
+`SkillUseStarting`・`SkillUseCompleted`の`isAttack`（boolean）は、そのスキルが攻撃を含むか（`07_戦闘ルール詳細.md` `R-ATM-02`）を表す（両イベントで同じ値）。原文が「アクティブスキルで**攻撃する前**に発動」のPSは`SkillUseStarting`の、「アクティブスキルで**攻撃した後**に発動」のPSは`SkillUseCompleted`の`skillType`と併せてこれを`AND`で要求し、攻撃を含まないASで発動させない（`SKL_URUU_SUMMER_PS1`、Issue #837）。自身のASだけが契機になる場合でも、攻撃ASを`skillDefinitionId IN [...]`で列挙する代わりに使える。
 
 ```yaml
 # 例: 「自身と同じ横一列の他の味方がアクティブスキルで攻撃する前に発動」（SKL_NINA_ZINA_FRONTRUNNER_PS2）

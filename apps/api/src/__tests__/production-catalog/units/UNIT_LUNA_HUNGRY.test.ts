@@ -183,6 +183,20 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_LUNA_HUNGRY_PS1",
+    intent:
+      "(不成立): 自身が狙われた場合は発動しない（他の味方が攻撃される直前だけが契機、SR-217）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_LUNA_HUNGRY_PS1",
+      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:subject" }),
+      triggeredBy: "enemy:front",
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_LUNA_HUNGRY_PS1",
     intent: "(不成立): 味方以外が攻撃されても発動しない",
     use: {
       kind: "PASSIVE",

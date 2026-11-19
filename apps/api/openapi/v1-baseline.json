@@ -3485,6 +3485,9 @@
                                     "type": "string",
                                     "enum": ["AS", "EX"]
                                   },
+                                  "isAttack": {
+                                    "type": "boolean"
+                                  },
                                   "resolvedStepCount": {
                                     "type": "integer",
                                     "minimum": 0
@@ -3612,6 +3615,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
@@ -3728,6 +3732,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },
@@ -16510,6 +16515,9 @@
                                     "type": "string",
                                     "enum": ["AS", "EX"]
                                   },
+                                  "isAttack": {
+                                    "type": "boolean"
+                                  },
                                   "resolvedStepCount": {
                                     "type": "integer",
                                     "minimum": 0
@@ -16637,6 +16645,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
@@ -16753,6 +16762,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },
@@ -30399,6 +30409,9 @@
                                     "type": "string",
                                     "enum": ["AS", "EX"]
                                   },
+                                  "isAttack": {
+                                    "type": "boolean"
+                                  },
                                   "resolvedStepCount": {
                                     "type": "integer",
                                     "minimum": 0
@@ -30526,6 +30539,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   }
@@ -30642,6 +30656,7 @@
                                       "ATTRIBUTE_ADVANTAGE",
                                       "SELECTED_TARGET_STATE",
                                       "TRIGGER_SKILL_USE_HIT",
+                                      "TRIGGER_SKILL_USE_TARGET",
                                       "TRIGGER_SKILL_USE_DAMAGE"
                                     ]
                                   },

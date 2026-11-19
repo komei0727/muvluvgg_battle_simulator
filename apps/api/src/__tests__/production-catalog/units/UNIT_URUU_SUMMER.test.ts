@@ -393,6 +393,23 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_URUU_SUMMER_PS1",
+    intent:
+      "(不成立): 攻撃を含まないアクティブスキルの使用後には発動しない（「アクティブスキルで攻撃した後」に限る、SR-309）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_URUU_SUMMER_PS1",
+      trigger: skillUseCompleted({
+        actor: "ally:subject",
+        targets: ["ally:subject"],
+        skillType: "AS",
+        isAttack: false,
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_URUU_SUMMER_PS1",
     intent: "(不成立): EXスキルの使用後には発動しない（「アクティブスキルで攻撃した後」に限る）",
     use: {
       kind: "PASSIVE",

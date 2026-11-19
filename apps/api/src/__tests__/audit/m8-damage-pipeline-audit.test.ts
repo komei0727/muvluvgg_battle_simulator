@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { BattleLogEvent } from "../../application/observation/battle-log-event.js";
 import {
+  runProductionPartyBattle,
   runProductionUnitBattle,
   allProductionUnitIds,
 } from "../../testing/scenario/run-production-battle.js";
@@ -200,13 +201,31 @@ function containsInOrder(types: readonly string[], required: readonly string[]):
   return cursor === required.length;
 }
 
-const BATTLES = PRODUCTION_UNIT_IDS.map((unitDefinitionId) => ({
-  unitDefinitionId,
-  result: runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
-    turnLimit: 5,
-    randomValue: 0.5,
-  }),
-}));
+/**
+ * 「他の味方が攻撃される前」を契機にする防御介入（`SKL_EVIE_ECO_PS1`の引き寄せ・肩代わり、
+ * `SKL_LUNA_HUNGRY_PS1`の反射）は、本人が狙われた攻撃では発動しない。1対1ミラー戦には
+ * 「他の味方」が居ないため、#4（防御介入）と#8の反射を実データで観測できるよう、
+ * 両者を同じ編成に置いた混成戦を監査対象へ加える。
+ */
+const DEFENSIVE_INTERVENTION_PARTY = ["UNIT_EVIE_ECO", "UNIT_LUNA_HUNGRY"] as const;
+
+const BATTLES = [
+  ...PRODUCTION_UNIT_IDS.map((unitDefinitionId) => ({
+    unitDefinitionId,
+    result: runProductionUnitBattle(CATALOG_DIR, unitDefinitionId, {
+      turnLimit: 5,
+      randomValue: 0.5,
+    }),
+  })),
+  {
+    unitDefinitionId: `PARTY:${DEFENSIVE_INTERVENTION_PARTY.join("+")}`,
+    result: runProductionPartyBattle(
+      CATALOG_DIR,
+      { ally: DEFENSIVE_INTERVENTION_PARTY, enemy: DEFENSIVE_INTERVENTION_PARTY },
+      { turnLimit: 5, randomValue: 0.5 },
+    ),
+  },
+];
 
 describe("M8 damage pipeline audit (DMG-011)", () => {
   it("IT-AUDIT-M8-001 [R-ACTN-02, R-DMG-05] (R-DMG-05): every hit in every production battle emits the 8 damage steps in order, and each hit individually carries the steps its outcome requires", () => {

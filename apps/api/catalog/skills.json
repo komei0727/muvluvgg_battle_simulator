@@ -3748,7 +3748,7 @@
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": { "kind": "TRUE" }
       }
     ]
@@ -10210,7 +10210,7 @@
         "eventType": "UnitBeingAttacked",
         "category": "TIMING",
         "sourceSelector": "ENEMY",
-        "targetSelector": "ALLY",
+        "targetSelector": "OTHER_ALLY",
         "condition": { "kind": "TRUE" }
       }
     ]
@@ -14361,8 +14361,7 @@
           "kind": "RUNTIME_COUNTER",
           "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
           "op": "GTE",
-          "value": 1,
-          "modulo": 3
+          "value": 3
         }
       }
     ],
@@ -14375,9 +14374,32 @@
           "eventType": "PassiveActivated",
           "category": "FACT",
           "sourceSelector": "SELF",
-          "targetSelector": "ANY"
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "NEQ",
+            "value": "SKL_NADYA_SUCCESSOR_PS3"
+          }
         },
         "amount": 1
+      },
+      {
+        "kind": "RESET",
+        "counter": "SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveResolved",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "SELF",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_NADYA_SUCCESSOR_PS3"
+          }
+        }
       }
     ]
   },
@@ -14779,7 +14801,7 @@
           "target": { "kind": "SELF" },
           "field": "RESOURCE_EX_GAUGE",
           "op": "GTE",
-          "value": 1
+          "value": 2
         }
       ]
     },
@@ -17682,8 +17704,9 @@
       {
         "eventType": "PassiveResolved",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "OTHER_ALLY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRIGGER_SKILL_USE_TARGET", "target": { "kind": "SELF" } }
       }
     ]
   },
@@ -22043,7 +22066,13 @@
         "category": "FACT",
         "sourceSelector": "SELF",
         "targetSelector": "ANY",
-        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+        "condition": {
+          "kind": "AND",
+          "conditions": [
+            { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" },
+            { "kind": "EVENT_PAYLOAD", "field": "isAttack", "op": "EQ", "value": true }
+          ]
+        }
       }
     ]
   },
@@ -22470,9 +22499,16 @@
         }
       ]
     },
-    "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": { "firstTriggerOnly": true },
     "metadata": { "displayName": "やるじゃない、乗ったわ!", "tags": [] },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "triggers": [
       {
         "eventType": "CriticalCheckResolved",

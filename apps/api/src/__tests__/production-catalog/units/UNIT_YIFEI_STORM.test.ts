@@ -170,6 +170,10 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: { "enemy:front": -530 },
       // PPは発動で1消費し追撃後に1回復するため差し引き0。消費分のEXゲージだけが残る。
       resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
+      // CTは本人の1行動（SR-311）。
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_YIFEI_STORM_PS1", remaining: 1 },
+      ],
     },
   },
   {
@@ -194,7 +198,35 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: { "enemy:front": -530 },
       // PPは発動で1消費し追撃後に1回復するため差し引き0。消費分のEXゲージだけが残る。
       resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 }],
+      // CTは本人の1行動（SR-311）。
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_YIFEI_STORM_PS1", remaining: 1 },
+      ],
     },
+  },
+  {
+    skillDefinitionId: "SKL_YIFEI_STORM_PS1",
+    intent:
+      "(不成立): 元の会心で「ご指名」の敵が倒れていれば、PP・EX・CTを含めPS全体が発動しない（SR-311）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_YIFEI_STORM_PS1",
+      trigger: criticalCheckResolved({ source: "ally:front", target: "enemy:front", result: true }),
+      triggeredBy: "ally:front",
+    },
+    board: {
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          markers: [{ markerId: NOMINATION, stackCount: 1 }],
+          state: { currentHp: 0 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_YIFEI_STORM_PS1",
@@ -494,5 +526,47 @@ describe("production Catalog UNIT_YIFEI_STORM (【暴風小隊長】崔亦菲)",
           event.payload.effectActionDefinitionId === "ACT_YIFEI_STORM_PS1_DAMAGE",
       );
     expect(ps1Damage.map((event) => event.targetUnitIds)).toEqual([["enemy:left"]]);
+  });
+
+  it("IT-UNIT-YIFEI-STORM-008 [R-PS-04, R-PS-07, R-SKL-04]: 元の会心で最初の「ご指名」の敵が倒れると、後続の指名敵の会心へ振り替えずPS1全体が不発で、PP・EX・CTも動かない（SR-311）", () => {
+    // 前列中央の敵だけ、AS1の会心1発で倒れるHPにする。前列左の敵は生存し、同じAS1で
+    // 指名され会心も受けるが、最初に一致した契機（前列中央）で発動判定を使い切る。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      combatStats: { criticalRate: 1 },
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 1 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    });
+    const recorder = new EventRecorder(createBattleId("B_YIFEI_PS1_DEFEATED"));
+
+    const units = useSkill({
+      units: board.units,
+      definitions: board.definitions,
+      skillId: "SKL_YIFEI_STORM_AS1",
+      random: ALWAYS_CRITICAL,
+      recorder,
+      actionNumber: 1,
+    });
+
+    expect(
+      recorder
+        .getEvents()
+        .filter(
+          (event) =>
+            event.eventType === "PassiveActivated" &&
+            event.payload.skillDefinitionId === "SKL_YIFEI_STORM_PS1",
+        ),
+    ).toEqual([]);
+    const subject = units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+    expect(subject.currentPp).toBe(board.subject.currentPp);
+    // AS1自身のAP消費由来の+1だけで、PS1のPP消費由来の基本EX獲得は無い。
+    expect(subject.currentExtraGauge).toBe(board.subject.currentExtraGauge + 1);
+    expect(subject.cooldowns[createSkillDefinitionId("SKL_YIFEI_STORM_PS1")]).toBeUndefined();
   });
 });

@@ -248,6 +248,7 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
     payload: {
       skillDefinitionId: "SKL_1" as never,
       skillType: "AS",
+      isAttack: true,
       resolvedStepCount: 1,
       targetUnitIds: [],
     },

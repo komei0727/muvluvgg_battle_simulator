@@ -8,6 +8,7 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
   type SkillBehaviourCase,
@@ -18,6 +19,11 @@ import {
   skillUseCompleted,
 } from "../../../testing/production-unit/trigger-events.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { resolveSkillUse } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { createSkillDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createActionId } from "../../../domain/shared/event-ids.js";
+import { createBattleId } from "../../../domain/shared/ids.js";
 
 /**
  * `UNIT_ROSIE_ARTIST`（【空想造形アーティスト】ロージー・ヒューズ）のユニット単位
@@ -117,13 +123,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
           targets: ["ally:back"],
         },
-        // PS2の解決そのものが `PassiveResolved` を出し、PS3の
-        // `sourceSelector: ALLY` はロージー自身も味方として満たすため連鎖する。
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
+        // PS3は「自身以外の味方のPSを自身が受けたとき」だけ発動するため、自身のPS2の
+        // 解決からは連鎖しない（SR-130）。
       ],
       hpDeltas: {
-        "enemy:front": -803,
+        "enemy:front": -585,
         "enemy:left": -585,
       },
       effectsApplied: [
@@ -148,12 +152,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -2 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS2", remaining: 2 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
       ],
     },
   },
@@ -183,16 +186,20 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
           targets: ["ally:back"],
         },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
       ],
-      // 会心2ヒット 877 + 292（会心倍率1.5）。前列へはさらにPS3の追撃が入り、その1発が
-      // `ACT_ROSIE_ARTIST_AS1_DMG_UP`（次の攻撃+25%）を消費する。
+      // 会心2ヒット 877 + 292（会心倍率1.5）。自身のPS2からPS3は連鎖しないため、
+      // `ACT_ROSIE_ARTIST_AS1_DMG_UP`（次の攻撃+25%）は消費されずに残る。
       hpDeltas: {
-        "enemy:front": -1579,
+        "enemy:front": -1169,
         "enemy:left": -1169,
       },
       effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DMG_UP",
+          magnitude: 0.25,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
@@ -214,12 +221,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -2 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS2", remaining: 2 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
       ],
     },
   },
@@ -234,23 +240,25 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       triggeredBy: "ally:front",
     },
     expected: {
-      // PS1の解決が `PassiveResolved` を出すため、そのままPS3が連鎖して追撃が入り、
-      // 付けたばかりの与ダメージ増加バフ（次の攻撃1回）はその追撃で消費される。
+      // 自身のPS1の解決ではPS3が連鎖しないため（SR-038）、付けた与ダメージ増加バフ
+      // （次の攻撃1回）は消費されずに残る。
       actions: [
         { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
       ],
-      hpDeltas: {
-        "enemy:front": -328,
-      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP",
+          magnitude: 0.5,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
+      ],
       resources: [
-        { unitId: "ally:subject", resource: "PP", delta: -2 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 3 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS1", remaining: 1 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
       ],
     },
   },
@@ -304,27 +312,14 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
           targets: ["ally:back"],
         },
-        // PS2解決 → PS3追撃 → その追撃で敵前列がHP50%以下になり PS1 まで連鎖する。
-        // R-ATM-01: PS1の候補はPS3の効果処理中に検出され、発動はPS3の完了後。
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP", targets: ["ally:subject"] },
+        // 自身のPS2の解決からPS3は連鎖しない（SR-130）。
       ],
-      hpDeltas: {
-        "enemy:front": -218,
-      },
       effectsApplied: [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
           magnitude: 0.6,
           timeLimit: { unit: "ACTION", count: 5 },
-        },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS1_DMG_UP",
-          magnitude: 0.5,
-          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
         },
         {
           unitId: "ally:front",
@@ -340,13 +335,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       resources: [
-        { unitId: "ally:subject", resource: "PP", delta: -3 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS2", remaining: 2 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS1", remaining: 1 },
       ],
     },
   },
@@ -374,9 +367,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     use: {
       kind: "PASSIVE",
       skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+      // 他の味方の味方全体PSは、本人もそのPSを受けている。
       trigger: passiveResolved({
         actor: "ally:front",
         skillDefinitionId: "SKL_ROSIE_ARTIST_PS2",
+        receivedBy: ["ally:subject", "ally:front", "ally:back"],
       }),
       triggeredBy: "ally:front",
     },
@@ -406,6 +401,74 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS1", remaining: 1 },
       ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+    intent: "(不成立): 自身のPS1（自身への付与）の解決では発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+      trigger: passiveResolved({
+        actor: "ally:subject",
+        skillDefinitionId: "SKL_ROSIE_ARTIST_PS1",
+        receivedBy: ["ally:subject"],
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+    intent: "(不成立): 自身のPS2（自身を含む味方全体への付与）の解決でも、自身のPSなので発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+      trigger: passiveResolved({
+        actor: "ally:subject",
+        skillDefinitionId: "SKL_ROSIE_ARTIST_PS2",
+        receivedBy: ["ally:subject", "ally:front", "ally:back"],
+      }),
+      triggeredBy: "ally:subject",
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+    intent: "(不成立): 他の味方の自己バフPSは自身が受けていないので発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+      trigger: passiveResolved({
+        actor: "ally:front",
+        skillDefinitionId: "SKL_ROSIE_ARTIST_PS1",
+        receivedBy: ["ally:front"],
+      }),
+      triggeredBy: "ally:front",
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+    intent: "(不成立): 他の味方のPSが自身以外の対象だけへ向かった場合は発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_ROSIE_ARTIST_PS3",
+      trigger: passiveResolved({
+        actor: "ally:front",
+        skillDefinitionId: "SKL_ROSIE_ARTIST_PS2",
+        receivedBy: ["ally:front", "ally:back"],
+      }),
+      triggeredBy: "ally:front",
+    },
+    expected: {
+      activated: false,
     },
   },
   {
@@ -510,16 +573,20 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
           targets: ["ally:back"],
         },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_DAMAGE", targets: ["enemy:front"] },
-        { effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS3_EX_UP", targets: ["ally:subject"] },
       ],
-      // enemy:front は非会心の585 + 追撃195 + PS3の追撃273（`ACT_ROSIE_ARTIST_AS1_DMG_UP`
-      // の+25%を消費した218）。enemy:left は会心の877（会心倍率1.5）+ 追撃195。
+      // enemy:front は非会心の585 + 追撃195。enemy:left は会心の877（会心倍率1.5）+ 追撃195。
+      // 自身のPS2からPS3は連鎖しないため、`ACT_ROSIE_ARTIST_AS1_DMG_UP`は残る。
       hpDeltas: {
-        "enemy:front": -1053,
+        "enemy:front": -780,
         "enemy:left": -1072,
       },
       effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ROSIE_ARTIST_AS1_DMG_UP",
+          magnitude: 0.25,
+          consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+        },
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_ROSIE_ARTIST_PS2_HEALING_UP_PHYSICAL",
@@ -541,12 +608,11 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
       ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
-        { unitId: "ally:subject", resource: "PP", delta: -2 },
-        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 4 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
       ],
       cooldowns: [
         { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS2", remaining: 2 },
-        { unitId: "ally:subject", skillDefinitionId: "SKL_ROSIE_ARTIST_PS3", remaining: 1 },
       ],
     });
 
@@ -562,6 +628,48 @@ describe("production Catalog UNIT_ROSIE_ARTIST (【空想造形アーティス�
     expect(noCritical.actions?.map((action) => action.effectActionDefinitionId)).not.toContain(
       "ACT_ROSIE_ARTIST_AS1_DAMAGE_CRIT",
     );
-    expect(noCritical.hpDeltas).toEqual({ "enemy:front": -803, "enemy:left": -585 });
+    expect(noCritical.hpDeltas).toEqual({ "enemy:front": -585, "enemy:left": -585 });
+  });
+
+  it("IT-UNIT-ROSIE-ARTIST-005 [R-PS-01, R-PS-04]: 実際のPS2解決でも、それを受けた他の味方ロージーのPS3だけが発動し、PS2を使った本人のPS3は発動しない（SR-038・SR-048・SR-130）", () => {
+    // 前列左の味方も同じロージーにし、本人のAS1→PS2（味方全体）を実経路で解決させる。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      ...FULL_HEALTH_ENEMIES,
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          unitDefinitionId: UNIT_DEFINITION_ID,
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    });
+    const recorder = new EventRecorder(createBattleId("B_ROSIE_RECEIVED"));
+    resolveSkillUse(
+      board.subject,
+      board.definitions.skillDefinitions.get(createSkillDefinitionId("SKL_ROSIE_ARTIST_AS1"))!,
+      "AS",
+      "AS",
+      board.units,
+      board.definitions,
+      new SequenceRandomSource(new Array<number>(64).fill(0.99)),
+      recorder,
+      1,
+      0,
+      createActionId("B_ROSIE_RECEIVED:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const activations = recorder
+      .getEvents()
+      .flatMap((event) =>
+        event.eventType === "PassiveActivated"
+          ? [`${event.payload.actorUnitId}:${event.payload.skillDefinitionId}`]
+          : [],
+      );
+    expect(activations).toEqual([
+      "ally:subject:SKL_ROSIE_ARTIST_PS2",
+      "ally:front:SKL_ROSIE_ARTIST_PS3",
+    ]);
   });
 });

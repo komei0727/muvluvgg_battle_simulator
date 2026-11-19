@@ -286,8 +286,8 @@ export function validateSkill(
       message: `a SELECTED_TARGET_STATE condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it in a resolution step or an ${skill.skillType} activationCondition`,
     });
   }
-  // R-PS-04: `TRIGGER_SKILL_USE_HIT`はPSの候補検出・発動直前確認（trigger条件・PSの
-  // `activationCondition`）専用。counterUpdatesの契機判定は命中を受け取らない。
+  // R-PS-04: `TRIGGER_SKILL_USE_HIT`・`TRIGGER_SKILL_USE_TARGET`はPSの候補検出・発動直前確認（trigger条件・PSの
+  // `activationCondition`）専用。counterUpdatesの契機判定は命中・処理対象を受け取らない。
   if (
     sequences.some((sequence) =>
       stepsSomeCondition(sequence.steps, conditionContainsTriggerSkillUseHit),
@@ -304,7 +304,7 @@ export function validateSkill(
     violations.push({
       targetId: skill.skillDefinitionId,
       rule: "TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER",
-      message: `a TRIGGER_SKILL_USE_HIT condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it elsewhere`,
+      message: `a TRIGGER_SKILL_USE_HIT / TRIGGER_SKILL_USE_TARGET condition is only evaluable in a PS trigger condition or a PS activationCondition — "${skill.skillDefinitionId}" declares it elsewhere`,
     });
   }
   for (const trigger of skill.triggers) {

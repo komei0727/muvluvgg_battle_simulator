@@ -874,6 +874,7 @@ export interface paths {
                       skillDefinitionId: string;
                       /** @enum {string} */
                       skillType: "AS" | "EX";
+                      isAttack?: boolean;
                       resolvedStepCount: number;
                       targetUnitIds: string[];
                     };
@@ -925,6 +926,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                     };
                     stateVersionBefore: number;
@@ -973,6 +975,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                       /** @enum {boolean} */
                       result: false;
@@ -4750,6 +4753,7 @@ export interface paths {
                       skillDefinitionId: string;
                       /** @enum {string} */
                       skillType: "AS" | "EX";
+                      isAttack?: boolean;
                       resolvedStepCount: number;
                       targetUnitIds: string[];
                     };
@@ -4801,6 +4805,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                     };
                     stateVersionBefore: number;
@@ -4849,6 +4854,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                       /** @enum {boolean} */
                       result: false;
@@ -8844,6 +8850,7 @@ export interface paths {
                       skillDefinitionId: string;
                       /** @enum {string} */
                       skillType: "AS" | "EX";
+                      isAttack?: boolean;
                       resolvedStepCount: number;
                       targetUnitIds: string[];
                     };
@@ -8895,6 +8902,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                     };
                     stateVersionBefore: number;
@@ -8943,6 +8951,7 @@ export interface paths {
                         | "ATTRIBUTE_ADVANTAGE"
                         | "SELECTED_TARGET_STATE"
                         | "TRIGGER_SKILL_USE_HIT"
+                        | "TRIGGER_SKILL_USE_TARGET"
                         | "TRIGGER_SKILL_USE_DAMAGE";
                       /** @enum {boolean} */
                       result: false;

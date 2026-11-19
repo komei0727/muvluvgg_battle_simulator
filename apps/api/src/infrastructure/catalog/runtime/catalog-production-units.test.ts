@@ -682,15 +682,16 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 合計（追撃はDAMAGE区間の終わりで解決するため、追撃分も含む）、タリサPS1の「10以下」は契機の
     // スキル使用で与えた合計で判定し、クララAS1は撃破後も4ヒットを計算する。新規・削除した
     // Unit・Skill・EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-19.6");
+    expect(catalog.catalogRevision).toBe("2026-11-19.7");
   });
 
-  it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on an ally being attacked by an enemy, not on self being attacked by an ally", () => {
+  it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
     const snapshot = catalog.loadSnapshot(["UNIT_EVIE_ECO"] as never[], []);
     const ps1 = snapshot.skills.get("SKL_EVIE_ECO_PS1" as never);
     expect(ps1?.triggers[0]?.sourceSelector).toBe("ENEMY");
-    expect(ps1?.triggers[0]?.targetSelector).toBe("ALLY");
+    // 本人が狙われた攻撃では発動しない（SR-216）。
+    expect(ps1?.triggers[0]?.targetSelector).toBe("OTHER_ALLY");
   });
 
   it("IT-CAT-PROD-003: Karina's とりしまり～ (AS1) reduces EX gauge on all enemies, not a single target", () => {
@@ -854,7 +855,6 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     { unitId: "UNIT_MAO_COMMITTEE", skillId: "SKL_MAO_COMMITTEE_PS1", modulo: 3 },
     { unitId: "UNIT_MIRIAM_MAGE", skillId: "SKL_MIRIAM_MAGE_PS1", modulo: 3 },
     { unitId: "UNIT_ELENA_MOODMAKER", skillId: "SKL_ELENA_MOODMAKER_PS1", modulo: 4 },
-    { unitId: "UNIT_NADYA_SUCCESSOR", skillId: "SKL_NADYA_SUCCESSOR_PS3", modulo: 3 },
   ])(
     "IT-CAT-PROD-008 (Issue #143, RUNTIME_COUNTER_MODULO): $skillId declares a matching counterUpdates INCREMENT entry and a RUNTIME_COUNTER trigger condition with modulo=$modulo ($unitId)",
     ({ unitId, skillId, modulo }) => {
@@ -921,6 +921,44 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
       expect(found?.value).toBe(threshold);
     },
   );
+
+  /**
+   * SR-357: 「自身がパッシブスキルを3回使用するたびに」のPS3は、自身の発動を数えず、
+   * 効果の終了後（自身の`PassiveResolved`）にカウンターを0へ戻す。`modulo`で周期を
+   * 表すとPS3自身の発動まで数えてしまい、2回目以降の周期が2回で成立してしまう。
+   */
+  it("IT-CAT-PROD-017 (SR-357, R-EFF-11 RESET): SKL_NADYA_SUCCESSOR_PS3 counts only its owner's other PS activations and resets on its own PassiveResolved, gating on GTE 3 without modulo", () => {
+    const catalog = loadCatalogFromDirectory(catalogPath());
+    const snapshot = catalog.loadSnapshot(["UNIT_NADYA_SUCCESSOR"] as never[], []);
+    const skill = snapshot.skills.get("SKL_NADYA_SUCCESSOR_PS3" as never);
+    expect(skill?.counterUpdates.map((update) => update.kind)).toEqual(["INCREMENT", "RESET"]);
+
+    const increment = skill?.counterUpdates[0];
+    expect(increment?.trigger.eventType).toBe("PassiveActivated");
+    expect(increment?.trigger.condition).toEqual({
+      kind: "EVENT_PAYLOAD",
+      field: "skillDefinitionId",
+      op: "NEQ",
+      value: "SKL_NADYA_SUCCESSOR_PS3",
+    });
+
+    const reset = skill?.counterUpdates[1];
+    expect(reset?.counter).toBe(increment?.counter);
+    expect(reset?.trigger.eventType).toBe("PassiveResolved");
+    expect(reset?.trigger.sourceSelector).toBe("SELF");
+    expect(reset?.trigger.condition).toEqual({
+      kind: "EVENT_PAYLOAD",
+      field: "skillDefinitionId",
+      op: "EQ",
+      value: "SKL_NADYA_SUCCESSOR_PS3",
+    });
+
+    const found = findRuntimeCounterCondition(skill?.triggers[0]?.condition);
+    expect(found?.counter).toBe(increment?.counter);
+    expect(found?.modulo).toBeUndefined();
+    expect(found?.op).toBe("GTE");
+    expect(found?.value).toBe(3);
+  });
 
   it.each([
     { unitId: "UNIT_CHIYURU_NEWYEAR", skillId: "SKL_CHIYURU_NEWYEAR_PS2", maxHpRatio: 0.4 },

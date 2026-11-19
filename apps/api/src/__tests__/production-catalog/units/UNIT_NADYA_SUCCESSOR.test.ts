@@ -28,6 +28,7 @@ import {
   effectApplied,
   passiveActivated,
 } from "../../../testing/production-unit/trigger-events.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 
 /**
  * `UNIT_NADYA_SUCCESSOR`(【輝ける次代の娘】ナージャ・ヴォルコワ)のユニット単位
@@ -672,5 +673,36 @@ describe("production Catalog UNIT_NADYA_SUCCESSOR (【輝ける次代の娘】�
       classification: { effectKind: "APPLY_STAT_MOD", categories: ["DEBUFF"] },
       activated: [],
     });
+  });
+
+  it("IT-UNIT-NADYA-SUCCESSOR-006 [R-EFF-11, R-PS-01]: PS3は自身の発動を数えず、他のPSを3回使うたびに発動し、効果の終了後にカウンターを0へ戻す（SR-357）", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const counterId = createRuntimeCounterId("SKL_NADYA_SUCCESSOR_PS3_TRIGGER_COUNT");
+    const ps3Id = createSkillDefinitionId("SKL_NADYA_SUCCESSOR_PS3");
+    let units = board.units;
+    const ps3Fired: boolean[] = [];
+    const counterAfter: number[] = [];
+    // 他のPS（PS1）の発動を6回続け、1回ごとにPS3が発動したかとカウンターの値を記録する。
+    for (let use = 1; use <= 6; use += 1) {
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_NADYA_PS3_CYCLE_${use}`,
+      });
+      units = chain.fire(
+        passiveActivated({ actor: "ally:subject", skillDefinitionId: "SKL_NADYA_SUCCESSOR_PS1" }),
+        units,
+      );
+      ps3Fired.push(
+        chain
+          .eventsOfType("PassiveActivated")
+          .some((event) => event.payload.skillDefinitionId === ps3Id),
+      );
+      const subject = units.find((unit) => unit.battleUnitId === board.subject.battleUnitId)!;
+      counterAfter.push(subject.skillCounters?.[ps3Id]?.[counterId]?.value ?? 0);
+    }
+
+    expect(ps3Fired).toEqual([false, false, true, false, false, true]);
+    expect(counterAfter).toEqual([1, 2, 0, 1, 2, 0]);
   });
 });

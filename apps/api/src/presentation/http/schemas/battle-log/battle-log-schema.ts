@@ -237,6 +237,11 @@ const skillUseCompletedDetailsSchema = {
     skillDefinitionId: { type: "string" },
     /** Issue #143: `SkillUseCompleted`はAS/EXの使用完了時にのみ発行される（PSはこのeventTypeを発行しない）。 */
     skillType: { type: "string", enum: ["AS", "EX"] },
+    /*
+     * R-ATM-02: `SkillUseStarting.isAttack`と同じ値。「アクティブスキルで攻撃した後」のPSが
+     * `EVENT_PAYLOAD`で参照する。v1デコーダ互換のため`required`へは入れない。
+     */
+    isAttack: { type: "boolean" },
     resolvedStepCount: { type: "integer", minimum: 0 },
     targetUnitIds: { type: "array", items: { type: "string" } },
   },
@@ -273,6 +278,7 @@ export const CONDITION_KIND_ENUM = [
   "ATTRIBUTE_ADVANTAGE",
   "SELECTED_TARGET_STATE",
   "TRIGGER_SKILL_USE_HIT",
+  "TRIGGER_SKILL_USE_TARGET",
   "TRIGGER_SKILL_USE_DAMAGE",
 ] as const;
 /**

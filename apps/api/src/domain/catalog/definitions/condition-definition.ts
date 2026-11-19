@@ -118,6 +118,7 @@ export const CONDITION_KINDS = [
   "ATTRIBUTE_ADVANTAGE",
   "SELECTED_TARGET_STATE",
   "TRIGGER_SKILL_USE_HIT",
+  "TRIGGER_SKILL_USE_TARGET",
   "TRIGGER_SKILL_USE_DAMAGE",
 ] as const;
 export type ConditionKind = (typeof CONDITION_KINDS)[number];
@@ -201,8 +202,9 @@ export const STEP_CONDITION_KINDS: ReadonlySet<ConditionKind> = new Set(
       kind !== "ATTRIBUTE_ADVANTAGE" &&
       // R-PS-09: PSの発動判定専用。EffectStep評価器は処理しない。
       kind !== "SELECTED_TARGET_STATE" &&
-      // R-PS-04: PSの発動判定専用（契機となったスキル使用の命中を参照する）。
-      kind !== "TRIGGER_SKILL_USE_HIT",
+      // R-PS-04: PSの発動判定専用（契機となったスキル使用の命中・対象を参照する）。
+      kind !== "TRIGGER_SKILL_USE_HIT" &&
+      kind !== "TRIGGER_SKILL_USE_TARGET",
   ),
 );
 
@@ -353,6 +355,7 @@ const CONDITION_ALLOWED_KEYS: Record<ConditionKind, readonly string[]> = {
   ATTRIBUTE_ADVANTAGE: ["kind", "target"],
   SELECTED_TARGET_STATE: ["kind", "selector", "field", "op", "value"],
   TRIGGER_SKILL_USE_HIT: ["kind", "target"],
+  TRIGGER_SKILL_USE_TARGET: ["kind", "target"],
   TRIGGER_SKILL_USE_DAMAGE: ["kind", "field", "op", "value"],
 };
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
@@ -574,6 +577,15 @@ export type ConditionDefinition =
        * 「元の攻撃の先頭対象が回避した場合は発動しない」をPSの発動判定で表す。
        */
       readonly kind: "TRIGGER_SKILL_USE_HIT";
+      readonly target: TargetReference;
+    }
+  | {
+      /**
+       * R-PS-04: このPSの契機イベントが属するスキル使用が、`target`のいずれかへ実際に
+       * EffectActionを処理したか（実行されなかった分岐の候補は含まない）。「自身以外の
+       * 味方のPSを自身が受けたとき」を、他の味方の自己バフや自身を含まないPSと区別する。
+       */
+      readonly kind: "TRIGGER_SKILL_USE_TARGET";
       readonly target: TargetReference;
     }
   | {
@@ -808,10 +820,11 @@ export function createConditionDefinition(
         target: createTargetReference(target, `${path}.target`, scope),
       };
     }
-    case "TRIGGER_SKILL_USE_HIT": {
+    case "TRIGGER_SKILL_USE_HIT":
+    case "TRIGGER_SKILL_USE_TARGET": {
       const target = requireField(input, "target", path);
       return {
-        kind: "TRIGGER_SKILL_USE_HIT",
+        kind: input.kind,
         target: createTargetReference(target, `${path}.target`, scope),
       };
     }

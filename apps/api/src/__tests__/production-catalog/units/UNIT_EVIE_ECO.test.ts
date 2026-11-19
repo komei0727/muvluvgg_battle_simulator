@@ -146,6 +146,20 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_EVIE_ECO_PS1",
+    intent:
+      "(不成立): 自身が狙われた場合は発動しない（他の味方が攻撃される直前だけが契機、SR-216）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_EVIE_ECO_PS1",
+      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:subject" }),
+      triggeredBy: "enemy:front",
+    },
+    expected: {
+      activated: false,
+    },
+  },
+  {
+    skillDefinitionId: "SKL_EVIE_ECO_PS1",
     intent: "(不成立): 味方が味方を攻撃する契機では発動しない",
     use: {
       kind: "PASSIVE",
