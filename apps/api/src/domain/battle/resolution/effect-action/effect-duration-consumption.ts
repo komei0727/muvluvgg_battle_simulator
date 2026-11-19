@@ -16,6 +16,7 @@ export type { AttackConsumptionScope };
 import type { BattleUnit } from "../../model/battle-unit.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
 import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
+import type { AttackDeathSurvivalLedger } from "../../combat/defensive-intervention-policy.js";
 import type { BattleDomainEvent } from "../../events/domain-event.js";
 
 /**
@@ -97,6 +98,24 @@ export function reservedDeathSurvivalsFor(
     }
   }
   return reserved;
+}
+
+/**
+ * R-INT-01 #5＋R-SUB-02: 保留中の追加ヒットがあれば、攻撃の致死耐えの精算をその解決まで
+ * 待たせる（`heldDeathSurvivals`へ移す）。待たせた場合`true`。
+ */
+export function holdDeathSurvivalsForSubUnitAdditions(
+  context: EffectActionGroupContext,
+  ledger: AttackDeathSurvivalLedger,
+): boolean {
+  const held = context.heldDeathSurvivals;
+  if (held === undefined || (context.subUnitAdditions?.pending.size ?? 0) === 0) {
+    return false;
+  }
+  if (!held.includes(ledger)) {
+    held.push(ledger);
+  }
+  return true;
 }
 
 /**

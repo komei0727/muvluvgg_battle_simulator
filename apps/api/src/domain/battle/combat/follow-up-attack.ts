@@ -65,7 +65,9 @@ export function* applyFollowUpAttacksSteps(
     for (const targetUnitId of targetUnitIds) {
       const attacker = working.get(attackerUnitId);
       if (attacker === undefined || isDefeated(attacker)) {
-        // R-SKL-01: 使用者の戦闘不能は残りの追撃を未解決のまま中断する。
+        // R-SKL-01: 使用者の戦闘不能は残りの追撃を未解決のまま中断する。中断してもこの追撃で
+        // 使った致死耐えは精算する（R-INT-01 #5）。
+        lastEventId = yield* settleFollowUpDeathSurvivalsSteps(context, working, lastEventId);
         return { lastEventId, interrupted: true };
       }
       const target = working.get(targetUnitId);
@@ -86,19 +88,12 @@ export function* applyFollowUpAttacksSteps(
       );
       lastEventId = followUpHit.lastEventId;
       if (followUpHit.kind === "INTERRUPT") {
+        lastEventId = yield* settleFollowUpDeathSurvivalsSteps(context, working, lastEventId);
         return { lastEventId, interrupted: true };
       }
     }
     // R-INT-01 #5: この追撃で使った致死耐えを1回分消費し、次の追撃は別の攻撃として耐える。
-    if (context.attackDeathSurvivals !== undefined) {
-      lastEventId = yield* settleAttackDeathSurvivalsSteps(
-        context,
-        working,
-        context.attackDeathSurvivals,
-        lastEventId,
-      );
-      context.attackDeathSurvivals.clear();
-    }
+    lastEventId = yield* settleFollowUpDeathSurvivalsSteps(context, working, lastEventId);
     // R-EFF-07: ライダーごとの追撃は別の攻撃。この追撃で使い切った効果を次の追撃へ
     // 持ち越さず、次の追撃では改めて1回分を消費する。
     if (context.finalizeConsumedEffectDurations !== undefined) {
@@ -112,6 +107,25 @@ export function* applyFollowUpAttacksSteps(
     context.beginNextAttack?.();
   }
   return { lastEventId, interrupted: false };
+}
+
+/** R-INT-01 #5: 1件の追撃（1回の攻撃）で使った致死耐えを精算し、次の追撃のため台帳を空にする。 */
+function* settleFollowUpDeathSurvivalsSteps(
+  context: DamageEventContext,
+  working: Map<BattleUnitId, BattleUnit>,
+  parentEventId: DomainEventId,
+): Generator<DamageStep, DomainEventId, readonly BattleUnit[] | undefined> {
+  if (context.attackDeathSurvivals === undefined) {
+    return parentEventId;
+  }
+  const lastEventId = yield* settleAttackDeathSurvivalsSteps(
+    context,
+    working,
+    context.attackDeathSurvivals,
+    parentEventId,
+  );
+  context.attackDeathSurvivals.clear();
+  return lastEventId;
 }
 
 function followUpAttackHitSpec(

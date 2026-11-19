@@ -8,6 +8,7 @@ import {
 import {
   PRODUCTION_CATALOG_DIR,
   applyPrecedingActions,
+  observeSkillUse,
   productionBoard,
 } from "../../testing/production-unit/skill-behaviour.js";
 
@@ -31,6 +32,8 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_OLGA_VETERAN",
   "UNIT_ROSIE_CAMPAIGN",
   "UNIT_TATIANA_SAGE",
+  "UNIT_YUI_HEIR",
+  "UNIT_LYDIA_SUMMER",
 ]);
 
 const HOLDER = "ally:subject";
@@ -224,5 +227,29 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
         holderWith("UNIT_TATIANA_SAGE", ["ACT_TATIANA_SAGE_PS1_PRUDENCE_MARK"], 88).units,
       ).markerStates.map((marker) => marker.markerId),
     );
+  });
+
+  it("IT-CAT-SURVIVAL-007 [R-INT-01, R-SUB-02] SR-365: サブユニット追加ヒットも同じ攻撃に含め、オルガPS2の回復はその後に1回だけ行う", () => {
+    // 唯依AS1（371×3）にリディアPS2「うみのともだちⅢ」の追加85が続く1攻撃。HP50の敵は
+    // 本体で致死に達してHP1で耐え、追加ヒットもHP1で止まり、攻撃の終わりに5000回復して5001。
+    const observed = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_YUI_HEIR",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_YUI_HEIR_AS1" },
+      board: {
+        enemies: [
+          {
+            id: "enemy:center",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { currentHp: 50 },
+          },
+        ],
+      },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", target: "SELF" },
+        { effectActionDefinitionId: "ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL", target: "ENEMY" },
+      ],
+    });
+    expect(observed.hpDeltas?.["enemy:center"]).toBe(5001 - 50);
   });
 });

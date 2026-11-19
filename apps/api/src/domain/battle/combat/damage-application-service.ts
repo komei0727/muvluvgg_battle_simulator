@@ -753,8 +753,12 @@ export function* applyDamageActionSteps(
 
   // R-INT-01 #5: 攻撃の終了で、この攻撃で使った致死耐えを1回分ずつ消費し、攻撃後の回復を
   // 行う。範囲攻撃の途中の対象（`finalizeConsumedEffectDurations`を持たない適用）では
-  // まだ攻撃が続くため行わない。
-  if (ownsDeathSurvivalLedger || context.finalizeConsumedEffectDurations !== undefined) {
+  // まだ攻撃が続くため行わない。保留した追加ヒット（R-SUB-02）が残っていれば、その解決が
+  // 攻撃の終わりのため呼び出し側へ預ける。
+  if (
+    (ownsDeathSurvivalLedger || context.finalizeConsumedEffectDurations !== undefined) &&
+    !(context.holdAttackDeathSurvivals?.(deathSurvivalLedger) ?? false)
+  ) {
     lastEventId = yield* settleAttackDeathSurvivalsSteps(
       context,
       working,

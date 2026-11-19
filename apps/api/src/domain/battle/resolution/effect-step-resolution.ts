@@ -37,6 +37,7 @@ import {
 import {
   buildConsumeEffectDurationHooks,
   createAttackConsumptionScope,
+  holdDeathSurvivalsForSubUnitAdditions,
   type AttackConsumptionScope,
 } from "./effect-action/effect-duration-consumption.js";
 import {
@@ -612,7 +613,10 @@ function* resolveActionApplications(
       scope.finished = true;
     }
     for (const scope of stepAttacks) {
-      if ([...scope.deathSurvivals.values()].some((entry) => !entry.settled)) {
+      if (
+        [...scope.deathSurvivals.values()].some((entry) => !entry.settled) &&
+        !holdDeathSurvivalsForSubUnitAdditions(context, scope.deathSurvivals)
+      ) {
         const settled = yield* driveRemovalSteps(
           { context, box, cursor: createEffectActionEventCursor(context, box) },
           settleUnfinishedAttackDeathSurvivalsSteps(context, box.units, scope, lastEventId),

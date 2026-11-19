@@ -407,6 +407,11 @@ export interface DamageEventContext {
    * 予定の回数（効果インスタンスごと）。この攻撃はその回数を除いて残る耐えだけを使う。
    */
   readonly reservedDeathSurvivals?: ReadonlyMap<EffectInstanceId, number>;
+  /**
+   * R-INT-01 #5＋R-SUB-02: 攻撃の終了時に呼ぶ。保留中の追加ヒットがあり、致死耐えの精算を
+   * その解決後まで呼び出し側が預かった場合`true`を返す（このときここでは精算しない）。
+   */
+  readonly holdAttackDeathSurvivals?: (ledger: AttackDeathSurvivalLedger) => boolean;
   readonly applyDeathSurvivalHeal?: (
     targetUnitId: BattleUnitId,
     effectActionDefinitionId: EffectActionDefinitionId,

@@ -19,6 +19,7 @@ import {
   type EffectActionDefinitionId,
 } from "../../catalog/definitions/catalog-ids.js";
 import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import { createHitPoint } from "../model/resource-gauge.js";
 import {
   unit,
   damageAction,
@@ -26,7 +27,37 @@ import {
   hitCountEvasionEffect,
   damageEventContext,
   defeated,
+  testConsumeEffectDuration,
 } from "../../../testing/fixtures/damage-application.js";
+
+/** R-INT-01 #5: `LETHAL_DAMAGE`で`remaining`回まで耐えるHP1の致死耐え。 */
+function deathSurvivalEffect(id: string, holderId: string, remaining: number): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_DEATH_SURVIVAL");
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    sourceUnitId: createBattleUnitId(holderId),
+    targetUnitId: createBattleUnitId(holderId),
+    magnitude: 0,
+    categories: ["BUFF"],
+    deathSurvival: {
+      survivalHp: { kind: "CONSTANT", value: 1 },
+      healAfterSurvival: null,
+      healTiming: "ON_SURVIVAL",
+    },
+    duration: {
+      definition: {
+        consumption: { kind: "LETHAL_DAMAGE", maxCount: 5 },
+        dispellable: true,
+        linkedEffectGroupId: null,
+      },
+      consumptionRemaining: remaining,
+    },
+    appliedTurnNumber: 1,
+  };
+}
 
 /**
  * R-FUP-01（Issue #474）: 追撃バフ（`isFollowUpAttack`）のライダー捕捉。
@@ -242,6 +273,56 @@ describe("applyFollowUpAttacksSteps (R-FUP-01)", () => {
       .filter((event) => event.eventType === "CriticalCheckResolved");
     expect(criticalChecks).toHaveLength(1);
     expect(criticalChecks[0]?.payload).toMatchObject({ mode: "GUARANTEED", result: true });
+  });
+
+  it("UT-R-FUP-01-018 (R-INT-01): settles the lethal survival used by a follow-up even when the chain defeats the attacker before the next target", () => {
+    const context = damageEventContext();
+    const attacker = unit("ATTACKER", "ALLY", { attack: 60 });
+    const survivorBase = unit("TARGET_A", "ENEMY", { defense: 10, maximumHp: 500 });
+    const survivor: BattleUnit = {
+      ...survivorBase,
+      currentHp: createHitPoint(10, 500),
+      appliedEffects: [deathSurvivalEffect("SURVIVAL", "TARGET_A", 5)],
+    };
+    const other = unit("TARGET_B", "ENEMY", { defense: 10, maximumHp: 500 });
+    const working = new Map<BattleUnitId, BattleUnit>([
+      [attacker.battleUnitId, attacker],
+      [survivor.battleUnitId, survivor],
+      [other.battleUnitId, other],
+    ]);
+    const contextWithHooks: DamageEventContext = {
+      ...context,
+      consumeEffectDuration: testConsumeEffectDuration(context.recorder, new Map()),
+      attackDeathSurvivals: new Map(),
+      // 追撃の連鎖（反射など）が使用者を倒した状態を作る。
+      grantFollowUpOnHitEffect: function* (_targetUnitId, _id, attackerUnitId, _source, units) {
+        const knockedOut = units.map((candidate) =>
+          candidate.battleUnitId === attackerUnitId
+            ? { ...candidate, currentHp: createHitPoint(0, 500) }
+            : candidate,
+        );
+        const injected = yield { events: [], units: knockedOut };
+        return { units: injected ?? knockedOut, lastEventId: context.parentEventId };
+      },
+    };
+
+    const result = drive(
+      contextWithHooks,
+      working,
+      "ATTACKER",
+      [rider({ onHitEffectActionDefinitionIds: [createEffectActionDefinitionId("ACT_KO")] })],
+      ["TARGET_A", "TARGET_B"],
+      false,
+    );
+
+    expect(result.interrupted).toBe(true);
+    expect(working.get(createBattleUnitId("TARGET_A"))?.currentHp).toBe(1);
+    expect(
+      working
+        .get(createBattleUnitId("TARGET_A"))
+        ?.appliedEffects.find((effect) => effect.deathSurvival !== undefined)?.duration
+        .consumptionRemaining,
+    ).toBe(4);
   });
 
   it("UT-R-FUP-01-006: grants every onHitEffect, in declaration order, to targets the follow-up hit applied to, and skips already defeated targets entirely", () => {

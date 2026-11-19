@@ -41,6 +41,7 @@ import {
 import {
   buildConsumeEffectDurationHooks,
   expireHeldAttackConsumptionsSteps,
+  holdDeathSurvivalsForSubUnitAdditions,
   instanceKeyOf,
   reservedDeathSurvivalsFor,
   suspendedEffectInstanceIdsFor,
@@ -322,6 +323,7 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       ...(skillType !== undefined ? { skillType } : {}),
       consumeEffectDuration,
       ...(finalizesAttack ? { finalizeConsumedEffectDurations } : {}),
+      holdAttackDeathSurvivals: (ledger) => holdDeathSurvivalsForSubUnitAdditions(context, ledger),
       // R-INT-01 #5: 範囲攻撃の各対象への適用は同じ1回の攻撃のため、致死耐えの台帳を共有する。
       ...(input.attack === undefined
         ? {}
@@ -539,7 +541,9 @@ export function* releasePendingSubUnitAdditionsSteps(
   const ledger = context.subUnitAdditions;
   if (
     ledger === undefined ||
-    (ledger.pending.size === 0 && (context.heldAttackConsumptions?.length ?? 0) === 0)
+    (ledger.pending.size === 0 &&
+      (context.heldAttackConsumptions?.length ?? 0) === 0 &&
+      (context.heldDeathSurvivals?.length ?? 0) === 0)
   ) {
     return { lastEventId: parentEventId, interrupted: false };
   }
@@ -697,6 +701,16 @@ export function* releasePendingSubUnitAdditionsSteps(
     }
   }
   ledger.pending.clear();
+  // R-INT-01 #5: 追加ヒットまで含めた攻撃の終わりとして、預かっていた致死耐えを精算する
+  // （追加ヒットの対象で既に済ませたものは飛ばす）。
+  for (const held of context.heldDeathSurvivals?.splice(0) ?? []) {
+    released = {
+      ...released,
+      lastEventId: yield* drive(
+        settleAttackDeathSurvivalsSteps(damageContext, working, held, released.lastEventId),
+      ),
+    };
+  }
   const finalized = yield* drive(
     driveRemovalSteps(
       damageContext,

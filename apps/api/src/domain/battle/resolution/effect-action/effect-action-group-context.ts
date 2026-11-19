@@ -123,6 +123,12 @@ export interface EffectActionGroupContext {
    */
   readonly heldAttackConsumptions?: AttackConsumptionScope[];
   /**
+   * R-INT-01 #5＋R-SUB-02: 追加ヒットを保留している間、攻撃で使った致死耐えの精算（回数の
+   * 消費・攻撃後の回復）を追加ヒットの解決まで待たせる台帳。追加ヒットは元攻撃の一部であり、
+   * 攻撃の終了はその解決後だからである。DAMAGE区間の終わりに追加ヒットを解決した後で精算する。
+   */
+  readonly heldDeathSurvivals?: AttackDeathSurvivalLedger[];
+  /**
    * R-SUB-02＋R-EFF-07: このEffectSequenceで各ユニットへ実際に向かった攻撃（肩代わり・引き寄せ
    * 後の防御側ごと）。保留した追加ヒットをDAMAGE区間の終わりに解決するとき、その対象を攻撃した
    * 攻撃が消費した効果だけを乗せ、別の攻撃が使い切った効果を除くために使う。
