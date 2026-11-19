@@ -49,7 +49,7 @@ export function createAttackConsumptionScope(
   return scope;
 }
 
-function instanceKeyOf(seed: {
+export function instanceKeyOf(seed: {
   readonly battleUnitId: BattleUnitId;
   readonly effectInstanceId: EffectInstanceId;
 }): string {

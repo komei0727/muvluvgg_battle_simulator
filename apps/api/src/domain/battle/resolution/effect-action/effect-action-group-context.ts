@@ -122,6 +122,12 @@ export interface EffectActionGroupContext {
    */
   readonly heldAttackConsumptions?: AttackConsumptionScope[];
   /**
+   * R-SUB-02＋R-EFF-07: このEffectSequenceで各ユニットへ実際に向かった攻撃（肩代わり・引き寄せ
+   * 後の防御側ごと）。保留した追加ヒットをDAMAGE区間の終わりに解決するとき、その対象を攻撃した
+   * 攻撃が消費した効果だけを乗せ、別の攻撃が使い切った効果を除くために使う。
+   */
+  readonly attackScopesByDefender?: Map<BattleUnitId, AttackConsumptionScope[]>;
+  /**
    * R-TEX-02: Battleが所有する演習状態。戦闘モードが`TACTICAL_EXERCISE`のときだけ
    * 呼び出し側（行動resolver・`PassiveActivationRuntime`）が渡し、DAMAGE経路が
    * `DamageEventContext.exercise`としてダメージ適用の最深部まで運ぶ。

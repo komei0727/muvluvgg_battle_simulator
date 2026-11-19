@@ -39,6 +39,7 @@ import {
 import {
   buildConsumeEffectDurationHooks,
   expireHeldAttackConsumptionsSteps,
+  instanceKeyOf,
   suspendedEffectInstanceIdsFor,
 } from "./effect-duration-consumption.js";
 import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
@@ -449,6 +450,17 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   }
   const damageResult = damageStep.value;
   box.units = damageResult.units;
+  // R-SUB-02＋R-EFF-07: 保留した追加ヒットが、その対象を攻撃したこの攻撃の消費済み効果だけを
+  // 見られるよう、実際に向かった防御側ごとに攻撃を記録する。
+  if (input.attack !== undefined && context.attackScopesByDefender !== undefined) {
+    for (const hit of damageResult.hits) {
+      const scopes = context.attackScopesByDefender.get(hit.targetUnitId) ?? [];
+      if (!scopes.includes(input.attack.scope)) {
+        scopes.push(input.attack.scope);
+      }
+      context.attackScopesByDefender.set(hit.targetUnitId, scopes);
+    }
+  }
   return {
     // 中断の判定は`interruptedCount > 0`ではなく`interrupted`を見る。R-SUB-02の
     // サブユニット追加ヒットは`application.hits`に含まれないため、追加ヒットの解決中に
@@ -589,20 +601,50 @@ export function* releasePendingSubUnitAdditionsSteps(
     }
     return step.value;
   };
-  const released =
-    releaseAdditions && context.actorUnitId !== undefined && ledger.pending.size > 0
-      ? yield* drive(
-          releaseSubUnitAdditionsSteps(
-            damageContext,
-            working,
-            context.random,
-            context.actorUnitId,
-            ledger,
-            undefined,
-            parentEventId,
-          ),
-        )
-      : { lastEventId: parentEventId, interrupted: false };
+  // R-SUB-02＋R-EFF-07: 対象ごとに、その対象を攻撃した攻撃が消費した効果だけを乗せる。
+  // 保留中の消費済み効果のうち、その対象への攻撃のどれも消費していないものは除いて計算する
+  // （通常のDAMAGE経路の`suspendedEffectInstanceIdsFor`と同じ扱い）。
+  const heldScopes = context.heldAttackConsumptions ?? [];
+  let released: { lastEventId: DomainEventId; interrupted: boolean } = {
+    lastEventId: parentEventId,
+    interrupted: false,
+  };
+  if (releaseAdditions && context.actorUnitId !== undefined) {
+    for (const targetUnitId of [...ledger.pending.keys()]) {
+      const attackingScopes = context.attackScopesByDefender?.get(targetUnitId) ?? [];
+      const suspended = new Set<EffectInstanceId>();
+      for (const held of heldScopes) {
+        for (const seed of held.pendingExpirySeeds) {
+          const key = instanceKeyOf(seed);
+          if (!attackingScopes.some((scope) => scope.consumedInstanceKeys.has(key))) {
+            suspended.add(seed.effectInstanceId);
+          }
+        }
+      }
+      const targetContext: DamageEventContext =
+        suspended.size === 0
+          ? damageContext
+          : {
+              ...damageContext,
+              suspendedEffectInstanceIds: suspended,
+              unitView: unitViewWithout(suspended, context),
+            };
+      released = yield* drive(
+        releaseSubUnitAdditionsSteps(
+          targetContext,
+          working,
+          context.random,
+          context.actorUnitId,
+          ledger,
+          [targetUnitId],
+          released.lastEventId,
+        ),
+      );
+      if (released.interrupted) {
+        break;
+      }
+    }
+  }
   ledger.pending.clear();
   const finalized = yield* drive(
     driveRemovalSteps(

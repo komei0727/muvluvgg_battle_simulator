@@ -48,6 +48,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_OLGA_VETERAN",
   "UNIT_MIRIAM_MAGE",
   "UNIT_SHIRANA_SORA",
+  "UNIT_EVIE_ECO",
 ]);
 
 /** 「うみのともだちⅢ」1体の追加ダメージ: 付与時攻撃力1000×8.5%（所持者攻撃1000 ≥ 防御500）。 */
@@ -235,6 +236,7 @@ function eventsOfSkillUseWithSubUnit(
   criticalDraws: readonly number[],
   options: {
     readonly enemies?: BoardOverrides["enemies"];
+    readonly preceding?: readonly PrecedingAction[];
     readonly prepare?: (units: readonly BattleUnit[]) => readonly BattleUnit[];
   } = {},
 ): readonly BattleDomainEvent[] {
@@ -244,7 +246,7 @@ function eventsOfSkillUseWithSubUnit(
       { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
     ],
   });
-  const prepared = applyPrecedingActions(board, [SUBUNIT_III]);
+  const prepared = applyPrecedingActions(board, [SUBUNIT_III, ...(options.preceding ?? [])]);
   const units = options.prepare === undefined ? prepared : options.prepare(prepared);
   const skill = snapshot.skills.get(createSkillDefinitionId(skillDefinitionId));
   if (skill === undefined) {
@@ -454,5 +456,33 @@ describe("FIX-12 肩代わり・後続stepでも追加ヒットは元攻撃の�
         ],
       }).hpDeltas?.["enemy:center"] ?? 0;
     expect(as1(true) - as1(false)).toBe(-78);
+  });
+});
+
+describe("FIX-12 追加ヒットにはその対象を攻撃した攻撃の消費済み効果だけが乗る（R-SUB-02・R-EFF-07）", () => {
+  it("IT-CAT-SUBACT-013 [R-SUB-02, R-EFF-07]: リディアAS2で中央への攻撃が使い切った「次の攻撃の与ダメージ−60%」は中央への追加ヒット（34）にだけ乗り、別の攻撃を受けた左右への追加ヒットは85のまま", () => {
+    const calculations = damageCalculations(
+      eventsOfSkillUseWithSubUnit(
+        "UNIT_LYDIA_SUMMER",
+        "SKL_LYDIA_SUMMER_AS2",
+        new Array<number>(3).fill(0.99),
+        {
+          enemies: [
+            { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+            { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+            { id: "enemy:right", position: { column: "RIGHT", row: "FRONT" } },
+          ],
+          preceding: [{ effectActionDefinitionId: "ACT_EVIE_ECO_AS1_DEBUFF", target: "SELF" }],
+        },
+      ),
+    );
+    const additions = calculations
+      .filter((payload) => payload.effectActionDefinitionId === "ACT_LYDIA_SUMMER_PS2_SUBUNIT")
+      .map((payload) => [payload.targetUnitId, payload.finalDamage]);
+    expect(additions).toEqual([
+      ["enemy:back", 34],
+      ["enemy:left", 85],
+      ["enemy:right", 85],
+    ]);
   });
 });

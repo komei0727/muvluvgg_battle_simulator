@@ -178,6 +178,7 @@ export function* resolveEffectSequencePlan(
     linkedGroupGrants: new Map(),
     subUnitAdditions: emptySubUnitAdditionLedger(),
     heldAttackConsumptions: [],
+    attackScopesByDefender: new Map(),
   };
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
