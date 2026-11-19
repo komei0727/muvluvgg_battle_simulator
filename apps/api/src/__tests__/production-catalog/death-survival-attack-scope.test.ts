@@ -4,7 +4,7 @@ import { loadProductionSnapshot, noMissNoCrit } from "../../testing/fixtures/ind
 import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import { createBattleId, createBattleUnitId } from "../../domain/shared/ids.js";
-import { createActionId } from "../../domain/shared/event-ids.js";
+import { createActionId, createEffectInstanceId } from "../../domain/shared/event-ids.js";
 import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import {
   observeLifecycleDamageProbe,
@@ -295,83 +295,148 @@ describe("致死耐えは1回の攻撃の全ヒットを守る（R-INT-01 #5）"
     // 唯依AS1（371×3）＋リディアPS2「うみのともだちⅢ」の追加85が敵Aへ向かい、AはBへ75%を
     // 転送する（小花PS2のリンク）。HP50のBはラミPS2の耐えで本体由来の278をHP1で耐え、追加由来の
     // 63も同じ攻撃なのでHP1で止まる。
-    const LINK_SOURCE = "enemy:center";
-    const LINK_DESTINATION = "enemy:back";
-    const board = productionBoard(snapshot, "UNIT_YUI_HEIR", {
-      enemies: [
-        { id: LINK_SOURCE, position: { column: "CENTER", row: "FRONT" } },
+    const run = useSkillOnGraftedBoard(
+      "UNIT_YUI_HEIR",
+      "SKL_YUI_HEIR_AS1",
+      [
+        { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" }, state: { currentHp: 50 } },
+      ],
+      [
+        { effectActionDefinitionId: LINK, holder: "enemy:center", linkTo: "enemy:back" },
+        { effectActionDefinitionId: RAMI_SURVIVAL, holder: "enemy:back" },
+      ],
+    );
+    expect(run.linkedDamages).toEqual([278, 278, 278, 63]);
+    expect(run.hpOf("enemy:back")).toBe(1);
+  });
+
+  it("IT-CAT-SURVIVAL-010 [R-INT-01, R-SUB-02] SR-365: 範囲攻撃の全対象の追加ヒットが終わってから、各対象の耐えを消費して回復する", () => {
+    // オルガAS1（前列横一列）＋追加85。HP50の前列2体はどちらも本体858で耐え、両者の追加85を
+    // 受け終えてから最大HP50%を回復して5001で終わる。
+    const run = useSkillOnGraftedBoard(
+      "UNIT_OLGA_VETERAN",
+      "SKL_OLGA_VETERAN_AS1",
+      [
         {
-          id: LINK_DESTINATION,
-          position: { column: "CENTER", row: "BACK" },
+          id: "enemy:center",
+          position: { column: "CENTER", row: "FRONT" },
           state: { currentHp: 50 },
         },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" }, state: { currentHp: 50 } },
       ],
-    });
-    const prepared = applyPrecedingActions(board, [
-      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", target: "SELF" },
-      { effectActionDefinitionId: "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK", target: "ENEMY" },
-      { effectActionDefinitionId: "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL", target: "SELF" },
-    ]);
-    // 前提アクションの付与者は検証対象のため、リンク先とラミPS2の保持者をBへ付け替える。
-    const destinationId = createBattleUnitId(LINK_DESTINATION);
-    const survival = holderOf(prepared).appliedEffects.find(
-      (effect) => effect.effectActionDefinitionId === "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL",
-    )!;
-    const units = prepared.map((unit) => {
-      if (unit.battleUnitId === HOLDER) {
-        return {
-          ...unit,
-          appliedEffects: unit.appliedEffects.filter((effect) => effect !== survival),
-        };
-      }
-      if (unit.battleUnitId === LINK_SOURCE) {
-        return {
-          ...unit,
-          appliedEffects: unit.appliedEffects.map((effect) =>
-            effect.damageLink === undefined
-              ? effect
-              : {
-                  ...effect,
-                  sourceUnitId: destinationId,
-                  damageLink: { ...effect.damageLink, linkToUnitId: destinationId },
-                },
-          ),
-        };
-      }
-      if (unit.battleUnitId === LINK_DESTINATION) {
-        return {
-          ...unit,
-          appliedEffects: [
-            ...unit.appliedEffects,
-            { ...survival, sourceUnitId: destinationId, targetUnitId: destinationId },
-          ],
-        };
-      }
-      return unit;
-    });
-    const skill = snapshot.skills.get(createSkillDefinitionId("SKL_YUI_HEIR_AS1"))!;
-    const recorder = new EventRecorder(createBattleId("B_SURVIVAL_LINK"));
-    const after = resolveSkillUse(
-      units.find((unit) => unit.battleUnitId === HOLDER)!,
-      skill,
-      "AS",
-      "AS",
-      units,
-      board.definitions,
-      noMissNoCrit(),
-      recorder,
-      1,
-      0,
-      createActionId("B_SURVIVAL_LINK:action:1"),
-      recorder.nextResolutionScopeId(),
-    ).units;
+      [
+        { effectActionDefinitionId: OLGA_SURVIVAL, holder: "enemy:center" },
+        { effectActionDefinitionId: OLGA_SURVIVAL, holder: "enemy:left" },
+      ],
+    );
+    expect(run.hpOf("enemy:center")).toBe(5001);
+    expect(run.hpOf("enemy:left")).toBe(5001);
+  });
 
-    const linkedDamages = recorder
-      .getEvents()
-      .flatMap((event) =>
-        event.eventType === "LinkedDamageGenerated" ? [event.payload.linkedDamage] : [],
-      );
-    expect(linkedDamages).toEqual([278, 278, 278, 63]);
-    expect(after.find((unit) => unit.battleUnitId === LINK_DESTINATION)?.currentHp).toBe(1);
+  it("IT-CAT-SURVIVAL-011 [R-INT-01, R-SUB-02, R-LNK-02] SR-219: 追加ヒットの派生で初めて耐えた耐えも、残る対象の追加ヒットとその派生へ引き継ぐ", () => {
+    // オルガAS1で前列A・Bを攻撃し、両者が後列Cへ75%を転送する。HP1300のCは本体由来643×2で
+    // HP14になり、Aの追加85の派生63で初めて耐え、Bの追加85の派生63も同じ攻撃なのでHP1で止まる。
+    const run = useSkillOnGraftedBoard(
+      "UNIT_OLGA_VETERAN",
+      "SKL_OLGA_VETERAN_AS1",
+      [
+        { id: "enemy:center", position: { column: "CENTER", row: "FRONT" } },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        {
+          id: "enemy:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 1300 },
+        },
+      ],
+      [
+        { effectActionDefinitionId: LINK, holder: "enemy:center", linkTo: "enemy:back" },
+        { effectActionDefinitionId: LINK, holder: "enemy:left", linkTo: "enemy:back" },
+        { effectActionDefinitionId: RAMI_SURVIVAL, holder: "enemy:back" },
+      ],
+    );
+    expect(run.linkedDamages).toEqual([643, 643, 63, 63]);
+    expect(run.defeated).toEqual([]);
+    expect(run.hpOf("enemy:back")).toBe(1);
   });
 });
+
+const LINK = "ACT_SHOUKA_BEACH_PS2_DAMAGE_LINK";
+const RAMI_SURVIVAL = "ACT_RAMI_UNYIELDING_PS2_DEATH_SURVIVAL";
+const OLGA_SURVIVAL = "ACT_OLGA_VETERAN_PS2_DEATH_SURVIVAL";
+
+interface Graft {
+  readonly effectActionDefinitionId: string;
+  readonly holder: string;
+  /** `APPLY_DAMAGE_LINK`の転送先（付与者＝転送先として付け替える）。 */
+  readonly linkTo?: string;
+}
+
+/**
+ * 使用者にリディアPS2「うみのともだちⅢ」を持たせ、実定義の効果を敵側の任意のユニットへ付けた盤面で
+ * productionのスキルを実経路（`resolveSkillUse`）で1回使う。前提アクションの付与者は検証対象
+ * 自身のため、自身へ付けた効果を保持者（とリンクの転送先）へ付け替える。インスタンスIDは保持者
+ * ごとに別にする。
+ */
+function useSkillOnGraftedBoard(
+  unitDefinitionId: string,
+  skillDefinitionId: string,
+  enemies: NonNullable<NonNullable<Parameters<typeof productionBoard>[2]>["enemies"]>,
+  grafts: readonly Graft[],
+) {
+  const board = productionBoard(snapshot, unitDefinitionId, { enemies });
+  let units = applyPrecedingActions(board, [
+    { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", target: "SELF" },
+  ]);
+  for (const graft of grafts) {
+    const granted = applyPrecedingActions({ ...board, units }, [
+      { effectActionDefinitionId: graft.effectActionDefinitionId, target: "SELF" },
+    ]);
+    const effect = holderOf(granted).appliedEffects.find(
+      (candidate) => !holderOf(units).appliedEffects.includes(candidate),
+    )!;
+    const holderId = createBattleUnitId(graft.holder);
+    const linkToId = graft.linkTo === undefined ? undefined : createBattleUnitId(graft.linkTo);
+    const moved = {
+      ...effect,
+      effectInstanceId: createEffectInstanceId(`${effect.effectInstanceId}_${graft.holder}`),
+      targetUnitId: holderId,
+      sourceUnitId: linkToId ?? holderId,
+      ...(effect.damageLink !== undefined && linkToId !== undefined
+        ? { damageLink: { ...effect.damageLink, linkToUnitId: linkToId } }
+        : {}),
+    };
+    units = units.map((unit) =>
+      unit.battleUnitId === holderId
+        ? { ...unit, appliedEffects: [...unit.appliedEffects, moved] }
+        : unit,
+    );
+  }
+  const skill = snapshot.skills.get(createSkillDefinitionId(skillDefinitionId))!;
+  const recorder = new EventRecorder(createBattleId("B_SURVIVAL_GRAFT"));
+  const after = resolveSkillUse(
+    units.find((unit) => unit.battleUnitId === HOLDER)!,
+    skill,
+    "AS",
+    "AS",
+    units,
+    board.definitions,
+    noMissNoCrit(),
+    recorder,
+    1,
+    0,
+    createActionId("B_SURVIVAL_GRAFT:action:1"),
+    recorder.nextResolutionScopeId(),
+  ).units;
+  const events = recorder.getEvents();
+  return {
+    linkedDamages: events.flatMap((event) =>
+      event.eventType === "LinkedDamageGenerated" ? [event.payload.linkedDamage] : [],
+    ),
+    defeated: events.flatMap((event) =>
+      event.eventType === "UnitDefeated" ? [event.payload.unitId as string] : [],
+    ),
+    hpOf: (battleUnitId: string) =>
+      after.find((unit) => unit.battleUnitId === battleUnitId)?.currentHp,
+  };
+}
