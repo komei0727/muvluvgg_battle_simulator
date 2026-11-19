@@ -47,4 +47,22 @@ export const RETIRED_TEST_CASE_IDS: readonly RetiredTestCaseId[] = [
     retiredIn: "PR #152",
     reason: "0コストPS適用を検証する不正なテストケースだったため削除された。",
   },
+  {
+    id: "SCN-BTL-033",
+    retiredIn: "Issue #838",
+    reason:
+      "最大HP1のマオ（委員会）AS1のHP消費で同時全滅を作っていたが、HP消費の整数化（R-ACTN-02・R-NUM-02）で0消費になり、本番Catalogで同時全滅を作れなくなったため削除した。同時全滅の規則はUT-R-TWR-04-003・UT-R-TWR-06-011/012が持つ。",
+  },
+  {
+    id: "SCN-BTL-034",
+    retiredIn: "Issue #838",
+    reason:
+      "最大HP1のマオ（委員会）AS1のHP消費で同時全滅を作っていたが、HP消費の整数化（R-ACTN-02・R-NUM-02）で0消費になり、本番Catalogで同時全滅を作れなくなったため削除した。同時全滅の規則はUT-R-TWR-04-003・UT-R-TWR-06-011/012が持つ。",
+  },
+  {
+    id: "SCN-BTL-035",
+    retiredIn: "Issue #838",
+    reason:
+      "最大HP1のマオ（委員会）AS1のHP消費で同時全滅を作っていたが、HP消費の整数化（R-ACTN-02・R-NUM-02）で0消費になり、本番Catalogで同時全滅を作れなくなったため削除した。同時全滅の規則はUT-R-TWR-04-003・UT-R-TWR-06-011/012が持つ。",
+  },
 ];

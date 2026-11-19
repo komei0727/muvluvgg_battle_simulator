@@ -3503,6 +3503,11 @@
       "steps": [
         {
           "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HP_COST" }]
+        },
+        {
+          "kind": "ACTION",
           "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST_ALLY" },
           "actions": [{ "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HEAL" }]
         },
@@ -4484,7 +4489,13 @@
         },
         {
           "targetBindingId": "TGT_LOWEST",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "order": ["LOWEST_HP_RATIO"]
+          },
+          "evaluation": "ON_FIRST_REFERENCE"
         }
       ],
       "steps": [

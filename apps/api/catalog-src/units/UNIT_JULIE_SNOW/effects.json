@@ -175,7 +175,8 @@
         "kind": "HP_RATIO_COMPARISON",
         "left": "OPPONENT",
         "op": "GT",
-        "right": "EFFECT_OWNER"
+        "right": "EFFECT_OWNER",
+        "evaluation": "ATTACK_START"
       },
       "stacking": {
         "mode": "STACKABLE"

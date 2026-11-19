@@ -145,10 +145,11 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       // 本体は(1000-500)×1.06=530。追撃は現在HP5000の1.125%＝56.25→56で、
       // 消費（0.75%＝37.5）×150%と等価になるようダメージを先・コストを後に並べてある。
+      // 消費量37.5は減らす前に切り捨てて37（R-ACTN-02・R-NUM-02）。
       hpDeltas: {
         "enemy:front": -586,
         "enemy:left": -586,
-        "ally:subject": -38,
+        "ally:subject": -37,
       },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
@@ -182,7 +183,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       hpDeltas: {
         "enemy:front": -639,
         "enemy:left": -639,
-        "ally:subject": -38,
+        "ally:subject": -37,
       },
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },

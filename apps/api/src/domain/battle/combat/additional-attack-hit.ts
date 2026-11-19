@@ -146,11 +146,15 @@ export function* applyOneAdditionalAttackHitSteps(
       context.triggerSkillUseId,
     ),
   };
+  // R-DMG-04: 攻撃開始時のHP割合で判定する条件は、元の攻撃と同じ開始時の値で判定する。
   const damageModifierMultipliers = composeDamageModifiers({
     attacker,
     defender: target,
     damageType: profile.damageType,
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
+    ...(context.attackStartHitPointRatios !== undefined
+      ? { attackStartHitPointRatios: context.attackStartHitPointRatios }
+      : {}),
   });
   const rawDamageResult = calculateDamage({
     attackerAttack: attacker.combatStats.attack,

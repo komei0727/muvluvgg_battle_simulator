@@ -332,6 +332,10 @@ function* applyOneSubUnitAdditionalDamageSteps(
     defender: target,
     damageType: profile.damageType,
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
+    // 攻撃開始時のHP割合で判定する条件は、元の攻撃と同じ開始時の値で判定する。
+    ...(context.attackStartHitPointRatios !== undefined
+      ? { attackStartHitPointRatios: context.attackStartHitPointRatios }
+      : {}),
   });
   // Q-DMG-01「ダメージ計算の途中では丸めず、最終結果で小数部分を切り捨てる」＋
   // R-DMG-02 #1/#3「最低1ダメージ」。基礎値はFormulaの結果そのもので、`calculateDamage`の

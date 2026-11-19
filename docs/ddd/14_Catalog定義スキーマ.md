@@ -495,8 +495,11 @@ selector:
 | `targetBindingId` | string                   | ✓    | Skill / Memory の sequence 内で一意                                     |
 | `selector`        | TargetSelectorDefinition | ✓    | 下記                                                                    |
 | `optional`        | boolean                  | —    | 省略時 `false`。`true` なら0件でもAS/EXを発動不能にしない（`R-TGT-10`） |
+| `evaluation`      | enum                     | —    | 省略時は解決開始時に一括評価。`ON_FIRST_REFERENCE`（`R-SKL-01` #1）     |
 
 `optional` はAS/EXの発動可否判定（`R-ACT-02`）にだけ効く。隣接splashのような「いれば巻き込む」補助対象へ付ける。`R-TGT-05`「目の前」のように候補なしが発動不能を意味する binding には付けない。
+
+`evaluation: ON_FIRST_REFERENCE` の binding は、解決開始時には評価せず、それを `target` に持つ最初のトップレベル `ACTION` step を解決する直前の盤面で一度だけ評価し、以後は固定する（`R-SKL-01` #1）。「味方全体を回復した後、最もHP割合の低い味方へ追加回復」（`SKL_FLUTE_INFLUENCER_EX`、SR-117）のように、先行stepの結果を見て選び直す対象に使う。selector は `SELECT` に限り、トップレベル `ACTION` step の `target` 以外（条件・分岐の内側・他の binding の `base`）からは参照できない。`TargetsSelected` の `bindings` には載せない（開始時点では選択が確定していないため）。先行stepの結果を待たない選択（葵AS1の先行自己回復前の対象固定、SR-111）には付けない。
 
 ### TargetSelectorDefinition
 
@@ -1136,7 +1139,7 @@ payload:
 | `NOT`                 | `condition`                           | 否定                                                      |
 | `UNIT_STATE`          | `unit`, `field`, `op`, `value`        | 指定ユニットの状態比較                                    |
 | `UNIT_HAS_MARKER`     | `unit`, `markerId`, `countCondition?` | 指定ユニットのMarker所持（`countCondition`省略で1つ以上） |
-| `HP_RATIO_COMPARISON` | `left`, `op`, `right`                 | 2体のHP割合同士の比較                                     |
+| `HP_RATIO_COMPARISON` | `left`, `op`, `right`, `evaluation?`  | 2体のHP割合同士の比較                                     |
 
 `UNIT_STATE.field` は `TARGET_STATE.field` の部分集合（`IS_ALIVE` / `HP_RATIO` / `ATTRIBUTE` / `POSITION_ROW` / `POSITION_COLUMN` / `RESOURCE_AP` / `RESOURCE_PP` / `RESOURCE_EX_GAUGE`）とする。ダメージ解決時点（`domain/battle/combat`）ではCatalogの `unitDefinitions` を引けないため、`UNIT_TYPE` / `ROLE` と、状態異常追跡を要する `HAS_STATUS` は受理しない（受理しても評価できない「効かない定義」を作らないため）。`ATTRIBUTE`は`TARGET_STATE.field`と同じくメイン属性・サブ属性への存在量化として評価する（R-ATR-04、Issue #687）。
 
@@ -1161,8 +1164,10 @@ production例:
 
 - `SKL_KEI_JACKKNIFE_PS1`「自身のHPが最大HPの65%以上の場合にのみ被ダメージを30%減少」→ 上のYAMLそのもの
 - `SKL_AOI_ELEGANT_PS2`／`SKL_OLGA_VETERAN_AS2`「Xを所持している敵から受ける攻撃の被ダメージを減少」→ `UNIT_HAS_MARKER` + `unit: OPPONENT`
-- `SKL_JULIE_SNOW_PS1`「自分よりもHP割合が高い相手から攻撃された場合にのみ」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: GT`, `right: EFFECT_OWNER`
+- `SKL_JULIE_SNOW_PS1`「自分よりもHP割合が高い相手から攻撃された場合にのみ」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: GT`, `right: EFFECT_OWNER`, `evaluation: ATTACK_START`（攻撃開始時の比較をその攻撃の全ヒットへ固定する、SR-318）
 - `SKL_KOTOHA_REBEL_PS2`「対象のHP割合が自身より低い敵に対してのみ与ダメージが10%増加」→ `HP_RATIO_COMPARISON` `left: OPPONENT`, `op: LT`, `right: EFFECT_OWNER`
+
+`HP_RATIO_COMPARISON.evaluation`（任意、`ATTACK_START`）は比べるHP割合の時点を表す。省略時はヒットごとに現在のHP割合を比べる。`ATTACK_START` は攻撃開始時点（その攻撃の最初の適用を始める直前）の両者のHP割合を比べ、同じ攻撃の途中で被弾・回復してHP割合が逆転しても判定し直さない（`R-DMG-04`）。攻撃単位を持たない経路（攻撃スコープ外の単発解決）では現在のHP割合で比べる。他のHP条件を一律に開始時固定にはしないため、原文が攻撃単位の判定である定義にだけ付ける。
 
 #### `damageThreshold`（`R-DMG-07`）
 
@@ -1267,6 +1272,8 @@ payload:
 | `SET`        | 指定値にする                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `SET_TO_MAX` | 最大値にする                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `DISTRIBUTE` | 対象間で分配（M7-017／Issue #271で実装）。`formula`の評価結果は対象ごとの適用量ではなく**総量**であり、同一EffectStep内でこのEffectAction**参照**が実際に適用される対象数で等分した取り分を`ADD`と同じ規約で加算する（R-ACTN-02、端数は対象ごとに切り捨て＝R-NUM-02、余りは破棄）。同じEffectActionを1つのACTION stepから複数回参照した場合（R-SKL-06 #4）は各参照が独立に総量を分配する。`HEAL`の`distribution: EVEN`のリソース版。 |
+
+自身のHPを消費するスキルコスト（「自身の現在HPのX%を消費する」）は、`SELF` への `MODIFY_RESOURCE(resource: HP, operation: ADD)` で表す。自傷の `DAMAGE` で表すと与ダメージ・被ダメージ補正、シールド、回避の判定を受け、消費量が変わる（SR-332）。HPを減らした量は同じEffectSequenceの `HP_CONSUMED_RATIO` が読む。
 
 ### MODIFY_RESOURCE_CAPACITY
 
@@ -1925,6 +1932,8 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `DAMAGE_RECEIVED_RATIO`     | `sourceResult`, `ratio`                                                     | 受けたダメージ×ratio（`sourceResult` で直前/合計を選択） |
 | `MARKER_COUNT_SCALE`        | `target`, `markerId`または`markerIds`, `perStack`, `max`                    | marker数×perStack（`markerIds`は合計）                   |
 | `ALIVE_UNIT_COUNT_SCALE`    | `side`, `perUnit`, `max`                                                    | 生存数×perUnit                                           |
+| `ALIVE_UNIT_RATIO`          | `side`, `ratio`                                                             | 生存数÷戦闘開始時の人数×ratio                            |
+| `HP_CONSUMED_RATIO`         | `ratio`                                                                     | 同一sequenceで使用者自身が消費したHP×ratio               |
 | `HP_RATIO_SCALE`            | `target`, `min`, `max`, `direction`, `lowerBoundRatio?`, `upperBoundRatio?` | HP割合でmin〜maxを線形補間                               |
 | `SUM`                       | `formulas[]`                                                                | 合計                                                     |
 | `PRODUCT`                   | `formulas[]`                                                                | 総乗（`DMG-002`／Issue #192で追加）                      |
@@ -1941,6 +1950,18 @@ Formula は数値を返す。戻り値が整数リソースやHPへ適用され�
 | `TRIGGER_SOURCE` | trigger source        |
 | `TRIGGER_TARGET` | trigger target        |
 | `BINDING`        | targetBindingIdで指定 |
+
+### ALIVE_UNIT_RATIO（SR-056）
+
+`side`（使用者から見た陣営、`ALIVE_UNIT_COUNT_SCALE` と同じ）の生存数を、その陣営の戦闘開始時の人数で割った値×`ratio`。戦闘不能ユニットは盤面に残るため、開始時の人数は戦闘不能を含む盤面の人数で数える。総力戦では全滅した過去の編成も同じ一覧に残るので、陣営ごとに出撃中（番号が最大）の編成だけで数える（控えは盤面に居ない、`R-TWR-03`）。人数0なら0。評価のたびに数え直すため、`damageModifiers` に置けば同じ攻撃の途中撃破も後続ヒットへ反映される。
+
+ロージー（アーティスト）EX「生存中の敵の数が多いほどダメージが増加する（+100%まで）」は `damageModifiers: [{ kind: ALIVE_UNIT_RATIO, side: ENEMY, ratio: 1 }]` で倍率 `1 + n/N` を表す（N=3全員生存で2倍、1体撃破後は5/3倍）。敵6体前提の `perUnit` 換算（`ALIVE_UNIT_COUNT_SCALE`）は開始敵数が6でない盤面で上限に届かないため使わない。
+
+### HP_CONSUMED_RATIO（SR-215）
+
+同じ `EffectSequence` 解決で、使用者自身が `MODIFY_RESOURCE(resource: HP)` によって減らしたHPの合計×`ratio`。「HPを消費し、消費分×N%回復する」のように、消費前の現在HPから決まる量を消費後の効果で使う。消費stepを先に置き、この Formula を持つ効果を後に置く。EffectSequence解決の外（継続回復の発火など）では評価できず拒否する。使用者を持たない Memory からは参照できない（`R-MEM-04`）。
+
+エレーナAS1「自身の現在HPの10%を消費し、最もHPの低い味方単体のHPを消費分×235%分回復する」は、`SELF` への `MODIFY_RESOURCE(HP, ADD, CURRENT_HP_RATIO(SKILL_SOURCE, -0.1))` の後に `HEAL(HP_CONSUMED_RATIO(2.35))` を置く。本人が回復対象でも、消費後に消費分×235%を回復する。
 
 ### HP_RATIO_SCALE（`DMG-002`／Issue #192、区間補間は Issue #680）
 

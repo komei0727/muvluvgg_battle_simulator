@@ -55,15 +55,117 @@ export interface TargetBindingDefinition {
    * AS/EX選択時（`action-selection-policy.ts`）だけである。
    */
   readonly optional?: boolean;
+  /**
+   * R-SKL-01: 省略時は解決開始時に他のbindingと一括で評価する。`ON_FIRST_REFERENCE`は
+   * このbindingを参照する最初のトップレベルstepを解決する直前に、その時点の盤面で一度だけ
+   * 評価し、以後は固定する。「味方全体を回復した後、最もHP割合の低い味方」のように、
+   * 先行stepの結果を見て選び直す対象（`SKL_FLUTE_INFLUENCER_EX`）に使う。
+   */
+  readonly evaluation?: TargetBindingEvaluation;
 }
+
+/** R-SKL-01: bindingを評価する時点。 */
+export const TARGET_BINDING_EVALUATIONS = ["ON_FIRST_REFERENCE"] as const;
+export type TargetBindingEvaluation = (typeof TARGET_BINDING_EVALUATIONS)[number];
 
 export interface TargetBindingDefinitionInput {
   readonly targetBindingId: string;
   readonly selector: TargetSelectorDefinitionInput;
   readonly optional?: boolean;
+  readonly evaluation?: string;
 }
 
-const TARGET_BINDING_ALLOWED_KEYS = ["targetBindingId", "selector", "optional"] as const;
+const TARGET_BINDING_ALLOWED_KEYS = [
+  "targetBindingId",
+  "selector",
+  "optional",
+  "evaluation",
+] as const;
+
+function requireTargetBindingEvaluation(value: string, path: string): TargetBindingEvaluation {
+  assertEnumValue(value, TARGET_BINDING_EVALUATIONS, path);
+  return value;
+}
+
+/**
+ * R-SKL-01: 遅れて評価するbindingは、開始時に評価する他のbindingの基準（`base`）に
+ * できない（基準が未評価のまま派生側を評価することになる）。自身も`SELECT`に限り、
+ * 他のbindingを基準にしない。
+ */
+function assertDeferredBindingsAreLeaves(
+  bindings: readonly TargetBindingDefinition[],
+  path: string,
+): void {
+  const deferred = new Set(
+    bindings
+      .filter((binding) => binding.evaluation === "ON_FIRST_REFERENCE")
+      .map((binding) => binding.targetBindingId),
+  );
+  bindings.forEach((binding, i) => {
+    if (binding.evaluation === "ON_FIRST_REFERENCE" && binding.selector.kind !== "SELECT") {
+      throw new DomainValidationError(
+        `${path}.targetBindings[${i}].selector.kind`,
+        `must be "SELECT" when evaluation is "ON_FIRST_REFERENCE", got "${binding.selector.kind}"`,
+      );
+    }
+    const base = binding.selector.base;
+    if (base?.kind === "BINDING" && deferred.has(base.targetBindingId as TargetBindingId)) {
+      throw new DomainValidationError(
+        `${path}.targetBindings[${i}].selector.base`,
+        `must not reference the ON_FIRST_REFERENCE binding "${base.targetBindingId}"`,
+      );
+    }
+  });
+}
+
+/** `value`の内側に現れる`{kind: "BINDING", targetBindingId: id}`の数。 */
+function countBindingReferences(value: unknown, id: TargetBindingId): number {
+  if (Array.isArray(value)) {
+    return value.reduce<number>((total, child) => total + countBindingReferences(child, id), 0);
+  }
+  if (value === null || typeof value !== "object") {
+    return 0;
+  }
+  const record = value as Record<string, unknown>;
+  const self = record["kind"] === "BINDING" && record["targetBindingId"] === id ? 1 : 0;
+  return Object.values(record).reduce<number>(
+    (total, child) => total + countBindingReferences(child, id),
+    self,
+  );
+}
+
+/**
+ * R-SKL-01: 遅れて評価するbindingは、トップレベルの`ACTION` stepの`target`からだけ
+ * 参照できる。解決はそのstepの直前に行うため、条件・分岐の内側・別のbindingから
+ * 先に参照されると未評価のまま読まれてしまう。
+ */
+function assertDeferredBindingsReferencedAsTopLevelTargets(
+  bindings: readonly TargetBindingDefinition[],
+  steps: readonly EffectStepDefinition[],
+  path: string,
+): void {
+  for (const binding of bindings) {
+    if (binding.evaluation !== "ON_FIRST_REFERENCE") {
+      continue;
+    }
+    const id = binding.targetBindingId;
+    const asTopLevelTarget = steps.filter(
+      (step) =>
+        step.kind === "ACTION" &&
+        step.target.kind === "BINDING" &&
+        step.target.targetBindingId === id,
+    ).length;
+    const anywhere =
+      countBindingReferences(steps, id) +
+      bindings.reduce((total, other) => total + countBindingReferences(other.selector, id), 0);
+    if (anywhere !== asTopLevelTarget) {
+      throw new DomainValidationError(
+        `${path}.steps`,
+        `ON_FIRST_REFERENCE binding "${id}" may only be referenced as the target of a top-level ACTION step`,
+      );
+    }
+  }
+}
 
 // ---- EffectActionReference (within an ACTION step) ----
 
@@ -497,8 +599,17 @@ export function createEffectSequence(
         scope,
       ),
       ...(b.optional === undefined ? {} : { optional: b.optional }),
+      ...(b.evaluation === undefined
+        ? {}
+        : {
+            evaluation: requireTargetBindingEvaluation(
+              b.evaluation,
+              `${path}.targetBindings[${i}].evaluation`,
+            ),
+          }),
     };
   });
+  assertDeferredBindingsAreLeaves(targetBindings, path);
 
   if (options.allowEmptySteps === true) {
     assertArray(input.steps, `${path}.steps`);
@@ -506,6 +617,7 @@ export function createEffectSequence(
     assertNonEmptyArray(input.steps, `${path}.steps`);
   }
   const steps = createEffectStepDefinitions(input.steps, `${path}.steps`, scope);
+  assertDeferredBindingsReferencedAsTopLevelTargets(targetBindings, steps, path);
 
   if (input.counterUpdates !== undefined) {
     assertArray(input.counterUpdates, `${path}.counterUpdates`);

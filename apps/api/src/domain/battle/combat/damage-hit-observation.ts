@@ -368,6 +368,9 @@ export function* observeHitSteps(
     defender: unitForCalculation(context, afterCriticalCheck.target),
     damageType: profile.damageType,
     damageReductionIgnoreRate: profile.piercing.damageReductionIgnoreRate,
+    ...(context.attackStartHitPointRatios !== undefined
+      ? { attackStartHitPointRatios: context.attackStartHitPointRatios }
+      : {}),
   });
   const damageWillBeApplied = context.recorder.record({
     eventType: "DamageWillBeApplied",

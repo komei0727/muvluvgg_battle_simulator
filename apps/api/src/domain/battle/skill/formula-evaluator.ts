@@ -28,6 +28,13 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
  * Catalog検証またはpreflightで拒否する」の実行時側の代替 — preflight自体は
  * 別Issueのスコープで、このEvaluatorは代わりに呼び出し時点で明確に失敗する）。
  */
+/**
+ * `lastResults`のキー。Catalogが`sourceResult`で名指しできる`LastResultReference`に加え、
+ * `HP_CONSUMED_RATIO`だけが読む`SUM_HP_CONSUMED`（同じEffectSequence解決で使用者自身が
+ * `MODIFY_RESOURCE(HP)`で消費したHPの合計）を持つ。
+ */
+export type FormulaResultKey = LastResultReference | "SUM_HP_CONSUMED";
+
 export interface FormulaEvaluationContext {
   /**
    * R-MEM-04（Issue #179）: Memory の `triggeredEffects` から評価する場合だけ
@@ -50,7 +57,7 @@ export interface FormulaEvaluationContext {
    * 1回のEffectSequence解決内の累計（G-10／RES-003A、Issue #257）で、どちらも
    * `damageResultsFor`が`DamageResultRegistry`から組み立てる。
    */
-  readonly lastResults?: Readonly<Partial<Record<LastResultReference, number>>>;
+  readonly lastResults?: Readonly<Partial<Record<FormulaResultKey, number>>>;
   /**
    * R-SUB-02（DMG-005、Issue #190）: `SUBUNIT_ADDITIONAL_DAMAGE.providerAttack:
    * SOURCE_SNAPSHOT_ATTACK`が参照する、サブユニット**付与者**の付与時点攻撃力。
@@ -154,6 +161,37 @@ function statValue(
 }
 
 /**
+ * `ALIVE_UNIT_RATIO`: 生存数÷戦闘開始時の人数。戦闘不能ユニットは盤面に残るため
+ * （R-TWR-03 #8）、開始時の人数は戦闘不能を含めた盤面の人数で数える。総力戦では全滅した
+ * 過去の編成も同じ一覧に残るので、陣営ごとに出撃中（番号が最大）の編成だけに絞る。
+ * 陣営が`ALL`なら陣営ごとの編成番号で絞った両陣営の合計で比べる。
+ */
+function aliveUnitRatio(
+  perspectiveSide: Side,
+  allUnits: readonly BattleUnit[],
+  side: SelectorSide,
+): number {
+  const candidates = allUnits.filter((unit) => matchesRelativeSideOf(unit, perspectiveSide, side));
+  const activeFormationBySide = new Map<Side, number>();
+  for (const unit of candidates) {
+    if (unit.formationNumber !== undefined) {
+      activeFormationBySide.set(
+        unit.side,
+        Math.max(activeFormationBySide.get(unit.side) ?? 0, unit.formationNumber),
+      );
+    }
+  }
+  const atBattleStart = candidates.filter((unit) => {
+    const active = activeFormationBySide.get(unit.side);
+    return active === undefined || unit.formationNumber === active;
+  });
+  if (atBattleStart.length === 0) {
+    return 0;
+  }
+  return atBattleStart.filter((unit) => !isDefeated(unit)).length / atBattleStart.length;
+}
+
+/**
  * 「1件ごとに効果量が増え、`max`で頭打ちになる」形のFormula（`MARKER_COUNT_SCALE`・
  * `ALIVE_UNIT_COUNT_SCALE`）の頭打ちを、**0から遠い側**で切る。
  *
@@ -184,7 +222,7 @@ function aliveUnitCount(
 
 function lastResultValue(
   context: FormulaEvaluationContext,
-  key: LastResultReference,
+  key: FormulaResultKey,
   path: string,
 ): number {
   const value = context.lastResults?.[key];
@@ -209,6 +247,8 @@ export interface DamageResultRegistryEntry {
   readonly sumDamageDealt?: ReadonlyMap<SkillUseId, number>;
   /** `SUM_DAMAGE_RECEIVED`側の同じもの。 */
   readonly sumDamageReceived?: ReadonlyMap<SkillUseId, number>;
+  /** `SUM_HP_CONSUMED`: EffectSequence解決ごとの、自身が`MODIFY_RESOURCE(HP)`で消費したHP。 */
+  readonly sumHpConsumed?: ReadonlyMap<SkillUseId, number>;
 }
 
 /**
@@ -273,9 +313,30 @@ export function damageResultsFor(
       ? {
           SUM_DAMAGE_DEALT: entry?.sumDamageDealt?.get(effectSequenceId) ?? 0,
           SUM_DAMAGE_RECEIVED: entry?.sumDamageReceived?.get(effectSequenceId) ?? 0,
+          SUM_HP_CONSUMED: entry?.sumHpConsumed?.get(effectSequenceId) ?? 0,
         }
       : {}),
   };
+}
+
+/**
+ * `MODIFY_RESOURCE(HP)`で使用者自身のHPが減った量を、そのEffectSequence解決の
+ * `SUM_HP_CONSUMED`へ加算する。`HP_CONSUMED_RATIO`（「消費分×N%」）が後続の効果で読む。
+ */
+export function recordHitPointConsumed(
+  registry: DamageResultRegistry | undefined,
+  unitId: BattleUnitId,
+  consumed: number,
+  effectSequenceId: SkillUseId | undefined,
+): void {
+  if (registry === undefined || effectSequenceId === undefined || consumed <= 0) {
+    return;
+  }
+  const before = registry.get(unitId);
+  registry.set(unitId, {
+    ...before,
+    sumHpConsumed: accumulated(before?.sumHpConsumed, effectSequenceId, consumed),
+  });
 }
 
 /** `effectSequenceId`分の累計へ`finalDamage`を加算した新しいMapを返す（元のMapは変更しない）。 */
@@ -457,6 +518,18 @@ export function evaluateFormula(
       const count = aliveUnitCount(relativeSide, context.allUnits, formula.side);
       return scaleUpToCap(count * formula.perUnit, formula.max);
     }
+    case "ALIVE_UNIT_RATIO": {
+      const relativeSide = context.skillSource?.side ?? context.sourceSide;
+      if (relativeSide === undefined) {
+        throw new DomainValidationError(
+          `${path}.side`,
+          'kind "ALIVE_UNIT_RATIO" requires a source BattleUnit or sourceSide to resolve the relative side',
+        );
+      }
+      return aliveUnitRatio(relativeSide, context.allUnits, formula.side) * formula.ratio;
+    }
+    case "HP_CONSUMED_RATIO":
+      return lastResultValue(context, "SUM_HP_CONSUMED", `${path}.ratio`) * formula.ratio;
     case "PRODUCT":
       // DMG-002（Issue #192）: `SUM`の乗算版。「威力 × (1 + HP割合スケール)」のように
       // 逓減倍率を基礎量へ掛ける形（`SKL_SENKA_CHRISTMAS_AS2`）を、丸めを挟まずに

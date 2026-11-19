@@ -1,5 +1,11 @@
 import { expireEffects, expireEffectsSteps } from "../effects/duration-expiry-service.js";
-import type { EffectSequencePlan, EffectStepPlan } from "../skill/skill-resolution-service.js";
+import {
+  resolveDeferredBinding,
+  type EffectSequencePlan,
+  type EffectStepPlan,
+} from "../skill/skill-resolution-service.js";
+import type { StealthConsumption } from "../targeting/target-selection-policy.js";
+import type { TargetBindingId } from "../../catalog/definitions/catalog-ids.js";
 import { emptySubUnitAdditionLedger } from "../combat/damage-event-context.js";
 import { releasePendingSubUnitAdditionsSteps } from "./effect-action/damage-effect-action.js";
 import { resolveFollowUpAttacksAfterSkillUse } from "./follow-up-attack-service.js";
@@ -10,6 +16,7 @@ import {
   findActorUnit,
   isActorDefeated,
   requireSkillDefinitionId,
+  resolutionSourceOf,
   sourceEnvelopeOf,
   type EffectActionGroupContext,
   type EffectResolutionStep,
@@ -163,6 +170,77 @@ function* sweepDepletedShields(
  * 行ってはならない — 後者は各呼び出しがstack/depth/effectsResolvedを
  * ゼロから開始してしまい、Guardが実効的にnesting全体を見なくなる。
  */
+/** 遅延bindingの評価に渡す契機の文脈（`resolveRawStep`の対象解決と同じ組み立て）。 */
+function triggerContextOf(context: EffectActionGroupContext) {
+  return {
+    ...(context.triggerSourceUnitId !== undefined
+      ? { triggerSourceUnitId: context.triggerSourceUnitId }
+      : {}),
+    ...(context.triggerTargetUnitIds !== undefined
+      ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
+      : {}),
+    ...(context.triggerProcessedTargetUnitIds !== undefined
+      ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
+      : {}),
+    ...(context.triggerEventPayload !== undefined
+      ? { triggerEventPayload: context.triggerEventPayload }
+      : {}),
+  };
+}
+
+/**
+ * R-TGT-08「ステルス」（TGT-004、Issue #167）: 対象選択で第一優先対象として選ばれ、候補順の
+ * 末尾へ移動されたStealth所持者（`AppliedEffect.statusKind === "STEALTH"`）を消費する
+ * （`EffectExpired`/reason:"CONSUMPTION"）。`expireEffects`は`linkedEffectGroupId`カスケード・
+ * CombatStat再計算も扱うため、Stealthがlinked groupの一員でもR-EFF-09のカスケードが働く。
+ * `context.onFactEventForPassiveChain`が未指定の場合（PS自身のEffectSequenceが
+ * `passive-activation-service.ts`から`yield*`で委譲されている経路）は、同期callbackで子PS連鎖を
+ * 駆動できないため、消費で発生したイベント列を`EFFECT_RESOLVED`としてyieldし、driverに子PS
+ * 連鎖の処理を委ねる。`box`は共有可変オブジェクトのため、yieldで一時停止している間にdriverが
+ * `box.units`を書き換えれば、resume後の後続処理は自然に最新の`units`を参照する。
+ */
+function* expireStealthConsumptions(
+  consumptions: readonly StealthConsumption[],
+  box: UnitsBox,
+  context: EffectActionGroupContext,
+  parentEventId: DomainEventId,
+): Generator<EffectResolutionStep, DomainEventId, void> {
+  if (consumptions.length === 0) {
+    return parentEventId;
+  }
+  const innerEventsStart = context.recorder.getEvents().length;
+  const expiry = expireEffects(
+    {
+      recorder: context.recorder,
+      turnNumber: context.turnNumber,
+      cycleNumber: context.cycleNumber,
+      ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+      skillUseId: context.skillUseId,
+      resolutionScopeId: context.actionScope,
+      rootEventId: context.rootEventId,
+      ...(context.onFactEventForPassiveChain !== undefined
+        ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+        : {}),
+    },
+    box.units,
+    consumptions.map((consumption) => ({
+      battleUnitId: consumption.battleUnitId,
+      effectInstanceId: consumption.effectInstanceId,
+      reason: "CONSUMPTION",
+    })),
+    context.definitions.effectActions,
+    parentEventId,
+  );
+  box.units = expiry.units;
+  if (context.onFactEventForPassiveChain === undefined) {
+    const innerEvents = context.recorder.getEvents().slice(innerEventsStart);
+    if (innerEvents.length > 0) {
+      yield { kind: "EFFECT_RESOLVED", events: innerEvents };
+    }
+  }
+  return expiry.lastEventId;
+}
+
 export function* resolveEffectSequencePlan(
   plan: EffectSequencePlan,
   box: UnitsBox,
@@ -267,58 +345,14 @@ export function* resolveEffectSequencePlan(
     }
   }
 
-  // R-TGT-08「ステルス」（TGT-004、Issue #167）: targetBindings解決時に第一優先
-  // 対象として選ばれ候補順の末尾へ移動されたStealth所持者（`AppliedEffect.
-  // statusKind === "STEALTH"`）を、実際のstep解決を始める前に一括で消費する
-  // （`EffectExpired`/reason:"CONSUMPTION"）。フェーズ2でMarkerState＋
-  // `removeMarkers`からAppliedEffect＋`expireEffects`へ移行 — 後者は
-  // `linkedEffectGroupId`カスケード・CombatStat再計算も自動で扱うため、
-  // production Catalogが将来Stealthをlinked groupの一員として付与する場合も
-  // 追加配線なしでR-EFF-09のカスケードが働く。
-  // `context.onFactEventForPassiveChain`が未指定の場合
-  // （PS自身のEffectSequenceが`passive-activation-service.ts`から`yield*`で
-  // 委譲されている経路）は、同期callbackで子PS連鎖を駆動できないため、
-  // 消費で発生したイベント列を他のEffectAction内部イベントと同様
-  // `EFFECT_RESOLVED`としてyieldし、`resolvePassiveChain`/`driveActivation`側の
-  // driverに子PS連鎖の処理を委ねる。`box`は共有可変オブジェクトのため、
-  // yieldで一時停止している間にdriverが`box.units`を書き換えれば、
-  // resume後の後続処理は自然に最新の`units`を参照する。
-  // callbackを持つ経路では、通知は`expireEffects`が
-  // 1インスタンスの失効ごとに行う（R-EFF-09カスケードで巻き込まれた
-  // 子効果・子Markerを含む）。callback未指定の経路は上記のとおりdriverへ委ねる。
-  if (plan.stealthConsumptions.length > 0) {
-    const innerEventsStart = context.recorder.getEvents().length;
-    const expiry = expireEffects(
-      {
-        recorder: context.recorder,
-        turnNumber: context.turnNumber,
-        cycleNumber: context.cycleNumber,
-        ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
-        skillUseId: context.skillUseId,
-        resolutionScopeId: context.actionScope,
-        rootEventId: context.rootEventId,
-        ...(context.onFactEventForPassiveChain !== undefined
-          ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
-          : {}),
-      },
-      box.units,
-      plan.stealthConsumptions.map((consumption) => ({
-        battleUnitId: consumption.battleUnitId,
-        effectInstanceId: consumption.effectInstanceId,
-        reason: "CONSUMPTION",
-      })),
-      context.definitions.effectActions,
-      lastEventId,
-    );
-    box.units = expiry.units;
-    lastEventId = expiry.lastEventId;
-    if (context.onFactEventForPassiveChain === undefined) {
-      const innerEvents = context.recorder.getEvents().slice(innerEventsStart);
-      if (innerEvents.length > 0) {
-        yield { kind: "EFFECT_RESOLVED", events: innerEvents };
-      }
-    }
-  }
+  // R-TGT-08「ステルス」（TGT-004、Issue #167）: targetBindings解決時に第一優先対象として
+  // 選ばれたStealth所持者を、実際のstep解決を始める前に一括で消費する。
+  lastEventId = yield* expireStealthConsumptions(
+    plan.stealthConsumptions,
+    box,
+    context,
+    lastEventId,
+  );
 
   // 中断で抜けた場合の未解決数。`undefined`なら最後まで解決し切ったことを表す。
   // 中断の`return`を分岐ごとに書くと、step間で中断した
@@ -342,6 +376,29 @@ export function* resolveEffectSequencePlan(
     }
     const endsDamageSection = containsDamageFrom[stepPosition + 1] !== true;
     const step = plannedStep;
+    // R-SKL-01: 遅れて評価するbindingは、それを対象に持つ最初のstepの直前の盤面で評価する。
+    if (
+      step.planKind === "DEFERRED" &&
+      step.definition.kind === "ACTION" &&
+      step.definition.target.kind === "BINDING"
+    ) {
+      const stealthConsumption = resolveDeferredBinding(
+        plan,
+        step.definition.target.targetBindingId as TargetBindingId,
+        resolutionSourceOf(context, box),
+        box.units,
+        triggerContextOf(context),
+        context.definitions.unitDefinitions,
+      );
+      if (stealthConsumption !== undefined) {
+        lastEventId = yield* expireStealthConsumptions(
+          [stealthConsumption],
+          box,
+          context,
+          lastEventId,
+        );
+      }
+    }
 
     const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =
       step.planKind === "ACTION_PLAN"

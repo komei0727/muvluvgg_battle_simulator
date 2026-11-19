@@ -38,6 +38,7 @@ import {
   COOLDOWN_MANIPULATION_OPERATIONS,
   DAMAGE_MOD_STATE_FIELDS,
   DAMAGE_MOD_UNIT_REFERENCES,
+  HP_RATIO_COMPARISON_EVALUATIONS,
   REFLECT_TIMINGS,
   RESOURCE_CAPACITY_OPERATIONS,
   STAT_MOD_STACKING_MODES,
@@ -309,7 +310,7 @@ const DAMAGE_MOD_CONDITION_ALLOWED_KEYS: Record<
   NOT: ["kind", "condition"],
   UNIT_STATE: ["kind", "unit", "field", "op", "value"],
   UNIT_HAS_MARKER: ["kind", "unit", "markerId", "countCondition"],
-  HP_RATIO_COMPARISON: ["kind", "left", "op", "right"],
+  HP_RATIO_COMPARISON: ["kind", "left", "op", "right", "evaluation"],
 };
 
 const MARKER_COUNT_CONDITION_ALLOWED_KEYS = ["op", "value"] as const;
@@ -477,7 +478,17 @@ function createDamageModCondition(
       assertEnumValue(right, DAMAGE_MOD_UNIT_REFERENCES, `${path}.right`);
       const op = requireField(input["op"] as string | undefined, `${path}.op`);
       assertEnumValue(op, COMPARISON_OPERATORS, `${path}.op`);
-      return { kind: "HP_RATIO_COMPARISON", left, op, right };
+      const evaluation = input["evaluation"] as string | undefined;
+      if (evaluation !== undefined) {
+        assertEnumValue(evaluation, HP_RATIO_COMPARISON_EVALUATIONS, `${path}.evaluation`);
+      }
+      return {
+        kind: "HP_RATIO_COMPARISON",
+        left,
+        op,
+        right,
+        ...(evaluation !== undefined ? { evaluation } : {}),
+      };
     }
   }
 }

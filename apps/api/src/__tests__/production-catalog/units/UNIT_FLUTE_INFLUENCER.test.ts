@@ -46,9 +46,18 @@ function subjectOf(units: readonly BattleUnit[]): BattleUnit {
 const DEBUFF_SOURCE_UNIT_ID = "UNIT_CLARA_TSUNDERE";
 const DEBUFF_ACTION_ID = "ACT_CLARA_TSUNDERE_AS2_ATK_DOWN";
 
+/**
+ * EXの追加回復先が全体回復の後に選び直されることは、全体回復で最低HP割合の順位が
+ * 入れ替わる盤面でしか観測できない。全員が最大HPの45%ずつ回復するだけでは順位が
+ * 変わらないため、被回復量+40%の実定義だけを供給元から併読する。
+ */
+const HEALING_UP_SOURCE_UNIT_ID = "UNIT_SENKA_SCHEMER";
+const HEALING_UP_ACTION_ID = "ACT_SENKA_SCHEMER_PS2_HEALING_UP";
+
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   UNIT_DEFINITION_ID,
   DEBUFF_SOURCE_UNIT_ID,
+  HEALING_UP_SOURCE_UNIT_ID,
 ]);
 
 /** HP割合が最も低い味方を一意にする盤面（`LOWEST_HP_RATIO` の解決先を固定する）。 */
@@ -82,6 +91,43 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       hpDeltas: {
         "ally:subject": 4500,
+        "ally:front": 5475,
+        "ally:back": 4500,
+      },
+    },
+  },
+  {
+    skillDefinitionId: "SKL_FLUTE_INFLUENCER_EX",
+    intent:
+      "(境界): 追加回復の対象は味方全体の回復をすべて終えた後の最もHP割合の低い味方 — 本人1000（被回復+40%）・味方2000なら全体回復後は本人7300・味方6500で、追加975は味方へ",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_INFLUENCER_EX" },
+    board: {
+      subject: { state: { currentHp: 1000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 2000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    precedingActions: [{ effectActionDefinitionId: HEALING_UP_ACTION_ID, target: "SELF" }],
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL",
+          targets: ["ally:subject"],
+        },
+        { effectActionDefinitionId: "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_FLUTE_INFLUENCER_EX_HEAL_ALL", targets: ["ally:back"] },
+        {
+          effectActionDefinitionId: "ACT_FLUTE_INFLUENCER_EX_HEAL_LOWEST",
+          targets: ["ally:front"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": 6300,
         "ally:front": 5475,
         "ally:back": 4500,
       },

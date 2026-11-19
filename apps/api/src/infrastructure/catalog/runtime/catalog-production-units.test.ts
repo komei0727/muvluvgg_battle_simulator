@@ -682,7 +682,13 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 合計（追撃はDAMAGE区間の終わりで解決するため、追撃分も含む）、タリサPS1の「10以下」は契機の
     // スキル使用で与えた合計で判定し、クララAS1は撃破後も4ヒットを計算する。新規・削除した
     // Unit・Skill・EffectActionはない。
-    expect(catalog.catalogRevision).toBe("2026-11-19.7");
+    // `2026-11-20.1` はHP消費・継続回復・対象選択・HP割合補正を確定した時点で評価する（Issue #838）。
+    // フルート（吸血鬼）AS1のHP消費を補正なしの`MODIFY_RESOURCE(HP)`へ、エレーナAS1へ現在HP10%の
+    // 消費（新規EffectAction `ACT_ELENA_MOODMAKER_AS1_HP_COST`）と消費分×235%の回復を、ハリエットEXの
+    // 継続回復を付与時固定に、フルート（配信者）EXの追加回復先を全体回復後の再選択に、ロージー
+    // （アーティスト）EXの敵数補正を戦闘開始時の敵数比に、ジュリーPS1の軽減条件を攻撃開始時の
+    // HP割合比較にした。
+    expect(catalog.catalogRevision).toBe("2026-11-20.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {
@@ -725,18 +731,18 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     }
   });
 
-  it("IT-CAT-PROD-005: Flute's HP cost (AS1 かぷっとファンサ) bypasses defense/shield/evasion/crit so it behaves as an unconditional resource cost", () => {
+  it("IT-CAT-PROD-005: Flute's HP cost (AS1 かぷっとファンサ) is a direct MODIFY_RESOURCE(HP) on her own current HP, so damage modifiers, shields and evasion never touch it", () => {
     const catalog = loadCatalogFromDirectory(catalogPath());
     const snapshot = catalog.loadSnapshot(["UNIT_FLUTE_VAMPIRE"] as never[], []);
     const hpCost = snapshot.effectActions.get("ACT_FLUTE_VAMPIRE_AS1_HP_COST" as never);
-    expect(hpCost?.kind).toBe("DAMAGE");
-    if (hpCost?.kind === "DAMAGE") {
-      expect(hpCost.payload.critical?.mode).toBe("PREVENTED");
-      expect(hpCost.payload.accuracy?.mode).toBe("GUARANTEED");
-      expect(hpCost.payload.piercing).toEqual({
-        defenseIgnoreRate: 1,
-        shieldIgnoreRate: 1,
-        damageReductionIgnoreRate: 1,
+    expect(hpCost?.kind).toBe("MODIFY_RESOURCE");
+    if (hpCost?.kind === "MODIFY_RESOURCE") {
+      expect(hpCost.payload.resource).toBe("HP");
+      expect(hpCost.payload.operation).toBe("ADD");
+      expect(hpCost.payload.formula).toEqual({
+        kind: "CURRENT_HP_RATIO",
+        source: { kind: "SKILL_SOURCE" },
+        ratio: -0.25,
       });
     }
   });

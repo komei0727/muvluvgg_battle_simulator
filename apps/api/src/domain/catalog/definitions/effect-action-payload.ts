@@ -288,7 +288,17 @@ export type DamageModConditionDefinition =
       readonly left: DamageModUnitReference;
       readonly op: ComparisonOperator;
       readonly right: DamageModUnitReference;
+      /**
+       * R-DMG-04: 省略時はヒットごとに現在のHP割合を比べる。`ATTACK_START`は攻撃開始時点の
+       * 両者のHP割合で比べ、その攻撃の全ヒットへ同じ結果を使う（原文が「攻撃された場合」の
+       * 攻撃単位の判定である`SKL_JULIE_SNOW_PS1`）。
+       */
+      readonly evaluation?: HpRatioComparisonEvaluation;
     };
+
+/** R-DMG-04: `HP_RATIO_COMPARISON`のHP割合を読む時点。 */
+export const HP_RATIO_COMPARISON_EVALUATIONS = ["ATTACK_START"] as const;
+export type HpRatioComparisonEvaluation = (typeof HP_RATIO_COMPARISON_EVALUATIONS)[number];
 
 export interface ApplyDamageModPayload {
   readonly direction: DamageModDirection;

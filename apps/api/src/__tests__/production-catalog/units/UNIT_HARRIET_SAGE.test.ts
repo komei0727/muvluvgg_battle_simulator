@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { loadProductionSnapshot, unitFrom } from "../../../testing/fixtures/index.js";
+import { applyEffectActionGroups } from "../../../domain/battle/resolution/effect-action-group-resolver.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
+import {
+  effectActionGroupContext,
+  loadProductionSnapshot,
+  seedRecorder,
+  skillFrom,
+  unitFrom,
+} from "../../../testing/fixtures/index.js";
+import { observeContinuousDamage } from "../../../testing/production-unit/continuous-damage.js";
 import {
   unexecutedEffectActionIds,
   unitEffectActionClosure,
@@ -655,5 +664,78 @@ describe("production Catalog UNIT_HARRIET_SAGE (【憎まれ口の大賢者】�
       },
     ]);
     expect(units.find((unit) => unit.battleUnitId === HOLDER)!.appliedEffects).toEqual([]);
+  });
+
+  it("IT-UNIT-HARRIET-SAGE-006 [R-HEAL-03] (SR-110): EXの継続回復は各対象の直接回復直後の不足HP×30%で固定され、行動時の不足HPで再計算しない — HP5000から直接500回復後、1350を2回で8200。間の被ダメージがあっても量は変わらない", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+      allies: [
+        { id: "ally:front", position: { column: "LEFT", row: "FRONT" } },
+        // 直接回復で満タンになる対象は固定量0になる。
+        {
+          id: "ally:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 9800 },
+        },
+      ],
+    });
+    const { recorder, rootEventId } = seedRecorder("B_HARRIET_EX_FIXED");
+    const afterEx = applyEffectActionGroups(
+      resolveSkillOrder(
+        skillFrom(snapshot, "SKL_HARRIET_SAGE_EX"),
+        board.subject,
+        board.units,
+        board.definitions.effectActions,
+        undefined,
+        board.definitions.unitDefinitions,
+      ),
+      board.units,
+      effectActionGroupContext({
+        actor: board.subject,
+        skillId: "SKL_HARRIET_SAGE_EX",
+        definitions: board.definitions,
+        recorder,
+        rootEventId,
+      }),
+    ).units;
+    expect(afterEx.map((unit) => [String(unit.battleUnitId), unit.currentHp])).toEqual(
+      expect.arrayContaining([
+        ["ally:subject", 5500],
+        ["ally:front", 5500],
+        ["ally:back", 10000],
+      ]),
+    );
+
+    // 他のHP変化なし: 5500→6850→8200（行動時の不足HPで再計算すると2回目は945）。
+    const untouched = observeContinuousDamage({
+      units: afterEx,
+      definitions: board.definitions,
+      actors: ["ally:subject", "ally:subject", "ally:back"],
+    });
+    expect(untouched.steps.map((step) => step.hpDeltas)).toEqual([
+      { "ally:subject": 1350 },
+      { "ally:subject": 1350 },
+      {},
+    ]);
+    expect(
+      untouched.units.find((unit) => String(unit.battleUnitId) === "ally:subject")!.currentHp,
+    ).toBe(8200);
+    // 間に被ダメージ（HP6850→3000）を挟んでも、2回目は付与時の1350のまま。
+    const first = observeContinuousDamage({
+      units: afterEx,
+      definitions: board.definitions,
+      actors: ["ally:front"],
+    });
+    const damaged = first.units.map((unit) =>
+      String(unit.battleUnitId) === "ally:front" ? { ...unit, currentHp: 3000 } : unit,
+    );
+    const second = observeContinuousDamage({
+      units: damaged,
+      definitions: board.definitions,
+      actors: ["ally:front"],
+    });
+    expect([first.steps[0]!.hpDeltas, second.steps[0]!.hpDeltas]).toEqual([
+      { "ally:front": 1350 },
+      { "ally:front": 1350 },
+    ]);
   });
 });

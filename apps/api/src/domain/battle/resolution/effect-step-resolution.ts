@@ -601,7 +601,8 @@ function* resolveActionApplications(
     isLastRecipient: boolean,
   ): EffectActionApplicationInput["attack"] => {
     const groupKey = shareGroupKeys[index]!;
-    const scope = attackScopes.get(groupKey) ?? createAttackConsumptionScope(stepAttacks);
+    const scope =
+      attackScopes.get(groupKey) ?? createAttackConsumptionScope(stepAttacks, box.units);
     attackScopes.set(groupKey, scope);
     return { scope, final: isLastRecipient && lastIndexByGroup.get(groupKey) === index };
   };

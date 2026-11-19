@@ -232,6 +232,17 @@
         {
           "kind": "ACTION",
           "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_ELENA_MOODMAKER_AS1_HP_COST"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
             "kind": "BINDING",
             "targetBindingId": "TGT_LOWEST_ALLY"
           },

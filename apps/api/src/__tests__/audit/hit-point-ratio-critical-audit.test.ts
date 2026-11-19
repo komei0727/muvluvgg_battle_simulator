@@ -22,13 +22,11 @@ const EFFECTS_PATH = fileURLToPath(new URL("../../../catalog/effects.json", impo
  *
  * `ACT_ELENA_MOODMAKER_AS2_DAMAGE`（対象の現在HP×12.5%分）と
  * `ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP`（自身の最大HP×20%）が実機確認済みで、
- * 残りは同じ原文の型からの分類である。`ACT_FLUTE_VAMPIRE_AS1_HP_COST` だけは攻撃では
- * なく自身のHP消費を`DAMAGE`で表した定義で、規則の導入前から`PREVENTED`だった。
+ * 残りは同じ原文の型からの分類である。
  */
 const PREVENTED: readonly string[] = [
   "ACT_AOI_ELEGANT_AS2_BONUS_DAMAGE",
   "ACT_ELENA_MOODMAKER_AS2_DAMAGE",
-  "ACT_FLUTE_VAMPIRE_AS1_HP_COST",
   "ACT_LAYLA_ENTREPRENEUR_PS2_DAMAGE_MAXHP",
   "ACT_LILY_SINGER_EX_DAMAGE",
   "ACT_LYDIA_SUMMER_AS1_BACKROW_BONUS",

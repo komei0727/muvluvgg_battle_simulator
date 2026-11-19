@@ -296,6 +296,46 @@ describe("composeDamageModifiers (R-DMG-04, R-DMG-03)", () => {
     expect(compose(withCurrentHp(attacker, 10), wounded).incomingMultiplier).toBe(1);
   });
 
+  it("UT-R-DMG-04-019 (SR-318): an HP_RATIO_COMPARISON with evaluation ATTACK_START compares the attack-start ratios, not the current ones, while the default keeps comparing the current ratios", () => {
+    const defender = unitAt("U_DEF", "ENEMY");
+    const attacker = unitAt("U_ATK", "ALLY");
+    const atStart = (condition: NonNullable<DamageModifierState["condition"]>) =>
+      holding(
+        withCurrentHp(defender, 40),
+        damageMod(defender, -0.1, { direction: "INCOMING", damageType: null, condition }),
+      );
+    // 開始時は攻撃者の方が低い（攻撃者50%・本人80%）が、現在は攻撃者の方が高い。
+    const startRatios = new Map([
+      [attacker.battleUnitId, 0.5],
+      [defender.battleUnitId, 0.8],
+    ]);
+    const fixed = atStart({
+      kind: "HP_RATIO_COMPARISON",
+      left: "OPPONENT",
+      op: "GT",
+      right: "EFFECT_OWNER",
+      evaluation: "ATTACK_START",
+    });
+    const perHit = atStart({
+      kind: "HP_RATIO_COMPARISON",
+      left: "OPPONENT",
+      op: "GT",
+      right: "EFFECT_OWNER",
+    });
+    const withStart = (guarded: BattleUnit) =>
+      composeDamageModifiers({
+        attacker,
+        defender: guarded,
+        damageType: "PHYSICAL",
+        damageReductionIgnoreRate: 0,
+        attackStartHitPointRatios: startRatios,
+      }).incomingMultiplier;
+    expect(withStart(fixed)).toBe(1);
+    expect(withStart(perHit)).toBeCloseTo(0.9);
+    // 攻撃スコープを持たない経路では現在のHP割合へ戻る。
+    expect(compose(attacker, fixed).incomingMultiplier).toBeCloseTo(0.9);
+  });
+
   it("UT-R-DMG-04-016 (Issue #585, R-NUM-02): HP_RATIO_COMPARISON is a draw (GT is false) between two full-HP units even when one has a fractional combatStats.maximumHp", () => {
     const fractionalDefender = {
       ...unitAt("U_DEF", "ENEMY"),

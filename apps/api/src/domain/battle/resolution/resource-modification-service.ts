@@ -6,7 +6,11 @@ import {
   createPassivePoint,
   truncateFraction,
 } from "../model/resource-gauge.js";
-import { evaluateFormula, damageResultsFor } from "../skill/formula-evaluator.js";
+import {
+  evaluateFormula,
+  damageResultsFor,
+  recordHitPointConsumed,
+} from "../skill/formula-evaluator.js";
 import type { DamageResultRegistry } from "../skill/formula-evaluator.js";
 import {
   recordResourceChangeIfAny,
@@ -220,14 +224,16 @@ export function* applyModifyResourceActionSteps(
                   }
                 : {}),
             });
+            // R-ACTN-02: 適用するのは整数化済みのFormula結果。加算後の値を切り捨てると、
+            // 負の加算（HP消費など）で端数が消費側へ切り上がる（HP5001の10%消費が501になる）
+            // ため、加算量を0方向へ切り捨ててから現在値へ足す（R-NUM-02）。
             if (action.payload.operation === "ADD") {
-              return before + formulaResult;
+              return before + truncateFraction(formulaResult);
             }
             // M7-017（Issue #271）: DISTRIBUTEはFormula結果を総量として等分し、
-            // その取り分を現在値へ加算する。切り捨てはこの直後の`after`算出で
-            // 一度だけ行う（R-NUM-02）。
+            // その取り分を対象ごとに切り捨ててから現在値へ加算する（R-NUM-02）。
             if (action.payload.operation === "DISTRIBUTE") {
-              return before + formulaResult / distributionShareCount;
+              return before + truncateFraction(formulaResult / distributionShareCount);
             }
             return formulaResult;
           })();
@@ -270,6 +276,15 @@ export function* applyModifyResourceActionSteps(
         ? markBreakPendingIfDeferred(context.exercise, targetAfterChange)
         : targetAfterChange;
     working.set(target.battleUnitId, updatedTarget);
+    // 使用者自身のHPの減少はHP消費として記録し、同じEffectSequenceの「消費分×N%」が読む。
+    if (resource === "HP" && target.battleUnitId === actor.battleUnitId && after < before) {
+      recordHitPointConsumed(
+        context.damageResults,
+        actor.battleUnitId,
+        before - after,
+        context.skillUseId,
+      );
+    }
 
     lastEventId = recordResourceChangeIfAny(
       context,

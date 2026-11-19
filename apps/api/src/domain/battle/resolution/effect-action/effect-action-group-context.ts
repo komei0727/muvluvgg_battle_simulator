@@ -432,5 +432,10 @@ export interface AttackConsumptionScope {
   readonly siblings: AttackConsumptionScope[];
   /** R-INT-01 #5: この攻撃で致死を耐えたユニットと、その耐え。攻撃の全適用で共有する。 */
   readonly deathSurvivals: AttackDeathSurvivalLedger;
+  /**
+   * R-DMG-04: 攻撃開始時点（最初の適用を始める直前）の各ユニットのHP割合。攻撃単位で
+   * 判定する補正条件（`HP_RATIO_COMPARISON`の`evaluation: ATTACK_START`）が全ヒットで読む。
+   */
+  readonly startHitPointRatios: ReadonlyMap<BattleUnitId, number>;
   finished: boolean;
 }
