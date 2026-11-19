@@ -116,15 +116,15 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "後列優先で、敵単体に威力156で攻撃する。さらに自身から最も近い味方に対し、攻撃力×100%までのダメージを防ぐシールドを付与する。シールドは対象の3行動後に消滅する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_LUCKY_AS2" },
     expected: {
-      // 「最も近い味方」は距離0の自身。
+      // 「最も近い味方」は自身を除く（SR-134）。距離1の同率は前列の ally:front。
       actions: [
         { effectActionDefinitionId: "ACT_SHIRANA_LUCKY_AS2_DAMAGE", targets: ["enemy:back"] },
-        { effectActionDefinitionId: "ACT_SHIRANA_LUCKY_AS2_SHIELD", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_LUCKY_AS2_SHIELD", targets: ["ally:front"] },
       ],
       hpDeltas: { "enemy:back": -780 },
       effectsApplied: [
         {
-          unitId: "ally:subject",
+          unitId: "ally:front",
           effectActionDefinitionId: "ACT_SHIRANA_LUCKY_AS2_SHIELD",
           magnitude: 1000,
           timeLimit: { unit: "ACTION", count: 3, owner: "EFFECT_TARGET" },

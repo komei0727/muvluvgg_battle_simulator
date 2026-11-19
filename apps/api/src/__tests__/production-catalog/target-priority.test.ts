@@ -33,6 +33,8 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_LUCIE_MAID",
   "UNIT_URUU_SUMMER",
   "UNIT_INIA_CRYSKA",
+  "UNIT_SHIRANA_LUCKY",
+  "UNIT_HIIRO_FREEWOLF",
 ]);
 
 /** 基準（敵前列中央）の上（後列中央）・左・右・斜めに敵がいる盤面。 */
@@ -217,5 +219,71 @@ describe("FIX-07 隣接2体（R-TGT-04）", () => {
     expect(appliedTo(observation, "ACT_KOKORO_SPORTSDAY_PS2_DMG_DOWN").sort()).toEqual(
       ["enemy:back", "enemy:front"].sort(),
     );
+  });
+});
+
+describe("FIX-07 本人の除外・包含と2体目の選択順", () => {
+  it("IT-CAT-TGTPRI-007 [R-TGT-02] (SR-028): 壬姫AS1の2体目は最初の対象を除いた通常順で選び、HP割合2位へは行かない", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_MIHIME_SNIPER",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_MIHIME_SNIPER_AS1" },
+      board: {
+        enemies: [
+          { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+          {
+            id: "enemy:left",
+            position: { column: "LEFT", row: "FRONT" },
+            state: { currentHp: 3000 },
+          },
+          {
+            id: "enemy:back",
+            position: { column: "CENTER", row: "BACK" },
+            state: { currentHp: 2000 },
+          },
+        ],
+      },
+    });
+
+    expect(targetsOf(observation, "ACT_MIHIME_SNIPER_AS1_DAMAGE1")).toEqual(["enemy:back"]);
+    expect(targetsOf(observation, "ACT_MIHIME_SNIPER_AS1_DAMAGE2")).toEqual(["enemy:front"]);
+  });
+
+  it("IT-CAT-TGTPRI-008 [R-TGT-01] (SR-134): 白奈AS2のシールドは本人を除いた最も近い味方へ付き、本人だけの編成でも攻撃は行い本人へは付けない", () => {
+    const withAllies = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_SHIRANA_LUCKY",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_LUCKY_AS2" },
+    });
+    const alone = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_SHIRANA_LUCKY",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_LUCKY_AS2" },
+      board: { allies: [] },
+    });
+
+    expect(targetsOf(withAllies, "ACT_SHIRANA_LUCKY_AS2_SHIELD")).toEqual(["ally:front"]);
+    expect(targetsOf(alone, "ACT_SHIRANA_LUCKY_AS2_DAMAGE")).toEqual(["enemy:back"]);
+    expect(targetsOf(alone, "ACT_SHIRANA_LUCKY_AS2_SHIELD")).toEqual([]);
+  });
+
+  it("IT-CAT-TGTPRI-009 [R-TGT-04] (SR-336): 緋色AS1の横列デバフ解除は本人を含む", () => {
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: "UNIT_HIIRO_FREEWOLF",
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_HIIRO_FREEWOLF_AS1" },
+      precedingActions: [
+        { effectActionDefinitionId: "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN", target: "SELF" },
+      ],
+    });
+
+    expect(targetsOf(observation, "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF")).toContain(
+      "ally:subject",
+    );
+    expect(
+      (observation.effectsRemoved ?? []).filter(
+        (effect) => effect.effectActionDefinitionId === "ACT_MIKOTO_SURVIVOR_AS1_DEFDOWN",
+      ),
+    ).toHaveLength(1);
   });
 });

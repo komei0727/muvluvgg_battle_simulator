@@ -95,7 +95,7 @@
                 "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
               }
             ],
-            "order": ["LOWEST_HP_RATIO"]
+            "order": ["DEFAULT"]
           }
         }
       ],

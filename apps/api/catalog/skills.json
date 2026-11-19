@@ -5253,16 +5253,6 @@
           "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
         },
         {
-          "targetBindingId": "TGT_ROW_ALLIES",
-          "optional": true,
-          "selector": {
-            "kind": "BINDING_DERIVED",
-            "side": "ALLY",
-            "base": { "kind": "SELF" },
-            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": false }
-          }
-        },
-        {
           "targetBindingId": "TGT_ROW_WITH_SELF",
           "selector": {
             "kind": "BINDING_DERIVED",
@@ -5280,7 +5270,7 @@
         },
         {
           "kind": "ACTION",
-          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_ALLIES" },
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW_WITH_SELF" },
           "actions": [{ "effectActionDefinitionId": "ACT_HIIRO_FREEWOLF_AS1_REMOVE_DEBUFF" }]
         },
         {
@@ -13344,7 +13334,7 @@
                 "reference": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" }
               }
             ],
-            "order": ["LOWEST_HP_RATIO"]
+            "order": ["DEFAULT"]
           }
         }
       ],
@@ -18986,7 +18976,14 @@
         },
         {
           "targetBindingId": "TGT_ALLY",
-          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["NEAREST"] }
+          "optional": true,
+          "selector": {
+            "kind": "SELECT",
+            "side": "ALLY",
+            "count": 1,
+            "filters": [{ "kind": "EXCLUDE_RESOLVED_UNIT", "reference": { "kind": "SELF" } }],
+            "order": ["NEAREST"]
+          }
         }
       ],
       "steps": [
