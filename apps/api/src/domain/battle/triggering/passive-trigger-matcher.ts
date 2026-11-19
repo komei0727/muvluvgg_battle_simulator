@@ -129,18 +129,21 @@ export function detectPassiveCandidates(input: PassiveTriggerMatchInput): Passiv
         turnNumber,
         triggerSkillUseHitUnitIds,
       );
+      // R-PS-07 `firstTriggerOnly`: 最初に一致した契機を発動判定へかけるため、発動条件は
+      // 候補にした後の発動直前確認（R-PS-04）だけで評価し、不成立でもその契機を使い切る。
       if (
         trigger !== undefined &&
-        evaluateTriggerCondition(skill.activationCondition, event, {
-          owner,
-          skillDefinitionId: skill.skillDefinitionId,
-          getUnit: (id) => unitsById.get(id),
-          units,
-          unitDefinitions,
-          ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
-          ...(turnNumber !== undefined ? { turnNumber } : {}),
-          ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
-        })
+        (skill.traits.firstTriggerOnly === true ||
+          evaluateTriggerCondition(skill.activationCondition, event, {
+            owner,
+            skillDefinitionId: skill.skillDefinitionId,
+            getUnit: (id) => unitsById.get(id),
+            units,
+            unitDefinitions,
+            ...(resolutionPhase !== undefined ? { resolutionPhase } : {}),
+            ...(turnNumber !== undefined ? { turnNumber } : {}),
+            ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
+          }))
       ) {
         candidates.push({ unit: owner, skillDefinition: skill, trigger, definitionIndex });
       }

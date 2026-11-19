@@ -13,7 +13,11 @@ import {
   createRuntimeCounterId,
   createSkillDefinitionId,
 } from "../../domain/catalog/definitions/catalog-ids.js";
-import { skillUseCompleted, turnStarted } from "../../testing/production-unit/trigger-events.js";
+import {
+  realDamage,
+  skillUseCompleted,
+  turnStarted,
+} from "../../testing/production-unit/trigger-events.js";
 
 /**
  * Issue #831（FIX-07）: 対象優先度・隣接範囲・本人の除外／包含・対象不在時の不発。
@@ -43,6 +47,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_CHIYURU_MAZE",
   "UNIT_MAO_COMMITTEE",
   "UNIT_JULIE_SNOW",
+  "UNIT_OLGA_NADYA_BOND",
 ]);
 
 /** 基準（敵前列中央）の上（後列中央）・左・右・斜めに敵がいる盤面。 */
@@ -474,6 +479,94 @@ describe("FIX-07 元スキルの対象優先度の先頭敵（R-PS-04）", () =>
       expect(
         (observation.resources ?? []).some(
           (r) => r.unitId === "ally:subject" && r.resource === "PP",
+        ),
+      ).toBe(fires);
+    },
+  );
+});
+
+describe("FIX-07 元攻撃で倒れた被弾者・追撃対象（R-PS-04 / R-PS-07）", () => {
+  it.each([
+    { victimHp: 1500, fires: false },
+    { victimHp: 3000, fires: true },
+  ])(
+    "IT-CAT-TGTPRI-016 [R-PS-04] (SR-338): 緋色PS1は闘志持ちの被弾者が元攻撃で倒れたらPS全体が不発（被弾者HP $victimHp → 発動 $fires）",
+    ({ victimHp, fires }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_HIIRO_FREEWOLF",
+        use: {
+          kind: "PASSIVE",
+          skillDefinitionId: "SKL_HIIRO_FREEWOLF_PS1",
+          trigger: realDamage({
+            from: "enemy:front",
+            to: "ally:front",
+            skillType: "AS",
+            power: 3,
+            event: "HitPointReduced",
+          }),
+        },
+        board: {
+          allies: [
+            {
+              id: "ally:front",
+              position: { column: "LEFT", row: "FRONT" },
+              state: { currentHp: victimHp },
+              markers: [{ markerId: "MARKER_HIIRO_FREEWOLF_FIGHTING_SPIRIT" }],
+            },
+            { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+          ],
+        },
+      });
+
+      if (fires) {
+        expect(targetsOf(observation, "ACT_HIIRO_FREEWOLF_PS1_COUNTER_DAMAGE")).toEqual([
+          "enemy:front",
+        ]);
+      } else {
+        expect(observation).toEqual({ activated: false });
+      }
+    },
+  );
+
+  it.each([
+    { frontHp: 954, fires: false },
+    { frontHp: 5000, fires: true },
+  ])(
+    "IT-CAT-TGTPRI-017 [R-PS-07] (SR-360): オルガPS1は最初のDamageApplied契機の対象が元攻撃で倒れたら、後続の命中対象が生存していてもPS全体が不発（先頭HP $frontHp → 発動 $fires）",
+    ({ frontHp, fires }) => {
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_JULIE_SNOW",
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_JULIE_SNOW_AS1" },
+        board: {
+          allies: [
+            {
+              id: "ally:olga",
+              position: { column: "LEFT", row: "FRONT" },
+              unitDefinitionId: "UNIT_OLGA_NADYA_BOND",
+            },
+          ],
+          enemies: [
+            {
+              id: "enemy:front",
+              position: { column: "CENTER", row: "FRONT" },
+              state: { currentHp: frontHp },
+            },
+            { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+          ],
+        },
+      });
+
+      expect(targetsOf(observation, "ACT_OLGA_NADYA_BOND_PS1_DAMAGE")).toEqual(
+        fires ? ["enemy:front"] : [],
+      );
+      expect(targetsOf(observation, "ACT_OLGA_NADYA_BOND_PS1_ATK_UP")).toEqual(
+        fires ? ["ally:olga"] : [],
+      );
+      expect(
+        (observation.resources ?? []).some(
+          (r) => r.unitId === "ally:olga" && r.resource === "EX_GAUGE",
         ),
       ).toBe(fires);
     },

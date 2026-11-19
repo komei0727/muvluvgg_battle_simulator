@@ -617,6 +617,15 @@ function resolveTopGroup(
       ? undefined
       : () => deps.triggerSkillUseHitUnitIds!(top.event),
   );
+  if (!reconfirmation.ok && next.skillDefinition.traits.firstTriggerOnly === true) {
+    // R-PS-07 `firstTriggerOnly`: 最初の契機が不成立なら、同じ解決スコープの後続の契機では
+    // 発動しない。発動済み集合へ入れて後続の候補を`ALREADY_ACTIVATED`で破棄させる。
+    state.guard = recordActivation(
+      state.guard,
+      currentUnit.battleUnitId,
+      next.skillDefinition.skillDefinitionId,
+    );
+  }
   if (reconfirmation.ok) {
     state.guard = recordActivation(
       state.guard,

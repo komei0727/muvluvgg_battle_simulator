@@ -5363,6 +5363,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -5667,6 +5674,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_TEX_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],
@@ -16054,6 +16068,13 @@
           "field": "RESOURCE_AP",
           "op": "GTE",
           "value": 2
+        },
+        {
+          "kind": "TARGET_STATE",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "field": "IS_ALIVE",
+          "op": "EQ",
+          "value": true
         }
       ]
     },
@@ -16123,7 +16144,7 @@
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
+    "traits": { "firstTriggerOnly": true },
     "metadata": { "displayName": "ストレラ", "tags": [] },
     "triggers": [
       {
@@ -16324,6 +16345,13 @@
     "skillDefinitionId": "SKL_OLGA_NADYA_BOND_TEX_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [
@@ -16365,7 +16393,7 @@
       ]
     },
     "cooldown": { "unit": "ACTION", "count": 0 },
-    "traits": {},
+    "traits": { "firstTriggerOnly": true },
     "metadata": { "displayName": "ストレラ+", "tags": [] },
     "triggers": [
       {

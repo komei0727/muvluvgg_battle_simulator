@@ -160,6 +160,13 @@
     "skillDefinitionId": "SKL_HIIRO_FREEWOLF_TEX_PS1",
     "skillType": "PS",
     "cost": { "resource": "PP", "amount": 1 },
+    "activationCondition": {
+      "kind": "TARGET_STATE",
+      "target": { "kind": "TRIGGER_TARGET" },
+      "field": "IS_ALIVE",
+      "op": "EQ",
+      "value": true
+    },
     "resolution": {
       "kind": "IMMEDIATE",
       "targetBindings": [],

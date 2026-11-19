@@ -612,4 +612,27 @@ describe("SkillDefinition", () => {
     );
     expect(result.triggers).toHaveLength(1);
   });
+
+  it("UT-CAT-SKL-034: accepts traits.firstTriggerOnly only on a PS skill (R-PS-07)", () => {
+    expect(() =>
+      createSkillDefinition({ ...minimalAsInput(), traits: { firstTriggerOnly: true } }),
+    ).toThrow(DomainValidationError);
+    const ps = createSkillDefinition({
+      ...minimalAsInput(),
+      skillDefinitionId: "SKL_001_PS1",
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      triggers: [
+        {
+          eventType: "TurnStarted",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "SELF",
+        },
+      ],
+      traits: { firstTriggerOnly: true },
+    });
+    expect(ps.traits.firstTriggerOnly).toBe(true);
+    expect(createSkillDefinition(minimalAsInput()).traits.firstTriggerOnly).toBeUndefined();
+  });
 });
