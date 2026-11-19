@@ -415,6 +415,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
       ...(context.triggerTargetUnitIds !== undefined
         ? { triggerTargetUnitIds: context.triggerTargetUnitIds }
         : {}),
+      ...(context.triggerProcessedTargetUnitIds !== undefined
+        ? { triggerProcessedTargetUnitIds: context.triggerProcessedTargetUnitIds }
+        : {}),
     },
   );
   let damageStep = damageGen.next();

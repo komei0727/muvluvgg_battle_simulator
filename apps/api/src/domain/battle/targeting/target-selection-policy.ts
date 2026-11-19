@@ -46,6 +46,11 @@ export interface TriggerContext {
   readonly triggerSourceUnitId?: BattleUnitId;
   readonly triggerTargetUnitIds?: readonly BattleUnitId[];
   /**
+   * R-PS-04（`TRIGGER_PRIMARY_TARGET`）: 契機のスキル使用が実際に処理した対象を処理順に
+   * 並べたもの。無ければ`triggerTargetUnitIds`から先頭の敵を選ぶ。
+   */
+  readonly triggerProcessedTargetUnitIds?: readonly BattleUnitId[];
+  /**
    * CAP_TRIGGER_PAYLOAD_IN_RESOLUTION（Issue #247 M7-001D）: 候補検出に使った
    * トリガーイベント自身の`payload`。`resolution.steps`側の`EVENT_PAYLOAD`
    * 条件（`effect-step-condition-evaluator.ts`）がこれを参照できるよう、

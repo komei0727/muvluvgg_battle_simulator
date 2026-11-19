@@ -4780,6 +4780,54 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
         ).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
       }
     });
+
+    it("UT-R-PS-04-022: rejects TRIGGER_PRIMARY_TARGET / TRIGGER_SKILL_USE_HIT in a Memory, both in the trigger condition and as an EffectSequence target (the primary enemy is relative to an owner unit, R-MEM-04)", () => {
+      const defs = baseDefinitions();
+      const withMemory = (memory: ReturnType<typeof createMemoryDefinition>) =>
+        rulesOf({
+          ...defs,
+          effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+          memories: [memory],
+        });
+      for (const condition of [
+        {
+          kind: "TARGET_STATE",
+          target: { kind: "TRIGGER_PRIMARY_TARGET" },
+          field: "IS_ALIVE",
+          op: "EQ",
+          value: true,
+        },
+        { kind: "TRIGGER_SKILL_USE_HIT", target: { kind: "TRIGGER_TARGET" } },
+      ] as const) {
+        expect(withMemory(memoryWithTrigger("MEM_PRIMARY_COND", condition))).toContain(
+          "MEMORY_REQUIRES_SOURCE_UNIT",
+        );
+      }
+      const targeting = createMemoryDefinition({
+        memoryDefinitionId: "MEM_PRIMARY_TARGET",
+        triggeredEffects: [
+          {
+            trigger: {
+              eventType: "SkillUseCompleted",
+              category: "FACT",
+              sourceSelector: "ALLY",
+              targetSelector: "ENEMY",
+            },
+            effectSequence: {
+              steps: [
+                {
+                  kind: "ACTION",
+                  target: { kind: "TRIGGER_PRIMARY_TARGET" },
+                  actions: [{ effectActionDefinitionId: "ACT_MEMORY_STAT_MOD" }],
+                },
+              ],
+            },
+          },
+        ],
+        metadata: { displayName: "MEM_PRIMARY_TARGET" },
+      });
+      expect(withMemory(targeting)).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
+    });
   });
 });
 

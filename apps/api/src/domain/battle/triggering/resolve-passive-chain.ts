@@ -1,3 +1,4 @@
+import type { TriggerSkillUseRecord } from "../targeting/trigger-primary-target.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
 import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
@@ -195,10 +196,10 @@ export interface PassiveChainDependencies {
    */
   readonly unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>;
   /**
-   * `TRIGGER_SKILL_USE_HIT`（R-PS-04）を発動直前確認でも候補検出時と同じ命中記録で
-   * 評価するため、契機イベントが属するスキル使用が命中させた対象を返す。
+   * R-PS-04: 発動直前確認でも候補検出時と同じ記録で`TRIGGER_SKILL_USE_HIT`・
+   * `TRIGGER_PRIMARY_TARGET`を評価するため、契機イベントが属するスキル使用の記録を返す。
    */
-  readonly triggerSkillUseHitUnitIds?: (event: TriggerCandidateEvent) => ReadonlySet<BattleUnitId>;
+  readonly triggerSkillUse?: (event: TriggerCandidateEvent) => TriggerSkillUseRecord;
   /**
    * R-EFF-08（`expiration.conditions`）は
    * 「関連するドメインイベント発行後、PS/Memory候補抽出前に評価する」契約
@@ -613,9 +614,7 @@ function resolveTopGroup(
     deps.getAllUnits?.(),
     deps.turnNumber,
     deps.unitDefinitions,
-    deps.triggerSkillUseHitUnitIds === undefined
-      ? undefined
-      : () => deps.triggerSkillUseHitUnitIds!(top.event),
+    deps.triggerSkillUse?.(top.event),
   );
   if (!reconfirmation.ok && next.skillDefinition.traits.firstTriggerOnly === true) {
     // R-PS-07 `firstTriggerOnly`: 最初の契機が不成立なら、同じ解決スコープの後続の契機では

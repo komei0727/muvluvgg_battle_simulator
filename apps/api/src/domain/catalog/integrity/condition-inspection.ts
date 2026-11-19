@@ -295,7 +295,7 @@ export function conditionReferencesLastResult(condition: ConditionDefinition): b
  * - `RUNTIME_COUNTER`: `SkillRuntime`/`AppliedEffect`スコープのcounter保持者を要求する
  *   （Memoryはどちらも持たない）。
  * - `ALIVE_UNIT_COUNT`の`excludeSelf`: 除外すべき「自身」が存在しない。
- * - 対象参照`SELF`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
+ * - 対象参照`SELF`・`TRIGGER_PRIMARY_TARGET`（`TARGET_STATE`/`TARGET_HAS_MARKER`/`TARGET_SET_COUNT`等）。
  */
 export function conditionRequiresSourceUnit(condition: ConditionDefinition): boolean {
   switch (condition.kind) {
@@ -315,8 +315,9 @@ export function conditionRequiresSourceUnit(condition: ConditionDefinition): boo
     case "NOT":
       return conditionRequiresSourceUnit(condition.condition);
     default:
+      // `TRIGGER_PRIMARY_TARGET`は所有者から見た敵の先頭なので、所有者が要る。
       return collectConditionTargetReferences(condition).some(
-        (reference) => reference.kind === "SELF",
+        (reference) => reference.kind === "SELF" || reference.kind === "TRIGGER_PRIMARY_TARGET",
       );
   }
 }

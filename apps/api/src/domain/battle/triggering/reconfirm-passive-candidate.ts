@@ -1,3 +1,4 @@
+import type { TriggerSkillUseRecord } from "../targeting/trigger-primary-target.js";
 import { isCoolingDown } from "../action/action-selection-policy.js";
 import { isDefeated, isFrozen, isStunned, type BattleUnit } from "../model/battle-unit.js";
 import type { ResolutionPhase } from "../../catalog/definitions/condition-definition.js";
@@ -60,7 +61,7 @@ export function reconfirmPassiveCandidate(
   units?: readonly BattleUnit[],
   turnNumber?: number,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
-  triggerSkillUseHitUnitIds?: () => ReadonlySet<BattleUnitId>,
+  triggerSkillUse?: TriggerSkillUseRecord,
 ): PassiveReconfirmationResult {
   if (isDefeated(currentUnit)) {
     return { ok: false, reason: "OWNER_DEFEATED" };
@@ -90,7 +91,7 @@ export function reconfirmPassiveCandidate(
     ...(units !== undefined ? { units } : {}),
     ...(turnNumber !== undefined ? { turnNumber } : {}),
     ...(unitDefinitions !== undefined ? { unitDefinitions } : {}),
-    ...(triggerSkillUseHitUnitIds !== undefined ? { triggerSkillUseHitUnitIds } : {}),
+    ...(triggerSkillUse !== undefined ? { triggerSkillUse } : {}),
   };
   if (
     // `trigger.condition`の`RUNTIME_COUNTER`だけは候補検出時点のownerスナップショット

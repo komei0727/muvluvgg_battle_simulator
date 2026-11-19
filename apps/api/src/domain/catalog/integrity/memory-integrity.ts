@@ -65,7 +65,11 @@ const SOURCE_UNIT_REQUIRING_ORDER_KEYS: ReadonlySet<string> = new Set([
   "SELF_LOWEST_PRIORITY",
 ]);
 
-const SELF_TARGET_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SELF"]);
+/** 解決に所有者ユニットを要する対象参照（`TRIGGER_PRIMARY_TARGET`は所有者から見た敵の先頭）。 */
+const OWNER_RELATIVE_TARGET_REFERENCE_KINDS: ReadonlySet<string> = new Set([
+  "SELF",
+  "TRIGGER_PRIMARY_TARGET",
+]);
 
 /**
  * EffectActionの`kind`だけでは、使用者BattleUnitを必要とする構成を網羅できない
@@ -86,8 +90,9 @@ const SELF_TARGET_REFERENCE_KINDS: ReadonlySet<string> = new Set(["SELF"]);
 const SOURCE_UNIT_REFERENCE_KINDS: ReadonlySet<string> = new Set([
   // `FormulaSourceReference.kind`（Formulaが使用者のstat/HPを読む）。
   "SKILL_SOURCE",
-  // `TargetReference.kind`（`transferTo`等が使用者自身を指す）。
+  // `TargetReference.kind`（`transferTo`等が使用者自身・使用者から見た敵の先頭を指す）。
   "SELF",
+  "TRIGGER_PRIMARY_TARGET",
   // 直前・累計DAMAGE結果は使用者ごとに記録される（`DamageResultRegistry`は
   // `BattleUnitId`キー）。使用者を持たないMemoryの解決では`lastResults`自体が
   // Formula評価contextへ渡らないため、`LAST_DAMAGE_*`/`SUM_DAMAGE_*`を読む
@@ -102,7 +107,7 @@ const EFFECT_HOLDER_SCOPED_PAYLOAD_KEYS: ReadonlySet<string> = new Set(["duratio
 function filterReferencesSelf(filter: TargetFilterDefinition): boolean {
   switch (filter.kind) {
     case "EXCLUDE_RESOLVED_UNIT":
-      return filter.reference.kind === "SELF";
+      return OWNER_RELATIVE_TARGET_REFERENCE_KINDS.has(filter.reference.kind);
     case "AND":
     case "OR":
       return filter.conditions.some((condition) => filterReferencesSelf(condition));
@@ -118,7 +123,9 @@ function selectorRequiresSourceUnit(selector: TargetSelectorDefinition): boolean
     selector,
     (candidate) =>
       candidate.kind === "SELF" ||
-      (candidate.kind === "BINDING_DERIVED" && candidate.base?.kind === "SELF") ||
+      (candidate.kind === "BINDING_DERIVED" &&
+        candidate.base !== undefined &&
+        OWNER_RELATIVE_TARGET_REFERENCE_KINDS.has(candidate.base.kind)) ||
       // `area`のbaseは`BINDING_DERIVED`以外では暗黙に使用者になる（R-TGT-09 #4）。
       (candidate.area !== undefined && candidate.kind !== "BINDING_DERIVED") ||
       candidate.order.some(
@@ -210,13 +217,14 @@ function validateMemorySourceUnitIndependence(
         message: `a ${scopedKind} condition is trigger-scoped (TriggerDefinition.condition only) — the EffectStep evaluator cannot resolve it, so "${memory.memoryDefinitionId}" would fail at resolution time`,
       });
     }
-    if (stepsContainTargetReferenceKinds(sequence.steps, SELF_TARGET_REFERENCE_KINDS)) {
-      violations.push({
-        targetId: memory.memoryDefinitionId,
-        rule: "MEMORY_REQUIRES_SOURCE_UNIT",
-        message:
-          'Memory triggeredEffects cannot use the "SELF" target reference (they have no source BattleUnit, R-MEM-04)',
-      });
+    for (const kind of OWNER_RELATIVE_TARGET_REFERENCE_KINDS) {
+      if (stepsContainTargetReferenceKinds(sequence.steps, new Set([kind]))) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_REQUIRES_SOURCE_UNIT",
+          message: `Memory triggeredEffects cannot use the "${kind}" target reference (they have no source BattleUnit, R-MEM-04)`,
+        });
+      }
     }
     for (const binding of sequence.targetBindings) {
       if (selectorRequiresSourceUnit(binding.selector)) {

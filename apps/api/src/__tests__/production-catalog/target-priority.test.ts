@@ -48,6 +48,7 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_MAO_COMMITTEE",
   "UNIT_JULIE_SNOW",
   "UNIT_OLGA_NADYA_BOND",
+  "UNIT_KEI_JACKKNIFE",
 ]);
 
 /** 基準（敵前列中央）の上（後列中央）・左・右・斜めに敵がいる盤面。 */
@@ -384,6 +385,52 @@ describe("FIX-07 元スキルの対象優先度の先頭敵（R-PS-04）", () =>
       expect(followUp(row, withDefeated(SHY_TRIGGER_ALLY, "enemy:left"))).toEqual({
         activated: false,
       });
+    },
+  );
+
+  it.each([
+    { leftHp: 5000, fires: true },
+    { leftHp: 780, fires: false },
+  ])(
+    "IT-CAT-TGTPRI-018 [R-PS-04] (SR-047): メルPS1の先頭敵は元ASが実際に処理した対象から取り、実行されなかった分岐の候補へは向かわない（先頭 enemy:left HP $leftHp → 発動 $fires）",
+    ({ leftHp, fires }) => {
+      // 狼心なしの慧AS2は単体攻撃の分岐だけを実行する。通常順の先頭 enemy:front は
+      // ステルスで末尾へ回り、本体は enemy:left を攻撃する。未実行の3体攻撃分岐の
+      // 候補（enemy:front が先頭）は元ASの攻撃対象ではない。
+      const observation = observeSkillUse({
+        snapshot,
+        unitDefinitionId: "UNIT_KEI_JACKKNIFE",
+        use: { kind: "ACTIVE", skillDefinitionId: "SKL_KEI_JACKKNIFE_AS2" },
+        precedingActions: [
+          { effectActionDefinitionId: "ACT_MAO_COMMITTEE_PS2_STEALTH", target: "ENEMY" },
+        ],
+        board: {
+          allies: [
+            {
+              id: "ally:meru",
+              position: { column: "LEFT", row: "FRONT" },
+              unitDefinitionId: "UNIT_MERU_SIRIUS",
+            },
+          ],
+          enemies: [
+            { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
+            {
+              id: "enemy:left",
+              position: { column: "LEFT", row: "FRONT" },
+              state: { currentHp: leftHp },
+            },
+            { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+          ],
+        },
+      });
+
+      expect(targetsOf(observation, "ACT_KEI_JACKKNIFE_AS2_DAMAGE")).toEqual(["enemy:left"]);
+      expect(targetsOf(observation, "ACT_MERU_SIRIUS_PS1_DAMAGE")).toEqual(
+        fires ? ["enemy:left"] : [],
+      );
+      expect(
+        (observation.cooldowns ?? []).some((c) => c.skillDefinitionId === "SKL_MERU_SIRIUS_PS1"),
+      ).toBe(fires);
     },
   );
 

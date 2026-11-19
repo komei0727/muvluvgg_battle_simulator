@@ -804,7 +804,7 @@ target:
 | `LAST_ACTION_TARGETS`    | なし              | 直前 action の対象                                              |
 | `LAST_DAMAGED_TARGETS`   | なし              | 直前にHP/シールドへダメージを受けた対象                         |
 
-`TRIGGER_PRIMARY_TARGET`（`R-PS-04`、Issue #831）は、契機イベントの対象（元スキルの対象を対象優先度順に並べたもの）のうち、PS所有者から見た敵の先頭1体を指す。元スキルが自身や味方を対象に含んでいても、その分は飛ばす。先頭が戦闘不能でも後続の敵へ繰り上げない。「味方が攻撃した敵単体へ追撃する」PSは、この参照を追撃先にしたうえで`activationCondition`に`TARGET_STATE`（`field: IS_ALIVE`）を置き、先頭が倒れていればPS全体を発動させない。高々1体に解決されるため、`BRANCH`の`condition`からも参照できる。
+`TRIGGER_PRIMARY_TARGET`（`R-PS-04`、Issue #831）は、契機イベントが属するスキル使用が実際にEffectActionを処理した対象を処理順（＝対象優先度順）に並べたうえで、PS所有者から見た敵の先頭1体を指す。契機イベントの`targetUnitIds`は実行されなかった分岐（`BRANCH`の選ばれなかった腕）の候補も含むため、先頭の決定には使わない（契機がスキル使用に属さない場合だけ`targetUnitIds`を使う）。元スキルが自身や味方を対象に含んでいても、その分は飛ばす。所有者から見た敵を指すため、Memoryの条件・対象では使えず`MEMORY_REQUIRES_SOURCE_UNIT`として拒否する。先頭が戦闘不能でも後続の敵へ繰り上げない。「味方が攻撃した敵単体へ追撃する」PSは、この参照を追撃先にしたうえで`activationCondition`に`TARGET_STATE`（`field: IS_ALIVE`）を置き、先頭が倒れていればPS全体を発動させない。高々1体に解決されるため、`BRANCH`の`condition`からも参照できる。
 
 ---
 

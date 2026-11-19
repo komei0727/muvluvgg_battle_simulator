@@ -250,8 +250,10 @@ export function resolveReference(
       );
     }
     const owner = requireSourceUnit(source, 'target reference kind "TRIGGER_PRIMARY_TARGET"');
-    const id = triggerPrimaryTargetId(triggerContext.triggerTargetUnitIds, owner.side, (unitId) =>
-      findUnitById(allUnits, unitId),
+    const id = triggerPrimaryTargetId(
+      triggerContext.triggerProcessedTargetUnitIds ?? triggerContext.triggerTargetUnitIds,
+      owner.side,
+      (unitId) => findUnitById(allUnits, unitId),
     );
     const unit = id === undefined ? undefined : findUnitById(allUnits, id);
     return { units: unit === undefined ? [] : [unit], includeDefeated: false };

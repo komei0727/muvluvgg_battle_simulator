@@ -1,4 +1,7 @@
-import { triggerPrimaryTargetId } from "../targeting/trigger-primary-target.js";
+import {
+  triggerPrimaryTargetId,
+  type TriggerSkillUseRecord,
+} from "../targeting/trigger-primary-target.js";
 import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type { SkillDefinitionId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
@@ -125,11 +128,11 @@ export interface RuntimeCounterLookupContext {
    */
   readonly memoriesBySide?: Readonly<Record<Side, readonly MemoryDefinition[]>>;
   /**
-   * `TRIGGER_SKILL_USE_HIT`（R-PS-04）が参照する、契機イベントが属するスキル使用が
-   * 1ヒット以上命中させた対象。記録済みイベントの走査を要するため、条件が実際に
-   * 評価されるときだけ呼ぶ。PSの候補検出・発動直前確認だけが渡す。
+   * 契機イベントが属するスキル使用の記録（R-PS-04）。`TRIGGER_SKILL_USE_HIT`が命中を、
+   * `TRIGGER_PRIMARY_TARGET`が実際に処理した対象の順を読む。PSの候補検出・発動直前確認
+   * だけが渡す。
    */
-  readonly triggerSkillUseHitUnitIds?: () => ReadonlySet<BattleUnitId>;
+  readonly triggerSkillUse?: TriggerSkillUseRecord;
 }
 
 /**
@@ -143,7 +146,7 @@ function resolveTargetReferenceIds(
   target: TargetReference,
   owner: BattleUnit | undefined,
   event: TriggerConditionPayloadSource,
-  getUnit?: (battleUnitId: BattleUnitId) => BattleUnit | undefined,
+  context?: Pick<RuntimeCounterLookupContext, "getUnit" | "triggerSkillUse">,
 ): readonly BattleUnitId[] {
   switch (target.kind) {
     case "SELF":
@@ -161,13 +164,17 @@ function resolveTargetReferenceIds(
     case "TRIGGER_TARGET":
       return event.targetUnitIds ?? [];
     case "TRIGGER_PRIMARY_TARGET": {
-      if (owner === undefined || getUnit === undefined) {
+      if (owner === undefined || context?.getUnit === undefined) {
         throw new DomainValidationError(
           "condition.target",
           'kind "TRIGGER_PRIMARY_TARGET" requires an owner BattleUnit and a getUnit lookup (PS trigger context only)',
         );
       }
-      const id = triggerPrimaryTargetId(event.targetUnitIds, owner.side, getUnit);
+      const id = triggerPrimaryTargetId(
+        context.triggerSkillUse?.processedTargetUnitIds() ?? event.targetUnitIds,
+        owner.side,
+        context.getUnit,
+      );
       return id === undefined ? [] : [id];
     }
     default:
@@ -406,12 +413,7 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetUnitIds = resolveTargetReferenceIds(
-        condition.target,
-        owner,
-        event,
-        context?.getUnit,
-      );
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event, context);
       return targetUnitIds.some((id) => {
         const target = getUnit(id);
         return (
@@ -433,12 +435,7 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetUnitIds = resolveTargetReferenceIds(
-        condition.target,
-        owner,
-        event,
-        context?.getUnit,
-      );
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event, context);
       return targetUnitIds.some((id) => {
         const target = getUnit(id);
         if (target === undefined) {
@@ -458,15 +455,11 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      return resolveTargetReferenceIds(condition.target, owner, event, context?.getUnit).some(
-        (id) => {
-          const target = getUnit(id);
-          // DMG-007（Issue #187）: `grantedBy: SELF`が指す「自身」はこのPSの保持者。
-          return (
-            target !== undefined && holdsMatchingEffect(target, condition, owner?.battleUnitId)
-          );
-        },
-      );
+      return resolveTargetReferenceIds(condition.target, owner, event, context).some((id) => {
+        const target = getUnit(id);
+        // DMG-007（Issue #187）: `grantedBy: SELF`が指す「自身」はこのPSの保持者。
+        return target !== undefined && holdsMatchingEffect(target, condition, owner?.battleUnitId);
+      });
     }
     case "TARGET_EFFECT_COUNT": {
       // `TARGET_HAS_EFFECT`と完全に同じ隔離方針・同じ解決経路（Issue #649）。
@@ -477,19 +470,17 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      return resolveTargetReferenceIds(condition.target, owner, event, context?.getUnit).some(
-        (id) => {
-          const target = getUnit(id);
-          return (
-            target !== undefined &&
-            compareWithOperator(
-              countMatchingEffects(target, condition, owner?.battleUnitId),
-              condition.op,
-              condition.value,
-            )
-          );
-        },
-      );
+      return resolveTargetReferenceIds(condition.target, owner, event, context).some((id) => {
+        const target = getUnit(id);
+        return (
+          target !== undefined &&
+          compareWithOperator(
+            countMatchingEffects(target, condition, owner?.battleUnitId),
+            condition.op,
+            condition.value,
+          )
+        );
+      });
     }
     case "TARGET_HAS_MARKER": {
       if (context?.getUnit === undefined) {
@@ -499,12 +490,7 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      const targetUnitIds = resolveTargetReferenceIds(
-        condition.target,
-        owner,
-        event,
-        context?.getUnit,
-      );
+      const targetUnitIds = resolveTargetReferenceIds(condition.target, owner, event, context);
       return targetUnitIds.some((id) => {
         const target = getUnit(id);
         if (target === undefined) {
@@ -532,27 +518,22 @@ export function evaluateTriggerCondition(
         );
       }
       const { owner, getUnit } = context;
-      return resolveTargetReferenceIds(condition.target, owner, event, context?.getUnit).some(
-        (id) => {
-          const target = getUnit(id);
-          return target !== undefined && hasAttributeAdvantage(owner, target.attribute);
-        },
-      );
+      return resolveTargetReferenceIds(condition.target, owner, event, context).some((id) => {
+        const target = getUnit(id);
+        return target !== undefined && hasAttributeAdvantage(owner, target.attribute);
+      });
     }
     case "TRIGGER_SKILL_USE_HIT": {
-      if (context?.triggerSkillUseHitUnitIds === undefined) {
+      if (context?.triggerSkillUse === undefined) {
         throw new DomainValidationError(
           "condition",
-          'kind "TRIGGER_SKILL_USE_HIT" requires a context with triggerSkillUseHitUnitIds (PS trigger / activationCondition only)',
+          'kind "TRIGGER_SKILL_USE_HIT" requires a context with triggerSkillUse (PS trigger / activationCondition only)',
         );
       }
-      const hit = context.triggerSkillUseHitUnitIds();
-      return resolveTargetReferenceIds(
-        condition.target,
-        context.owner,
-        event,
-        context.getUnit,
-      ).some((id) => hit.has(id));
+      const hit = context.triggerSkillUse.hitUnitIds();
+      return resolveTargetReferenceIds(condition.target, context.owner, event, context).some((id) =>
+        hit.has(id),
+      );
     }
     case "SELECTED_TARGET_STATE": {
       if (context?.owner === undefined || context.units === undefined) {
