@@ -1,5 +1,7 @@
 import { expireEffects, expireEffectsSteps } from "../effects/duration-expiry-service.js";
-import type { EffectSequencePlan } from "../skill/skill-resolution-service.js";
+import type { EffectSequencePlan, EffectStepPlan } from "../skill/skill-resolution-service.js";
+import { emptySubUnitAdditionLedger } from "../combat/damage-event-context.js";
+import { releasePendingSubUnitAdditionsSteps } from "./effect-action/damage-effect-action.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import { resolveDarkness } from "../combat/hit-policy.js";
@@ -15,6 +17,7 @@ import {
 import {
   resolveActionStepBody,
   resolveRawStep,
+  stepDefinitionMayContainDamage,
   type LastResultState,
   type StepWalkResult,
 } from "./effect-step-resolution.js";
@@ -173,6 +176,9 @@ export function* resolveEffectSequencePlan(
     ...incomingContext,
     resolvedBindings: plan.resolvedBindings,
     linkedGroupGrants: new Map(),
+    subUnitAdditions: emptySubUnitAdditionLedger(),
+    heldAttackConsumptions: [],
+    attackScopesByDefender: new Map(),
   };
   const lastResultState: LastResultState = {
     lastActionTargetUnitIds: [],
@@ -320,11 +326,20 @@ export function* resolveEffectSequencePlan(
   // ループからは`break`だけで抜けて後始末と`return`を1か所に集約する。
   let interruptedUnresolvedCount: number | undefined;
 
-  for (const step of plan.steps) {
+  // R-SUB-02（Issue #836）: サブユニット追加ヒットは、DAMAGEを含むstepが続く区間（DAMAGE区間）
+  // が終わるまで持ち越し、後続DAMAGEの会心も継承させる。`containsDamageFrom[i]`は
+  // i番目以降のトップレベルstepにDAMAGEが現れうるか（分岐の腕・繰り返しの中も含む）。
+  const containsDamageFrom = plan.steps
+    .map((step) => stepMayContainDamage(step, context))
+    .reduceRight<boolean[]>((acc, contains) => [contains || (acc[0] ?? false), ...acc], []);
+
+  for (const [stepPosition, plannedStep] of plan.steps.entries()) {
     if (isActorDefeated(context, box)) {
       interruptedUnresolvedCount = 0;
       break;
     }
+    const endsDamageSection = containsDamageFrom[stepPosition + 1] !== true;
+    const step = plannedStep;
 
     const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =
       step.planKind === "ACTION_PLAN"
@@ -356,6 +371,22 @@ export function* resolveEffectSequencePlan(
       interruptedUnresolvedCount = result.walkResult.unresolvedCount;
       break;
     }
+
+    if (endsDamageSection) {
+      const released = yield* releasePendingSubUnitAdditionsSteps(context, box, lastEventId);
+      lastEventId = released.lastEventId;
+      if (released.interrupted) {
+        interruptedUnresolvedCount = 0;
+        break;
+      }
+    }
+  }
+
+  // R-SUB-02: 中断で抜けた場合も、追加ヒットのために残していた消費済み効果を失効させる
+  // （使用者が戦闘不能なので追加ヒット自体は解決しない）。
+  if (interruptedUnresolvedCount !== undefined) {
+    lastEventId = (yield* releasePendingSubUnitAdditionsSteps(context, box, lastEventId, false))
+      .lastEventId;
   }
 
   // 正常終了・中断のどちらでも掃除する。付与自体は確定済みの状態変更であり、
@@ -374,4 +405,11 @@ export function* resolveEffectSequencePlan(
         },
       }
     : { units: box.units, outcome: { status: "COMPLETED", resolvedEffectCount: resolvedCount } };
+}
+
+/** R-SUB-02: そのトップレベルstepがDAMAGEを解決しうるか（分岐の腕・繰り返しの中も含む）。 */
+function stepMayContainDamage(step: EffectStepPlan, context: EffectActionGroupContext): boolean {
+  return step.planKind === "ACTION_PLAN"
+    ? stepDefinitionMayContainDamage(step.actions, context)
+    : stepDefinitionMayContainDamage(step.definition, context);
 }

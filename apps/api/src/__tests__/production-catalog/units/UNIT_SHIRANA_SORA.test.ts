@@ -62,6 +62,32 @@ const ENERGY_ALLY: readonly BoardUnitSpec[] = [
   { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
 ];
 
+/** 自身（ENタイプ）以外の味方がすべて物理タイプの味方陣。 */
+const PHYSICAL_ALLIES: readonly BoardUnitSpec[] = [
+  { id: "ally:front", position: { column: "LEFT", row: "FRONT" }, unitType: "PHYSICAL" },
+  { id: "ally:back", position: { column: "CENTER", row: "BACK" }, unitType: "PHYSICAL" },
+];
+
+/** AS1の攻撃力上昇（永続・重複可）。 */
+function as1AtkUp(unitId: string) {
+  return {
+    unitId,
+    effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_ATK_UP",
+    magnitude: 0.05,
+    timeLimit: { unit: "BATTLE", count: 1 },
+  } as const;
+}
+
+/** AS1の「子機Ⅰ」: 付与者（自身）の最大HP10000 × 25%、期限は所持者の3行動。 */
+function as1SubUnit(unitId: string) {
+  return {
+    unitId,
+    effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_SUBUNIT",
+    magnitude: 2500,
+    timeLimit: { unit: "ACTION", count: 3 },
+  } as const;
+}
+
 /** PS1のBRANCHが `elseSteps`（後衛）を選ぶ盤面。前列の敵を置かない。 */
 const ONLY_BACK_ROW_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
@@ -84,11 +110,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "前列の味方を優先し、1行動の間味方2体の防御力を35%上昇させる。加えて3行動の間、自身の最大HP×35%のHPを持ち、味方の攻撃時に自身の攻撃力×31.2%のENダメージを追加するサブユニット「子機Ⅱ」を付与する",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_SORA_EX" },
     expected: {
-      // 前列の味方は自身と ally:front の2体で、後列の ally:back は入らない。
+      // 前列の味方は自身と ally:front の2体で、後列の ally:back は入らない。選んだ2体の
+      // それぞれへ防御力上昇と「子機Ⅱ」を付ける（SR-368）。
       actions: [
         { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP", targets: ["ally:subject"] },
-        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP", targets: ["ally:front"] },
         { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", targets: ["ally:subject"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", targets: ["ally:front"] },
       ],
       effectsApplied: [
         {
@@ -100,7 +128,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT",
-          // 最大HP10000 × 35%。
+          // 付与者（自身）の最大HP10000 × 35%。期限は所持者の3行動。
           magnitude: 3500,
           timeLimit: { unit: "ACTION", count: 3 },
         },
@@ -109,6 +137,61 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP",
           magnitude: 0.35,
           timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT",
+          // 付与者（自身）の最大HP10000 × 35%。期限は所持者の3行動。
+          magnitude: 3500,
+          timeLimit: { unit: "ACTION", count: 3 },
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SHIRANA_SORA_EX",
+    intent: "同上: 自身が前列にいなければ、前列の他の味方2体のそれぞれへ付与し、自身には付けない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_SORA_EX" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" } },
+      allies: [
+        { id: "ally:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "ally:right", position: { column: "RIGHT", row: "FRONT" } },
+      ],
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP", targets: ["ally:left"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", targets: ["ally:left"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP", targets: ["ally:right"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT", targets: ["ally:right"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "ally:left",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP",
+          magnitude: 0.35,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:left",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT",
+          // 付与者（自身）の最大HP10000 × 35%。期限は所持者の3行動。
+          magnitude: 3500,
+          timeLimit: { unit: "ACTION", count: 3 },
+        },
+        {
+          unitId: "ally:right",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_DEF_UP",
+          magnitude: 0.35,
+          timeLimit: { unit: "ACTION", count: 1 },
+        },
+        {
+          unitId: "ally:right",
+          effectActionDefinitionId: "ACT_SHIRANA_SORA_EX_SUBUNIT",
+          // 付与者（自身）の最大HP10000 × 35%。期限は所持者の3行動。
+          magnitude: 3500,
+          timeLimit: { unit: "ACTION", count: 3 },
         },
       ],
     },
@@ -122,23 +205,50 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_ATK_UP", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_SUBUNIT", targets: ["ally:front"] },
+      ],
+      // 選んだ同じ味方へ攻撃力上昇と「子機Ⅰ」を付ける（SR-366）。
+      effectsApplied: [as1AtkUp("ally:front"), as1SubUnit("ally:front")],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_SHIRANA_SORA_AS1", remaining: 2 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SHIRANA_SORA_AS1",
+    intent: "同上: 自身だけがENタイプでも、自身以外の味方（通常順の先頭）を優先する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_SORA_AS1" },
+    board: { allies: PHYSICAL_ALLIES },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_ATK_UP", targets: ["ally:front"] },
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_SUBUNIT", targets: ["ally:front"] },
+      ],
+      effectsApplied: [as1AtkUp("ally:front"), as1SubUnit("ally:front")],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+      cooldowns: [
+        { unitId: "ally:subject", skillDefinitionId: "SKL_SHIRANA_SORA_AS1", remaining: 2 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_SHIRANA_SORA_AS1",
+    intent: "同上: 自身以外の味方がいなければ自身へ付与する",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_SHIRANA_SORA_AS1" },
+    board: { allies: [] },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_ATK_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_SUBUNIT", targets: ["ally:subject"] },
       ],
-      effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_SUBUNIT",
-          // 最大HP10000 × 25%。
-          magnitude: 2500,
-          timeLimit: { unit: "ACTION", count: 3 },
-        },
-        {
-          unitId: "ally:front",
-          effectActionDefinitionId: "ACT_SHIRANA_SORA_AS1_ATK_UP",
-          magnitude: 0.05,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
+      effectsApplied: [as1AtkUp("ally:subject"), as1SubUnit("ally:subject")],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },

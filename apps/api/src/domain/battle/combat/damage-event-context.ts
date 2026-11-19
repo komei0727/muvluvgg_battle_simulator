@@ -12,6 +12,7 @@ import type { EventRecorder } from "../events/event-recorder.js";
 import type { ResolveBreakHook } from "../events/break-resolution.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import type {
+  AccuracyMode,
   ConsumptionKind,
   DamageType,
   SkillType,
@@ -22,6 +23,41 @@ import type {
 } from "../../catalog/definitions/catalog-ids.js";
 import type { FormulaDefinition } from "../../catalog/definitions/formula-definition.js";
 import type { BattleUnitId } from "../../shared/ids.js";
+
+/**
+ * R-SUB-02: 1スキル使用（EffectSequence）の中で、ある対象へまだ加えていないサブユニット
+ * 追加ヒット。元攻撃がその対象を最初に狙ったDAMAGEで作り、以後のDAMAGEの会心を合算する。
+ *
+ * - `damageType`／`accuracyMode`: その対象を最初に狙ったDAMAGEのもの（追加ダメージの
+ *   ダメージタイプ既定と命中特性の継承元）
+ * - `critical`: そのスキル使用でその対象へのヒットが1つでも会心だったか
+ * - `sourceEffectInstanceIds`: その対象を狙ったDAMAGEの解決開始時点で使用者が保持していた
+ *   サブユニット（初出順）。DAMAGEの途中の連鎖で付与されたサブユニットは同じ攻撃へ加えない
+ */
+export interface PendingSubUnitAddition {
+  readonly damageType: DamageType;
+  readonly accuracyMode: AccuracyMode;
+  critical: boolean;
+  readonly sourceEffectInstanceIds: EffectInstanceId[];
+}
+
+/**
+ * R-SUB-02: 1スキル使用（EffectSequence）が共有するサブユニット追加ヒットの台帳。
+ * `resolveEffectSequencePlan`がEffectSequenceごとに新規生成する（mutable）。
+ *
+ * - `pending`: まだ解決していない対象（Mapの挿入順＝対象の初出順）
+ * - `added`: 既に加えた「サブユニットのインスタンス|対象」。同じ対象へ2度加えない
+ * - `nextHitIndex`: 追加ヒットのヒット番号。スキル使用の中で通し番号にする
+ */
+export interface SubUnitAdditionLedger {
+  readonly pending: Map<BattleUnitId, PendingSubUnitAddition>;
+  readonly added: Set<string>;
+  nextHitIndex: number;
+}
+
+export function emptySubUnitAdditionLedger(): SubUnitAdditionLedger {
+  return { pending: new Map(), added: new Set(), nextHitIndex: 0 };
+}
 
 export interface DamageHitOutcome {
   readonly targetUnitId: BattleUnitId;
@@ -131,6 +167,14 @@ export interface DamageEventContext {
    * チャージ解放の攻撃は追撃の相乗り対象外（消費だけが起こる）である。
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
+  /**
+   * R-SUB-02: このスキル使用（EffectSequence）のサブユニット追加ヒット台帳。指定時は
+   * 台帳へ記録するだけで、追加ヒットはDAMAGE区間の終わりにまとめて解決する
+   * （`releasePendingSubUnitAdditionsSteps`）。追加は攻撃1回につき元攻撃の対象ごと・
+   * 各体1ヒットで、会心はスキル使用全体のその対象へのヒットから継承する。未指定なら
+   * このDAMAGE EffectActionの直後に解決する（単体のDAMAGE解決テスト用）。
+   */
+  readonly subUnitAdditions?: SubUnitAdditionLedger;
   /**
    * `DamageApplied`（および`UnitDefeated`）の確定直後にPS即時連鎖を同期的に解決するフック。
    * 呼び出し側（`lifecycle/`、Domain層のmodule境界により`combat/`自身は`triggering/`へ

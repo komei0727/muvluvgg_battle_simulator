@@ -83,6 +83,24 @@ const SINGLE_BACK_CENTER_ENEMY = {
   enemies: [{ id: "enemy:back", position: { column: "CENTER", row: "BACK" } as const }],
 };
 
+/** サブユニット付与と同時に所持者へ付く攻撃力低下（SR-369/371のⅠ・Ⅱ）。 */
+const HOLDER_ATK_DOWN_L = {
+  unitId: "ally:subject",
+  effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+  magnitude: -0.075,
+  timeLimit: { unit: "BATTLE", count: 1 },
+} as const;
+
+/** 「うみのともだちⅢ」付与と同時に各所持者へ付く攻撃力低下（SR-370）。 */
+function holderAtkDownS(unitId: string) {
+  return {
+    unitId,
+    effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S",
+    magnitude: -0.025,
+    timeLimit: { unit: "BATTLE", count: 1 },
+  } as const;
+}
+
 /** (SKL_ID, 原文の該当句, 前提盤面, 期待する振る舞い)。 */
 const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
@@ -91,28 +109,35 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       "自身に対しサブユニット「うみのともだちⅡ」を３つ付与する。「うみのともだちⅡ」は自身の最大HP×50%のHPを持ち、攻撃時に攻撃力×25%のダメージを追加するが、同時に付与された対象の攻撃力を7.5%低下させる",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_EX" },
     expected: {
+      // 「同時に付与された対象の攻撃力を7.5%低下させる」: 1体付与するたびに所持者へ
+      // 攻撃力−7.5%を付ける（SR-371）。3体で3件・合計−22.5%。
       actions: [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
       ],
       // 最大HP10000×50%＝5000。
       effectsApplied: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT",
-          magnitude: 5000,
-        },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT",
-          magnitude: 5000,
-        },
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT",
-          magnitude: 5000,
-        },
+        ...Array.from({ length: 3 }, () => [
+          {
+            unitId: "ally:subject",
+            effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT",
+            magnitude: 5000,
+          },
+          HOLDER_ATK_DOWN_L,
+        ]).flat(),
       ],
     },
   },
@@ -228,7 +253,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_LYDIA_SUMMER_AS2",
     intent:
-      "（「うみのともだちⅡ」保持下）攻撃時に自身の攻撃力×25%のダメージを追加し、対象の攻撃力を7.5%低下させる",
+      "（「うみのともだちⅡ」保持下）攻撃時に自身の攻撃力×25%のダメージを追加する。攻撃対象の攻撃力は下げない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_AS2" },
     board: SINGLE_BACK_CENTER_ENEMY,
     precedingActions: [{ effectActionDefinitionId: "ACT_LYDIA_SUMMER_EX_SUBUNIT", target: "SELF" }],
@@ -241,15 +266,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       // 通常攻撃848に、付与時攻撃力1000×25%＝250が乗る（保持者の攻撃力1000 ≥ 対象防御力500
       // のため防御による減衰なし、R-SUB-02）。
+      // 攻撃力低下は付与時に所持者へ付くもので、追加命中した敵へは付けない（SR-369〜371）。
       hpDeltas: { "enemy:back": -(848 + 250) },
-      effectsApplied: [
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -259,7 +277,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   {
     skillDefinitionId: "SKL_LYDIA_SUMMER_AS2",
     intent:
-      "（「うみのともだちⅢ」保持下）攻撃時に自身の攻撃力×8.5%のダメージを追加し、対象の攻撃力を2.5%低下させる",
+      "（「うみのともだちⅢ」保持下）攻撃時に自身の攻撃力×8.5%のダメージを追加する。攻撃対象の攻撃力は下げない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_LYDIA_SUMMER_AS2" },
     board: SINGLE_BACK_CENTER_ENEMY,
     precedingActions: [
@@ -272,14 +290,6 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       // 通常攻撃848に、付与時攻撃力1000×8.5%＝85が乗る（保持者の攻撃力1000 ≥ 対象防御力500
       // のため防御による減衰なし、R-SUB-02）。
       hpDeltas: { "enemy:back": -(848 + 85) },
-      effectsApplied: [
-        {
-          unitId: "enemy:back",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S",
-          magnitude: -0.025,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
       resources: [
         { unitId: "ally:subject", resource: "AP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -301,8 +311,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       }),
       triggeredBy: "ally:subject",
     },
+    // 解除されるデバフは、付与時に付く所持者低下（_L）と区別できる別定義（_S）で置く。
     precedingActions: [
-      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L", target: "SELF" },
+      { effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S", target: "SELF" },
     ],
     expected: {
       actions: [
@@ -311,22 +322,21 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:subject"],
         },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS1_SUBUNIT", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
+          targets: ["ally:subject"],
+        },
       ],
+      // 「うみのともだちⅠ」付与と同時に所持者（自身）の攻撃力−7.5%（SR-369）。
       effectsApplied: [
         {
           unitId: "ally:subject",
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS1_SUBUNIT",
           magnitude: 5000,
         },
+        HOLDER_ATK_DOWN_L,
       ],
-      effectsRemoved: [
-        {
-          unitId: "ally:subject",
-          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_L",
-          magnitude: -0.075,
-          timeLimit: { unit: "BATTLE", count: 1 },
-        },
-      ],
+      effectsRemoved: [holderAtkDownS("ally:subject")],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
@@ -426,9 +436,18 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     },
     expected: {
       // 既定盤面: 自身(CENTER,FRONT)と同じ横一列(FRONT)はally:front(LEFT,FRONT)だけ。
+      // 各所持者へ「うみのともだちⅢ」と同時に攻撃力−2.5%（SR-370）。
       actions: [
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", targets: ["ally:subject"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:subject"],
+        },
         { effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT", targets: ["ally:front"] },
+        {
+          effectActionDefinitionId: "ACT_LYDIA_SUMMER_SUBUNIT_ATK_DOWN_S",
+          targets: ["ally:front"],
+        },
       ],
       // 最大HP10000×15%＝1500。
       effectsApplied: [
@@ -437,11 +456,13 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
           magnitude: 1500,
         },
+        holderAtkDownS("ally:subject"),
         {
           unitId: "ally:front",
           effectActionDefinitionId: "ACT_LYDIA_SUMMER_PS2_SUBUNIT",
           magnitude: 1500,
         },
+        holderAtkDownS("ally:front"),
       ],
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -1 },

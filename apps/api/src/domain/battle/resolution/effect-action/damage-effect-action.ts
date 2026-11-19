@@ -1,4 +1,7 @@
 import { applyDamageActionSteps } from "../../combat/damage-application-service.js";
+import { releaseSubUnitAdditionsSteps } from "../../combat/sub-unit-additional-damage.js";
+import { driveRemovalSteps } from "../../combat/damage-hit-chain.js";
+import type { DamageEventContext } from "../../combat/damage-event-context.js";
 import { grantEffect } from "../../effects/effect-grant-service.js";
 import {
   computeCombatStats,
@@ -20,16 +23,23 @@ import type { FormulaDefinition } from "../../../catalog/definitions/formula-def
 import type { BattleDomainEvent, EffectActionResultKind } from "../../events/domain-event.js";
 import type { DomainEventId, EffectInstanceId } from "../../../shared/event-ids.js";
 import type { BattleUnitId } from "../../../shared/ids.js";
-import type { SteppedEffectActionHandler } from "./effect-action-handler.js";
+import {
+  createEffectActionEventCursor,
+  type SteppedEffectActionHandler,
+} from "./effect-action-handler.js";
 import {
   eventContextOf,
   requireActorUnit,
   requireSkillDefinitionId,
   skillTypeOf,
   type EffectActionGroupContext,
+  type EffectResolutionStep,
+  type UnitsBox,
 } from "./effect-action-group-context.js";
 import {
   buildConsumeEffectDurationHooks,
+  expireHeldAttackConsumptionsSteps,
+  instanceKeyOf,
   suspendedEffectInstanceIdsFor,
 } from "./effect-duration-consumption.js";
 import { grantOnHitEffectSteps } from "./on-hit-effect-grant.js";
@@ -284,7 +294,7 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   const suspendedEffectInstanceIds =
     input.attack === undefined
       ? new Set<EffectInstanceId>()
-      : suspendedEffectInstanceIdsFor(input.attack.scope);
+      : suspendedEffectInstanceIdsFor(input.attack.scope, context.heldAttackConsumptions);
   const skillType = skillTypeOf(context);
   const damageGen = applyDamageActionSteps(
     currentActor,
@@ -405,6 +415,9 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
         ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
         : {}),
       ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+      ...(context.subUnitAdditions !== undefined
+        ? { subUnitAdditions: context.subUnitAdditions }
+        : {}),
       // R-FUP-01: AS/EXスキル使用だけが渡す追撃捕捉をヒット処理へ素通しする。
       ...(context.followUpAttackCapture !== undefined
         ? { followUpAttackCapture: context.followUpAttackCapture }
@@ -437,6 +450,17 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
   }
   const damageResult = damageStep.value;
   box.units = damageResult.units;
+  // R-SUB-02＋R-EFF-07: 保留した追加ヒットが、その対象を攻撃したこの攻撃の消費済み効果だけを
+  // 見られるよう、実際に向かった防御側ごとに攻撃を記録する。
+  if (input.attack !== undefined && context.attackScopesByDefender !== undefined) {
+    for (const hit of damageResult.hits) {
+      const scopes = context.attackScopesByDefender.get(hit.targetUnitId) ?? [];
+      if (!scopes.includes(input.attack.scope)) {
+        scopes.push(input.attack.scope);
+      }
+      context.attackScopesByDefender.set(hit.targetUnitId, scopes);
+    }
+  }
   return {
     // 中断の判定は`interruptedCount > 0`ではなく`interrupted`を見る。R-SUB-02の
     // サブユニット追加ヒットは`application.hits`に含まれないため、追加ヒットの解決中に
@@ -459,3 +483,200 @@ export const resolveDamage: SteppedEffectActionHandler<"DAMAGE"> = function* (in
     lastEventId: damageResult.lastEventId,
   };
 };
+
+/**
+ * R-SUB-02（Issue #836）: DAMAGE区間の終わりに、スキル使用の台帳へ保留した追加ヒットを
+ * 対象の初出順でまとめて解決し、その後で元攻撃が消費して0にした効果を失効させる。
+ *
+ * 追加ヒットは元攻撃の一部であり、攻撃単位の消費（`NEXT_INCOMING_ATTACK`／
+ * `NEXT_OUTGOING_ATTACK`）は元攻撃のDAMAGEで済んでいる。ここで新しい攻撃として数え直すと
+ * 「次の攻撃」効果を追加ヒットだけで1回分消費してしまうため、攻撃単位の消費は行わない。
+ * 元攻撃が消費した効果は`heldAttackConsumptions`がまだ失効させずに残しているため、
+ * 追加ヒットにも元攻撃と同じく乗る（R-EFF-07）。ヒット単位の消費（`OUTGOING_HIT`／
+ * `INCOMING_HIT`等）は通常のヒットと同じく行う。
+ *
+ * `releaseAdditions`が偽（使用者の戦闘不能で中断した解決の後始末）なら追加ヒットは解決せず、
+ * 残していた効果の失効だけを行う。
+ *
+ * `onFactEventForPassiveChain`未指定（PS自身のEffectSequence）の経路では、`resolveDamage`と
+ * 同じく未通知イベントを`EFFECT_RESOLVED`として`yield`し、driverへ連鎖を委ねる。
+ */
+export function* releasePendingSubUnitAdditionsSteps(
+  context: EffectActionGroupContext,
+  box: UnitsBox,
+  parentEventId: DomainEventId,
+  releaseAdditions = true,
+): Generator<
+  EffectResolutionStep,
+  { readonly lastEventId: DomainEventId; readonly interrupted: boolean },
+  void
+> {
+  const ledger = context.subUnitAdditions;
+  if (
+    ledger === undefined ||
+    (ledger.pending.size === 0 && (context.heldAttackConsumptions?.length ?? 0) === 0)
+  ) {
+    return { lastEventId: parentEventId, interrupted: false };
+  }
+  const { consumeEffectDuration, finalizeConsumedEffectDurations } =
+    buildConsumeEffectDurationHooks(context);
+  const skillType = skillTypeOf(context);
+  const damageContext: DamageEventContext = {
+    ...eventContextOf(context),
+    parentEventId,
+    skillDefinitionId: requireSkillDefinitionId(context),
+    ...(skillType !== undefined ? { skillType } : {}),
+    consumeEffectDuration: (ownerUnitId, kind, units, callParentEventId, ...rest) =>
+      kind === "NEXT_INCOMING_ATTACK" || kind === "NEXT_OUTGOING_ATTACK"
+        ? noConsumption(units, callParentEventId)
+        : consumeEffectDuration(ownerUnitId, kind, units, callParentEventId, ...rest),
+    finalizeConsumedEffectDurations,
+    expireDepletedAbsorbers: (
+      targetUnitId,
+      depletedEffectInstanceIds,
+      reason,
+      units,
+      expiryParentEventId,
+    ) =>
+      expireEffectsSteps(
+        eventContextOf(context),
+        units,
+        depletedEffectInstanceIds.map((effectInstanceId) => ({
+          battleUnitId: targetUnitId,
+          effectInstanceId,
+          reason,
+        })),
+        context.definitions.effectActions,
+        expiryParentEventId,
+      ),
+    grantSubUnitAdditionalDamageDebuff: (
+      targetUnitId,
+      debuffEffectActionDefinitionId,
+      ownerUnitId,
+      units,
+      grantParentEventId,
+    ) =>
+      grantSubUnitAdditionalDamageDebuffSteps(
+        context,
+        units,
+        targetUnitId,
+        debuffEffectActionDefinitionId,
+        ownerUnitId,
+        grantParentEventId,
+      ),
+    applyDeathSurvivalHeal: (
+      targetUnitId,
+      effectActionDefinitionId,
+      formula,
+      units,
+      healParentEventId,
+    ) =>
+      applyDeathSurvivalHealSteps(
+        context,
+        units,
+        targetUnitId,
+        effectActionDefinitionId,
+        formula,
+        healParentEventId,
+      ),
+    ...(context.onFactEventForPassiveChain !== undefined
+      ? { onFactEventForPassiveChain: context.onFactEventForPassiveChain }
+      : {}),
+    ...(context.damageResults !== undefined ? { damageResults: context.damageResults } : {}),
+    subUnitAdditions: ledger,
+  };
+
+  const cursor = createEffectActionEventCursor(context, box);
+  const working = new Map(box.units.map((unit) => [unit.battleUnitId, unit]));
+  const drive = function* <T>(
+    gen: Generator<{ readonly units: readonly BattleUnit[] }, T, readonly BattleUnit[] | undefined>,
+  ): Generator<EffectResolutionStep, T, void> {
+    let step = gen.next();
+    while (!step.done) {
+      // `resolveDamage`のdriverと同じsync-out → yield → sync-in。
+      box.units = step.value.units;
+      yield { kind: "EFFECT_RESOLVED", events: cursor.takePending() };
+      cursor.consumeResolvedByDriver();
+      step = gen.next(box.units);
+    }
+    return step.value;
+  };
+  // R-SUB-02＋R-EFF-07: 対象ごとに、その対象を攻撃した攻撃が消費した効果だけを乗せる。
+  // 保留中の消費済み効果のうち、その対象への攻撃のどれも消費していないものは除いて計算する
+  // （通常のDAMAGE経路の`suspendedEffectInstanceIdsFor`と同じ扱い）。
+  const heldScopes = context.heldAttackConsumptions ?? [];
+  let released: { lastEventId: DomainEventId; interrupted: boolean } = {
+    lastEventId: parentEventId,
+    interrupted: false,
+  };
+  if (releaseAdditions && context.actorUnitId !== undefined) {
+    for (const targetUnitId of [...ledger.pending.keys()]) {
+      const attackingScopes = context.attackScopesByDefender?.get(targetUnitId) ?? [];
+      const suspended = new Set<EffectInstanceId>();
+      for (const held of heldScopes) {
+        for (const seed of held.pendingExpirySeeds) {
+          const key = instanceKeyOf(seed);
+          if (!attackingScopes.some((scope) => scope.consumedInstanceKeys.has(key))) {
+            suspended.add(seed.effectInstanceId);
+          }
+        }
+      }
+      const targetContext: DamageEventContext =
+        suspended.size === 0
+          ? damageContext
+          : {
+              ...damageContext,
+              suspendedEffectInstanceIds: suspended,
+              unitView: unitViewWithout(suspended, context),
+            };
+      released = yield* drive(
+        releaseSubUnitAdditionsSteps(
+          targetContext,
+          working,
+          context.random,
+          context.actorUnitId,
+          ledger,
+          [targetUnitId],
+          released.lastEventId,
+        ),
+      );
+      if (released.interrupted) {
+        break;
+      }
+    }
+  }
+  ledger.pending.clear();
+  const finalized = yield* drive(
+    driveRemovalSteps(
+      damageContext,
+      working,
+      finalizeConsumedEffectDurations(Array.from(working.values()), released.lastEventId),
+    ),
+  );
+  const expired = yield* drive(
+    driveRemovalSteps(
+      damageContext,
+      working,
+      expireHeldAttackConsumptionsSteps(
+        context,
+        Array.from(working.values()),
+        finalized.lastEventId,
+      ),
+    ),
+  );
+  box.units = box.units.map((unit) => working.get(unit.battleUnitId) ?? unit);
+  const pending = cursor.takePending();
+  if (pending.length > 0 && context.onFactEventForPassiveChain === undefined) {
+    yield { kind: "EFFECT_RESOLVED", events: pending };
+  }
+  return { lastEventId: expired.lastEventId, interrupted: released.interrupted };
+}
+
+function* noConsumption(
+  units: readonly BattleUnit[],
+  parentEventId: DomainEventId,
+): ReturnType<NonNullable<DamageEventContext["consumeEffectDuration"]>> {
+  // 消費しないため除去ステップも無い。
+  yield* [];
+  return { units, lastEventId: parentEventId };
+}

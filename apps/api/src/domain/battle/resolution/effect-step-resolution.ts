@@ -1436,3 +1436,25 @@ function* resolveStepDefinitionList(
     walkResult: walkCompleted(resolvedCount, resolvedActionCount),
   };
 }
+
+/**
+ * R-SUB-02（Issue #836）: そのstep定義がDAMAGEを解決しうるか。分岐の腕・繰り返しの中も含め、
+ * 定義の中に現れるEffectAction参照のどれかがDAMAGEなら真（通りうるものは含める）。
+ */
+export function stepDefinitionMayContainDamage(
+  node: unknown,
+  context: EffectActionGroupContext,
+): boolean {
+  if (Array.isArray(node)) {
+    return node.some((child) => stepDefinitionMayContainDamage(child, context));
+  }
+  if (node === null || typeof node !== "object") {
+    return false;
+  }
+  return Object.entries(node).some(([key, value]) =>
+    key === "effectActionDefinitionId"
+      ? typeof value === "string" &&
+        context.definitions.effectActions.get(value as EffectActionDefinitionId)?.kind === "DAMAGE"
+      : stepDefinitionMayContainDamage(value, context),
+  );
+}
