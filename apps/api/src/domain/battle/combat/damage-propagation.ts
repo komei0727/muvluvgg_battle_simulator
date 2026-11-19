@@ -19,34 +19,57 @@ import type { BattleUnitId } from "../../shared/ids.js";
  * 常に1往復で停止する。
  */
 
+/** R-LNK-02: 元ダメージから分配が確定した1リンク分。 */
+export interface DamageLinkAllocation extends DamageLinkSelection {
+  readonly linkedDamage: number;
+}
+
 /**
- * R-INT-01 #3／R-LNK-01〜03（DMG-007）: 元ダメージの適用が完了した直後、反射
- * （R-INT-01 #4）より前に、リンク元（＝この攻撃で実際にダメージを受けた側）が
- * 保持していたリンクを付与順に発生させる。
+ * R-LNK-01／R-LNK-02: 軽減後・シールド吸収前の元ダメージ（`DamageCalculated.finalDamage`）
+ * から、保持者のリンクごとの分配量を付与順に確定する。リンクは元の被害へ**追加**される
+ * のではなく、元ダメージから差し引いてリンク先へ移す（総被害は元ダメージを超えない）。
  *
- * - R-LNK-01「対象へ算出された最終ダメージをリンク元の量とする」「シールド・HPへの
- *   振り分け前の量を使用する」: `sourceDamage`は`DamageApplied.calculatedDamage`
- *   （＝`finalDamage`）そのものであり、実際にHPへ通った量でもシールド吸収後の残りでも
- *   ない。したがってリンク元のシールドが全て吸収してHPが1も減らなくてもリンクは同量で
- *   発生する
- * - R-LNK-02「リンクされた全対象へ、リンク元と同量のダメージをそれぞれ発生させる」
- *   「対象数で分割しない」: 各リンクが`linkRate`をそれぞれ独立に適用する（リンク件数で
- *   割らない）。「同量」の量とは各リンク先が受ける量が等しいという意味であり、
- *   production定義が持つ35%/50%の割合は`linkRate`が表す
- * - R-LNK-02「リンク先では属性、会心、ダメージ増減効果を再計算しない」: 反射と同じく
- *   `linkRate`を掛けた結果へR-DMG-02の切り捨てと最低1ダメージだけを適用する
- * - R-LNK-02「リンク先ごとに対応するシールドとHPへ適用する」: 適用は
- *   `applyConfirmedDamageSteps`が担うため、リンク先自身のシールド・サブユニット・
- *   致死耐えがそのまま働く
- * - R-LNK-01「元ダメージの物理／ENタイプと、シールド適用可否を引き継ぐ」／R-LNK-02
- *   「元ダメージが毒・炎上などシールド対象外なら、リンク先でもシールド対象外とする」:
- *   `damageType`と`shieldApplicable`を呼び出し側から受け取ってそのまま渡す
- * - R-LNK-03「リンクダメージに`isLinkedDamage=true`を付ける」「そのダメージから新たな
- *   リンクを発生させない」: 適用は`applyConfirmedDamageSteps`を直接呼ぶ
+ * - 各リンクの分配量は`切り捨て(元ダメージ × linkRate)`（R-NUM-02）で、その時点の
+ *   未分配残量を上限とする（R-HEAL-04 #2の回復リンクと同じ規約）。リンク率の合計が1を
+ *   超えても元対象の取り分が負にならない
+ * - 分配量へ最低1ダメージは適用しない。切り捨てで0になったリンクは成立させず、元対象が
+ *   その分を受ける — 最低1を課すと1ダメージのヒットが丸ごとリンク先へ移ってしまうため
+ * - `retainedDamage`は元対象が自身のシールド・HPへ受ける量であり、各側のシールドは
+ *   分配後の量を独立に吸収する
+ */
+export function allocateDamageLinks(
+  sourceDamage: number,
+  links: readonly DamageLinkSelection[],
+): { readonly allocations: readonly DamageLinkAllocation[]; readonly retainedDamage: number } {
+  const allocations: DamageLinkAllocation[] = [];
+  let remaining = sourceDamage;
+  for (const link of links) {
+    const linkedDamage = Math.min(remaining, Math.floor(sourceDamage * link.linkRate));
+    if (linkedDamage <= 0) {
+      continue;
+    }
+    remaining -= linkedDamage;
+    allocations.push({ ...link, linkedDamage });
+  }
+  return { allocations, retainedDamage: remaining };
+}
+
+/**
+ * R-INT-01 #3／R-LNK-01〜03: 元対象への分配分の適用が完了した直後、反射（R-INT-01 #4）
+ * より前に、`allocateDamageLinks`が確定させた分配量をリンク先へ付与順に適用する。
  *
- * リンク元がこの元ダメージ（またはその連鎖）で戦闘不能になっていればリンクは発生させず、
- * リンク先が戦闘不能な場合も同様である（R-ACTN-01 #2、`applyReflectedDamageSteps`と
- * 同じ扱い）。
+ * - R-LNK-01: `sourceDamage`は分配前の`DamageCalculated.finalDamage`であり、イベントの
+ *   監査証跡として運ぶ。分配量自体は呼び出し側が元ダメージの適用前に確定させている
+ * - R-LNK-02「リンク先では属性、会心、ダメージ増減効果を再計算しない」「リンク先ごとに
+ *   対応するシールドとHPへ適用する」: 適用は`applyConfirmedDamageSteps`が担うため、
+ *   リンク先自身のシールド・サブユニット・致死耐えがそのまま働く
+ * - R-LNK-01第3項／R-LNK-02第5項: `damageType`と`shieldApplicable`をそのまま渡す
+ * - R-LNK-03: 適用は`applyConfirmedDamageSteps`を直接呼ぶため再リンクしない
+ *
+ * 保持者がこの元ヒットで戦闘不能になっても、分配が確定したリンク分は発生させる — 分配分は
+ * すでに元対象の被害から差し引かれており、ここで止めると総被害が失われるためである。
+ * 撃破後の別の攻撃では保持者が攻撃対象にならず、リンクはそれ以上発生しない。
+ * リンク先が戦闘不能な場合は適用しない（R-ACTN-01 #2）。
  */
 export function* applyLinkedDamageSteps(
   context: DamageEventContext,
@@ -54,26 +77,18 @@ export function* applyLinkedDamageSteps(
   linkedFromUnitId: BattleUnitId,
   damageType: DamageType,
   sourceDamage: number,
-  links: readonly DamageLinkSelection[],
+  allocations: readonly DamageLinkAllocation[],
   sourceDamageEventId: DomainEventId,
   parentEventId: DomainEventId,
   shieldApplicable = true,
 ): Generator<DamageStep, ConfirmedDamageApplication, readonly BattleUnit[] | undefined> {
   let lastEventId = parentEventId;
-  if (links.length === 0) {
-    return { kind: "APPLIED", lastEventId };
-  }
-  for (const link of links) {
-    const linkedFromUnit = working.get(linkedFromUnitId);
-    if (linkedFromUnit === undefined || isDefeated(linkedFromUnit)) {
-      break;
-    }
+  for (const link of allocations) {
     const destination = working.get(link.linkToUnitId);
     if (destination === undefined || isDefeated(destination)) {
       continue;
     }
-    // R-DMG-02 #1/#3: 最終結果で切り捨て、1未満は1にする。
-    const linkedDamage = Math.max(1, Math.floor(sourceDamage * link.linkRate));
+    const { linkedDamage } = link;
     const generatedEventsStart = context.recorder.getEvents().length;
     const generated = context.recorder.record({
       eventType: "LinkedDamageGenerated",
@@ -176,15 +191,9 @@ export function* applyReflectedDamageSteps(
     if (destination === undefined || isDefeated(destination)) {
       break;
     }
+    // 反射元がこの元ヒットで戦闘不能になっても、そのヒット分の反射は確定して発生させる。
+    // 撃破後の別の攻撃では保持者が攻撃対象にならないため、反射が残り続けることはない。
     const reflectingUnit = findUnit(working, reflectedByUnitId, "reflect.holderUnitId");
-    // 反射元がこの元ダメージ（またはその連鎖）で戦闘不能になっていれば反射しない。
-    // R-INT-03第1項が禁じているのは「元ダメージの適用結果を巻き戻すこと」であって、
-    // 戦闘不能になった保持者が以後も効果を発生させることまでは認めていない
-    // （R-ACTN-01 #2の一般則、および`heal-application-service.ts`が戦闘不能の
-    // 転送先へ転送しないのと同じ扱い）。
-    if (isDefeated(reflectingUnit)) {
-      break;
-    }
     const formulaResult = evaluateFormula(
       reflect.formula,
       {

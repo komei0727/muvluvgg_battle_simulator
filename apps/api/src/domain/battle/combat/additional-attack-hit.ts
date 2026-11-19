@@ -18,7 +18,11 @@ import {
   applyConfirmedDamageSteps,
   type ConfirmedDamageApplication,
 } from "./damage-hit-point-application.js";
-import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
+import {
+  allocateDamageLinks,
+  applyLinkedDamageSteps,
+  applyReflectedDamageSteps,
+} from "./damage-propagation.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { DomainEventId } from "../../shared/event-ids.js";
 import type { DamageType } from "../../catalog/definitions/catalog-enums.js";
@@ -239,13 +243,15 @@ export function* applyOneAdditionalAttackHitSteps(
     },
   });
 
+  // R-LNK-01／R-LNK-02: リンク分は軽減後・シールド吸収前の量から差し引いて分配する。
+  const linkDistribution = allocateDamageLinks(finalDamage, intervention.damageLinks);
   const application = yield* applyConfirmedDamageSteps(
     context,
     working,
     attacker.battleUnitId,
     target.battleUnitId,
     profile,
-    finalDamage,
+    linkDistribution.retainedDamage,
     damageCalculated.eventId,
   );
   let lastEventId = application.lastEventId;
@@ -273,7 +279,7 @@ export function* applyOneAdditionalAttackHitSteps(
     target.battleUnitId,
     profile.damageType,
     finalDamage,
-    intervention.damageLinks,
+    linkDistribution.allocations,
     application.damageAppliedEventId ?? lastEventId,
     lastEventId,
   );

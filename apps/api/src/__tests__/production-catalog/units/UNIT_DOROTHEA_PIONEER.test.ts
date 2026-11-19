@@ -9,6 +9,9 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
+import { observeDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
+import { createHitPoint } from "../../../domain/battle/model/resource-gauge.js";
 import { observeActivationCounters } from "../../../testing/production-unit/runtime-counter.js";
 import {
   PRODUCTION_CATALOG_DIR,
@@ -489,5 +492,47 @@ describe("production Catalog UNIT_DOROTHEA_PIONEER (【新たなる時代の導�
         stats: { "enemy:front/defense": 500 },
       },
     ]);
+  });
+
+  it("IT-UNIT-DOROTHEA-PIONEER-006 [R-LNK-02] (R-LNK-01/02/03): PS1の相互35%リンクは各元ダメージから相手の分を差し引いて分配し（SR-223）、近い敵がその元ヒットで倒れても遠い敵への分配分は発生する。相互リンクでも再リンクしない", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const granted = openPassiveChain({
+      definitions: board.definitions,
+      actorUnitId: "ally:subject",
+      battleId: "B_DOROTHEA_LINK",
+    }).fire(turnStarted({ turnNumber: 1 }), board.units);
+
+    // 威力2.12で1060。近い敵689・遠い敵371へ分配し、遠い敵の相互リンクからは戻らない。
+    const hit = observeDamageProbe({
+      units: granted,
+      attackerUnitId: "ally:front",
+      targetUnitId: "enemy:front",
+      power: 2.12,
+      battleId: "B_DOROTHEA_LINK_HIT",
+    });
+    expect(hit.linked).toMatchObject([
+      {
+        effectActionDefinitionId: "ACT_DOROTHEA_PIONEER_PS1_LINK_TO_FARTHEST",
+        linkedFromUnitId: "enemy:front",
+        linkToUnitId: "enemy:back",
+        sourceDamage: 1060,
+        linkedDamage: 371,
+      },
+    ]);
+    expect(hit.hpDeltas).toEqual({ "enemy:front": -689, "enemy:back": -371 });
+
+    // 近い敵HP500で倒れても、遠い敵への371は失われない。
+    const lethal = observeDamageProbe({
+      units: granted.map((unit) =>
+        unit.battleUnitId === "enemy:front"
+          ? { ...unit, currentHp: createHitPoint(500, Math.trunc(unit.combatStats.maximumHp)) }
+          : unit,
+      ),
+      attackerUnitId: "ally:front",
+      targetUnitId: "enemy:front",
+      power: 2.12,
+      battleId: "B_DOROTHEA_LINK_LETHAL",
+    });
+    expect(lethal.hpDeltas).toEqual({ "enemy:front": -500, "enemy:back": -371 });
   });
 });

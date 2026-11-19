@@ -1218,14 +1218,14 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     },
     {
       "breakNumber": 3,
-      "cumulativeScoreAtBreak": 1904958,
+      "cumulativeScoreAtBreak": 1903485,
       "sourceUnitDefinitionId": "UNIT_CHIYURU_MAZE",
       "sourceUnitId": "ally:5",
       "turnNumber": 4,
     },
     {
       "breakNumber": 4,
-      "cumulativeScoreAtBreak": 2776197,
+      "cumulativeScoreAtBreak": 2773493,
       "sourceUnitDefinitionId": "UNIT_AOI_ELEGANT",
       "sourceUnitId": "ally:3",
       "turnNumber": 5,
@@ -1296,6 +1296,6 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
     "UNIT_BROKEN": 4,
     "UNIT_REVIVED": 4,
   },
-  "totalScore": 2848065,
+  "totalScore": 2845361,
 }
 `;

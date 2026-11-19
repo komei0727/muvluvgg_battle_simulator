@@ -3,6 +3,7 @@ import { createEffectActionDefinitionId } from "../../../domain/catalog/definiti
 import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
 import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
 import { applyHealAction } from "../../../domain/battle/resolution/heal-application-service.js";
+import { createHitPoint } from "../../../domain/battle/model/resource-gauge.js";
 import { loadProductionSnapshot, seedRecorder, unitFrom } from "../../../testing/fixtures/index.js";
 import {
   unexecutedEffectActionIds,
@@ -416,6 +417,68 @@ describe("production Catalog UNIT_LAYLA_NURSE (【商売上手のエンジェル
       transferredAmount: 100,
       appliedAmount: 100,
     });
+  });
+
+  it("IT-UNIT-LAYLA-NURSE-006 [R-HEAL-04] (BOUNDARY): the 100% link transfers the holder's healable amount — the heal capped by the enemy's missing HP — so an enemy at 9500/9900/10000 of 10000 hands 400/100/0 of a 400 heal to Layla and its own HP never moves (SR-299)", () => {
+    const { board, units } = boardWithKansatsuGranted();
+    const healAction: Extract<EffectActionDefinition, { kind: "HEAL" }> = {
+      kind: "HEAL",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_TEST_LAYLA_NURSE_HEAL_CAP"),
+      metadata: { tags: [] },
+      payload: {
+        formula: { kind: "CONSTANT", value: 400 },
+        overheal: "DISCARD",
+        distribution: "NONE",
+      },
+    };
+    for (const { enemyHp, transferred } of [
+      { enemyHp: 9500, transferred: 400 },
+      { enemyHp: 9900, transferred: 100 },
+      { enemyHp: 10000, transferred: 0 },
+    ]) {
+      const healedBoard = units.map((unit) =>
+        unit.battleUnitId === "enemy:front"
+          ? { ...unit, currentHp: createHitPoint(enemyHp, Math.trunc(unit.combatStats.maximumHp)) }
+          : unit,
+      );
+      const enemy = healedBoard.find((unit) => unit.battleUnitId === "enemy:front")!;
+      expect(Math.trunc(enemy.combatStats.maximumHp)).toBe(10000);
+      const subjectBefore = healedBoard.find((unit) => unit.battleUnitId === SUBJECT_ID)!;
+      const { recorder, rootEventId } = seedRecorder(`B_LAYLA_NURSE_HEAL_CAP_${enemyHp}`);
+
+      const healed = applyHealAction(
+        [
+          {
+            targetUnitId: enemy.battleUnitId,
+            effectActionDefinitionId: healAction.effectActionDefinitionId,
+            hitIndex: 1,
+          },
+        ],
+        enemy,
+        healAction,
+        healedBoard,
+        {
+          recorder,
+          turnNumber: 1,
+          cycleNumber: 1,
+          resolutionScopeId: recorder.nextResolutionScopeId(),
+          rootEventId,
+          parentEventId: rootEventId,
+          sourceUnitId: enemy.battleUnitId,
+          effectActions: board.definitions.effectActions,
+        },
+      );
+
+      expect(healed.units.find((unit) => unit.battleUnitId === "enemy:front")!.currentHp).toBe(
+        enemyHp,
+      );
+      expect(healed.units.find((unit) => unit.battleUnitId === SUBJECT_ID)!.currentHp).toBe(
+        subjectBefore.currentHp + transferred,
+      );
+      expect(
+        recorder.getEvents().filter((event) => event.eventType === "HealingTransferred"),
+      ).toHaveLength(transferred > 0 ? 1 : 0);
+    }
   });
 
   it("IT-UNIT-LAYLA-NURSE-005 [R-EFF-09, R-EFF-10]: the ATK debuff and healing link are removed together with the KANSATSU marker when Layla (the grantor) is defeated", () => {

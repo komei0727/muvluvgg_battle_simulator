@@ -1683,7 +1683,7 @@ raw原文の例は `SKL_SHIRANA_LUCKY_EX`（薄暮の宵火）「シールドは
 
 ### APPLY_DAMAGE_LINK
 
-`DMG-007`（Issue #187、R-INT-01 #3・R-LNK-01〜03）。保持者が**受けた**ダメージと同じ量（`linkRate` の割合）を `linkTo` へ追加で発生させる継続効果（`AppliedEffect`）。`APPLY_HEALING_LINK`（回復リンク）とは方向も配分規則も異なる別kindである — 回復リンクは保持者の回復量を転送先へ**移し替える**のに対し、ダメージリンクは元ダメージをそのまま残したうえでリンク先へ**追加で発生**させる。
+`DMG-007`（Issue #187、R-INT-01 #3・R-LNK-01〜03）。保持者が**受けた**ダメージ（軽減後・シールド吸収前）の `linkRate` の割合を元の被害から差し引き、`linkTo` へ分配する継続効果（`AppliedEffect`）。総被害は元ダメージを超えない（`R-LNK-01`／`R-LNK-02`）。`APPLY_HEALING_LINK`（回復リンク）とは対象とする量（ダメージ／回復）が異なる別kindであり、どちらも保持者の分を減らして移し替える。
 
 ```yaml
 kind: APPLY_DAMAGE_LINK
@@ -1700,12 +1700,12 @@ payload:
     dispellable: false
 ```
 
-| フィールド | 型                 | 制約                                         |
-| ---------- | ------------------ | -------------------------------------------- |
-| `linkTo`   | TargetReference    | 実装済みは `SELF`（付与者自身）と `BINDING`  |
-| `linkRate` | number             | `0`以上`1`以下。`1` が `R-LNK-02` の「同量」 |
-| `polarity` | enum               | `BUFF` / `DEBUFF`。省略不可                  |
-| `duration` | DurationDefinition | —                                            |
+| フィールド | 型                 | 制約                                        |
+| ---------- | ------------------ | ------------------------------------------- |
+| `linkTo`   | TargetReference    | 実装済みは `SELF`（付与者自身）と `BINDING` |
+| `linkRate` | number             | `0`以上`1`以下。`1` は元ダメージ全量の分配  |
+| `polarity` | enum               | `BUFF` / `DEBUFF`。省略不可                 |
+| `duration` | DurationDefinition | —                                           |
 
 `polarity` が必須なのは、ダメージリンクが**同じkindのまま両向きに使われる**唯一の防御介入だからである。`APPLY_TARGET_REDIRECT`／`APPLY_COVER`（常に `DEBUFF`）や `APPLY_REFLECT`（常に `BUFF`）と違い、`ACT_CHIZURU_DOMESTIC_PS1_DAMAGE_LINK` は保持者（榊千鶴自身）の被ダメージを敵へ送るため保持者を利し、`ACT_DOROTHEA_PIONEER_PS1_LINK_TO_*` は敵2体へ付与して互いの被ダメージを増やす。`linkRate` は常に正のため `magnitude` の符号からは導けず、既定値を置くと向きを書き忘れた定義が黙って逆向きに分類され、`EFFECT_IMMUNITY` の拒否・`REMOVE_EFFECTS` の解除・`TARGET_HAS_EFFECT` の照会がすべて反対に働く（`APPLY_CONTINUOUS_DAMAGE.continuousDamageKind` と同じ「既定値を置かない」方針）。実データでは自陣・自身へ付与するリンクが `BUFF`、敵へ付与するリンクが `DEBUFF` になる。
 

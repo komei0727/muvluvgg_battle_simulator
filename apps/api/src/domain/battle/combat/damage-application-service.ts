@@ -31,7 +31,11 @@ import {
   settleAttackDeathSurvivalsSteps,
 } from "./damage-hit-point-application.js";
 import type { AttackDeathSurvivalLedger } from "./defensive-intervention-policy.js";
-import { applyLinkedDamageSteps, applyReflectedDamageSteps } from "./damage-propagation.js";
+import {
+  allocateDamageLinks,
+  applyLinkedDamageSteps,
+  applyReflectedDamageSteps,
+} from "./damage-propagation.js";
 import { applySubUnitAdditionalDamageSteps } from "./sub-unit-additional-damage.js";
 import { applyAttackBonusAttacksSteps } from "./attack-bonus-attack.js";
 import {
@@ -630,6 +634,13 @@ export function* applyDamageActionSteps(
       lastEventIdBeforeHp = removal.lastEventId;
     }
 
+    // R-LNK-01／R-LNK-02: リンク分は軽減後・シールド吸収前の量から差し引き、元対象は
+    // 残りだけを自身のシールド・HPへ受ける。
+    const linkDistribution = allocateDamageLinks(
+      damageResult.finalDamage,
+      intervention.damageLinks,
+    );
+
     // R-DMG-05 #6〜#8: 確定したダメージ量の適用（吸収先への振り分け→HP→
     // `HitPointReduced`→`DamageApplied`→`UnitDefeated`→連鎖→R-EFF-07のヒット消費）も、
     // サブユニット追加ダメージ（R-SUB-02）と共有する`applyConfirmedDamageSteps`が行う。
@@ -644,7 +655,7 @@ export function* applyDamageActionSteps(
         damageType: damageAction.payload.damageType,
         piercing,
       },
-      damageResult.finalDamage,
+      linkDistribution.retainedDamage,
       lastEventIdBeforeHp,
     );
     lastEventId = application.lastEventId;
@@ -663,15 +674,15 @@ export function* applyDamageActionSteps(
     }
     lastEventId = yield* consumeThresholdReductions(lastEventId);
 
-    // R-INT-01 #3／R-LNK-01〜03（DMG-007）: 元ダメージの確定後、反射より前に
-    // リンク先ダメージを発生させる（R-INT-01の評価順 #3 → #4）。
+    // R-INT-01 #3／R-LNK-01〜03: 元対象の分を適用した後、反射より前にリンク先へ
+    // 分配分を適用する（R-INT-01の評価順 #3 → #4）。
     const linked = yield* applyLinkedDamageSteps(
       context,
       working,
       targetBeforeDamage.battleUnitId,
       damageAction.payload.damageType,
       damageResult.finalDamage,
-      intervention.damageLinks,
+      linkDistribution.allocations,
       application.damageAppliedEventId ?? lastEventId,
       lastEventId,
     );

@@ -689,12 +689,11 @@ export interface ApplyCoverPayload {
 }
 
 /**
- * DAMAGE_LINK（`DMG-007`、Issue #187、R-LNK-01〜03）: 保持者が**受けた**ダメージと
- * 同量（`linkRate`の割合）のダメージを`linkTo`へ追加で発生させる継続効果。
- * `APPLY_HEALING_LINK`とは方向（被ダメージ／回復）も配分規則も異なる別kindである
- * — 回復リンクは保持者の回復量を転送先へ**移し替える**のに対し、ダメージリンクは
- * 元ダメージをそのまま残したうえでリンク先へ**追加で発生**させる
- * （`14_Catalog定義スキーマ.md`「`APPLY_HEALING_LINK`」）。
+ * DAMAGE_LINK（`DMG-007`、Issue #187、R-LNK-01〜03）: 保持者が**受けた**ダメージ
+ * （軽減後・シールド吸収前）の`linkRate`の割合を元の被害から差し引き、`linkTo`へ
+ * 分配する継続効果。総被害は元ダメージを超えない。`APPLY_HEALING_LINK`とは対象とする
+ * 量（被ダメージ／回復）が異なる別kindである（`14_Catalog定義スキーマ.md`
+ * 「`APPLY_DAMAGE_LINK`」）。
  *
  * `linkTo`は付与時点に解決して`AppliedEffect.damageLink.linkToUnitId`へ焼き込む
  * （`APPLY_HEALING_LINK.transferTo`と同じ「付与時snapshot」規約 — ダメージ適用
@@ -730,7 +729,7 @@ export interface ApplyDamageLinkPayload {
    */
   readonly polarity: "BUFF" | "DEBUFF";
   /**
-   * R-LNK-01/02: リンク先へ発生させる割合。`0`以上`1`以下（`1`が「同量」）。
+   * R-LNK-01/02: リンク先へ発生させる割合。`0`以上`1`以下（`1`は元ダメージ全量の分配）。
    * R-LNK-02「対象数で分割しない」のとおり、保持者が複数のリンクを持つ場合も
    * 各リンクがこの割合をそれぞれ独立に適用する（件数で割らない）。
    */

@@ -291,7 +291,8 @@ interface HealingLinkTransfer {
 /**
  * R-HEAL-04 #2（`M7-005-HEAL-LINK`、Issue #229）: 保持者が持つ回復リンクを付与順
  * （`appliedEffects`の配列順＝付与順、R-TGT-10と同じ定義順評価の規約）に評価し、
- * 各リンクの転送量を確定する。転送量は`切り捨て(転送前回復量 × 転送率)`とし
+ * 各リンクの転送量を確定する。転送前回復量は保持者の実回復可能量（`healAmount`は
+ * 呼び出し側が不足HPで切った値）であり、転送量は`切り捨て(転送前回復量 × 転送率)`とし
  * （R-NUM-02）、その時点の未転送残量を上限とする — 転送率の合計が1を超えても
  * 保持者の回復量が負になることはない。
  *
@@ -416,18 +417,18 @@ export function* applyOneHealSteps(
   // R-HEAL-01 #2/#3＋R-NUM-02: 切り捨ては適用直前の1回だけ。
   const healAmount = truncateFraction(Math.max(0, share * healingModifierMultiplier));
 
-  // R-HEAL-04（M7-005-HEAL-LINK、Issue #229）: 回復リンクの転送分を先に差し引き、
-  // 対象自身のHP上限判定（#3）は転送後の残量に対して行う — 転送された分は対象の
-  // overhealとして破棄されない。
-  const transfers = allocateHealingLinkTransfers(target, healAmount, units);
-  const transferredAmount = transfers.reduce((sum, transfer) => sum + transfer.amount, 0);
-  const retainedAmount = healAmount - transferredAmount;
-
+  // R-HEAL-04 #1: 転送の基準は保持者の最大HP上限で切った実回復可能量（補正後回復量と
+  // 不足HPの小さい方）である。上限を超える分は転送前に保持者側で破棄し、満タンの
+  // 保持者からは何も転送しない。転送後の残りは不足HP以内に収まるため、保持者のHPは
+  // 上限を超えない。
   const hpBefore = target.currentHp;
   const currentMax = truncateFraction(target.combatStats.maximumHp);
-  const hpAfter = Math.min(currentMax, hpBefore + retainedAmount);
-  const appliedAmount = hpAfter - hpBefore;
-  const discardedAmount = retainedAmount - appliedAmount;
+  const healableAmount = Math.min(healAmount, Math.max(0, currentMax - hpBefore));
+  const transfers = allocateHealingLinkTransfers(target, healableAmount, units);
+  const transferredAmount = transfers.reduce((sum, transfer) => sum + transfer.amount, 0);
+  const appliedAmount = healableAmount - transferredAmount;
+  const hpAfter = hpBefore + appliedAmount;
+  const discardedAmount = healAmount - healableAmount;
 
   let nextUnits =
     appliedAmount > 0
