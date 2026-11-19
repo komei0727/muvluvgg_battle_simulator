@@ -919,6 +919,92 @@ describe("applyEffectActionGroups", () => {
       );
     });
 
+    it("UT-R-EFF-09-041 [R-EFF-09, R-EFF-10]: a CHILD granted after the recorded PARENT grant was removed in the same skill use is skipped, and does not fall back to an older grant", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const parentMarkerId = createMarkerId("MARKER_PARENT");
+      const group = {
+        linkedEffectGroupId: "REMOVED_PARENT_LINK",
+        linkedEffectGroupScope: "SKILL_USE",
+      } as const;
+      const baseParent = markerAction("ACT_PARENT_MARKER", parentMarkerId);
+      const parent: EffectActionDefinition =
+        baseParent.kind === "APPLY_MARKER"
+          ? {
+              ...baseParent,
+              payload: {
+                ...baseParent.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "PARENT" },
+              },
+            }
+          : baseParent;
+      const baseChildMarker = markerAction("ACT_CHILD_MARKER", createMarkerId("MARKER_CHILD"));
+      const childMarker: EffectActionDefinition =
+        baseChildMarker.kind === "APPLY_MARKER"
+          ? {
+              ...baseChildMarker,
+              payload: {
+                ...baseChildMarker.payload,
+                duration: { dispellable: true, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChildMarker;
+      const baseChild = statModAction("ACT_CHILD_ATK_UP");
+      const childEffect: EffectActionDefinition =
+        baseChild.kind === "APPLY_STAT_MOD"
+          ? {
+              ...baseChild,
+              payload: {
+                ...baseChild.payload,
+                duration: { dispellable: false, ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChild;
+      const removeOne: EffectActionDefinition = {
+        ...removeMarkerAction("ACT_REMOVE_ONE_PARENT", parentMarkerId),
+        payload: { markerId: parentMarkerId, count: 1 },
+      } as EffectActionDefinition;
+      const effectActions = new Map(
+        [parent, childMarker, childEffect, removeOne].map((d) => [d.effectActionDefinitionId, d]),
+      );
+      const { recorder, rootEventId } = seedRecorder();
+      // 親A → 親B（記録される直近の付与分）→ 古い順に1個ずつ2回解除して両方を外した
+      // あとに子を付与する。記録が残っていても、その付与分はもう存在しない。
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, parent.effectActionDefinitionId),
+          singleActionStep(2, true, ally.battleUnitId, removeOne.effectActionDefinitionId),
+          singleActionStep(3, true, ally.battleUnitId, removeOne.effectActionDefinitionId),
+          singleActionStep(4, true, ally.battleUnitId, childEffect.effectActionDefinitionId),
+          singleActionStep(5, true, ally.battleUnitId, childMarker.effectActionDefinitionId),
+        ],
+        targetUnitIds: [ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const result = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+
+      const holder = result.units.find((u) => u.battleUnitId === ally.battleUnitId)!;
+      expect(holder.markerStates).toEqual([]);
+      expect(holder.appliedEffects).toEqual([]);
+      const childResults = recorder
+        .getEvents()
+        .filter(
+          (e): e is Extract<BattleDomainEvent, { eventType: "EffectActionCompleted" }> =>
+            e.eventType === "EffectActionCompleted" &&
+            (e.payload.effectActionDefinitionId === childEffect.effectActionDefinitionId ||
+              e.payload.effectActionDefinitionId === childMarker.effectActionDefinitionId),
+        )
+        .map((e) => e.payload.resultKind);
+      expect(childResults).toEqual(["SKIPPED", "SKIPPED"]);
+    });
+
     it("UT-R-EFF-09-038 [R-EFF-09, R-EFF-10]: when one skill use grants the same PARENT Marker twice to a holder, each CHILD links to the grant made just before it, so removing one grant removes only its own child", () => {
       const actor = unit("ACTOR", "ALLY");
       const ally = unit("ALLY", "ALLY");

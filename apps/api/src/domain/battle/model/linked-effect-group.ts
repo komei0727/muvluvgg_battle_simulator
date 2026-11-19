@@ -140,7 +140,8 @@ export function latestLinkedParentAnchor(
  * R-EFF-09: `SKILL_USE`範囲の`CHILD`が紐づく付与分。同じ保持ユニットへ同じスキル使用で
  * 付与された同じグループの`PARENT`のうち、最も新しいものの付与分を返す。`grants`
  * （EffectSequence内の直近の親付与結果）に記録があればそれを優先し、直近の親が
- * 付与されなかった場合は`undefined`（先の付与分へ紐づけない）。`SKILL_USE`以外や
+ * 付与されなかった場合や、記録した付与分が既に解除・失効している場合は`undefined`
+ * （先の付与分へ紐づけない）。`SKILL_USE`以外や
  * `CHILD`以外では常に`undefined`。
  */
 export function findLinkedGroupAnchor(
@@ -159,10 +160,22 @@ export function findLinkedGroupAnchor(
     return undefined;
   }
   const recorded = grants?.get(linkedGroupGrantKey(groupId, holder.battleUnitId));
-  if (recorded === null) {
-    return undefined;
+  if (recorded === undefined) {
+    return latestLinkedParentAnchor(holder, groupId, skillUseId);
   }
-  return recorded ?? latestLinkedParentAnchor(holder, groupId, skillUseId);
+  // 記録した直近の付与分が、その後の解除・失効で既に無ければ子は紐づけない。
+  // 古い付与分へ付け替えると、付与されなかった付与分の子が別の親へ紐づいてしまう。
+  return recorded !== null && holdsLinkedParent(holder, recorded) ? recorded : undefined;
+}
+
+/** R-EFF-09: 保持ユニットが、指定した付与分の`PARENT`を現在も保持しているか。 */
+function holdsLinkedParent(holder: BattleUnit, anchor: string): boolean {
+  const isParent = (duration: EffectDurationState): boolean =>
+    duration.definition.linkedEffectGroupRole === "PARENT" && duration.linkedGroupAnchor === anchor;
+  return (
+    holder.markerStates.some((marker) => isParent(marker.duration)) ||
+    holder.appliedEffects.some((effect) => isParent(effect.duration))
+  );
 }
 
 /**
