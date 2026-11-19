@@ -347,15 +347,18 @@ metadata:
 
 ### traits
 
-| フィールド                           | 型          | 必須 | 制約                                                            |
-| ------------------------------------ | ----------- | ---- | --------------------------------------------------------------- |
-| `priorityAttack`                     | boolean     | ✓    | 先制攻撃なら true                                               |
-| `simultaneousActivationLimited`      | boolean     | ✓    | 同一イベントで候補になった同時発動制限PSのうち1件だけを発動する |
-| `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし             |
-| `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                   |
-| `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                              |
-| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1                                            |
-| `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                        |
+| フィールド                           | 型          | 必須 | 制約                                                               |
+| ------------------------------------ | ----------- | ---- | ------------------------------------------------------------------ |
+| `priorityAttack`                     | boolean     | ✓    | 先制攻撃なら true                                                  |
+| `simultaneousActivationLimited`      | boolean     | ✓    | 同一イベントで候補になった同時発動制限PSのうち1件だけを発動する    |
+| `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし                |
+| `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                      |
+| `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                                 |
+| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1                                               |
+| `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                           |
+| `firstTriggerOnly`                   | boolean     | —    | PSのみ。同じ解決スコープで最初に一致した契機だけを発動判定にかける |
+
+`firstTriggerOnly: true`（`R-PS-07`、Issue #831）のPSは、同じ解決スコープでtriggerが最初に一致した契機だけを発動判定にかける。`activationCondition`は候補化の時点では評価せず、発動直前確認（`R-PS-04`）で評価する。そこで不成立になった場合も発動済み集合へ入れ、同じスコープの後続の契機では発動しない。「最初に命中させた敵が元攻撃で倒れていれば、後続の命中対象へ振り替えず発動しない」を表す（`SKL_OLGA_NADYA_BOND_PS1`）。AS/EXへの宣言はCatalogロード時点で拒否する。
 
 `exclusiveActivationGroupId` が同一の PS が同じ event / root action で同時に候補になった場合、同一グループ内で発動できるのは1件だけとする。選択順は `R-PS-02` と `R-PS-03` に従い、選ばれなかった候補は同じ event では再候補化しない。
 
@@ -501,7 +504,7 @@ selector:
 | ----------------- | ------------------------ | -------- | --------------------------------------------------------------------------- |
 | `kind`            | enum                     | ✓        | `SELECT` / `SELF` / `TRIGGER_SOURCE` / `TRIGGER_TARGET` / `BINDING_DERIVED` |
 | `side`            | enum                     | 条件付き | `ALLY` / `ENEMY` / `ALL`                                                    |
-| `count`           | integer / `ALL`          | 条件付き | `SELECT` の場合必須                                                         |
+| `count`           | integer / `ALL`          | 条件付き | `SELECT` の場合必須。`BINDING_DERIVED` は任意（省略時は範囲内の全員）       |
 | `filters`         | TargetFilterDefinition[] | —        | 省略時空配列                                                                |
 | `order`           | TargetOrderEntry[]       | —        | 省略時 `DEFAULT`。文字列（`TargetOrderKey`）とオブジェクト形式が混在できる  |
 | `area`            | AreaDefinition           | —        | 範囲指定                                                                    |
@@ -537,6 +540,7 @@ selector:
 | `BACK_ROW`                        | 後列優先                                             |
 | `LEFT_TO_RIGHT`                   | 絶対左から右                                         |
 | `SELF_LOWEST_PRIORITY`            | 自身を末尾へ回す（hard excludeではなく自身以外優先） |
+| `ADJACENT_DIRECTION`              | 基準対象から上→左→右→下の順（Issue #831、後述）      |
 
 | kind（オブジェクト形式） | 追加フィールド                                           | 意味                                             |
 | ------------------------ | -------------------------------------------------------- | ------------------------------------------------ |
@@ -546,6 +550,18 @@ selector:
 `LOWEST_HP_RATIO`/`HIGHEST_HP_RATIO`の「HP割合」は、`HP_RATIO`フィルタ・`TARGET_STATE.field`・DamageModifierの`HP_RATIO_COMPARISON`と同じ基準（R-NUM-02）で、現在HP÷切り捨て後の最大HPとする。分母を切り捨て前の`combatStats.maximumHp`のまま使うと、満タンのHP割合がユニットごとに異なる値になり、同率判定が成立しない（Issue #585）。
 
 `LOWEST_CURRENT_HP`は`LOWEST_HP_RATIO`と異なり、最大HPで正規化しない現在HPの絶対値で比較する。「最もHPが低い敵単体」のように割合ではなく残量そのものを基準にする原文向け（Issue #674）。`HIGHEST_CURRENT_HP`はその降順版で、「最もHPの多い敵」のように現在HPの絶対値が最大の対象を優先する原文向け（Issue #682）。
+
+`ADJACENT_DIRECTION`（`R-TGT-04`）は「対象に隣接する2体」のように隣接から上限数だけ選ぶ原文向けで、`area: ADJACENT_ORTHOGONAL`と組み合わせた`BINDING_DERIVED`でだけ使える（他の`area`・`area`なしはCatalogロード時点で拒否する）。上下左右は陣営の前後ではなく共通座標（`R-POS-01`、俯瞰図）で決め、yの小さい側を上、xの小さい側を左とする。したがって敵盤面では後列が基準の上、味方盤面では前列が基準の上になる。上限は`count: 2`で書く。「対象に隣接する敵」のように全員を指す原文には`count`を付けない。
+
+```yaml
+selector:
+  kind: BINDING_DERIVED
+  side: ENEMY
+  base: { kind: BINDING, targetBindingId: TGT_BASE }
+  area: { kind: ADJACENT_ORTHOGONAL }
+  order: [ADJACENT_DIRECTION]
+  count: 2
+```
 
 `HIGHEST_CUMULATIVE_DAMAGE_DEALT`は「最も累計ダメージの多い味方」のように、戦闘開始からそのユニットが与えたダメージの累計（`BattleUnit.cumulativeDamageDealt`）が最大の対象を優先する（Issue #700）。累計は`DamageApplied`／`ContinuousDamageApplied`の`hitPointDamage + discardedDamage`を付与者へ加算した値で、シールド・サブユニットに吸収された分を含まずオーバーキル分を含む。戦闘結果の`unitSummaries[].damageDealt`と同じ定義であり、表示上の与ダメージと選ばれる対象が食い違わないよう両者を揃える（`IT-AUDIT-DMGDEALT-001`が全production戦闘で一致を検証する）。Memory由来の継続ダメージ（付与者ユニットを持たない、R-MEM-04）はどのユニットにも計上しない。一度も与ダメージが無いユニットは0として並ぶ。「自身以外を優先」と併用する場合は`["SELF_LOWEST_PRIORITY", "HIGHEST_CUMULATIVE_DAMAGE_DEALT"]`の順に書く。
 
@@ -777,14 +793,18 @@ target:
   targetBindingId: TGT_PRIMARY
 ```
 
-| kind                   | 追加フィールド    | 意味                                    |
-| ---------------------- | ----------------- | --------------------------------------- |
-| `BINDING`              | `targetBindingId` | targetBindings で束縛した対象           |
-| `SELF`                 | なし              | 使用者/発動者                           |
-| `TRIGGER_SOURCE`       | なし              | trigger event の source                 |
-| `TRIGGER_TARGET`       | なし              | trigger event の target                 |
-| `LAST_ACTION_TARGETS`  | なし              | 直前 action の対象                      |
-| `LAST_DAMAGED_TARGETS` | なし              | 直前にHP/シールドへダメージを受けた対象 |
+| kind                     | 追加フィールド    | 意味                                                            |
+| ------------------------ | ----------------- | --------------------------------------------------------------- |
+| `BINDING`                | `targetBindingId` | targetBindings で束縛した対象                                   |
+| `SELF`                   | なし              | 使用者/発動者                                                   |
+| `TRIGGER_SOURCE`         | なし              | trigger event の source                                         |
+| `TRIGGER_TARGET`         | なし              | trigger event の target                                         |
+| `TRIGGER_TARGET_SINGLE`  | なし              | `TRIGGER_TARGET`と同じ。ちょうど1体であることを実行時に検証する |
+| `TRIGGER_PRIMARY_TARGET` | なし              | trigger event の target のうち所有者から見た敵の先頭1体（後述） |
+| `LAST_ACTION_TARGETS`    | なし              | 直前 action の対象                                              |
+| `LAST_DAMAGED_TARGETS`   | なし              | 直前にHP/シールドへダメージを受けた対象                         |
+
+`TRIGGER_PRIMARY_TARGET`（`R-PS-04`、Issue #831）は、契機イベントの対象（元スキルの対象を対象優先度順に並べたもの）のうち、PS所有者から見た敵の先頭1体を指す。元スキルが自身や味方を対象に含んでいても、その分は飛ばす。先頭が戦闘不能でも後続の敵へ繰り上げない。「味方が攻撃した敵単体へ追撃する」PSは、この参照を追撃先にしたうえで`activationCondition`に`TARGET_STATE`（`field: IS_ALIVE`）を置き、先頭が倒れていればPS全体を発動させない。高々1体に解決されるため、`BRANCH`の`condition`からも参照できる。
 
 ---
 
@@ -2070,6 +2090,7 @@ condition:
 | `SELF_MEMORY_EQUIPPED`  | `memoryDefinitionId`                                    | 自身（`owner`）を含む陣営の編成に指定メモリーが装備されているか（Issue #674）                         |
 | `ATTRIBUTE_ADVANTAGE`   | `target`                                                | 自身が`target`に対して有利属性か（`R-ATR-05`、Issue #762、後述）                                      |
 | `SELECTED_TARGET_STATE` | `selector`, `field`, `op`, `value`                      | 評価時点に`selector`で選んだ対象の`TARGET_STATE`比較。PSの発動判定専用（`R-PS-09`、Issue #762、後述） |
+| `TRIGGER_SKILL_USE_HIT` | `target`                                                | 契機のスキル使用が`target`へ1ヒット以上命中したか。PSの発動判定専用（`R-PS-04`、Issue #831、後述）    |
 
 `MARKER_COUNT_SCALE`・`MARKER_COUNT`（order）・`TARGET_HAS_MARKER`はいずれも、単一の`markerId`に代えて`markerIds`（1件以上、重複不可）を指定できる。両方の指定や、どちらも無い指定はCatalogロード時点で拒否する。`markerIds`を指定した場合、所持数は列挙したマーカーのスタック数の合計になる。`TARGET_HAS_MARKER`は、列挙したマーカーを1つも所持していなければ`countCondition`に関わらず不成立とする（単一`markerId`の不所持と同じ規約）。用途は寿命の違う同名マーカーを合算して数えることである — `MarkerState`はmarkerIdごとに1インスタンス・1 Durationしか持てないため（R-EFF-10）、寿命の違うスタックはmarkerIdを分けて付与し、所持数を問う側で合計する。
 
@@ -2092,6 +2113,22 @@ activationCondition:
   field: ATTRIBUTE
   op: EQ
   value: CUTE
+```
+
+`TRIGGER_SKILL_USE_HIT`（`R-PS-04`）は、PSの契機イベントが属するスキル使用が`target`のいずれかへ1ヒット以上命中したかを問う。単位は`hitCondition`と同じで、全ヒット回避だけが不成立になる（シールド全吸収・ダメージ無効は命中）。置けるのはPSの`triggers[].condition`と`activationCondition`だけで、`counterUpdates[].trigger.condition`・resolution step・AS/EXの`activationCondition`・効果の`expiration.conditions`/`duration.counterUpdates`は`TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER`として、Memoryの評価文脈は`MEMORY_REQUIRES_SOURCE_UNIT`として拒否する。「元の攻撃の先頭対象が回避した場合は発動しない」（`SKL_JULIE_SNOW_PS2`）を表す。
+
+```yaml
+activationCondition:
+  kind: AND
+  conditions:
+    - {
+        kind: TARGET_STATE,
+        target: { kind: TRIGGER_PRIMARY_TARGET },
+        field: IS_ALIVE,
+        op: EQ,
+        value: true,
+      }
+    - { kind: TRIGGER_SKILL_USE_HIT, target: { kind: TRIGGER_PRIMARY_TARGET } }
 ```
 
 `EVENT_PAYLOAD`の`field`は、そのtriggerの`eventType`が実際に持つpayloadプロパティ名（[`08_ドメインイベント.md`](./08_ドメインイベント.md)の各payload節）を直接指す。`EffectApplied`で効果の分類を発動契機にする場合は、M7-011（Issue #265）が追加した`categories`（`BUFF`/`DEBUFF`/`STATUS`等の配列。R-STS-01により状態異常は`STATUS`と`DEBUFF`の両方を持つ）を`op: CONTAINS`で、効果の種類を見る場合は`effectKind`（`EffectActionDefinition.kind`）を`op: EQ`で判定する。状態異常の種別まで絞り込む場合は`statusKind`を`op: EQ`で見る。

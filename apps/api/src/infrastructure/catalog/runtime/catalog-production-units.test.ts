@@ -671,6 +671,11 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （`linkedEffectGroupScope: SKILL_USE`）へ揃えた（Issue #830、戦術演習版の同じスキルを
     // 含む）。闘志の補正は親の解除へ連動させ、`SKL_HIIRO_FREEWOLF_PS1`（戦術演習版を含む）の
     // 補正を個別に外す`REMOVE_EFFECTS`4件を削除した。新規・削除したUnit・Skillはない。
+    // `2026-11-19.2` は隣接2体を上→左→右→下の最大2体へ絞り、追撃PSを元スキルの先頭敵1体へ
+    // 向けてその生存（ジュリーPS2は命中も）を発動条件にし、被弾者・最初の追撃対象が倒れた
+    // 緋色PS1・オルガPS1を不発にした（Issue #831、戦術演習版の同じスキルを含む）。壬姫AS1の
+    // 2体目・白奈AS2のシールド先・緋色AS1の横列解除も直した。新規・削除したUnit・Skill・
+    // EffectActionはない。
     expect(catalog.catalogRevision).toBe("2026-11-19.2");
   });
 
