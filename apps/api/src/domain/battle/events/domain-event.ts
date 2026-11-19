@@ -193,6 +193,11 @@ export interface BattleDomainEventPayloadMap {
      * たびに発動」を`EVENT_PAYLOAD`で判定できるよう追加した。
      */
     readonly skillType: SkillType;
+    /**
+     * R-ATM-02: `SkillUseStarting.isAttack`と同じ値。「アクティブスキルで攻撃した後」の
+     * PSを、攻撃を含まないASの完了で発動させないための`EVENT_PAYLOAD`条件が参照する。
+     */
+    readonly isAttack: boolean;
     readonly resolvedStepCount: number;
     readonly targetUnitIds: readonly BattleUnitId[];
   };

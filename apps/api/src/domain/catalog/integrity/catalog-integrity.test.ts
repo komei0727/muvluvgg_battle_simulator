@@ -4691,6 +4691,42 @@ describe("buildCatalogIndex — kindKey group consistency (R-STA-03, Issue #519)
       ).toThrow(DomainValidationError);
     });
 
+    it("UT-R-PS-04-025: accepts TRIGGER_SKILL_USE_TARGET only in a PS activationCondition or trigger condition, and rejects it in a Memory", () => {
+      const receivedBySelf = {
+        kind: "TRIGGER_SKILL_USE_TARGET",
+        target: { kind: "SELF" },
+      } as const;
+      for (const where of [{ activationCondition: receivedBySelf }, { trigger: receivedBySelf }]) {
+        expect(
+          rulesOf(withSkill(psSkillWithCondition("SKL_PS_RECEIVED", where), "passive")),
+        ).toEqual([]);
+      }
+      expect(
+        rulesOf(
+          withSkill(
+            psSkillWithCondition("SKL_PS_RECEIVED_BAD", { counterUpdateTrigger: receivedBySelf }),
+            "passive",
+          ),
+        ),
+      ).toContain("TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER");
+      expect(() =>
+        psSkillWithCondition("SKL_PS_RECEIVED_STEP", { targetCondition: receivedBySelf }),
+      ).toThrow(DomainValidationError);
+      const defs = baseDefinitions();
+      expect(
+        rulesOf({
+          ...defs,
+          effectActions: [...defs.effectActions, memoryModifierAction("ACT_MEMORY_STAT_MOD")],
+          memories: [
+            memoryWithTrigger("MEM_RECEIVED_COND", {
+              kind: "TRIGGER_SKILL_USE_TARGET",
+              target: { kind: "TRIGGER_TARGET" },
+            }),
+          ],
+        }),
+      ).toContain("MEMORY_REQUIRES_SOURCE_UNIT");
+    });
+
     it("UT-R-PS-09-007: rejects SELECTED_TARGET_STATE in an effect's expiration.conditions (a holder-scoped expiry, not a PS activation check)", () => {
       const action = createEffectActionDefinition(
         {

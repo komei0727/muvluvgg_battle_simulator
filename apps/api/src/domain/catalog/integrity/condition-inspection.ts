@@ -38,6 +38,7 @@ export function collectConditionTargetReferences(
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
     case "TRIGGER_SKILL_USE_HIT":
+    case "TRIGGER_SKILL_USE_TARGET":
       return [condition.target];
     case "AND":
     case "OR":
@@ -198,6 +199,7 @@ export function collectConditionTargetReferencePaths(
     case "POSITION_RELATION":
     case "TARGET_SET_COUNT":
     case "TRIGGER_SKILL_USE_HIT":
+    case "TRIGGER_SKILL_USE_TARGET":
       return [{ reference: condition.target, path }];
     case "AND":
     case "OR":
@@ -263,12 +265,15 @@ export function conditionContainsSelectedTargetState(condition: ConditionDefinit
 }
 
 /**
- * R-PS-04: `TRIGGER_SKILL_USE_HIT`を評価できるのはPSの候補検出・発動直前確認
- * （trigger条件・PSの`activationCondition`）だけで、契機のスキル使用の命中を
- * 渡す経路は他に無い。
+ * R-PS-04: `TRIGGER_SKILL_USE_HIT`・`TRIGGER_SKILL_USE_TARGET`を評価できるのはPSの
+ * 候補検出・発動直前確認（trigger条件・PSの`activationCondition`）だけで、契機の
+ * スキル使用の命中・処理対象を渡す経路は他に無い。
  */
 export function conditionContainsTriggerSkillUseHit(condition: ConditionDefinition): boolean {
-  return conditionContainsKind(condition, "TRIGGER_SKILL_USE_HIT");
+  return (
+    conditionContainsKind(condition, "TRIGGER_SKILL_USE_HIT") ||
+    conditionContainsKind(condition, "TRIGGER_SKILL_USE_TARGET")
+  );
 }
 
 /**
@@ -315,6 +320,7 @@ export function conditionRequiresSourceUnit(condition: ConditionDefinition): boo
     case "ATTRIBUTE_ADVANTAGE":
     case "SELECTED_TARGET_STATE":
     case "TRIGGER_SKILL_USE_HIT":
+    case "TRIGGER_SKILL_USE_TARGET":
     case "TRIGGER_SKILL_USE_DAMAGE":
       return true;
     case "ALIVE_UNIT_COUNT":

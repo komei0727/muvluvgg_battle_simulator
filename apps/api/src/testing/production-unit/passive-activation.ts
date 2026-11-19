@@ -13,6 +13,7 @@ import type { ResolutionPhase } from "../../domain/catalog/definitions/condition
 import type { RandomSource } from "../../domain/ports/random-source.js";
 import type { ActionId, DomainEventId, ResolutionScopeId } from "../../domain/shared/event-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
+import { createEffectActionDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { SequenceRandomSource } from "../random/sequence-random-source.js";
 
 /**
@@ -58,7 +59,15 @@ export interface PassiveTriggerEvent<Type extends BattleDomainEventType> {
   readonly sourceUnitId?: BattleUnitId;
   readonly targetUnitIds?: readonly BattleUnitId[];
   readonly payload: BattleDomainEventPayloadMap[Type];
+  /**
+   * 契機イベントが属するスキル使用が実際にEffectActionを処理した対象。指定すると、
+   * 同じ`skillUseId`の`EffectActionStarting`を先に記録してから契機を発行する
+   * （`TRIGGER_SKILL_USE_TARGET`「自身がそのPSを受けたか」は記録から読むため）。
+   */
+  readonly receivedBy?: readonly BattleUnitId[];
 }
+
+const RECEIVED_EFFECT_ACTION_ID = createEffectActionDefinitionId("ACT_TEST_TRIGGER_RECEIVED");
 
 export interface OpenPassiveChainOptions {
   readonly definitions: BattleDefinitions;
@@ -122,12 +131,34 @@ export function openPassiveChain(options: OpenPassiveChainOptions): PassiveChain
     resolutionScopeId,
     rootEventId: actionStarted.eventId,
     fire(event, units) {
+      const skillUseId = event.receivedBy === undefined ? undefined : recorder.nextSkillUseId();
+      if (event.receivedBy !== undefined && skillUseId !== undefined) {
+        recorder.record({
+          eventType: "EffectActionStarting",
+          category: "TIMING",
+          turnNumber,
+          cycleNumber: 1,
+          actionId,
+          skillUseId,
+          resolutionScopeId,
+          parentEventId: actionStarted.eventId,
+          rootEventId: actionStarted.eventId,
+          ...(event.sourceUnitId === undefined ? {} : { sourceUnitId: event.sourceUnitId }),
+          targetUnitIds: event.receivedBy,
+          payload: {
+            effectActionDefinitionId: RECEIVED_EFFECT_ACTION_ID,
+            kind: "APPLY_STAT_MOD",
+            targetUnitIds: event.receivedBy,
+          },
+        });
+      }
       const recorded = recorder.record({
         eventType: event.eventType,
         category: event.category,
         turnNumber,
         cycleNumber: 1,
         actionId,
+        ...(skillUseId === undefined ? {} : { skillUseId }),
         resolutionScopeId,
         parentEventId: actionStarted.eventId,
         rootEventId: actionStarted.eventId,

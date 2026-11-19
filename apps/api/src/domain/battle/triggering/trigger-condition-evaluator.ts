@@ -129,7 +129,7 @@ export interface RuntimeCounterLookupContext {
   readonly memoriesBySide?: Readonly<Record<Side, readonly MemoryDefinition[]>>;
   /**
    * 契機イベントが属するスキル使用の記録（R-PS-04）。`TRIGGER_SKILL_USE_HIT`が命中を、
-   * `TRIGGER_PRIMARY_TARGET`が実際に処理した対象の順を読む。PSの候補検出・発動直前確認
+   * `TRIGGER_SKILL_USE_TARGET`・`TRIGGER_PRIMARY_TARGET`が実際に処理した対象を読む。PSの候補検出・発動直前確認
    * だけが渡す。
    */
   readonly triggerSkillUse?: TriggerSkillUseRecord;
@@ -533,6 +533,18 @@ export function evaluateTriggerCondition(
       const hit = context.triggerSkillUse.hitUnitIds();
       return resolveTargetReferenceIds(condition.target, context.owner, event, context).some((id) =>
         hit.has(id),
+      );
+    }
+    case "TRIGGER_SKILL_USE_TARGET": {
+      if (context?.triggerSkillUse === undefined) {
+        throw new DomainValidationError(
+          "condition",
+          'kind "TRIGGER_SKILL_USE_TARGET" requires a context with triggerSkillUse (PS trigger / activationCondition only)',
+        );
+      }
+      const processed = context.triggerSkillUse.processedTargetUnitIds() ?? [];
+      return resolveTargetReferenceIds(condition.target, context.owner, event, context).some((id) =>
+        processed.includes(id),
       );
     }
     case "SELECTED_TARGET_STATE": {

@@ -83,6 +83,14 @@ const SUBJECT_WITH_ONE_EX_GAUGE: BoardOverrides = {
 };
 
 /**
+ * PS2の発動判定がちょうど成立する盤面（SR-154）: EX2・PP1・HPちょうど50%。PPを払った後の
+ * 基本EX獲得は発動判定へ先取りしないため、EXは判定時点で2以上が要る。
+ */
+const SUBJECT_READY_FOR_PS2: BoardOverrides = {
+  subject: { state: { currentExtraGauge: 2, currentPp: 1 } },
+};
+
+/**
  * PS3の閾値到達を作る一撃。自身(NANAE)の最大HP×20%＝2000ちょうどのダメージを
  * OTHER_ALLYへ与え、`CUMULATIVE_DAMAGE_THRESHOLD`をちょうど跨がせる。
  * 対象タイプ（PHYSICAL/AGILE/ENERGY）は被弾する`ally:front`側のboard設定で作り分ける。
@@ -294,9 +302,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:front", skillType: "AS" }),
     },
     expected: {
-      // PS1自身の`PassiveResolved`がPS2の自己参照トリガーを満たし
-      // （HP比率50%以上のまま・PS1のPP消費でEXゲージが0→1になり条件成立）、
-      // 同じ解決スコープでPS2も連鎖発動する。
+      // PS1のPP消費でEXゲージが0→1になるだけなので、PS1自身の`PassiveResolved`では
+      // PS2の発動判定（EX2以上）を満たさず連鎖しない（SR-154）。
+      actions: [
+        { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_REDIRECT", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_COVER", targets: ["enemy:front"] },
+      ],
+      effectsApplied: [
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_REDIRECT",
+          magnitude: 0,
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_COVER",
+          magnitude: 1,
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
+    intent: "(連鎖): PS1の後にEXゲージが2以上あれば、PS1自身の解決を契機にPS2が連鎖する",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
+      trigger: unitBeingAttacked({ source: "enemy:front", target: "ally:front", skillType: "AS" }),
+    },
+    board: SUBJECT_WITH_ONE_EX_GAUGE,
+    expected: {
       actions: [
         { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_REDIRECT", targets: ["enemy:front"] },
         { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS1_COVER", targets: ["enemy:front"] },
@@ -321,8 +362,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
       ],
       // PP: PS1消費(-1)→PS2消費(-1)→PS2の+2加算で4へ戻る（収支0）。
-      // EX_GAUGE: PS1のPP消費由来+1→PS2のPP消費由来+1(合計2)→EX_DOWN(-2)で0へ戻る（収支0）。
-      // いずれも収支が動かないため`resources`は現れない。
+      // EX_GAUGE: 1→PS1のPP消費由来+1で2（PS2の判定成立）→PS2のPP消費由来+1で3→
+      // EX_DOWN(-2)で1へ戻る（収支0）。いずれも収支が動かないため`resources`は現れない。
     },
   },
   {
@@ -348,7 +389,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
       }),
     },
-    board: SUBJECT_WITH_ONE_EX_GAUGE,
+    board: SUBJECT_READY_FOR_PS2,
     expected: {
       actions: [
         { effectActionDefinitionId: "ACT_NANAE_SOVEREIGN_PS2_EX_DOWN", targets: ["ally:subject"] },
@@ -357,11 +398,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
       ],
       // 攻撃力1000×0.125=125。
       hpDeltas: { "ally:subject": 125 },
-      // R-ACT-03のPP消費由来EX獲得(+1)後、盤面の1と合わせて2をEX_DOWN(-2)が
-      // ちょうど0まで消費する。PPはコスト消費(-1)と加算(+2、上限4で頭打ち)が
-      // 相殺し収支が動かない。
-      resources: [{ unitId: "ally:subject", resource: "EX_GAUGE", delta: -1 }],
+      // EX: 2 → PP消費由来の基本EX獲得(+1)で3 → EX_DOWN(-2)で最終1。
+      // PP: 1 → コスト消費(-1)で0 → 加算(+2)で最終2。
+      resources: [
+        { unitId: "ally:subject", resource: "PP", delta: 1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: -1 },
+      ],
     },
+  },
+  {
+    skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS2",
+    intent:
+      "(不成立): 自身のEXゲージが1の場合、PP消費後の基本EX獲得を先取りせず発動しない（SR-154）",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS2",
+      trigger: passiveResolved({
+        actor: "ally:subject",
+        skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
+      }),
+    },
+    board: SUBJECT_WITH_ONE_EX_GAUGE,
+    expected: { activated: false },
+  },
+  {
+    skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS2",
+    intent: "(不成立): EXゲージが2あってもPPが0の場合は発動しない",
+    use: {
+      kind: "PASSIVE",
+      skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS2",
+      trigger: passiveResolved({
+        actor: "ally:subject",
+        skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
+      }),
+    },
+    board: { subject: { state: { currentExtraGauge: 2, currentPp: 0 } } },
+    expected: { activated: false },
   },
   {
     skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS2",
@@ -374,7 +446,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         skillDefinitionId: "SKL_NANAE_SOVEREIGN_PS1",
       }),
     },
-    board: { subject: { state: { currentHp: 4000, currentExtraGauge: 1 } } },
+    board: { subject: { state: { currentHp: 4000, currentExtraGauge: 2 } } },
     expected: { activated: false },
   },
   {
@@ -536,8 +608,9 @@ describe("production Catalog UNIT_NANAE_SOVEREIGN (【穹を統べる虹色の�
     ).toEqual([]);
   });
 
-  it("IT-UNIT-NANAE-SOVEREIGN-004: PS2's self-referencing PassiveResolved trigger activates exactly once when the EX_GAUGE gate has exactly 1 to spend, instead of chaining indefinitely", () => {
-    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SUBJECT_WITH_ONE_EX_GAUGE);
+  it("IT-UNIT-NANAE-SOVEREIGN-004: PS2's self-referencing PassiveResolved trigger activates exactly once when the EX_GAUGE gate has exactly 2 to spend, instead of chaining indefinitely", () => {
+    // 1回目の解決後はEXが1へ減るため、自身のPassiveResolvedで再判定してもEX2以上を満たさない。
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SUBJECT_READY_FOR_PS2);
     const chain = openPassiveChain({
       definitions: board.definitions,
       actorUnitId: "ally:subject",

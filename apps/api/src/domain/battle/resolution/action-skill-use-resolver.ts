@@ -353,6 +353,12 @@ export function resolveSkillUse(
     },
   });
 
+  // `resolveSkillOrder`（`plan`）がkind==="IMMEDIATE"を検証済み。CHARGEのスキルは
+  // `resolveChargeStart`へ振り分けられ、`SkillUseStarting`自体を発行しない。
+  const isAttack = containsAttack(
+    skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+    definitions.effectActions,
+  );
   const skillUseStarting = recorder.record({
     eventType: "SkillUseStarting",
     category: "TIMING",
@@ -368,12 +374,7 @@ export function resolveSkillUse(
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
       skillType: skill.skillType,
-      // `resolveSkillOrder`（`plan`）がkind==="IMMEDIATE"を検証済み。CHARGEのスキルは
-      // `resolveChargeStart`へ振り分けられ、`SkillUseStarting`自体を発行しない。
-      isAttack: containsAttack(
-        skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
-        definitions.effectActions,
-      ),
+      isAttack,
       actorUnitId,
       targetUnitIds,
       costResource: skill.cost.resource,
@@ -595,6 +596,7 @@ export function resolveSkillUse(
           payload: {
             skillDefinitionId: skill.skillDefinitionId,
             skillType: skill.skillType,
+            isAttack,
             resolvedStepCount:
               skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps.length : 0,
             targetUnitIds,

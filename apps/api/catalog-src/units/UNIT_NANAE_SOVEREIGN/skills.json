@@ -166,7 +166,7 @@
           "target": { "kind": "SELF" },
           "field": "RESOURCE_EX_GAUGE",
           "op": "GTE",
-          "value": 1
+          "value": 2
         }
       ]
     },

@@ -105,6 +105,8 @@ export function skillUseCompleted(options: {
   readonly targets: readonly string[];
   readonly skillType: SkillType;
   readonly skillDefinitionId?: string;
+  /** 既定は攻撃を含むスキル（{@link skillUseStarting}と同じ既定）。 */
+  readonly isAttack?: boolean;
 }): PassiveTriggerEvent<"SkillUseCompleted"> {
   const targetUnitIds = options.targets.map((id) => createBattleUnitId(id));
   return {
@@ -118,6 +120,7 @@ export function skillUseCompleted(options: {
           ? SYNTHETIC_SKILL_ID
           : createSkillDefinitionId(options.skillDefinitionId),
       skillType: options.skillType,
+      isAttack: options.isAttack ?? true,
       resolvedStepCount: 1,
       targetUnitIds,
     },
@@ -272,13 +275,20 @@ export function passiveActivated(options: {
   };
 }
 
-/** PS 1件の解決完了。「味方のパッシブスキル発動後」を契機に持つPSが読む。 */
+/**
+ * PS 1件の解決完了。「味方のパッシブスキル発動後」を契機に持つPSが読む。
+ * `receivedBy`はそのPSが実際に効果を処理した対象（「そのPSを受けた」ユニット）。
+ */
 export function passiveResolved(options: {
   readonly actor: string;
   readonly skillDefinitionId: string;
   readonly resolvedStepCount?: number;
+  readonly receivedBy?: readonly string[];
 }): PassiveTriggerEvent<"PassiveResolved"> {
   return {
+    ...(options.receivedBy === undefined
+      ? {}
+      : { receivedBy: options.receivedBy.map((id) => createBattleUnitId(id)) }),
     eventType: "PassiveResolved",
     category: "FACT",
     sourceUnitId: createBattleUnitId(options.actor),

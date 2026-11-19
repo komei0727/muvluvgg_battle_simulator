@@ -90,7 +90,7 @@ export function validateEffectAction(
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER",
-      message: `a TRIGGER_SKILL_USE_HIT condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
+      message: `a TRIGGER_SKILL_USE_HIT / TRIGGER_SKILL_USE_TARGET condition is only evaluable in a PS trigger condition or a PS activationCondition — the duration (expiration.conditions / counterUpdates) of "${effectAction.effectActionDefinitionId}" cannot declare it`,
     });
   }
   if (

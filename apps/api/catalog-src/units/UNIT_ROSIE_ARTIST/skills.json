@@ -352,8 +352,9 @@
       {
         "eventType": "PassiveResolved",
         "category": "FACT",
-        "sourceSelector": "ALLY",
-        "targetSelector": "SELF"
+        "sourceSelector": "OTHER_ALLY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TRIGGER_SKILL_USE_TARGET", "target": { "kind": "SELF" } }
       }
     ]
   }

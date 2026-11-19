@@ -1761,3 +1761,44 @@ describe("evaluateTriggerCondition: SELECTED_TARGET_STATE (R-PS-09)", () => {
     ).toThrow(DomainValidationError);
   });
 });
+
+describe("evaluateTriggerCondition: TRIGGER_SKILL_USE_TARGET (R-PS-04)", () => {
+  const owner = unitAt("OWNER", "ALLY", "FRONT", "CENTER");
+  const other = unitAt("OTHER", "ALLY", "FRONT", "LEFT");
+  const receivedBySelf: ConditionDefinition = {
+    kind: "TRIGGER_SKILL_USE_TARGET",
+    target: { kind: "SELF" },
+  };
+  const evaluate = (processed: readonly BattleUnitId[] | undefined) =>
+    evaluateTriggerCondition(
+      receivedBySelf,
+      { payload: {}, sourceUnitId: other.battleUnitId },
+      {
+        owner,
+        skillDefinitionId: SKILL_ID,
+        getUnit: (id) => [owner, other].find((unit) => unit.battleUnitId === id),
+        triggerSkillUse: {
+          hitUnitIds: () => new Set(),
+          processedTargetUnitIds: () => processed,
+        },
+      },
+    );
+
+  it("UT-R-PS-04-023: holds only when the triggering skill use actually processed the referenced unit (a self-buff of another ally or a PS aimed only at others does not count)", () => {
+    expect(evaluate([other.battleUnitId, owner.battleUnitId])).toBe(true);
+    expect(evaluate([other.battleUnitId])).toBe(false);
+    expect(evaluate([])).toBe(false);
+    // 契機がスキル使用に属さない（記録を持たない）なら受けた事実も無い。
+    expect(evaluate(undefined)).toBe(false);
+  });
+
+  it("UT-R-PS-04-024: throws without the triggering skill use record (only a PS trigger / activationCondition supplies it)", () => {
+    expect(() =>
+      evaluateTriggerCondition(
+        receivedBySelf,
+        { payload: {} },
+        { owner, skillDefinitionId: SKILL_ID },
+      ),
+    ).toThrow(DomainValidationError);
+  });
+});
