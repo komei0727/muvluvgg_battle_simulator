@@ -124,6 +124,40 @@ describe("applyModifyResourceAction (R-ACTN-02, M7-002 Issue #185)", () => {
     });
   });
 
+  it("UT-R-ACTN-02-023 (R-NUM-02): a negative ADD truncates the amount toward 0 before applying it, so a 10% HP cost from 5001 consumes 500 (not 501 by truncating the remaining 4500.9)", () => {
+    const actor = unit("ACTOR", "ALLY", { currentHp: 5001, maximumHp: 10000 });
+    const action = modifyResourceAction("ACT_HP_COST_FRACTION", {
+      resource: "HP",
+      operation: "ADD",
+      formula: { kind: "CURRENT_HP_RATIO", source: { kind: "SKILL_SOURCE" }, ratio: -0.1 },
+    });
+    const { recorder, rootEventId } = seedRecorder();
+
+    const result = applyModifyResourceAction(
+      [
+        {
+          targetUnitId: actor.battleUnitId,
+          effectActionDefinitionId: action.effectActionDefinitionId,
+          hitIndex: 0,
+        },
+      ],
+      actor,
+      action,
+      [actor],
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+        parentEventId: rootEventId,
+        sourceUnitId: actor.battleUnitId,
+      },
+    );
+
+    expect(result.units.find((u) => u.battleUnitId === actor.battleUnitId)!.currentHp).toBe(4501);
+  });
+
   it("UT-R-ACTN-02-002: a HP cost that would go below 0 clamps to 0 (default bounds 0..currentMax)", () => {
     const actor = unit("ACTOR", "ALLY", { currentHp: 5, maximumHp: 100 });
     const action = modifyResourceAction("ACT_HP_COST_BIG", {

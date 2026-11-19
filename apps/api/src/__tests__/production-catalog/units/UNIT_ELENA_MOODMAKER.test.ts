@@ -412,6 +412,74 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
+    intent:
+      "(境界): 消費量は現在HPの10%を整数へ切り捨ててから減らす — HP5001なら500消費・1175回復（R-NUM-02）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
+    board: {
+      subject: { position: { column: "CENTER", row: "BACK" }, state: { currentHp: 5001 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 1000 },
+        },
+        { id: "ally:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+      enemies: [
+        {
+          id: "enemy:front",
+          position: { column: "CENTER", row: "FRONT" },
+          state: { currentHp: 3000 },
+        },
+        { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+        { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+      ],
+    },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HP_COST",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEAL",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["enemy:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          targets: ["ally:subject"],
+        },
+      ],
+      hpDeltas: {
+        "ally:subject": -500,
+        "ally:front": 1175,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          magnitude: 1,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+        {
+          unitId: "enemy:front",
+          effectActionDefinitionId: "ACT_ELENA_MOODMAKER_AS1_HEALING_LINK",
+          magnitude: 1,
+          timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1",
     intent: "(不成立): 自身のHPが40%未満の場合は発動しない",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_ELENA_MOODMAKER_AS1" },
     board: {

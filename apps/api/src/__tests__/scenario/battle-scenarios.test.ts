@@ -42,7 +42,8 @@ import {
  * 主要22シナリオが揃った。M10の戦術演習分は SCN-BTL-024 だけをここに置き、
  * 025〜028（ブレイク・復活・味方全滅）は Domain 側の `battle.exercise.test.ts`
  * が持つ — 演習状態と復活の観測点が Battle 集約の内側にあるため。総力戦の
- * SCN-BTL-029〜037 は、本番Catalogで走らせる `total-war-scenarios.test.ts` が持つ。
+ * SCN-BTL-029〜032・036・037 は、本番Catalogで走らせる `total-war-scenarios.test.ts` が持つ
+ * （033〜035は欠番）。
  */
 describe("battle scenarios (harness)", () => {
   it("SCN-BTL-001 (Issue #10 acceptance): a full battle's event log satisfies sequence/parent/root determinism, and the independent StateDelta Reducer restores finalState from initialState + transitions", async () => {

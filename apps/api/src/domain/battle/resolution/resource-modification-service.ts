@@ -224,14 +224,16 @@ export function* applyModifyResourceActionSteps(
                   }
                 : {}),
             });
+            // R-ACTN-02: 適用するのは整数化済みのFormula結果。加算後の値を切り捨てると、
+            // 負の加算（HP消費など）で端数が消費側へ切り上がる（HP5001の10%消費が501になる）
+            // ため、加算量を0方向へ切り捨ててから現在値へ足す（R-NUM-02）。
             if (action.payload.operation === "ADD") {
-              return before + formulaResult;
+              return before + truncateFraction(formulaResult);
             }
             // M7-017（Issue #271）: DISTRIBUTEはFormula結果を総量として等分し、
-            // その取り分を現在値へ加算する。切り捨てはこの直後の`after`算出で
-            // 一度だけ行う（R-NUM-02）。
+            // その取り分を対象ごとに切り捨ててから現在値へ加算する（R-NUM-02）。
             if (action.payload.operation === "DISTRIBUTE") {
-              return before + formulaResult / distributionShareCount;
+              return before + truncateFraction(formulaResult / distributionShareCount);
             }
             return formulaResult;
           })();

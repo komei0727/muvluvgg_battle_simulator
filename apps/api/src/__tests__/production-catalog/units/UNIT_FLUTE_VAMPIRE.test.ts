@@ -264,6 +264,30 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
   },
   {
     skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1",
+    intent:
+      "(境界): 消費量は現在HPの25%を整数へ切り捨ててから減らす — HP5001なら1250.25ではなく1250消費（R-NUM-02）",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1" },
+    board: {
+      ...IN_KYOKUGEN,
+      subject: { ...IN_KYOKUGEN.subject, state: { currentHp: 5001 } },
+    },
+    expected: {
+      actions: [
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_DAMAGE", targets: ["enemy:front"] },
+        { effectActionDefinitionId: "ACT_FLUTE_VAMPIRE_AS1_HP_COST", targets: ["ally:subject"] },
+      ],
+      hpDeltas: {
+        "ally:subject": -1250,
+        "enemy:front": -429,
+      },
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 1 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1",
     intent: "(境界): 敵に攻撃を回避されてもHP消費は行う",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_FLUTE_VAMPIRE_AS1" },
     board: IN_KYOKUGEN,

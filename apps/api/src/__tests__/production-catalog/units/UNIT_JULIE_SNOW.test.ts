@@ -34,6 +34,16 @@ const UNIT_DEFINITION_ID = "UNIT_JULIE_SNOW";
 
 const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [UNIT_DEFINITION_ID]);
 
+/**
+ * PS1の攻撃単位の判定が、同じ攻撃に属する追加ヒット（サブユニット追加ダメージ・攻撃時追加
+ * 攻撃）にも及ぶことを見るため、追加ヒットを生む実定義の供給元だけを併読する。
+ */
+const WITH_ADDITIONAL_HIT_SOURCES = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+  UNIT_DEFINITION_ID,
+  "UNIT_SHIRANA_SORA",
+  "UNIT_ELENA_MOODMAKER",
+]);
+
 /** 敵前列だけHP割合を35%以下にした配置。 */
 const LOW_HP_FRONT: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" }, state: { currentHp: 3500 } },
@@ -514,5 +524,53 @@ describe("production Catalog UNIT_JULIE_SNOW (【雪山もこもこ少女】ジ�
         cascaded: false,
       },
     ]);
+  });
+
+  it("IT-UNIT-JULIE-SNOW-007 [R-DMG-04, R-EFF-07] (SR-318): 攻撃開始時のHP割合による判定は、同じ攻撃のサブユニット追加ダメージと攻撃時追加攻撃にも引き継ぐ", () => {
+    // 開始時は本人80%・敵79%で軽減なし。13ヒットの途中で本人が79%を下回っても、
+    // 元攻撃に属する追加ヒットは軽減しない。
+    const attack = (riderEffectActionId: string, battleId: string) => {
+      const board = productionBoard(WITH_ADDITIONAL_HIT_SOURCES, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp: 8000 } },
+        enemies: [
+          {
+            id: "enemy:front",
+            position: { column: "CENTER", row: "FRONT" },
+            state: { currentHp: 7900 },
+          },
+        ],
+      });
+      const holding = applyPrecedingActions(board, [
+        { effectActionDefinitionId: "ACT_JULIE_SNOW_PS1_DMG_DOWN", target: "SELF" },
+        { effectActionDefinitionId: riderEffectActionId, target: "ENEMY" },
+      ]);
+      return observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: holding,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        power: 0.132,
+        hitCount: 13,
+        battleId,
+      });
+    };
+    const reductionOf = (observation: ReturnType<typeof attack>) =>
+      observation.recorder
+        .getEvents()
+        .filter((event) => event.eventType === "DamageCalculated")
+        .map(
+          (event) =>
+            (event.payload as { incomingDamageMultiplier: number }).incomingDamageMultiplier,
+        );
+
+    for (const [rider, battleId] of [
+      ["ACT_SHIRANA_SORA_EX_SUBUNIT", "B_JULIE_PS1_SUBUNIT"],
+      ["ACT_ELENA_MOODMAKER_EX_BONUS_DAMAGE", "B_JULIE_PS1_BONUS"],
+    ] as const) {
+      const multipliers = reductionOf(attack(rider, battleId));
+      // 13ヒット＋追加ヒットのすべてが軽減なし（倍率1）。
+      expect(multipliers.length).toBeGreaterThan(13);
+      expect(multipliers).toEqual(multipliers.map(() => 1));
+    }
   });
 });

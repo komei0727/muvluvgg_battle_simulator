@@ -677,8 +677,12 @@ export function* releasePendingSubUnitAdditionsSteps(
           }
         }
       }
+      // R-DMG-04: 追加ヒットは元攻撃の一部のため、その対象を最初に攻撃した攻撃の開始時の
+      // HP割合で判定する。
+      const attackStart = attackingScopes[0]?.startHitPointRatios;
       const targetContext: DamageEventContext = {
         ...damageContext,
+        ...(attackStart !== undefined ? { attackStartHitPointRatios: attackStart } : {}),
         attackDeathSurvivals: targetSurvivals,
         // 別の攻撃が使い、まだ精算していない耐えは、ここで新たに耐える場合も除く。先行する
         // 対象の追加ヒットで初めて使った分も含めるため、対象ごとに数え直す。
