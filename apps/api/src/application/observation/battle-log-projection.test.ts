@@ -178,6 +178,7 @@ function recordAllEvents(): readonly BattleDomainEvent[] {
       baseDamage: 10,
       skillPower: 1,
       skillPowerFormulaKind: "SKILL_POWER",
+      skillPowerMultiplier: 1,
       attributeMultiplier: 1,
       attackerAttribute: "AGGRESSIVE",
       defenderAttribute: "AGGRESSIVE",

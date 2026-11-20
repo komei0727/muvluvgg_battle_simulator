@@ -478,6 +478,19 @@ export interface ApplyResourceGainModPayload {
 }
 
 /**
+ * R-DMG-08: 保持者が攻撃側になる`DAMAGE`のスキル威力（`formula.kind: SKILL_POWER`の
+ * `power`）を`1 + rateDelta`倍にする。R-DMG-04の与ダメージ補正と違い、他の補正と
+ * 加算せず独立した乗算項として掛かる（「スキル威力を75%低下」は与ダメ+20%と並んでも
+ * ×1.2×0.25であり、加算合成の×0.45ではない）。`rateDelta`は付与時に一度だけ評価する
+ * 符号付き割合で、保持している全インスタンスを乗算する。
+ */
+export interface ApplySkillPowerModPayload {
+  readonly rateDelta: FormulaDefinition;
+  readonly stacking: { readonly mode: "STACKABLE" };
+  readonly duration: DurationDefinition;
+}
+
+/**
  * G-06 (Issue #44): gates `DAMAGE_IMMUNITY` by the size of the incoming hit.
  * The immunity applies only when the incoming raw damage compares true
  * against `formula` via `op` (e.g. `op: GT` with a `CURRENT_HP_RATIO` formula

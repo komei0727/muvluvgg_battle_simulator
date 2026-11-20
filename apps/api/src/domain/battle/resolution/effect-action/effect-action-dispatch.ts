@@ -22,6 +22,7 @@ import {
 } from "./resource-effect-action.js";
 import {
   resolveApplyAttackDamageBonus,
+  resolveApplySkillPowerMod,
   resolveApplyFollowUpAttack,
   resolveApplyPiercingMod,
   resolveContinuousModifier,
@@ -99,6 +100,8 @@ function* resolveByKind(input: EffectActionApplicationInput): EffectActionResolu
       return resolveContinuousModifier({ ...input, effectAction });
     case "APPLY_ATTACK_DAMAGE_BONUS":
       return resolveApplyAttackDamageBonus({ ...input, effectAction });
+    case "APPLY_SKILL_POWER_MOD":
+      return resolveApplySkillPowerMod({ ...input, effectAction });
     case "APPLY_FOLLOW_UP_ATTACK":
       return resolveApplyFollowUpAttack({ ...input, effectAction });
     case "APPLY_PIERCING_MOD":

@@ -312,6 +312,7 @@ export const EFFECT_ACTION_KIND_ENUM = [
   "APPLY_FOLLOW_UP_ATTACK",
   "APPLY_HEALING_LINK",
   "APPLY_RESOURCE_GAIN_MOD",
+  "APPLY_SKILL_POWER_MOD",
   "APPLY_DAMAGE_LINK",
 ] as const;
 /**
@@ -591,6 +592,12 @@ const damageCalculatedDetailsSchema = {
      * 転記するとFormula種別の追加時に黙って drift するためである。
      */
     skillPowerFormulaKind: { type: "string" },
+    /**
+     * R-DMG-08: スキル威力へ掛けた攻撃側のスキル威力補正の倍率。`skillPower`はCatalogの
+     * 威力のまま残す。既存イベントへ必須項目を足すのは後方互換でないため任意項目とする
+     * （Response Mapperは常に値を設定する）。
+     */
+    skillPowerMultiplier: { type: "number" },
     attributeMultiplier: { type: "number" },
     attackerAttribute: { type: "string", enum: ATTRIBUTE_ENUM },
     defenderAttribute: { type: "string", enum: ATTRIBUTE_ENUM },

@@ -868,6 +868,7 @@ metadata:
 | `APPLY_SUBUNIT`             | サブユニット                             |
 | `APPLY_ATTACK_DAMAGE_BONUS` | 攻撃のあとに発生する追加攻撃バフ         |
 | `APPLY_FOLLOW_UP_ATTACK`    | 攻撃に相乗りする追撃バフ                 |
+| `APPLY_SKILL_POWER_MOD`     | スキル威力の増減（乗算で合成）           |
 | `COOLDOWN_MANIPULATION`     | 他スキルのクールタイム短縮・リセット     |
 
 ---
@@ -1043,7 +1044,7 @@ payload:
 
 - `STACKABLE`（重複あり）は保持している全インスタンスを合成する。
 - `NON_STACKABLE`（重複なし）は同じ `EffectKindKey` のグループ内で最も強い1件だけを合成する。グループの単位は下記の `kindKey` が決める。
-- `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`）は合成経路が全インスタンスの合算だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
+- `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`・`APPLY_SKILL_POWER_MOD`）は合成経路が全インスタンスの合算（`APPLY_SKILL_POWER_MOD`は乗算）だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
 
 `stacking.max`（重複上限、`APPLY_MARKER` の `stack.max` に対応、`APPLY_STAT_MOD` 専用）:
 
@@ -1327,6 +1328,35 @@ payload:
 | `duration`  | DurationDefinition | —                                                                                                                                                                                            |
 
 `MODIFY_RESOURCE`の一回限りの加減算には適用しない。合成後の倍率は下限を持たない（`-50%`のModifierを3個以上重ねると`-150%`のように`-100%`を下回りうる。R-FRM-03は同一UnitDefinitionの複数編成を許可するためproduction Catalogでも到達可能）が、`increaseExGauge`（`action-resolution-shared.ts`）は`amount * (1 + rate)`の結果を0で floor してから適用するため、既存のEXゲージを減少させることはない（獲得量が0になるだけ）。
+
+### APPLY_SKILL_POWER_MOD
+
+`07_戦闘ルール詳細.md` R-DMG-08。保持者が攻撃側になる`SKILL_POWER`ダメージのスキル威力を割合で増減させる継続効果。`rateDelta`を付与時点に一度だけ評価し、結果を符号付き割合として`AppliedEffect.magnitude`へ保持する。`APPLY_DAMAGE_MOD`（R-DMG-04）と違い他の補正と加算せず、インスタンスごとの`max(0, 1 + rateDelta)`を乗算する。
+
+```yaml
+kind: APPLY_SKILL_POWER_MOD
+payload:
+  rateDelta:
+    kind: CONSTANT
+    value: -0.75
+  stacking:
+    mode: STACKABLE
+  duration:
+    dispellable: true
+    timeLimit:
+      unit: ACTION
+      count: 1
+      owner: BATTLE
+      countGrantAction: true
+```
+
+| フィールド  | 型                 | 制約                                                                                                                                |
+| ----------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `rateDelta` | FormulaDefinition  | 符号付き割合（例: `-0.75`＝威力75%低下）。付与時点で一度だけ評価する                                                                |
+| `stacking`  | object             | `STACKABLE`のみ許可。保持している全インスタンスを乗算する（重複なしグループの最強選択は不要）                                       |
+| `duration`  | DurationDefinition | 「この行動内」は`timeLimit { unit: ACTION, count: 1, owner: BATTLE, countGrantAction: true }`で表す（付与した行動の完了で失効する） |
+
+適用は`formula.kind: SKILL_POWER`のダメージ（追撃を含む）に限り、HP割合などそれ以外のFormula・サブユニット追加ダメージ・反射・継続ダメージ・回復には掛からない。効果分類は`rateDelta`の符号で決まり（負ならデバフ）、`DAMAGE_MOD`には含まれない。
 
 ### APPLY_STATUS
 

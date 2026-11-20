@@ -158,6 +158,26 @@ export function attackDamageBonusEffect(
   };
 }
 
+export function skillPowerModifierEffect(
+  id: string,
+  holderId: string,
+  magnitude: number,
+): AppliedEffect {
+  return {
+    effectInstanceId: createEffectInstanceId(id),
+    effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_MOD"),
+    kindKey: effectKindKeyFromDefinitionId(createEffectActionDefinitionId("ACT_SKILL_POWER_MOD")),
+    categories: [magnitude < 0 ? "DEBUFF" : "BUFF"],
+    duplicate: true,
+    sourceUnitId: createBattleUnitId(holderId),
+    targetUnitId: createBattleUnitId(holderId),
+    magnitude,
+    isSkillPowerModifier: true,
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
 export function freezeEffect(
   id: string,
   targetUnitId: string,

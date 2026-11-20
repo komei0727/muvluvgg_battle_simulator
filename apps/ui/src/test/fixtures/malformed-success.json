@@ -594,6 +594,7 @@
         "baseDamage": 990,
         "skillPower": 1,
         "skillPowerFormulaKind": "SKILL_POWER",
+        "skillPowerMultiplier": 1,
         "attributeMultiplier": 1,
         "attackerAttribute": "AGGRESSIVE",
         "defenderAttribute": "AGGRESSIVE",

@@ -482,6 +482,14 @@ export interface AppliedEffect {
    */
   readonly isFollowUpAttack?: true;
   /**
+   * R-DMG-08: `APPLY_SKILL_POWER_MOD`由来の付与だけが`true`を持つkind判別子。
+   * `magnitude`（付与時に評価した符号付き割合）を、保持者が攻撃側になる
+   * `SKILL_POWER`ダメージのスキル威力へ`1 + magnitude`倍として乗算する。
+   * `combat/damage-application-service.ts`はCatalogを引けないため、
+   * `isAttackDamageBonus`と同じくインスタンス自身に判別子を持たせる。
+   */
+  readonly isSkillPowerModifier?: true;
+  /**
    * R-HEAL-04（`M7-005-HEAL-LINK`、Issue #229）: `APPLY_HEALING_LINK`由来の付与
    * だけが持つkind判別子。保持者が得る回復量のうち`transferRate`の割合を
    * `transferToUnitId`へ移し替える（`heal-application-service.ts`）。転送先は

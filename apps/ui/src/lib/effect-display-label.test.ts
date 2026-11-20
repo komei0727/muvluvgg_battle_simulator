@@ -62,6 +62,11 @@ const CATALOG: EffectLabelCatalog = {
     { effectActionDefinitionId: "ACT_SHIELD", kind: "APPLY_SHIELD" },
     { effectActionDefinitionId: "ACT_REGEN", kind: "APPLY_CONTINUOUS_HEAL" },
     { effectActionDefinitionId: "ACT_FUTURE", kind: "APPLY_SOMETHING_NEW" },
+    {
+      effectActionDefinitionId: "ACT_SKILL_POWER_DOWN",
+      kind: "APPLY_SKILL_POWER_MOD",
+      constantMagnitude: -0.75,
+    },
   ],
   memories: [{ memoryDefinitionId: "MEM_SCHOOL", displayName: "取り戻した学園生活" }],
 };
@@ -304,6 +309,12 @@ describe("createEffectLabeler.definitionLabel", () => {
         { effectActionDefinitionId: "ACT_ATK_UP", originSide: "ALLY", skillUseId: "su-mem" },
       ]),
     ).toBe("攻撃力+5%");
+  });
+
+  it("UI-UT-LBL-048: スキル威力補正は符号付きの割合で表す", () => {
+    expect(
+      createEffectLabeler(CATALOG, UNITS, []).definitionLabel("ACT_SKILL_POWER_DOWN", []),
+    ).toBe("スキル威力-75%");
   });
 
   it("UI-UT-LBL-015: Catalog要約が無ければ論理名で表す", () => {

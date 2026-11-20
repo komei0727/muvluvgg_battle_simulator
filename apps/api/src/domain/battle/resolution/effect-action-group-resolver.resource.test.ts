@@ -417,4 +417,88 @@ describe("applyEffectActionGroups", () => {
       ).toHaveLength(0);
     });
   });
+
+  describe("APPLY_SKILL_POWER_MOD (R-DMG-08)", () => {
+    const skillPowerDown: EffectActionDefinition = {
+      kind: "APPLY_SKILL_POWER_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_DOWN"),
+      metadata: { tags: [] },
+      payload: {
+        rateDelta: { kind: "CONSTANT", value: -0.75 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+
+    function planOnto(target: BattleUnit): EffectSequencePlan {
+      return {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, target.battleUnitId, skillPowerDown.effectActionDefinitionId),
+        ],
+        targetUnitIds: [target.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+    }
+
+    it("UT-R-DMG-08-011: grants the reduction as a skill power modifier holding the evaluated rate", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const enemy = unit("ENEMY", "ENEMY");
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(
+        actor,
+        new Map([[skillPowerDown.effectActionDefinitionId, skillPowerDown]]),
+        recorder,
+        rootEventId,
+      );
+
+      const result = applyEffectActionGroups(planOnto(enemy), [actor, enemy], context);
+
+      const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      expect(updatedEnemy.appliedEffects).toHaveLength(1);
+      expect(updatedEnemy.appliedEffects[0]).toMatchObject({
+        magnitude: -0.75,
+        isSkillPowerModifier: true,
+        categories: ["DEBUFF"],
+      });
+    });
+
+    it("UT-R-DMG-08-012 (negative): a DEBUFF immunity on the attacker rejects the reduction", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const immunityDefinitionId = createEffectActionDefinitionId("ACT_DEBUFF_IMMUNITY");
+      const immunity: AppliedEffect = {
+        effectInstanceId: createEffectInstanceId("ei-immunity-skill-power"),
+        effectActionDefinitionId: immunityDefinitionId,
+        kindKey: effectKindKeyFromDefinitionId(immunityDefinitionId),
+        duplicate: true,
+        sourceUnitId: createBattleUnitId("ENEMY"),
+        targetUnitId: createBattleUnitId("ENEMY"),
+        magnitude: 0,
+        categories: ["BUFF"],
+        immunity: { categories: ["DEBUFF"], maxBlocks: null, blockedCount: 0 },
+        duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+        appliedTurnNumber: 1,
+      };
+      const enemy = unit("ENEMY", "ENEMY", { appliedEffects: [immunity] });
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(
+        actor,
+        new Map([[skillPowerDown.effectActionDefinitionId, skillPowerDown]]),
+        recorder,
+        rootEventId,
+      );
+
+      const result = applyEffectActionGroups(planOnto(enemy), [actor, enemy], context);
+
+      const updatedEnemy = result.units.find((u) => u.battleUnitId === enemy.battleUnitId)!;
+      expect(updatedEnemy.appliedEffects.some((e) => e.isSkillPowerModifier === true)).toBe(false);
+      expect(recorder.getEvents().some((e) => e.eventType === "EffectApplicationRejected")).toBe(
+        true,
+      );
+    });
+  });
 });

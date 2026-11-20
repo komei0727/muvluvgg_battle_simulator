@@ -246,6 +246,7 @@ export const effectActionDefinitionSchema = {
         "APPLY_ATTACK_DAMAGE_BONUS",
         "APPLY_FOLLOW_UP_ATTACK",
         "APPLY_RESOURCE_GAIN_MOD",
+        "APPLY_SKILL_POWER_MOD",
       ],
     },
     payload: looseObject,

@@ -560,6 +560,7 @@ function stackingOf(
     case "APPLY_DAMAGE_MOD":
     case "APPLY_HEALING_MOD":
     case "APPLY_RESOURCE_GAIN_MOD":
+    case "APPLY_SKILL_POWER_MOD":
       return { mode: effectAction.payload.stacking.mode, max: null };
     default:
       return undefined;

@@ -326,16 +326,16 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 戦闘ログの `effectActionDefinitionId` を「何をどれだけ変える効果か」へ読み替えるための表示用要約。分類項目はそのkindが宣言するものだけが現れ、いずれも未知の将来値を許容する。
 
-| プロパティ                 | 型     | 必須 | 説明                                                                                                         |
-| -------------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------ |
-| `effectActionDefinitionId` | string | 必須 | 不透明なEffectAction定義ID。                                                                                 |
-| `kind`                     | string | 必須 | EffectActionの種別（`APPLY_STAT_MOD`等）。                                                                   |
-| `stat`                     | string | 任意 | `APPLY_STAT_MOD`の対象ステータス。                                                                           |
-| `valueType`                | string | 任意 | `APPLY_STAT_MOD`の`RATIO`（割合）／`FIXED`（固定値）。                                                       |
-| `direction`                | string | 任意 | `APPLY_DAMAGE_MOD`の`OUTGOING`（与ダメージ）／`INCOMING`（被ダメージ）。                                     |
-| `damageType`               | string | 任意 | `APPLY_DAMAGE_MOD`の対象ダメージ種別。全種別に効く補正では現れない。                                         |
-| `status`                   | string | 任意 | `APPLY_STATUS`の状態種別。                                                                                   |
-| `constantMagnitude`        | number | 任意 | `APPLY_STAT_MOD`／`APPLY_DAMAGE_MOD`の`formula`が`CONSTANT`のときの値。`EffectApplied.magnitude`と同じ尺度。 |
+| プロパティ                 | 型     | 必須 | 説明                                                                                                                                               |
+| -------------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `effectActionDefinitionId` | string | 必須 | 不透明なEffectAction定義ID。                                                                                                                       |
+| `kind`                     | string | 必須 | EffectActionの種別（`APPLY_STAT_MOD`等）。                                                                                                         |
+| `stat`                     | string | 任意 | `APPLY_STAT_MOD`の対象ステータス。                                                                                                                 |
+| `valueType`                | string | 任意 | `APPLY_STAT_MOD`の`RATIO`（割合）／`FIXED`（固定値）。                                                                                             |
+| `direction`                | string | 任意 | `APPLY_DAMAGE_MOD`の`OUTGOING`（与ダメージ）／`INCOMING`（被ダメージ）。                                                                           |
+| `damageType`               | string | 任意 | `APPLY_DAMAGE_MOD`の対象ダメージ種別。全種別に効く補正では現れない。                                                                               |
+| `status`                   | string | 任意 | `APPLY_STATUS`の状態種別。                                                                                                                         |
+| `constantMagnitude`        | number | 任意 | `APPLY_STAT_MOD`／`APPLY_DAMAGE_MOD`の`formula`、`APPLY_SKILL_POWER_MOD`の`rateDelta`が`CONSTANT`のときの値。`EffectApplied.magnitude`と同じ尺度。 |
 
 `formula`が`CONSTANT`以外の効果は付与ごとに量が変わるため `constantMagnitude` を持たない。付与された量は戦闘ログの `EffectApplied.magnitude` が持つ。
 

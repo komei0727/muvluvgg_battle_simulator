@@ -31,6 +31,7 @@ export function durationOf(effectAction: EffectActionDefinition): DurationDefini
     case "APPLY_MARKER":
     case "APPLY_ATTACK_DAMAGE_BONUS":
     case "APPLY_RESOURCE_GAIN_MOD":
+    case "APPLY_SKILL_POWER_MOD":
     case "APPLY_HEALING_LINK":
     case "APPLY_DAMAGE_LINK":
     case "APPLY_PIERCING_MOD":

@@ -354,4 +354,22 @@ describe("effectCategoriesOf", () => {
       "BUFF",
     ]);
   });
+
+  it("UT-R-DMG-08-010: classifies a skill power reduction as DEBUFF and an increase as BUFF, without DAMAGE_MOD", () => {
+    const definition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SKILL_POWER_MOD",
+        kind: "APPLY_SKILL_POWER_MOD",
+        payload: {
+          rateDelta: { kind: "CONSTANT", value: -0.75 },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "ACTION", count: 1 } },
+        },
+      },
+      "effectAction",
+    );
+    // 与/被ダメージ補正（DAMAGE_MOD）ではないため、「与ダメージ補正を解除する」対象に含めない。
+    expect([...effectCategoriesOf(effect({ magnitude: -0.75 }), definition)]).toEqual(["DEBUFF"]);
+    expect([...effectCategoriesOf(effect({ magnitude: 0.5 }), definition)]).toEqual(["BUFF"]);
+  });
 });

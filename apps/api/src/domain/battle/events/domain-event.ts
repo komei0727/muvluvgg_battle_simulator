@@ -392,6 +392,12 @@ export interface BattleDomainEventPayloadMap {
      * 常に`1`になるため、この欄が無いと「`SKILL_POWER`で威力1」と区別できない。
      */
     readonly skillPowerFormulaKind: FormulaKind;
+    /**
+     * R-DMG-08: スキル威力へ掛けた攻撃側の`APPLY_SKILL_POWER_MOD`の倍率。`skillPower`は
+     * Catalogの威力のまま残すため、補正後の威力は両者の積である。`SKILL_POWER`以外の
+     * Formula・サブユニット追加ヒットでは常に1。
+     */
+    readonly skillPowerMultiplier: number;
     readonly attributeMultiplier: number;
     /**
      * R-ATR-01／R-ATR-02の内訳（DMG-012）。`attributeMultiplier === 1`は「有利でない」と

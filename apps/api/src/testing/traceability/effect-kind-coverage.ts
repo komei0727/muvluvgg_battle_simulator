@@ -361,4 +361,18 @@ export const EFFECT_KIND_COVERAGE: Readonly<Record<EffectActionKind, EffectKindC
       "UT-R-ACT-04-014",
     ],
   },
+  // 付与時magnitude（符号付き率）・乗算合成・SKILL_POWER限定の適用・追撃への適用を
+  // skill-power-modifier-policy／damage-calculator／damage-application-service.skill-power、
+  // 攻撃前観測PSでの付与から行動終了での失効までをSCN-BTL-040が検証する。
+  APPLY_SKILL_POWER_MOD: {
+    ruleIds: ["R-DMG-08"],
+    testCaseIds: [
+      "UT-R-DMG-08-001",
+      "UT-R-DMG-08-002",
+      "UT-R-DMG-08-005",
+      "UT-R-DMG-08-008",
+      "UT-R-DMG-08-009",
+      "SCN-BTL-040",
+    ],
+  },
 };

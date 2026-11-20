@@ -168,6 +168,7 @@ const KIND_LABELS: Readonly<Record<string, string>> = {
   APPLY_ATTACK_DAMAGE_BONUS: "攻撃ダメージ加算",
   APPLY_FOLLOW_UP_ATTACK: "追撃",
   APPLY_RESOURCE_GAIN_MOD: "獲得量補正",
+  APPLY_SKILL_POWER_MOD: "スキル威力",
 };
 
 /** 小数第2位までに丸め、`0.07 * 100`のような浮動小数誤差を表示へ出さない。 */
@@ -227,6 +228,10 @@ function contentText(
       return summary.status !== undefined
         ? (STATUS_LABELS[summary.status] ?? summary.status)
         : KIND_LABELS["APPLY_STATUS"];
+    case "APPLY_SKILL_POWER_MOD":
+      return magnitude === undefined
+        ? KIND_LABELS["APPLY_SKILL_POWER_MOD"]
+        : `${KIND_LABELS["APPLY_SKILL_POWER_MOD"]!}${percentText(magnitude)}`;
     case "APPLY_SHIELD":
       return magnitude === undefined
         ? KIND_LABELS["APPLY_SHIELD"]

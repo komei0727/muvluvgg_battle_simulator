@@ -347,6 +347,7 @@ export function sameEffectSnapshot(
     sameStatusDetails(a.statusDetails, b.statusDetails) &&
     a.isAttackDamageBonus === b.isAttackDamageBonus &&
     a.isFollowUpAttack === b.isFollowUpAttack &&
+    a.isSkillPowerModifier === b.isSkillPowerModifier &&
     sameHealingLinkState(a.healingLink, b.healingLink) &&
     sameDamageModifierState(a.damageModifier, b.damageModifier) &&
     samePiercingModifierState(a.piercing, b.piercing) &&
