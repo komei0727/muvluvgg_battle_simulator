@@ -1081,6 +1081,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                     };
@@ -1134,6 +1135,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                       /** @enum {string} */
@@ -1364,6 +1366,7 @@ export interface paths {
                       baseDamage?: number;
                       skillPower: number;
                       skillPowerFormulaKind?: string;
+                      skillPowerMultiplier?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:
@@ -2607,6 +2610,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       categories: (
                         | "BUFF"
@@ -4960,6 +4964,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                     };
@@ -5013,6 +5018,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                       /** @enum {string} */
@@ -5243,6 +5249,7 @@ export interface paths {
                       baseDamage?: number;
                       skillPower: number;
                       skillPowerFormulaKind?: string;
+                      skillPowerMultiplier?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:
@@ -6482,6 +6489,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       categories: (
                         | "BUFF"
@@ -9057,6 +9065,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                     };
@@ -9110,6 +9119,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       targetUnitIds: string[];
                       /** @enum {string} */
@@ -9340,6 +9350,7 @@ export interface paths {
                       baseDamage?: number;
                       skillPower: number;
                       skillPowerFormulaKind?: string;
+                      skillPowerMultiplier?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:
@@ -10595,6 +10606,7 @@ export interface paths {
                         | "APPLY_FOLLOW_UP_ATTACK"
                         | "APPLY_HEALING_LINK"
                         | "APPLY_RESOURCE_GAIN_MOD"
+                        | "APPLY_SKILL_POWER_MOD"
                         | "APPLY_DAMAGE_LINK";
                       categories: (
                         | "BUFF"

@@ -2032,3 +2032,133 @@ describe("battle scenarios (harness)", () => {
     });
   });
 });
+
+describe("skill power modifier (R-DMG-08)", () => {
+  it("SCN-BTL-040 [R-DMG-08, R-ATM-03, R-EFF-04]: a guard PS on the attack against the ally in front cuts the attacker's skill power for every target of that action, then expires with the action", () => {
+    const skillPowerDown: EffectActionDefinition = {
+      kind: "APPLY_SKILL_POWER_MOD",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_DOWN"),
+      metadata: { tags: [] },
+      payload: {
+        rateDelta: { kind: "CONSTANT", value: -0.75 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "ACTION", count: 1, owner: "BATTLE", countGrantAction: true },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const guardPassive: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_GUARD_FRONT"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "UnitBeingAttacked",
+          category: "TIMING",
+          sourceSelector: "ENEMY",
+          targetSelector: "ALLY",
+          condition: {
+            kind: "POSITION_RELATION",
+            target: { kind: "TRIGGER_TARGET" },
+            relation: "IN_FRONT_OF",
+          },
+        },
+      ],
+      counterUpdates: [],
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "TRIGGER_SOURCE" },
+            actions: [
+              { effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_DOWN") },
+            ],
+          },
+        ],
+      },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: true,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "Guard", tags: [] },
+    };
+
+    const catalog = new CatalogBuilder()
+      .withUnit(
+        unitDefinition("UNIT_GUARD", {
+          baseStats: { maximumHp: 1000, defense: 10 },
+          passiveSkillDefinitionIds: [createSkillDefinitionId("SKL_GUARD_FRONT")],
+        }),
+        unitDefinition("UNIT_SHIELDED", { baseStats: { maximumHp: 1000, defense: 10 } }),
+        unitDefinition("UNIT_ATTACKER", {
+          baseStats: { maximumAp: 1, attack: 100, actionSpeed: 50 },
+          activeSkillDefinitionIds: [createSkillDefinitionId("SKL_ATTACK_ALL")],
+        }),
+      )
+      .withSkill(guardPassive, attackSkill("SKL_ATTACK_ALL", "ACT_ATTACK_ALL"))
+      .withEffectAction(skillPowerDown, damageEffectAction("ACT_ATTACK_ALL", 1, "PREVENTED"))
+      .build();
+
+    const result = runScenario({
+      catalog,
+      command: battleCommand({
+        allyFormation: {
+          slots: [
+            formationSlot("UNIT_SHIELDED", 0, "FRONT"),
+            formationSlot("UNIT_GUARD", 0, "REAR"),
+            formationSlot("UNIT_SHIELDED", 1, "FRONT"),
+          ],
+          memoryDefinitionIds: [],
+        },
+        enemyFormation: { slots: [formationSlot("UNIT_ATTACKER", 0)], memoryDefinitionIds: [] },
+        turnLimit: 1,
+      }),
+    });
+
+    const enemyAttacks = result.events
+      .filter((event) => event.type === "DAMAGE_CALCULATED")
+      .map((event) => event.details as Record<string, unknown>)
+      .filter((details) => details["effectActionDefinitionId"] === "ACT_ATTACK_ALL");
+    // 敵全体攻撃は味方3体へ当たる。目の前の味方への攻撃前観測で護衛PSが発動し、
+    // その行動の全対象のスキル威力が×0.25になる: (100 - 10) × 1 × 0.25 = 22.5 → 22。
+    expect(enemyAttacks).toHaveLength(3);
+    for (const details of enemyAttacks) {
+      expect(details).toMatchObject({ skillPower: 1, skillPowerMultiplier: 0.25, finalDamage: 22 });
+    }
+    // 1行動内の複数の攻撃前観測でも、同時発動制限により付与は1つだけ。
+    const grants = result.events.filter(
+      (event) =>
+        event.type === "EFFECT_APPLIED" &&
+        (event.details as Record<string, unknown>)["effectActionDefinitionId"] ===
+          "ACT_SKILL_POWER_DOWN",
+    );
+    expect(grants).toHaveLength(1);
+    // 付与された行動の完了で失効し、攻撃者は効果を持ち越さない。
+    const expired = result.events.find(
+      (event) =>
+        event.type === "EFFECT_EXPIRED" &&
+        (event.details as Record<string, unknown>)["effectActionDefinitionId"] ===
+          "ACT_SKILL_POWER_DOWN",
+    );
+    expect(expired).toBeDefined();
+    const attacker = result.finalState.units[createBattleUnitId("enemy:1")];
+    expect(attacker?.effects ?? []).toHaveLength(0);
+
+    const restored = reduceStateDeltas(
+      result.initialState,
+      result.stateTransitions.map((transition) => transition.stateDelta),
+    );
+    expect(restored).toEqual(result.finalState);
+  });
+});

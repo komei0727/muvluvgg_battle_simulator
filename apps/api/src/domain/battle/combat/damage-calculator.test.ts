@@ -456,6 +456,56 @@ function inputFromScalars(s: {
   });
 }
 
+describe("calculateDamage skill power modifier (R-DMG-08)", () => {
+  it("UT-R-DMG-08-001: multiplies skill power independently of the additive outgoing damage multiplier", () => {
+    // 与ダメ+20%（R-DMG-04の合成済み倍率1.2）と威力-75%（倍率0.25）が並んでも、
+    // 加算合成の×0.45ではなく×1.2×0.25で掛かる。
+    const result = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 },
+        outgoingDamageMultiplier: 1.2,
+        skillPowerMultiplier: 0.25,
+      }),
+    );
+    expect(result.skillPower).toBe(1.5);
+    expect(result.skillPowerMultiplier).toBe(0.25);
+    expect(result.preTruncationDamage).toBeCloseTo(1000 * 1.5 * 0.25 * 1.2, 10);
+    expect(result.finalDamage).toBe(450);
+  });
+
+  it("UT-R-DMG-08-002: leaves damage whose formula is not SKILL_POWER unchanged", () => {
+    const skillSource = unitAt("U_ATTACKER", "ALLY");
+    const target = unitAt("U_TARGET", "ENEMY", { currentHp: 80 });
+    const result = calculateDamage(
+      input({
+        skillPowerFormula: {
+          kind: "CURRENT_HP_RATIO",
+          source: { kind: "TARGET" },
+          ratio: 0.5,
+        },
+        formulaContext: { skillSource, target, allUnits: [skillSource, target] },
+        skillPowerMultiplier: 0.25,
+      }),
+    );
+    expect(result.skillPowerMultiplier).toBe(1);
+    expect(result.finalDamage).toBe(40);
+  });
+
+  it("UT-R-DMG-08-003: a skill power multiplier of 0 still yields the minimum 1 damage", () => {
+    const result = calculateDamage(input({ skillPowerMultiplier: 0 }));
+    expect(result.preTruncationDamage).toBe(0);
+    expect(result.finalDamage).toBe(1);
+  });
+
+  it("UT-R-DMG-08-004: defaults the skill power multiplier to 1 when omitted", () => {
+    const result = calculateDamage(input());
+    expect(result.skillPowerMultiplier).toBe(1);
+    expect(result.finalDamage).toBe(30);
+  });
+});
+
 describe("calculateDamage properties (R-DMG-01)", () => {
   it("PROP-DMG-01-001 [R-DMG-01]: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
     fc.assert(

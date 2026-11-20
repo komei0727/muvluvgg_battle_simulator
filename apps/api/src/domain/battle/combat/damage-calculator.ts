@@ -33,6 +33,11 @@ export interface DamageCalculationInput {
   readonly outgoingDamageMultiplier?: number;
   /** R-DMG-01の被ダメージ倍率（防御側の`INCOMING`、R-DMG-04）。未指定は1倍。 */
   readonly incomingDamageMultiplier?: number;
+  /**
+   * R-DMG-08: 攻撃側の`APPLY_SKILL_POWER_MOD`を乗算で合成した倍率（0以上）。
+   * `skillPowerFormula`が`SKILL_POWER`の場合だけスキル威力へ掛かる。未指定は1倍。
+   */
+  readonly skillPowerMultiplier?: number;
   /** R-NUM-04: `skillPowerFormula`/`damageModifiers`を評価するための実行時文脈。 */
   readonly formulaContext: FormulaEvaluationContext;
   /**
@@ -70,6 +75,12 @@ export interface DamageCalculationResult {
    * 常に`1`になるため、この欄が無いと「`SKILL_POWER`で威力1」と区別できない。
    */
   readonly skillPowerFormulaKind: FormulaKind;
+  /**
+   * R-DMG-08: スキル威力へ実際に掛けた倍率。`skillPower`はCatalogの威力のまま残し、
+   * 補正は別欄で公開する（ログから威力の補正前後を区別できるようにする）。
+   * `SKILL_POWER`以外のFormulaでは常に1。
+   */
+  readonly skillPowerMultiplier: number;
   readonly attributeMultiplier: number;
   /**
    * R-ATR-01の有利属性判定（DMG-012）。`attributeMultiplier === 1`は「有利でない」と
@@ -197,9 +208,14 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   // 由来ではない減少が与ダメージ補正のsnapshotに紛れて監査できなくなる。
   const confusionDamageMultiplier =
     input.confusion === undefined ? 1 : 1 - input.confusion.damageReductionRate;
+  // R-DMG-08: スキル威力補正はスキル威力の項にだけ掛かる。威力の項を持たない
+  // Formula（評価結果そのものが基礎ダメージ、R-DMG-01）には掛けない。
+  const skillPowerMultiplier =
+    input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerMultiplier ?? 1) : 1;
   const preTruncationDamage =
     baseDamage *
     skillPower *
+    skillPowerMultiplier *
     attributeMultiplier *
     input.criticalMultiplier *
     outgoingDamageMultiplier *
@@ -212,6 +228,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     baseDamage,
     skillPower,
     skillPowerFormulaKind: input.skillPowerFormula.kind,
+    skillPowerMultiplier,
     attributeMultiplier,
     isFavorableAttribute: favorable,
     isSubAttributeFavorable: subFavorable,

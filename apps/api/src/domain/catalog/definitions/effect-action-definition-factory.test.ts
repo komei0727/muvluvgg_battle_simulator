@@ -212,6 +212,61 @@ describe("EffectActionDefinition", () => {
     ).toThrow(/requires healAfterSurvival/);
   });
 
+  it("UT-CAT-ACT-155 [R-DMG-08]: maps APPLY_SKILL_POWER_MOD with a signed rateDelta and STACKABLE stacking", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SKILL_POWER_DOWN",
+        kind: "APPLY_SKILL_POWER_MOD",
+        payload: {
+          rateDelta: { kind: "CONSTANT", value: -0.75 },
+          stacking: { mode: "STACKABLE" },
+          duration: {
+            dispellable: true,
+            timeLimit: { unit: "ACTION", count: 1, countGrantAction: true },
+          },
+        },
+      },
+      "effectAction",
+    );
+    expect(result).toMatchObject({
+      kind: "APPLY_SKILL_POWER_MOD",
+      payload: {
+        rateDelta: { kind: "CONSTANT", value: -0.75 },
+        stacking: { mode: "STACKABLE" },
+        duration: { timeLimit: { unit: "ACTION", count: 1, countGrantAction: true } },
+      },
+    });
+  });
+
+  it("UT-CAT-ACT-156 [R-DMG-08]: rejects APPLY_SKILL_POWER_MOD without rateDelta or with an unknown key", () => {
+    const duration = { timeLimit: { unit: "ACTION", count: 1 } };
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SKILL_POWER_DOWN",
+          kind: "APPLY_SKILL_POWER_MOD",
+          payload: { stacking: { mode: "STACKABLE" }, duration },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+    expect(() =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SKILL_POWER_DOWN",
+          kind: "APPLY_SKILL_POWER_MOD",
+          payload: {
+            rateDelta: { kind: "CONSTANT", value: -0.75 },
+            direction: "OUTGOING",
+            stacking: { mode: "STACKABLE" },
+            duration,
+          },
+        },
+        "effectAction",
+      ),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-007: maps APPLY_TARGET_REDIRECT with a SELF redirect", () => {
     const result = createEffectActionDefinition(
       {
@@ -2571,6 +2626,10 @@ describe("EffectActionDefinition", () => {
       APPLY_RESOURCE_GAIN_MOD: {
         resource: "EX_GAUGE",
         rateDelta: { kind: "CONSTANT", value: 0.5 },
+        duration: { timeLimit: { unit: "ACTION", count: 1 } },
+      },
+      APPLY_SKILL_POWER_MOD: {
+        rateDelta: { kind: "CONSTANT", value: -0.75 },
         duration: { timeLimit: { unit: "ACTION", count: 1 } },
       },
     } as const;

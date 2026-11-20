@@ -53,7 +53,7 @@ export interface BattleSimulationMemorySummary {
  * 導出元に含めないと、旧本文を持つクライアントへ304を返し続ける
  * （`10_API設計.md`「ETag」）。
  */
-export const CATALOG_PROJECTION_VERSION = 2;
+export const CATALOG_PROJECTION_VERSION = 3;
 
 export interface BattleSimulationCatalogResult {
   readonly catalogRevision: string;

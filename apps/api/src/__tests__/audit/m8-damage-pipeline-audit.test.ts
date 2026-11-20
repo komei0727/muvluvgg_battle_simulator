@@ -395,6 +395,7 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         const rawExpected =
           num("baseDamage", 1) *
           num("skillPower", 1) *
+          num("skillPowerMultiplier", 1) *
           num("attributeMultiplier", 1) *
           num("criticalMultiplier", 1) *
           num("outgoingDamageMultiplier", 1) *
