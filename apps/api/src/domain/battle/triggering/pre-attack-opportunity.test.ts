@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  detectPreAttackObservation,
   resolvePassiveChain,
   resolvePreAttackObservations,
   type PassiveActivationStep,
@@ -55,6 +56,7 @@ function skillOf(
   traits: {
     readonly simultaneousActivationLimited?: boolean;
     readonly priorityAttack?: boolean;
+    readonly firstTriggerOnly?: true;
   } = {},
 ): SkillDefinition {
   return {
@@ -78,6 +80,9 @@ function skillOf(
       priorityAttack: traits.priorityAttack ?? false,
       simultaneousActivationLimited: traits.simultaneousActivationLimited ?? false,
       exclusiveActivationGroupId: null,
+      ...(traits.firstTriggerOnly === undefined
+        ? {}
+        : { firstTriggerOnly: traits.firstTriggerOnly }),
       accuracy: { guaranteedHit: false },
       piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
     },
@@ -188,7 +193,7 @@ describe("pre-attack opportunity resolution", () => {
     });
 
     const result = resolvePreAttackObservations(
-      [first, second],
+      [first, second].map((event) => detectPreAttackObservation(event, deps)),
       createEmptyPassiveActivationGuard(),
       deps,
     );
@@ -227,7 +232,11 @@ describe("pre-attack opportunity resolution", () => {
       candidatesOf: new Map([[target, [fastCover, slowCover]]]),
     });
 
-    resolvePreAttackObservations([target], createEmptyPassiveActivationGuard(), deps);
+    resolvePreAttackObservations(
+      [detectPreAttackObservation(target, deps)],
+      createEmptyPassiveActivationGuard(),
+      deps,
+    );
 
     expect(activations.map((a) => a.skillId)).toEqual(["SKL_SLOW_COVER"]);
   });
@@ -250,7 +259,11 @@ describe("pre-attack opportunity resolution", () => {
       interruptedSkillIds: ["SKL_FAST_COVER"],
     });
 
-    resolvePreAttackObservations([target], createEmptyPassiveActivationGuard(), deps);
+    resolvePreAttackObservations(
+      [detectPreAttackObservation(target, deps)],
+      createEmptyPassiveActivationGuard(),
+      deps,
+    );
 
     expect(activations.map((a) => a.skillId)).toEqual(["SKL_FAST_COVER"]);
   });
@@ -364,7 +377,7 @@ describe("pre-attack opportunity resolution", () => {
     });
 
     const observed = resolvePreAttackObservations(
-      [asObservation],
+      [detectPreAttackObservation(asObservation, deps)],
       createEmptyPassiveActivationGuard(),
       deps,
     );
@@ -382,5 +395,47 @@ describe("pre-attack opportunity resolution", () => {
     resolvePassiveChain(completed, observed.activationGuard, deps);
 
     expect(activations.map((a) => a.skillId)).toEqual(["SKL_COVER", "SKL_FOLLOW_UP"]);
+  });
+
+  it("UT-R-PS-07-009 [R-PS-07]: firstTriggerOnlyの攻撃前PSは発動に成功しても解決スコープへ記録し、独立した次の攻撃PSには発動しない", () => {
+    const attackerA = unit("ATTACKER_A", 40);
+    const attackerB = unit("ATTACKER_B", 30);
+    const guardian = unit("GUARDIAN", 10);
+    const attackA = candidateOf(attackerA, skillOf("SKL_ATTACK_A", { priorityAttack: true }));
+    const attackB = candidateOf(attackerB, skillOf("SKL_ATTACK_B", { priorityAttack: true }));
+    const cover = candidateOf(guardian, skillOf("SKL_COVER", { firstTriggerOnly: true }));
+    const turnStarted = rootEvent("TurnStarted");
+    const observedByA = observation("T1");
+    const observedByB = observation("T1");
+    const { deps, activations } = dependencies({
+      units: [attackerA, attackerB, guardian],
+      candidatesOf: new Map([
+        [turnStarted, [attackA, attackB]],
+        [observedByA, [cover]],
+        [observedByB, [cover]],
+      ]),
+      stepsOf: (skillId) =>
+        skillId === "SKL_ATTACK_A"
+          ? [{ kind: "PRE_ATTACK_OBSERVATIONS", events: [observedByA] }]
+          : skillId === "SKL_ATTACK_B"
+            ? [{ kind: "PRE_ATTACK_OBSERVATIONS", events: [observedByB] }]
+            : [],
+    });
+
+    const result = resolvePassiveChain(turnStarted, createEmptyPassiveActivationGuard(), deps);
+
+    expect(activations.map((a) => a.skillId)).toEqual([
+      "SKL_ATTACK_A",
+      "SKL_COVER",
+      "SKL_ATTACK_B",
+    ]);
+    expect(
+      result.ok &&
+        hasActivated(
+          result.activationGuard,
+          guardian.battleUnitId,
+          cover.skillDefinition.skillDefinitionId,
+        ),
+    ).toBe(true);
   });
 });

@@ -100,6 +100,7 @@ import type {
 import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
   detectPassiveCandidateGroup,
+  detectPreAttackObservation,
   resolvePassiveChain,
   resolvePendingCandidateGroups,
   resolvePreAttackObservations,
@@ -988,12 +989,14 @@ export class PassiveActivationRuntime {
     }
     const eventsStart = this.context.recorder.getEvents().length;
     this.units = units;
-    const triggerEvents = events.map((event) => this.maintainStateForTopLevelEvent(event, 0));
-    const result = resolvePreAttackObservations(
-      triggerEvents,
-      this.guard,
-      this.buildDependencies(),
+    // R-ATM-03 #1: 候補は各観測の状態保守の直後に、その時点の状態で検出する。
+    const observations = events.map((event) =>
+      detectPreAttackObservation(
+        this.maintainStateForTopLevelEvent(event, 0),
+        this.buildDependencies(),
+      ),
     );
+    const result = resolvePreAttackObservations(observations, this.guard, this.buildDependencies());
     if (!result.ok) {
       throw new ExecutionGuardExceededError(
         `PS chain resolution exceeded its execution guard: ${result.reason}`,

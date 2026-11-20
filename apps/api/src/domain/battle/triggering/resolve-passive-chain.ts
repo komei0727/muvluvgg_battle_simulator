@@ -399,11 +399,15 @@ function effectiveGuard(state: ChainState): PassiveActivationGuard {
     : mergeActivationGuards(state.guard, ...state.reactionScopes);
 }
 
-/** 攻撃前の発動機会から発動したPSを、最も内側の反応スコープ（無ければ`guard`）へ記録する。 */
+/**
+ * 攻撃前の発動機会から発動したPSを、最も内側の反応スコープ（無ければ`guard`）へ記録する。
+ * `firstTriggerOnly`のPSは解決スコープ単位の制限（R-PS-07）を保つため、成功時も
+ * 不成立時と同じく`guard`へ記録する。
+ */
 function recordPreAttackActivation(state: ChainState, candidate: PassiveCandidate): void {
   const innermost = state.reactionScopes.length - 1;
   const scope = state.reactionScopes[innermost];
-  if (scope === undefined) {
+  if (scope === undefined || candidate.skillDefinition.traits.firstTriggerOnly === true) {
     state.guard = recordActivation(
       state.guard,
       candidate.unit.battleUnitId,
@@ -597,12 +601,32 @@ function resolvePreAttackOpportunity(
     if (violation !== undefined) {
       return violation;
     }
-    observations.push({
-      event,
-      candidates: deps.detectCandidates(event),
-      memoryCandidates: detectMemoryCandidateGroup(event, deps),
-    });
+    observations.push(detectPreAttackObservation(event, deps));
   }
+  return resolveDetectedPreAttackOpportunity(observations, state, deps);
+}
+
+/**
+ * R-ATM-03 #1: 攻撃前観測1件の候補を、その観測の状態保守を確定させた直後の状態で
+ * 検出する。同時発動制限は発動機会全体で適用するため、ここでは適用しない。
+ */
+export function detectPreAttackObservation(
+  event: TriggerCandidateEvent,
+  deps: PassiveChainDependencies,
+): PassiveResolutionStackEntry {
+  return {
+    event,
+    candidates: deps.detectCandidates(event),
+    memoryCandidates: detectMemoryCandidateGroup(event, deps),
+  };
+}
+
+/** 観測ごとに検出済みの候補を、1つの攻撃前の発動機会として集約・解決する。 */
+function resolveDetectedPreAttackOpportunity(
+  observations: readonly PassiveResolutionStackEntry[],
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
   const first = observations[0];
   if (first === undefined) {
     return undefined;
@@ -1011,14 +1035,19 @@ export function resolvePendingCandidateGroups(
 
 /**
  * R-ATM-03: トップレベルの攻撃（AS/EX使用・チャージ解放）の攻撃前観測を、全対象ぶん
- * まとめて1つの発動機会として解決する入口。呼び出し側は観測イベントを発行順に渡す。
+ * まとめて1つの発動機会として解決する入口。呼び出し側は観測ごとに状態保守を確定させた
+ * 直後に`detectPreAttackObservation`で候補を検出し、その結果を発行順に渡す
+ * （全観測の状態保守を先に済ませてから検出すると、観測ごとに進むcounterなどを
+ * 条件にする候補を取りこぼす）。状態保守は検出時に確定済みのため、ここでは再度行わない。
  */
 export function resolvePreAttackObservations(
-  events: readonly TriggerCandidateEvent[],
+  observations: readonly PassiveResolutionStackEntry[],
   initialGuard: PassiveActivationGuard,
   deps: PassiveChainDependencies,
 ): PassiveChainResult {
-  return runChain(initialGuard, (state) => resolvePreAttackOpportunity(events, state, deps));
+  return runChain(initialGuard, (state) =>
+    resolveDetectedPreAttackOpportunity(observations, state, deps),
+  );
 }
 
 function runChain(
