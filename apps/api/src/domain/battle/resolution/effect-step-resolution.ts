@@ -85,18 +85,65 @@ export interface LastResultState {
 }
 
 /**
- * R-SKL-06 #4a／R-INT-02第2項: 命中条件付きの適用を、実際に適用する対象ごとの適用へ
- * 展開する。条件なしならそのまま、参照先DAMAGEのいずれも元の対象に命中していなければ
- * 空（適用を開始しない）。命中していれば、そのヒットを最終的に受けたユニットへ向け直す
- * — 肩代わりされた攻撃の後続効果は肩代わり者に付く。
+ * R-INT-02第2項で付与先を向け直さない、命中条件を持たない後続効果の種別。
+ * `DAMAGE`は別の攻撃として自身の防御介入を評価する。マーカー・効果の解除は元の対象が
+ * 既に持つ状態の清算（`SKL_TATIANA_SAGE_AS1`の予兆4個での追撃後の消去等）であり、
+ * 状態を持たない肩代わり者へ向けると清算そのものが起きなくなる。
  */
-function applicationsForHitCondition(
+const NON_REDIRECTED_FOLLOW_UP_KINDS: ReadonlySet<string> = new Set([
+  "DAMAGE",
+  "REMOVE_MARKER",
+  "REMOVE_EFFECTS",
+]);
+
+function redirectTo(
+  application: EffectActionApplication,
+  defenders: Iterable<BattleUnitId>,
+): readonly EffectActionApplication[] {
+  return [...defenders].map((defender) =>
+    defender === application.targetUnitId
+      ? application
+      : {
+          ...application,
+          targetUnitId: defender,
+          hits: application.hits.map((hit) => ({ ...hit, targetUnitId: defender })),
+        },
+  );
+}
+
+/**
+ * R-SKL-06 #4a／R-INT-02第2項: 適用を、実際に適用する対象ごとの適用へ展開する。
+ *
+ * 命中条件付きなら、参照先DAMAGEのいずれも元の対象に命中していなければ空（適用を
+ * 開始しない）。命中していれば、そのヒットを最終的に受けたユニットへ向け直す —
+ * 肩代わりされた攻撃の後続効果は肩代わり者に付く。
+ *
+ * 命中条件を持たない適用も、同じACTION stepでその対象へ先に解決したDAMAGEが引き寄せ・
+ * 肩代わりされていれば、最終的にダメージを受けたユニットへ向け直す（ヒイロPS1のPP削り）。
+ * 命中の有無は問わない効果のため、全ヒット回避でDAMAGEが誰にも当たらなければ（防御介入は
+ * 命中確定後に評価されるため、振り替えも起きていない）元の対象へそのまま付く。別のstepの
+ * 効果は対象を明示した別の適用として扱い、向け直さない。使用者自身への効果も向け直さない。
+ */
+function followUpRecipientApplications(
   application: EffectActionApplication,
   lastResultState: LastResultState,
   context: EffectActionGroupContext,
+  stepHitDefenders: ReadonlyMap<BattleUnitId, ReadonlySet<BattleUnitId>>,
 ): readonly EffectActionApplication[] {
   if (application.hitCondition === undefined) {
-    return [application];
+    const defenders = stepHitDefenders.get(application.targetUnitId);
+    const kind = context.definitions.effectActions.get(application.effectActionDefinitionId)?.kind;
+    if (
+      defenders === undefined ||
+      defenders.size === 0 ||
+      // 使用者自身への効果（自傷ダメージ後の自己バフ等）は、自傷がかばわれても使用者に残す。
+      application.targetUnitId === context.actorUnitId ||
+      kind === undefined ||
+      NON_REDIRECTED_FOLLOW_UP_KINDS.has(kind)
+    ) {
+      return [application];
+    }
+    return redirectTo(application, defenders);
   }
   if ("scope" in application.hitCondition) {
     // 攻撃の後に発動するPSは、肩代わり者ではなく攻撃した元の対象（`TRIGGER_TARGET`と
@@ -113,15 +160,7 @@ function applicationsForHitCondition(
       defenders.add(defender);
     }
   }
-  return [...defenders].map((defender) =>
-    defender === application.targetUnitId
-      ? application
-      : {
-          ...application,
-          targetUnitId: defender,
-          hits: application.hits.map((hit) => ({ ...hit, targetUnitId: defender })),
-        },
-  );
+  return redirectTo(application, defenders);
 }
 
 function lastResultTargetsContext(
@@ -450,6 +489,9 @@ function* resolveActionApplications(
   // （`SKL_NINA_ZINA_FRONTRUNNER_AS2`: 刻痕3→4個でも今回の刻痕と2つの低下は揃って付く）。
   // 別の元の対象から向け直された付与は別の付与分として改めて判定する。
   const recipientJudgements = new Map<string, boolean>();
+  // R-INT-02第2項: このstepで各元の対象へ解決したDAMAGEのヒットを、実際に受けたユニット。
+  // 命中条件を持たない後続効果の向け直しに使う（命中条件付きは解決全体の命中履歴を見る）。
+  const stepHitDefenders = new Map<BattleUnitId, Set<BattleUnitId>>();
   const passesDeferredTargetCondition = (
     original: EffectActionApplication,
     candidate: EffectActionApplication,
@@ -477,8 +519,8 @@ function* resolveActionApplications(
     application: EffectActionApplication,
     remember: boolean,
   ): readonly EffectActionApplication[] =>
-    applicationsForHitCondition(application, lastResultState, context).filter((candidate) =>
-      passesDeferredTargetCondition(application, candidate, remember),
+    followUpRecipientApplications(application, lastResultState, context, stepHitDefenders).filter(
+      (candidate) => passesDeferredTargetCondition(application, candidate, remember),
     );
   const stepActionTargetUnitIds: BattleUnitId[] = [];
   const seenActionTargetUnitIds = new Set<BattleUnitId>();
@@ -702,6 +744,11 @@ function* resolveActionApplications(
             defenders.add(defender);
           }
           hitTargets.set(application.targetUnitId, [...defenders]);
+          const stepDefenders = stepHitDefenders.get(application.targetUnitId) ?? new Set();
+          for (const defender of applied.hitDefenderUnitIds ?? [application.targetUnitId]) {
+            stepDefenders.add(defender);
+          }
+          stepHitDefenders.set(application.targetUnitId, stepDefenders);
           lastResultState.hitTargetsByDamageAction.set(
             application.effectActionDefinitionId,
             hitTargets,
