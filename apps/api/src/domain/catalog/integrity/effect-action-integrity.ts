@@ -201,6 +201,25 @@ export function validateEffectAction(
       }
     }
   }
+  // R-EFF-09: 命中時付与（DAMAGEの`hitConfirmedEffects`・追撃の`onHitEffects`・
+  // サブユニット追加ダメージのdebuff）はヒット・対象ごとに付与されるため、1回の
+  // スキル使用で何体へ何回付与されるかを定義から限定できない。`SKILL_USE_ANY_HOLDER`の
+  // `PARENT`は1スキル使用につき1体・1回でなければならず、同じ`SkillUseId`の親が2つ
+  // 付くと一方の失効が他方とその子まで巻き込むため、これらの経路からの参照を拒否する。
+  for (const referencedId of perHitGrantedEffectActionIds(effectAction)) {
+    const referenced = effectActions.get(referencedId);
+    const referencedDuration = referenced !== undefined ? durationOf(referenced) : undefined;
+    if (
+      referencedDuration?.linkedEffectGroupScope === "SKILL_USE_ANY_HOLDER" &&
+      referencedDuration.linkedEffectGroupRole === "PARENT"
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "AMBIGUOUS_SKILL_USE_ANY_HOLDER_PARENT",
+        message: `grants "${referencedId}", a linkedEffectGroupScope "SKILL_USE_ANY_HOLDER" PARENT, per hit: one skill use may grant that PARENT to at most one unit once, since members are keyed only by the SkillUseId (R-EFF-09)`,
+      });
+    }
+  }
   // R-STA-01「パーセントポイント加算ステータス」／Q-STA-04（Issue #460）: 会心率・
   // 会心ダメージボーナス・属性相性ボーナスはそれ自体がパーセンテージで表される値であり、
   // 補正もパーセンテージの加減算としてだけ与えられる。`RATIO`（基本値への割合乗算）を
@@ -668,5 +687,31 @@ function collectDefensiveInterventionViolations(
     }
     default:
       return;
+  }
+}
+
+/**
+ * 命中時付与として参照する`EffectActionDefinitionId`（DAMAGEの`hitConfirmedEffects`、
+ * 追撃の`onHitEffects`、サブユニット追加ダメージのdebuff）。いずれもヒット・対象ごとに
+ * 付与されるため、1回のスキル使用での付与先・回数を定義から限定できない。
+ */
+function perHitGrantedEffectActionIds(
+  effectAction: EffectActionDefinition,
+): readonly EffectActionDefinitionId[] {
+  switch (effectAction.kind) {
+    case "DAMAGE":
+      return (effectAction.payload.hitConfirmedEffects ?? []).map(
+        (effect) => effect.effectActionDefinitionId,
+      );
+    case "APPLY_FOLLOW_UP_ATTACK":
+      return (effectAction.payload.onHitEffects ?? []).map(
+        (effect) => effect.effectActionDefinitionId,
+      );
+    case "APPLY_SUBUNIT": {
+      const debuff = effectAction.payload.additionalDamage.debuff;
+      return debuff !== undefined ? [debuff.effectActionDefinitionId] : [];
+    }
+    default:
+      return [];
   }
 }

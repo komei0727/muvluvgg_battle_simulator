@@ -2599,6 +2599,82 @@ describe("buildCatalogIndex", () => {
     expect(violationsOf([parentOnSelf, parentOnSelf])[0]?.targetId).toBe("SKL_AS2");
   });
 
+  it("UT-R-EFF-09-049 [R-EFF-09, R-DMG-05, R-FUP-01, R-SUB-02]: rejects a SKILL_USE_ANY_HOLDER PARENT granted per hit through hitConfirmedEffects, follow-up onHitEffects or a subunit debuff, and accepts a CHILD there", () => {
+    const groupMember = (id: string, role: "PARENT" | "CHILD"): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: `GROUP_${id}`,
+              linkedEffectGroupRole: role,
+              linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+            },
+          },
+        },
+        "effectAction",
+      );
+    const damageGranting = (id: string, referencedId: string): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "DAMAGE",
+          payload: {
+            damageType: "PHYSICAL",
+            formula: { kind: "SKILL_POWER", power: 1 },
+            hitConfirmedEffects: [{ effectActionDefinitionId: referencedId }],
+          },
+        },
+        "effectAction",
+      );
+    const followUpGranting = (id: string, referencedId: string): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_FOLLOW_UP_ATTACK",
+          payload: {
+            damage: { damageType: "PHYSICAL", formula: { kind: "SKILL_POWER", power: 1 } },
+            onHitEffects: [{ effectActionDefinitionId: referencedId }],
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: null,
+              consumption: { kind: "NEXT_OUTGOING_ATTACK", maxCount: 1 },
+            },
+          },
+        },
+        "effectAction",
+      );
+    const defs = baseDefinitions();
+    const added = [
+      groupMember("ACT_HIT_PARENT", "PARENT"),
+      groupMember("ACT_HIT_CHILD", "CHILD"),
+      groupMember("ACT_FUP_PARENT", "PARENT"),
+      damageGranting("ACT_DAMAGE_PARENT", "ACT_HIT_PARENT"),
+      damageGranting("ACT_DAMAGE_CHILD", "ACT_HIT_CHILD"),
+      followUpGranting("ACT_FUP_GRANTING_PARENT", "ACT_FUP_PARENT"),
+      groupMember("ACT_SUBUNIT_DEBUFF_PARENT", "PARENT"),
+      subunitAction("ACT_SUBUNIT_GRANTING_PARENT", { debuffId: "ACT_SUBUNIT_DEBUFF_PARENT" }),
+    ];
+    try {
+      buildCatalogIndex({ ...defs, effectActions: [...defs.effectActions, ...added] });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(CatalogIntegrityError);
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "AMBIGUOUS_SKILL_USE_ANY_HOLDER_PARENT")
+          .map((v) => v.targetId),
+      ).toEqual(["ACT_DAMAGE_PARENT", "ACT_FUP_GRANTING_PARENT", "ACT_SUBUNIT_GRANTING_PARENT"]);
+    }
+  });
+
   it("UT-R-EFF-10-057 [R-EFF-10]: rejects a markerId granted both by ADD and by REFRESH/REPLACE, since ADD keeps several grants that REFRESH/REPLACE cannot address", () => {
     const markerWith = (id: string, policy: string) =>
       createEffectActionDefinition(
