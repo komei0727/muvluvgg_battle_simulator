@@ -330,6 +330,24 @@ const MATCHUPS: readonly Matchup[] = [
     ],
     randomValue: 0.5,
   },
+  {
+    // 七枝が2回目のEX（構成マーカー保持時の攻撃力上昇）まで生き残る組み合わせ。
+    ally: [
+      "UNIT_SHOUKA_BEACH",
+      "UNIT_CHIZURU_DOMESTIC",
+      "UNIT_YURIA_JOKER",
+      "UNIT_EVIE_ECO",
+      "UNIT_ELENA_MOODMAKER",
+    ],
+    enemy: [
+      "UNIT_SIENA_DIVA",
+      "UNIT_URUU_SUMMER",
+      "UNIT_ROSIE_CAMPAIGN",
+      "UNIT_YUI_HEIR",
+      "UNIT_NANAE_SOVEREIGN",
+    ],
+    randomValue: 0.3,
+  },
 ];
 
 function detailsOf(event: BattleLogEvent): Readonly<Record<string, unknown>> {

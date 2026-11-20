@@ -418,6 +418,134 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
     },
   );
 
+  describe("follow-up actions without hitCondition on a covered attack (R-INT-02, Issue #856)", () => {
+    const REMOVE_BUFFS_ID = "ACT_TEST_HIT_REMOVE_BUFFS";
+    const removeBuffs = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: REMOVE_BUFFS_ID,
+        kind: "REMOVE_EFFECTS",
+        payload: { categories: ["BUFF"] },
+      },
+      "effectAction",
+    );
+    // 解除は定義からカテゴリを引くため、盤面の回避（`evasion`）の定義も登録する。
+    const evasionDefinition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_TEST_HIT_EVASION",
+        kind: "APPLY_STATUS",
+        payload: {
+          status: "EVASION",
+          probability: 0.5,
+          appliesTo: { incomingActionKinds: ["DAMAGE"] },
+          duration: { timeLimit: { unit: "TURN", count: 2 }, dispellable: true },
+        },
+      },
+      "effectAction",
+    );
+    const runCovered = (
+      steps: readonly EffectStepDefinitionInput[],
+      rolls: readonly number[],
+    ): readonly BattleUnit[] =>
+      run(
+        steps,
+        1,
+        rolls,
+        1000,
+        undefined,
+        [],
+        [coverOfFirstEnemyBySecond()],
+        [removeBuffs, evasionDefinition],
+      ).units;
+    const evasionsOf = (units: readonly BattleUnit[], unitId: string): number =>
+      units
+        .find((u) => u.battleUnitId === unitId)!
+        .appliedEffects.filter((e) => e.statusKind === "EVASION").length;
+
+    it("UT-R-INT-02-021 [R-INT-02]: a same-step follow-up without hitCondition goes to the unit that actually took the covered attack", () => {
+      const units = runCovered(
+        [
+          {
+            kind: "ACTION",
+            target: ENEMIES,
+            actions: [
+              { effectActionDefinitionId: DAMAGE_ID },
+              { effectActionDefinitionId: DEBUFF_ID },
+            ],
+          },
+        ],
+        [HIT, HIT],
+      );
+
+      expect(debuffCountOf(units, "enemy:1")).toBe(0);
+      expect(debuffCountOf(units, "enemy:2")).toBe(2);
+    });
+
+    it("UT-R-INT-02-022 [R-INT-02]: when the covered attack misses entirely nothing was redirected, so the follow-up without hitCondition still applies to the original target", () => {
+      const units = runCovered(
+        [
+          {
+            kind: "ACTION",
+            target: ENEMIES,
+            actions: [
+              { effectActionDefinitionId: DAMAGE_ID },
+              { effectActionDefinitionId: DEBUFF_ID },
+            ],
+          },
+        ],
+        [EVADE, EVADE],
+      );
+
+      expect(debuffCountOf(units, "enemy:1")).toBe(1);
+      expect(debuffCountOf(units, "enemy:2")).toBe(1);
+    });
+
+    it("UT-R-INT-02-023 [R-INT-02]: an action in a later step that names the target explicitly is not redirected, and neither is a SELF action", () => {
+      const units = runCovered(
+        [
+          { kind: "ACTION", target: ENEMIES, actions: [{ effectActionDefinitionId: DAMAGE_ID }] },
+          { kind: "ACTION", target: ENEMIES, actions: [{ effectActionDefinitionId: DEBUFF_ID }] },
+          {
+            kind: "ACTION",
+            target: { kind: "SELF" },
+            actions: [{ effectActionDefinitionId: SELF_BUFF_ID }],
+          },
+        ],
+        [HIT, HIT],
+      );
+
+      expect(debuffCountOf(units, "enemy:1")).toBe(1);
+      expect(debuffCountOf(units, "enemy:2")).toBe(1);
+      expect(
+        units
+          .find((u) => u.battleUnitId === "ally:attacker")!
+          .appliedEffects.filter(
+            (e) => e.effectActionDefinitionId === createEffectActionDefinitionId(SELF_BUFF_ID),
+          ),
+      ).toHaveLength(1);
+    });
+
+    it("UT-R-INT-02-024 [R-INT-02]: a same-step removal settles the original target's own state and is not redirected to the coverer", () => {
+      const units = runCovered(
+        [
+          {
+            kind: "ACTION",
+            target: ENEMIES,
+            actions: [
+              { effectActionDefinitionId: DAMAGE_ID },
+              { effectActionDefinitionId: REMOVE_BUFFS_ID },
+            ],
+          },
+        ],
+        [HIT, HIT],
+      );
+
+      // 向け直していれば enemy:1 の回避は残り、enemy:2 から2回解除を試みることになる。
+      expect(evasionsOf(units, "enemy:1")).toBe(0);
+      expect(evasionsOf(units, "enemy:2")).toBe(0);
+      expect(units.find((u) => u.battleUnitId === "enemy:1")!.currentHp).toBe(1000);
+    });
+  });
+
   it("UT-R-SKL-06-087 [R-SKL-06, R-HEAL-01]: an EVEN-distributed hit-conditioned heal splits its total only among the targets that were actually hit", () => {
     const { units } = run(
       [
