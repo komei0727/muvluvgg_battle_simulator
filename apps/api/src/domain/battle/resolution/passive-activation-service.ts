@@ -1399,7 +1399,7 @@ export class PassiveActivationRuntime {
     this.units = box.units;
 
     // R-TEX-06 #5: 効果処理フェーズの末尾（`MemoryResolved`の発行前）で保留ブレイクを
-    // 解決する。Memory経路は追撃（R-FUP-01はAS/EX専用）も`EffectSequence`スコープ
+    // 解決する。Memory経路は追撃（R-FUP-01はAS/EX・チャージ解放専用）も`EffectSequence`スコープ
     // counter（R-MEM-04により持てない）も無いため、ここが末尾そのものである。
     lastEventId = yield* this.resolveDeferredBreakSteps(skillUseId, lastEventId);
 
