@@ -201,6 +201,25 @@ export function validateEffectAction(
       }
     }
   }
+  // R-EFF-09: 命中時付与（DAMAGEの`hitConfirmedEffects`・追撃の`onHitEffects`・
+  // サブユニット追加ダメージのdebuff）はヒット・対象ごとに付与されるため、1回の
+  // スキル使用で何体へ何回付与されるかを定義から限定できない。`SKILL_USE_ANY_HOLDER`の
+  // `PARENT`は1スキル使用につき1体・1回でなければならず、同じ`SkillUseId`の親が2つ
+  // 付くと一方の失効が他方とその子まで巻き込むため、これらの経路からの参照を拒否する。
+  for (const referencedId of perHitGrantedEffectActionIds(effectAction)) {
+    const referenced = effectActions.get(referencedId);
+    const referencedDuration = referenced !== undefined ? durationOf(referenced) : undefined;
+    if (
+      referencedDuration?.linkedEffectGroupScope === "SKILL_USE_ANY_HOLDER" &&
+      referencedDuration.linkedEffectGroupRole === "PARENT"
+    ) {
+      violations.push({
+        targetId: effectAction.effectActionDefinitionId,
+        rule: "AMBIGUOUS_SKILL_USE_ANY_HOLDER_PARENT",
+        message: `grants "${referencedId}", a linkedEffectGroupScope "SKILL_USE_ANY_HOLDER" PARENT, per hit: one skill use may grant that PARENT to at most one unit once, since members are keyed only by the SkillUseId (R-EFF-09)`,
+      });
+    }
+  }
   // R-STA-01「パーセントポイント加算ステータス」／Q-STA-04（Issue #460）: 会心率・
   // 会心ダメージボーナス・属性相性ボーナスはそれ自体がパーセンテージで表される値であり、
   // 補正もパーセンテージの加減算としてだけ与えられる。`RATIO`（基本値への割合乗算）を
@@ -352,19 +371,20 @@ export function validateEffectAction(
       message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER and APPLY_SHIELD (R-EFF-10, M7-020, Issue #660): this kind has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
     });
   }
-  // R-EFF-09: `SKILL_USE`範囲は付与分ごとのインスタンスが付与時の`SkillUseId`を持つことを
-  // 前提にする。REFRESH/REPLACEは既存の付与分をその場で作り直し、付与キーが新しい
-  // スキル使用へ移るため、前の付与で紐づけた子がどの親の解除でも消えなくなる。
+  // R-EFF-09: `SKILL_USE`／`SKILL_USE_ANY_HOLDER`範囲は付与分ごとのインスタンスが付与時の
+  // `SkillUseId`を持つことを前提にする。REFRESH/REPLACEは既存の付与分をその場で作り直し、
+  // 付与キーが新しいスキル使用へ移るため、前の付与で紐づけた子がどの親の解除でも消えなくなる。
   if (
     effectAction.kind === "APPLY_MARKER" &&
-    duration?.linkedEffectGroupScope === "SKILL_USE" &&
+    (duration?.linkedEffectGroupScope === "SKILL_USE" ||
+      duration?.linkedEffectGroupScope === "SKILL_USE_ANY_HOLDER") &&
     (effectAction.payload.stack.policy === "REFRESH" ||
       effectAction.payload.stack.policy === "REPLACE")
   ) {
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE",
-      message: `duration.linkedEffectGroupScope "SKILL_USE" is not supported on APPLY_MARKER with stack.policy "${effectAction.payload.stack.policy}" (R-EFF-09): the grant is rebuilt in place under the new SkillUseId, orphaning the children linked to the previous grant`,
+      message: `duration.linkedEffectGroupScope "${duration.linkedEffectGroupScope}" is not supported on APPLY_MARKER with stack.policy "${effectAction.payload.stack.policy}" (R-EFF-09): the grant is rebuilt in place under the new SkillUseId, orphaning the children linked to the previous grant`,
     });
   }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的
@@ -667,5 +687,31 @@ function collectDefensiveInterventionViolations(
     }
     default:
       return;
+  }
+}
+
+/**
+ * 命中時付与として参照する`EffectActionDefinitionId`（DAMAGEの`hitConfirmedEffects`、
+ * 追撃の`onHitEffects`、サブユニット追加ダメージのdebuff）。いずれもヒット・対象ごとに
+ * 付与されるため、1回のスキル使用での付与先・回数を定義から限定できない。
+ */
+function perHitGrantedEffectActionIds(
+  effectAction: EffectActionDefinition,
+): readonly EffectActionDefinitionId[] {
+  switch (effectAction.kind) {
+    case "DAMAGE":
+      return (effectAction.payload.hitConfirmedEffects ?? []).map(
+        (effect) => effect.effectActionDefinitionId,
+      );
+    case "APPLY_FOLLOW_UP_ATTACK":
+      return (effectAction.payload.onHitEffects ?? []).map(
+        (effect) => effect.effectActionDefinitionId,
+      );
+    case "APPLY_SUBUNIT": {
+      const debuff = effectAction.payload.additionalDamage.debuff;
+      return debuff !== undefined ? [debuff.effectActionDefinitionId] : [];
+    }
+    default:
+      return [];
   }
 }

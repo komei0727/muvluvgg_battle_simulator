@@ -10,8 +10,10 @@ import {
   collectEffectActionReferences,
   collectEffectSteps,
   EFFECT_STEP_ROOT_PATH,
+  effectStepChildSteps,
 } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
+import { durationOf } from "./effect-action-inspection.js";
 import { conditionUsesGrantedBy } from "./condition-inspection.js";
 import {
   collectBranchTargetStateUnboundedReferencePaths,
@@ -241,6 +243,68 @@ export function validateDamageLinkBindingReferences(
       });
     }
   }
+}
+
+/**
+ * R-EFF-09: `SKILL_USE_ANY_HOLDER`範囲のグループは`[groupId, SkillUseId]`だけで識別し、
+ * 付与分ごとのアンカーを持たない。1回のスキル使用・Memory発動が同じグループの`PARENT`を
+ * 2つ以上付与すると、どちらか一方の失効が他方の`PARENT`とその子まで巻き込むため、
+ * `PARENT`の付与は1スキル使用につき高々1体・1回でなければならない。参照が2つ以上ある、
+ * REPEATの中にある、対象が複数体へ解決し得る、のいずれかを拒否する。BRANCHの別枝に
+ * 置いた参照も定義上2つと数える（実行時にどちらが選ばれたかで連動の意味を変えないため）。
+ */
+export function validateSkillUseAnyHolderParents(
+  sequence: EffectSequence,
+  ownerId: string,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  const bindingSelectors = buildBindingSelectors(sequence.targetBindings);
+  const parentCounts = new Map<string, number>();
+  const reject = (groupId: string, reason: string): void => {
+    violations.push({
+      targetId: ownerId,
+      rule: "AMBIGUOUS_SKILL_USE_ANY_HOLDER_PARENT",
+      message: `linkedEffectGroupId "${groupId}" (linkedEffectGroupScope "SKILL_USE_ANY_HOLDER") ${reason}: one skill use may grant its PARENT to at most one unit once, since members are keyed only by the SkillUseId (R-EFF-09)`,
+    });
+  };
+  const visit = (steps: readonly EffectStepDefinition[], inRepeat: boolean): void => {
+    for (const step of steps) {
+      if (step.kind === "ACTION") {
+        for (const ref of step.actions) {
+          const effectAction = effectActions.get(ref.effectActionDefinitionId);
+          const duration = effectAction !== undefined ? durationOf(effectAction) : undefined;
+          const groupId = duration?.linkedEffectGroupId;
+          if (
+            duration?.linkedEffectGroupScope !== "SKILL_USE_ANY_HOLDER" ||
+            duration.linkedEffectGroupRole !== "PARENT" ||
+            groupId === undefined ||
+            groupId === null
+          ) {
+            continue;
+          }
+          const count = (parentCounts.get(groupId) ?? 0) + 1;
+          parentCounts.set(groupId, count);
+          if (count === 2) {
+            reject(groupId, "has its PARENT referenced more than once");
+          }
+          if (inRepeat) {
+            reject(groupId, `has its PARENT "${ref.effectActionDefinitionId}" inside a REPEAT`);
+          }
+          if (!targetReferenceIsSingleUnit(step.target, bindingSelectors)) {
+            reject(
+              groupId,
+              `grants its PARENT "${ref.effectActionDefinitionId}" to a target that may resolve to more than one unit`,
+            );
+          }
+        }
+      }
+      for (const child of effectStepChildSteps(step)) {
+        visit(child.steps, inRepeat || step.kind === "REPEAT");
+      }
+    }
+  };
+  visit(sequence.steps, false);
 }
 
 /**

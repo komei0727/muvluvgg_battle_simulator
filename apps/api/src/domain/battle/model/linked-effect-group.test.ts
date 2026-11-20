@@ -3,6 +3,7 @@ import {
   NO_EFFECT_INSTANCE_IDS,
   NO_MARKER_INSTANCE_IDS,
   collectLinkedGroupCascade,
+  linkedGroupKeyOf,
 } from "./linked-effect-group.js";
 import { createBattleUnit, type BattleUnit } from "./battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "./applied-effect.js";
@@ -260,6 +261,75 @@ describe("collectLinkedGroupCascade", () => {
     const result = collectLinkedGroupCascade(units, effectSeeds(parentA));
 
     expect(result.effectInstanceIds).toEqual(new Set([parentA.effectInstanceId]));
+  });
+
+  it("UT-R-EFF-09-044 [R-EFF-09]: a SKILL_USE_ANY_HOLDER key ignores the holder and separates skill uses", () => {
+    const anyHolderScoped = (instance: AppliedEffect, skillUse: string): AppliedEffect => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: {
+          ...instance.duration.definition,
+          linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+        },
+        linkedGroupSkillUseId: createSkillUseId(skillUse),
+      },
+    });
+    const self = unit("self");
+    const ally = unit("ally");
+    const shield = anyHolderScoped(effect("shield", self, "GROUP_GUARD", "PARENT"), "use-1");
+    const link = anyHolderScoped(effect("link", ally, "GROUP_GUARD", "CHILD"), "use-1");
+    const nextLink = anyHolderScoped(effect("next-link", ally, "GROUP_GUARD", "CHILD"), "use-2");
+
+    const shieldKey = linkedGroupKeyOf(shield.duration, self.battleUnitId);
+    expect(linkedGroupKeyOf(link.duration, ally.battleUnitId)).toBe(shieldKey);
+    expect(linkedGroupKeyOf(nextLink.duration, ally.battleUnitId)).not.toBe(shieldKey);
+  });
+
+  it("UT-R-EFF-09-045 [R-EFF-09]: a SKILL_USE_ANY_HOLDER PARENT cascades to the CHILD members another unit holds from the same skill use only", () => {
+    const anyHolderScoped = <T extends AppliedEffect | MarkerState>(
+      instance: T,
+      skillUse: string,
+    ): T => ({
+      ...instance,
+      duration: {
+        ...instance.duration,
+        definition: {
+          ...instance.duration.definition,
+          linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+        },
+        linkedGroupSkillUseId: createSkillUseId(skillUse),
+      },
+    });
+    const self = unit("self");
+    const ally = unit("ally");
+    const shield1 = anyHolderScoped(effect("shield-1", self, "GROUP_GUARD", "PARENT"), "use-1");
+    const immunity1 = anyHolderScoped(effect("immunity-1", self, "GROUP_GUARD", "CHILD"), "use-1");
+    const link1 = anyHolderScoped(effect("link-1", ally, "GROUP_GUARD", "CHILD"), "use-1");
+    const allyImmunity1 = anyHolderScoped(
+      marker("ally-immunity-1", ally, "GROUP_GUARD", "CHILD"),
+      "use-1",
+    );
+    const shield2 = anyHolderScoped(effect("shield-2", self, "GROUP_GUARD", "PARENT"), "use-2");
+    const link2 = anyHolderScoped(effect("link-2", ally, "GROUP_GUARD", "CHILD"), "use-2");
+    const units = [
+      { ...self, appliedEffects: [shield1, immunity1, shield2] },
+      { ...ally, appliedEffects: [link1, link2], markerStates: [allyImmunity1] },
+    ];
+
+    expect(collectLinkedGroupCascade(units, effectSeeds(shield1))).toEqual({
+      effectInstanceIds: new Set([
+        shield1.effectInstanceId,
+        immunity1.effectInstanceId,
+        link1.effectInstanceId,
+      ]),
+      markerInstanceIds: new Set([allyImmunity1.markerInstanceId]),
+    });
+    // CHILD単独の失効は、別ユニットが保持するPARENTへ波及しない。
+    expect(collectLinkedGroupCascade(units, effectSeeds(link2))).toEqual({
+      effectInstanceIds: new Set([link2.effectInstanceId]),
+      markerInstanceIds: new Set(),
+    });
   });
 
   it("UT-R-EFF-09-004 (R-EFF-09): does not expand through an instance with linkedEffectGroupId null", () => {

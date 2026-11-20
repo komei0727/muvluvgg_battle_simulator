@@ -28,6 +28,7 @@ import {
   validateHitConditionReferences,
   validateGrantedByScope,
   validateMixedStepTargetSetCondition,
+  validateSkillUseAnyHolderParents,
 } from "./effect-sequence-integrity.js";
 import { validateLastResultDataFlow } from "./last-result-data-flow.js";
 import { selectorTreeSome } from "./target-reference-cardinality.js";
@@ -301,6 +302,12 @@ export function validateMemory(
       violations,
     );
     validateDamageLinkBindingReferences(
+      triggeredEffect.effectSequence,
+      memory.memoryDefinitionId,
+      effectActions,
+      violations,
+    );
+    validateSkillUseAnyHolderParents(
       triggeredEffect.effectSequence,
       memory.memoryDefinitionId,
       effectActions,
