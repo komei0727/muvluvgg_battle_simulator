@@ -251,6 +251,11 @@ export interface MemoryGrant {
     readonly damageType: DamageType | null;
   };
   /**
+   * `APPLY_HEALING_MOD`由来だけが持つ、補正の向き。「HP回復量」は受ける回復量
+   * （`INCOMING`）であり、与える回復量（`OUTGOING`）とは効果量では区別できない。
+   */
+  readonly healingMod?: { readonly direction: "OUTGOING" | "INCOMING" };
+  /**
    * 既定（戦闘終了まで＝`{ unit: "BATTLE", count: 1 }`）と異なるときだけ現れる。
    * `null`は期限そのものを持たない（消費でだけ失効する）ことを表す。
    */
@@ -444,7 +449,9 @@ function declarationOf(
               damageType: action.payload.damageType,
             },
           }
-        : {};
+        : action.kind === "APPLY_HEALING_MOD"
+          ? { healingMod: { direction: action.payload.direction } }
+          : {};
   const duration = "duration" in action.payload ? action.payload.duration : undefined;
   const timeLimit = duration?.timeLimit;
   const isBattleLong =

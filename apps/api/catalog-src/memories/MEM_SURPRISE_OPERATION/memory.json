@@ -1,0 +1,318 @@
+{
+  "memoryDefinitionId": "MEM_SURPRISE_OPERATION",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_AGGRESSIVE_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "AGGRESSIVE"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_AGGRESSIVE_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_AGGRESSIVE_ATK_DOWN"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_AGGRESSIVE_SPD_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SMART_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "SMART"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_SMART_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_SMART_DEF_DOWN"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_SMART_CRIT_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SHY_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "SHY"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_SHY_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_SHY_ATK_DOWN"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_SHY_CRIT_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CUTE_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "CUTE"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CUTE_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_CUTE_DEF_DOWN"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_CUTE_SPD_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_COMICAL_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "COMICAL"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_COMICAL_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_COMICAL_DMG_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CLEVER_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "CLEVER"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CLEVER_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_CLEVER_DMG_TAKEN_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TURN_NUMBER",
+          "op": "EQ",
+          "value": 1
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ENEMIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ENEMY",
+              "count": "ALL"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ENEMIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_SURPRISE_OPERATION_HEALING_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "displayName": "サプライズ大作戦！？",
+    "tags": []
+  }
+}

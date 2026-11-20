@@ -1,0 +1,318 @@
+{
+  "memoryDefinitionId": "MEM_PEACEFUL_DAYS",
+  "triggeredEffects": [
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_AGGRESSIVE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "AGGRESSIVE"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_AGGRESSIVE_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_AGGRESSIVE_ATK_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_AGGRESSIVE_SPD_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SMART_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "SMART"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_SMART_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_SMART_DEF_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_SMART_CRIT_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_SHY_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "SHY"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_SHY_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_SHY_ATK_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_SHY_CRIT_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CUTE_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "CUTE"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CUTE_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_CUTE_DEF_UP"
+              },
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_CUTE_SPD_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_COMICAL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "COMICAL"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_COMICAL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_COMICAL_DMG_UP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "BattleStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TRUE"
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_CLEVER_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL",
+              "filters": [
+                {
+                  "kind": "ATTRIBUTE",
+                  "attribute": "CLEVER"
+                }
+              ]
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_CLEVER_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_CLEVER_DMG_TAKEN_DOWN"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "trigger": {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TURN_NUMBER",
+          "op": "EQ",
+          "value": 1
+        }
+      },
+      "effectSequence": {
+        "targetBindings": [
+          {
+            "targetBindingId": "TGT_ALL_ALLIES",
+            "selector": {
+              "kind": "SELECT",
+              "side": "ALLY",
+              "count": "ALL"
+            }
+          }
+        ],
+        "steps": [
+          {
+            "kind": "ACTION",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_ALL_ALLIES"
+            },
+            "actions": [
+              {
+                "effectActionDefinitionId": "ACT_MEM_PEACEFUL_DAYS_HEALING_UP"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "displayName": "穏やかな日々",
+    "tags": []
+  }
+}

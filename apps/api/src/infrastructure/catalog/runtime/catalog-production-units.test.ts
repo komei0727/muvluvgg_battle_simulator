@@ -692,7 +692,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （Issue #869）。既存のUnit・Skill・EffectActionは変更していない。
     // `2026-11-20.3` は新Unit `UNIT_RATOROWA_ICEWITCH`（【氷の魔女】フィカーツィア・ラトロワ）を
     // 追加した（Issue #870）。既存のUnit・Skill・EffectActionは変更していない。
-    expect(catalog.catalogRevision).toBe("2026-11-20.3");
+    // `2026-11-20.4` は新Memory `MEM_PEACEFUL_DAYS`（穏やかな日々）と `MEM_SURPRISE_OPERATION`
+    // （サプライズ大作戦！？）を追加した（Issue #876）。既存の定義は変更していない。
+    expect(catalog.catalogRevision).toBe("2026-11-20.4");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {
