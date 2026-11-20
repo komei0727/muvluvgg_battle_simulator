@@ -524,6 +524,34 @@ describe("actions[].hitCondition via resolveSkillUse (R-SKL-06 #4a)", () => {
       ).toHaveLength(1);
     });
 
+    it("UT-R-INT-02-025 [R-INT-02]: when a same-step SELF damage is covered, the following self buff still goes to the user, not to the coverer", () => {
+      const units = runCovered(
+        [
+          {
+            kind: "ACTION",
+            target: { kind: "SELF" },
+            actions: [
+              { effectActionDefinitionId: DAMAGE_ID },
+              { effectActionDefinitionId: SELF_BUFF_ID },
+            ],
+          },
+        ],
+        [HIT],
+      );
+      const selfBuffsOf = (unitId: string): number =>
+        units
+          .find((u) => u.battleUnitId === unitId)!
+          .appliedEffects.filter(
+            (e) => e.effectActionDefinitionId === createEffectActionDefinitionId(SELF_BUFF_ID),
+          ).length;
+
+      // 自傷ダメージは肩代わり者が受ける。
+      expect(units.find((u) => u.battleUnitId === "ally:attacker")!.currentHp).toBe(1000);
+      expect(units.find((u) => u.battleUnitId === "enemy:2")!.currentHp).toBeLessThan(1000);
+      expect(selfBuffsOf("ally:attacker")).toBe(1);
+      expect(selfBuffsOf("enemy:2")).toBe(0);
+    });
+
     it("UT-R-INT-02-024 [R-INT-02]: a same-step removal settles the original target's own state and is not redirected to the coverer", () => {
       const units = runCovered(
         [

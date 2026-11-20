@@ -122,7 +122,7 @@ function redirectTo(
  * 肩代わりされていれば、最終的にダメージを受けたユニットへ向け直す（ヒイロPS1のPP削り）。
  * 命中の有無は問わない効果のため、全ヒット回避でDAMAGEが誰にも当たらなければ（防御介入は
  * 命中確定後に評価されるため、振り替えも起きていない）元の対象へそのまま付く。別のstepの
- * 効果は対象を明示した別の適用として扱い、向け直さない。
+ * 効果は対象を明示した別の適用として扱い、向け直さない。使用者自身への効果も向け直さない。
  */
 function followUpRecipientApplications(
   application: EffectActionApplication,
@@ -136,6 +136,8 @@ function followUpRecipientApplications(
     if (
       defenders === undefined ||
       defenders.size === 0 ||
+      // 使用者自身への効果（自傷ダメージ後の自己バフ等）は、自傷がかばわれても使用者に残す。
+      application.targetUnitId === context.actorUnitId ||
       kind === undefined ||
       NON_REDIRECTED_FOLLOW_UP_KINDS.has(kind)
     ) {
