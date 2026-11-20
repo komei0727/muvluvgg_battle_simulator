@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { shouldObserve, withFollowUpRiderDamageTypes } from "./pre-attack-observation-service.js";
+import {
+  emitPreAttackObservations,
+  shouldObserve,
+  withFollowUpRiderDamageTypes,
+} from "./pre-attack-observation-service.js";
+import { EventRecorder } from "../events/event-recorder.js";
+import type { BattleDomainEvent } from "../events/domain-event.js";
+import { createBattleId } from "../../shared/ids.js";
+import { createSkillDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import { evaluateTriggerCondition } from "../triggering/trigger-condition-evaluator.js";
 import { createBattleUnit, type BattleUnit } from "../model/battle-unit.js";
 import { effectKindKeyFromDefinitionId, type AppliedEffect } from "../model/applied-effect.js";
@@ -124,5 +132,58 @@ describe("pre-attack observation (R-ATM-03)", () => {
     expect(shouldObserve(units, defeated.battleUnitId)).toBe(false);
     // 盤面から消えた（存在しない）idも観測しない。
     expect(shouldObserve(units, createBattleUnitId("ABSENT"))).toBe(false);
+  });
+
+  it("UT-R-ATM-03-013 (R-ATM-03 #1, Issue #858): 1回のスキル使用の全対象の観測を記録してから、発動機会として1回だけ候補解決へ渡す", () => {
+    const attacker = unit("ATTACKER");
+    const first = unit("FIRST");
+    const defeated: BattleUnit = { ...unit("DEFEATED"), currentHp: 0 };
+    const second = unit("SECOND");
+    const recorder = new EventRecorder(createBattleId("B_PRE_ATTACK_EMIT"));
+    const root = recorder.record({
+      eventType: "TurnStarted",
+      category: "FACT",
+      turnNumber: 1,
+      cycleNumber: 0,
+      resolutionScopeId: recorder.nextResolutionScopeId(),
+      payload: { turnNumber: 1 },
+    });
+    const batches: (readonly BattleDomainEvent[])[] = [];
+
+    const result = emitPreAttackObservations(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        skillUseId: recorder.nextSkillUseId(),
+        resolutionScopeId: root.resolutionScopeId,
+        rootEventId: root.eventId,
+        skillDefinitionId: createSkillDefinitionId("SKL_TEST_ATTACK"),
+        attackerUnitId: attacker.battleUnitId,
+      },
+      [first, defeated, second].map((target) => ({
+        targetUnitId: target.battleUnitId,
+        damageTypes: ["PHYSICAL"],
+      })),
+      [attacker, first, defeated, second],
+      attacker.battleUnitId,
+      undefined,
+      root.eventId,
+      (events, units) => {
+        batches.push(events);
+        // 発動機会の候補解決で使用者が戦闘不能になった場合。
+        return units.map((u) =>
+          u.battleUnitId === attacker.battleUnitId ? { ...u, currentHp: 0 } : u,
+        );
+      },
+    );
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0]!.map((event) => event.targetUnitIds)).toEqual([
+      [first.battleUnitId],
+      [second.battleUnitId],
+    ]);
+    expect(result.interrupted).toBe(true);
+    expect(result.lastEventId).toBe(batches[0]![1]!.eventId);
   });
 });

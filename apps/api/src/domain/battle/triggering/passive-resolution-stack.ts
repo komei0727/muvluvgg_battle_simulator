@@ -20,6 +20,23 @@ export interface PassiveResolutionStackEntry {
    * 「現在の候補より後、このエントリの未処理の候補より前」に自然と解決される。
    */
   readonly memoryCandidates: MemoryCandidateGroup;
+  /**
+   * R-ATM-03: 1回の攻撃スキル使用の攻撃前観測をまとめた発動機会のエントリだけが持つ。
+   * `candidates`は全対象の観測から集約した候補で、各候補の契機イベントは
+   * `triggerEventOf`が持つ（`event`は最初の観測）。
+   */
+  readonly preAttackOpportunity?: PreAttackOpportunity;
+}
+
+/**
+ * R-ATM-03 / R-PS-03: 攻撃前の発動機会の選択状態。同時発動制限は候補検出時ではなく
+ * 発動の開始時に確定させる — 発動直前確認（R-PS-04）で不成立になった候補はグループを
+ * 占有せず、次の候補が繰り上がる。
+ */
+export interface PreAttackOpportunity {
+  readonly triggerEventOf: ReadonlyMap<PassiveCandidate, TriggerCandidateEvent>;
+  /** 発動を開始した候補が占有した同時発動制限グループ（`simultaneousActivationLimitGroupsOf`）。 */
+  readonly claimedLimitGroups: Set<string>;
 }
 
 /**

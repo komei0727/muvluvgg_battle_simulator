@@ -100,8 +100,10 @@ import type {
 import type { PassiveCandidate } from "../triggering/passive-candidate.js";
 import {
   detectPassiveCandidateGroup,
+  detectPreAttackObservation,
   resolvePassiveChain,
   resolvePendingCandidateGroups,
+  resolvePreAttackObservations,
   type PassiveActivationStep,
   type PassiveChainDependencies,
 } from "../triggering/resolve-passive-chain.js";
@@ -940,6 +942,81 @@ export class PassiveActivationRuntime {
   ): ResolutionResult {
     const eventsStart = this.context.recorder.getEvents().length;
     this.units = units;
+    const triggerEvent = this.maintainStateForTopLevelEvent(event, counterUpdateDepth);
+
+    // R-ATM-01: 効果処理フェーズの進行中は、状態保守だけを確定させ、
+    // 候補は検出して保留キューへ積む（発動は`drainEffectProcessingPhase`）。
+    // 状態保守が発行した子イベントもこの`onFactEvent`へ再帰しているため、
+    // キュー内では子イベントの候補が`event`自身の候補より前に並ぶ。
+    const deferralFrame = this.defersActivationOf(event)
+      ? this.pendingEffectProcessingFrames[this.pendingEffectProcessingFrames.length - 1]
+      : undefined;
+    if (deferralFrame !== undefined) {
+      deferralFrame.push(detectPassiveCandidateGroup(triggerEvent, this.buildDependencies()));
+      const deferredEvents = this.context.recorder.getEvents();
+      const lastDeferred =
+        deferredEvents.length > eventsStart ? deferredEvents[deferredEvents.length - 1] : undefined;
+      return { units: this.units, lastEventId: lastDeferred?.eventId ?? event.eventId };
+    }
+
+    const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
+    if (!result.ok) {
+      throw new ExecutionGuardExceededError(
+        `PS chain resolution exceeded its execution guard: ${result.reason}`,
+      );
+    }
+    this.guard = result.activationGuard;
+    const recordedEvents = this.context.recorder.getEvents();
+    const last =
+      recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;
+    return { units: this.units, lastEventId: last?.eventId ?? event.eventId };
+  }
+
+  /**
+   * R-ATM-03: トップレベルの攻撃（AS/EX使用・チャージ解放）の攻撃前観測を、全対象ぶん
+   * まとめて1つの発動機会として解決する。各観測の状態保守は`onFactEvent`と同じく
+   * 発行順に確定させ、候補は全観測を通して集約・選択する（`resolvePreAttackObservations`）。
+   * 前段フェーズのイベントのため保留はしない。
+   */
+  onPreAttackObservations(
+    events: readonly BattleDomainEvent[],
+    units: readonly BattleUnit[],
+    cursor: DomainEventId,
+  ): ResolutionResult {
+    const last = events[events.length - 1];
+    if (last === undefined) {
+      return { units, lastEventId: cursor };
+    }
+    const eventsStart = this.context.recorder.getEvents().length;
+    this.units = units;
+    // R-ATM-03 #1: 候補は各観測の状態保守の直後に、その時点の状態で検出する。
+    const observations = events.map((event) =>
+      detectPreAttackObservation(
+        this.maintainStateForTopLevelEvent(event, 0),
+        this.buildDependencies(),
+      ),
+    );
+    const result = resolvePreAttackObservations(observations, this.guard, this.buildDependencies());
+    if (!result.ok) {
+      throw new ExecutionGuardExceededError(
+        `PS chain resolution exceeded its execution guard: ${result.reason}`,
+      );
+    }
+    this.guard = result.activationGuard;
+    const recordedEvents = this.context.recorder.getEvents();
+    const lastRecorded =
+      recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;
+    return { units: this.units, lastEventId: lastRecorded?.eventId ?? last.eventId };
+  }
+
+  /**
+   * `onFactEvent`の候補検出より前の状態保守（RuntimeCounter更新・特殊失効・付与者
+   * 戦闘不能による解除）を`event`について確定させ、照合用のイベントを返す。
+   */
+  private maintainStateForTopLevelEvent(
+    event: BattleDomainEvent,
+    counterUpdateDepth: number,
+  ): TriggerCandidateEvent {
     const triggerEvent = this.toTriggerEvent(event);
 
     const nextDepth = counterUpdateDepth + 1;
@@ -1014,33 +1091,7 @@ export class PassiveActivationRuntime {
     // 注入し、PS連鎖内部の各イベントに対しても候補抽出直前に同じ評価を行う。
     // トップレベルの`event`自身は上の呼び出しで既に失効済みのため、
     // `resolveEvent`側の評価は該当なし（no-op）になる — 二重発行はしない。
-    //
-    // R-ATM-01: 効果処理フェーズの進行中は、ここまでの状態保守だけを確定させ、
-    // 候補は検出して保留キューへ積む（発動は`drainEffectProcessingPhase`）。
-    // 上の状態保守が発行した子イベントもこの`onFactEvent`へ再帰しているため、
-    // キュー内では子イベントの候補が`event`自身の候補より前に並ぶ。
-    const deferralFrame = this.defersActivationOf(event)
-      ? this.pendingEffectProcessingFrames[this.pendingEffectProcessingFrames.length - 1]
-      : undefined;
-    if (deferralFrame !== undefined) {
-      deferralFrame.push(detectPassiveCandidateGroup(triggerEvent, this.buildDependencies()));
-      const deferredEvents = this.context.recorder.getEvents();
-      const lastDeferred =
-        deferredEvents.length > eventsStart ? deferredEvents[deferredEvents.length - 1] : undefined;
-      return { units: this.units, lastEventId: lastDeferred?.eventId ?? event.eventId };
-    }
-
-    const result = resolvePassiveChain(triggerEvent, this.guard, this.buildDependencies());
-    if (!result.ok) {
-      throw new ExecutionGuardExceededError(
-        `PS chain resolution exceeded its execution guard: ${result.reason}`,
-      );
-    }
-    this.guard = result.activationGuard;
-    const recordedEvents = this.context.recorder.getEvents();
-    const last =
-      recordedEvents.length > eventsStart ? recordedEvents[recordedEvents.length - 1] : undefined;
-    return { units: this.units, lastEventId: last?.eventId ?? event.eventId };
+    return triggerEvent;
   }
 
   /**
@@ -1673,9 +1724,9 @@ export class PassiveActivationRuntime {
     );
 
     // R-ATM-03: 前段フェーズの最後に攻撃前観測を行う（R-ATM-02 #1の表、PS行）。
-    // `TIMING_EVENT`としてyieldするため、この候補は進行中の連鎖で直ちに解決される
-    // （効果処理フェーズはこの後に始まるため保留対象にならない）。
-    let observationInterrupted = false;
+    // 全対象の観測を記録してから1つの発動機会として差し出す。前段フェーズのため
+    // 候補は進行中の連鎖で直ちに解決される（効果処理フェーズはこの後に始まる）。
+    const observationEvents: TriggerCandidateEvent[] = [];
     for (const observation of collectPreAttackObservations(
       skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
       plan.resolvedBindings,
@@ -1704,14 +1755,15 @@ export class PassiveActivationRuntime {
         lastEventId,
       );
       lastEventId = recorded.eventId;
-      yield { kind: "TIMING_EVENT", event: this.toTriggerEvent(recorded) };
-      // R-ATM-03 #5: PS所有者が戦闘不能になった場合は残りの観測を発行せず、
-      // 効果処理フェーズへ進まずに`PassiveInterrupted`で終える。
+      observationEvents.push(this.toTriggerEvent(recorded));
+    }
+    let observationInterrupted = false;
+    if (observationEvents.length > 0) {
+      yield { kind: "PRE_ATTACK_OBSERVATIONS", events: observationEvents };
+      // R-ATM-03 #5: PS所有者が戦闘不能になった場合は効果処理フェーズへ進まずに
+      // `PassiveInterrupted`で終える。
       const owner = this.units.find((unit) => unit.battleUnitId === ownerId);
-      if (owner === undefined || isDefeated(owner)) {
-        observationInterrupted = true;
-        break;
-      }
+      observationInterrupted = owner === undefined || isDefeated(owner);
     }
 
     const groupContext: EffectActionGroupContext = {

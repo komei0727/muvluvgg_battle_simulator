@@ -80,9 +80,9 @@ export function withFollowUpRiderDamageTypes(
 }
 
 /**
- * R-ATM-03 #4: 発行の直前に戦闘不能である対象へは発行しない（`R-ACTN-01` #2と
- * 同じ扱い。先行する観測のPSが対象を戦闘不能にした場合を含むため、各発行の
- * 直前に最新の`units`から判定する）。
+ * R-ATM-03 #4: 発行の時点で戦闘不能である対象へは発行しない（`R-ACTN-01` #2と
+ * 同じ扱い）。1回のスキル使用の観測はすべて記録してから候補解決するため、
+ * 判定は観測を発行する直前の`units`で行う。
  */
 export function shouldObserve(units: readonly BattleUnit[], targetUnitId: BattleUnitId): boolean {
   const target = units.find((unit) => unit.battleUnitId === targetUnitId);
@@ -94,20 +94,21 @@ export interface PreAttackObservationResult {
   readonly units: readonly BattleUnit[];
   readonly lastEventId: DomainEventId;
   /**
-   * R-ATM-03 #5: 観測の候補解決で使用者が戦闘不能になったため、残りの観測を
-   * 発行せず効果処理フェーズへも進まないこと。呼び出し側はスキル使用を中断する。
+   * R-ATM-03 #5: 観測の候補解決で使用者が戦闘不能になったため、効果処理フェーズへ
+   * 進まないこと。呼び出し側はスキル使用を中断する。
    */
   readonly interrupted: boolean;
 }
 
 /**
  * R-ATM-03 #1〜#5: 前段フェーズの攻撃前観測を、同期callback経路（AS/EX使用・
- * チャージ解放）から駆動する。1対象ずつ発行し、その候補解決を完全に終えてから
- * 次の対象へ進む — 先行する観測のPSが後続の対象や使用者を戦闘不能にし得るため。
+ * チャージ解放）から駆動する。全対象の観測を発行順に記録してから、1回のスキル使用の
+ * 発動機会としてまとめて候補解決へ渡す（`onPreAttackObservationsForPassiveChain`）。
+ * 候補は全対象を通して集約・選択するため、観測の途中でPSを発動させない。
  *
- * PS/Memory自身のEffectSequence解決（generator経路）は`onFactEvent`を呼べない
+ * PS/Memory自身のEffectSequence解決（generator経路）は同期callbackを呼べない
  * ため、この関数ではなく`recordPreAttackObservation`／`shouldObserve`を直接使い、
- * 進行中の`resolvePassiveChain`へ`TIMING_EVENT`としてyieldする。
+ * 進行中の`resolvePassiveChain`へ`PRE_ATTACK_OBSERVATIONS`としてyieldする。
  */
 export function emitPreAttackObservations(
   context: PreAttackObservationContext,
@@ -122,37 +123,42 @@ export function emitPreAttackObservations(
     | ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>
     | undefined,
   parentEventId: DomainEventId,
-  onFactEventForPassiveChain: (
-    event: BattleDomainEvent,
+  onPreAttackObservationsForPassiveChain: (
+    events: readonly BattleDomainEvent[],
     units: readonly BattleUnit[],
   ) => readonly BattleUnit[],
 ): PreAttackObservationResult {
-  let working = units;
   let lastEventId = parentEventId;
   const withRiders =
     followUpRiderEffectActions === undefined
       ? observations
       : withFollowUpRiderDamageTypes(
           observations,
-          working.find((unit) => unit.battleUnitId === attackerUnitId),
+          units.find((unit) => unit.battleUnitId === attackerUnitId),
           followUpRiderEffectActions,
         );
+  const recorded: BattleDomainEvent[] = [];
   for (const observation of withRiders) {
-    if (!shouldObserve(working, observation.targetUnitId)) {
+    if (!shouldObserve(units, observation.targetUnitId)) {
       continue;
     }
-    const recorded = recordPreAttackObservation(context, observation, lastEventId);
-    lastEventId = recorded.eventId;
-    working = onFactEventForPassiveChain(recorded, working);
-    // R-ATM-03 #5: 使用者が戦闘不能になった場合だけ打ち切る。観測**対象**が
-    // 戦闘不能になった場合は残りの観測と効果処理を続行する（DAMAGEの適用可否は
-    // R-ACTN-01 #2が処理する）。
-    const attacker = working.find((unit) => unit.battleUnitId === attackerUnitId);
-    if (attacker === undefined || isDefeated(attacker)) {
-      return { units: working, lastEventId, interrupted: true };
-    }
+    const event = recordPreAttackObservation(context, observation, lastEventId);
+    lastEventId = event.eventId;
+    recorded.push(event);
   }
-  return { units: working, lastEventId, interrupted: false };
+  if (recorded.length === 0) {
+    return { units, lastEventId, interrupted: false };
+  }
+  const working = onPreAttackObservationsForPassiveChain(recorded, units);
+  // R-ATM-03 #5: 使用者が戦闘不能になった場合だけ打ち切る。観測**対象**が
+  // 戦闘不能になった場合は効果処理を続行する（DAMAGEの適用可否は
+  // R-ACTN-01 #2が処理する）。
+  const attacker = working.find((unit) => unit.battleUnitId === attackerUnitId);
+  return {
+    units: working,
+    lastEventId,
+    interrupted: attacker === undefined || isDefeated(attacker),
+  };
 }
 
 /** R-ATM-03 #1: 1対象ぶんの攻撃前観測（`UnitBeingAttacked`）を記録する。 */

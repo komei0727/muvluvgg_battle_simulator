@@ -269,7 +269,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_HIIRO_FREEWOLF_TEX",
   "eventCount": 6975,
-  "eventSequenceHash": "sha256:e51a877028008721",
+  "eventSequenceHash": "sha256:ff63e76a5af34d1b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 133,
     "ACTION_COMPLETING": 133,
@@ -489,7 +489,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_LYDIA_SUMMER_TEX",
   "eventCount": 7838,
-  "eventSequenceHash": "sha256:475c13f00b277933",
+  "eventSequenceHash": "sha256:762b7f3d4fdbd9c0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 142,
     "ACTION_COMPLETING": 142,
@@ -598,7 +598,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_MAO_SUMMER_TEX",
   "eventCount": 7408,
-  "eventSequenceHash": "sha256:10108afe2ac503ef",
+  "eventSequenceHash": "sha256:2ceb3051e6bacf3f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 139,
     "ACTION_COMPLETING": 139,
@@ -801,7 +801,7 @@ exports[`production tactical exercise golden battles > E2E-GOLDEN-TEX: exercise 
   "completionReason": "TURN_LIMIT_REACHED",
   "enemyUnitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
   "eventCount": 7734,
-  "eventSequenceHash": "sha256:a28e0622f4724c10",
+  "eventSequenceHash": "sha256:df56f684f65fccbd",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 140,
     "ACTION_COMPLETING": 140,

@@ -562,7 +562,8 @@ export function resolveChargeRelease(
     // R-FUP-01 #2: チャージ解放の攻撃にも追撃ライダーが相乗りするため、その型を含める。
     definitions.effectActions,
     chargeReleased.eventId,
-    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+    (events, unitsForChain) =>
+      passiveRuntime.onPreAttackObservations(events, unitsForChain, events[0]!.eventId).units,
   );
   working = observation.units;
 

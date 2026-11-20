@@ -1,5 +1,25 @@
 import type { PassiveCandidate, PassiveCandidateGroup } from "./passive-candidate.js";
 
+/**
+ * R-PS-03: 候補が属する同時発動制限グループ。`simultaneousActivationLimited`は1つの
+ * 暗黙グループ、`exclusiveActivationGroupId`は値ごとに独立したグループになる。
+ * 攻撃前の発動機会（R-ATM-03）は、発動を開始した候補がこれらのグループを占有し、
+ * 同じグループに属する後続候補を除外する。
+ */
+export function simultaneousActivationLimitGroupsOf(
+  candidate: PassiveCandidate,
+): readonly string[] {
+  const groups: string[] = [];
+  if (candidate.skillDefinition.traits.simultaneousActivationLimited) {
+    groups.push("SIMULTANEOUS");
+  }
+  const exclusiveGroupId = candidate.skillDefinition.traits.exclusiveActivationGroupId;
+  if (exclusiveGroupId !== null) {
+    groups.push(`EXCLUSIVE:${exclusiveGroupId}`);
+  }
+  return groups;
+}
+
 export interface SimultaneousActivationLimitResult {
   readonly kept: PassiveCandidateGroup;
   readonly suppressed: PassiveCandidateGroup;

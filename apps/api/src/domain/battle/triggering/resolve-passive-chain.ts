@@ -6,6 +6,7 @@ import type { UnitDefinition } from "../../catalog/definitions/unit-definition.j
 import type { BattleUnitId } from "../../shared/ids.js";
 import {
   createEmptyPassiveActivationGuard,
+  mergeActivationGuards,
   recordActivation,
   type PassiveActivationGuard,
 } from "./passive-activation-guard.js";
@@ -32,7 +33,11 @@ import {
   type PassiveResolutionStack,
   type PassiveResolutionStackEntry,
 } from "./passive-resolution-stack.js";
-import { applySimultaneousActivationLimit } from "./passive-simultaneous-activation-limit.js";
+import {
+  applySimultaneousActivationLimit,
+  simultaneousActivationLimitGroupsOf,
+} from "./passive-simultaneous-activation-limit.js";
+import { aggregatePreAttackCandidates } from "./pre-attack-opportunity.js";
 import { reconfirmPassiveCandidate } from "./reconfirm-passive-candidate.js";
 import type { TriggerCandidateEvent } from "./trigger-event.js";
 
@@ -91,6 +96,12 @@ export interface PassiveActivationCompletion {
  */
 export type PassiveActivationStep =
   | { readonly kind: "TIMING_EVENT"; readonly event: TriggerCandidateEvent }
+  /**
+   * R-ATM-03: 1回のスキル使用の攻撃前観測（`UnitBeingAttacked`）を全対象ぶんまとめて
+   * 差し出す。前段フェーズのイベントのため`TIMING_EVENT`と同じく即時に解決するが、
+   * 候補は全観測を通した1つの発動機会として集約・選択する。
+   */
+  | { readonly kind: "PRE_ATTACK_OBSERVATIONS"; readonly events: readonly TriggerCandidateEvent[] }
   | { readonly kind: "EFFECT_RESOLVED"; readonly events: readonly TriggerCandidateEvent[] }
   | { readonly kind: "DEFERRED_EVENT"; readonly event: TriggerCandidateEvent }
   | { readonly kind: "COMPLETION_EVENT"; readonly event: TriggerCandidateEvent };
@@ -369,6 +380,46 @@ interface ChainState {
    * 効果処理単位で保たれる。
    */
   readonly pendingFrames: PassiveResolutionStackEntry[][];
+  /**
+   * R-PS-07の反応スコープ。PS/Memoryの発動（`driveSteps`の1回の呼び出し）ごとに1つ積み、
+   * その発動に派生する連鎖の間だけ開いている。攻撃前の発動機会から発動したPSは、
+   * 解決スコープの`guard`ではなく最も内側の反応スコープへ記録する（開いた反応
+   * スコープが無ければ`guard`へ記録する — 行動中のAS/EX・チャージ解放への反応）。
+   * 閉じた反応スコープの記録は親の反応スコープへ合流させ、最も外側が閉じたら破棄する。
+   * これにより、同じ連鎖に派生した攻撃から同じPSへ戻る循環は防ぎつつ、独立した
+   * 次の攻撃（ターン開始時の別の先制攻撃など）では同じPSが再び発動できる。
+   */
+  readonly reactionScopes: PassiveActivationGuard[];
+}
+
+/** R-PS-07: 解決スコープの発動済み集合と、開いている全反応スコープの記録の和。 */
+function effectiveGuard(state: ChainState): PassiveActivationGuard {
+  return state.reactionScopes.length === 0
+    ? state.guard
+    : mergeActivationGuards(state.guard, ...state.reactionScopes);
+}
+
+/**
+ * 攻撃前の発動機会から発動したPSを、最も内側の反応スコープ（無ければ`guard`）へ記録する。
+ * `firstTriggerOnly`のPSは解決スコープ単位の制限（R-PS-07）を保つため、成功時も
+ * 不成立時と同じく`guard`へ記録する。
+ */
+function recordPreAttackActivation(state: ChainState, candidate: PassiveCandidate): void {
+  const innermost = state.reactionScopes.length - 1;
+  const scope = state.reactionScopes[innermost];
+  if (scope === undefined || candidate.skillDefinition.traits.firstTriggerOnly === true) {
+    state.guard = recordActivation(
+      state.guard,
+      candidate.unit.battleUnitId,
+      candidate.skillDefinition.skillDefinitionId,
+    );
+    return;
+  }
+  state.reactionScopes[innermost] = recordActivation(
+    scope,
+    candidate.unit.battleUnitId,
+    candidate.skillDefinition.skillDefinitionId,
+  );
 }
 
 /**
@@ -514,6 +565,10 @@ function resolveEvent(
   state: ChainState,
   deps: PassiveChainDependencies,
 ): PassiveChainLimitViolationReason | undefined {
+  if (event.eventType === "UnitBeingAttacked") {
+    // R-ATM-03: 単独で届いた攻撃前観測も、対象1件の発動機会として同じ規則で解決する。
+    return resolvePreAttackOpportunity([event], state, deps);
+  }
   const violation = maintainState(event, state, deps, (caused) =>
     resolveEvent(caused, state, deps),
   );
@@ -521,6 +576,92 @@ function resolveEvent(
     return violation;
   }
   return resolveCandidateGroup(detectPassiveCandidateGroup(event, deps), state, deps);
+}
+
+/**
+ * R-ATM-03: 1回の攻撃スキル使用の攻撃前観測を1つの発動機会として解決する。
+ *
+ * 1. 観測ごとに状態保守を確定させ、その時点の候補を検出する（同時発動制限は未適用）。
+ * 2. 全観測の候補を`aggregatePreAttackCandidates`で集約し、R-PS-02/R-PS-08順の
+ *    1グループとして解決する。同時発動制限は発動の開始時に確定させ
+ *    （`resolveTopGroup`）、発動直前確認で不成立になった候補の代わりに次の候補が
+ *    繰り上がる。除外した候補が後続対象の観測で復活することはない。
+ * 3. Memory候補は観測ごとに、PS候補の後で発行順に解決する（R-MEM-02）。
+ */
+function resolvePreAttackOpportunity(
+  events: readonly TriggerCandidateEvent[],
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  const observations: PassiveResolutionStackEntry[] = [];
+  for (const event of events) {
+    const violation = maintainState(event, state, deps, (caused) =>
+      resolveEvent(caused, state, deps),
+    );
+    if (violation !== undefined) {
+      return violation;
+    }
+    observations.push(detectPreAttackObservation(event, deps));
+  }
+  return resolveDetectedPreAttackOpportunity(observations, state, deps);
+}
+
+/**
+ * R-ATM-03 #1: 攻撃前観測1件の候補を、その観測の状態保守を確定させた直後の状態で
+ * 検出する。同時発動制限は発動機会全体で適用するため、ここでは適用しない。
+ */
+export function detectPreAttackObservation(
+  event: TriggerCandidateEvent,
+  deps: PassiveChainDependencies,
+): PassiveResolutionStackEntry {
+  return {
+    event,
+    candidates: deps.detectCandidates(event),
+    memoryCandidates: detectMemoryCandidateGroup(event, deps),
+  };
+}
+
+/** 観測ごとに検出済みの候補を、1つの攻撃前の発動機会として集約・解決する。 */
+function resolveDetectedPreAttackOpportunity(
+  observations: readonly PassiveResolutionStackEntry[],
+  state: ChainState,
+  deps: PassiveChainDependencies,
+): PassiveChainLimitViolationReason | undefined {
+  const first = observations[0];
+  if (first === undefined) {
+    return undefined;
+  }
+  const aggregated = aggregatePreAttackCandidates(observations);
+  const violation = resolveCandidateGroup(
+    {
+      event: first.event,
+      candidates: aggregated.candidates,
+      memoryCandidates: [],
+      preAttackOpportunity: {
+        triggerEventOf: aggregated.triggerEventOf,
+        claimedLimitGroups: new Set(),
+      },
+    },
+    state,
+    deps,
+  );
+  if (violation !== undefined) {
+    return violation;
+  }
+  for (const observation of observations) {
+    if (observation.memoryCandidates.length === 0) {
+      continue;
+    }
+    const memoryViolation = resolveCandidateGroup(
+      { event: observation.event, candidates: [], memoryCandidates: observation.memoryCandidates },
+      state,
+      deps,
+    );
+    if (memoryViolation !== undefined) {
+      return memoryViolation;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -603,18 +744,27 @@ function resolveTopGroup(
   }
   state.stack = withTopCandidates(state.stack, restCandidates);
 
+  const opportunity = top.preAttackOpportunity;
+  const triggerEvent = opportunity?.triggerEventOf.get(next) ?? top.event;
+  const limitGroups = opportunity === undefined ? [] : simultaneousActivationLimitGroupsOf(next);
+  if (opportunity !== undefined && limitGroups.some((g) => opportunity.claimedLimitGroups.has(g))) {
+    // R-PS-03: 同じ発動機会で同時発動制限グループを既に占有された候補は除外する
+    // （発動済みとしては記録しない）。
+    return resolveTopGroup(state, deps);
+  }
+
   const currentUnit = deps.getCurrentUnit(next.unit.battleUnitId);
   const reconfirmation = reconfirmPassiveCandidate(
     next,
     currentUnit,
-    top.event,
-    state.guard,
+    triggerEvent,
+    effectiveGuard(state),
     deps.findUnit,
     deps.resolutionPhase,
     deps.getAllUnits?.(),
     deps.turnNumber,
     deps.unitDefinitions,
-    deps.triggerSkillUse?.(top.event),
+    deps.triggerSkillUse?.(triggerEvent),
   );
   if (!reconfirmation.ok && next.skillDefinition.traits.firstTriggerOnly === true) {
     // R-PS-07 `firstTriggerOnly`: 最初の契機が不成立なら、同じ解決スコープの後続の契機では
@@ -626,13 +776,21 @@ function resolveTopGroup(
     );
   }
   if (reconfirmation.ok) {
-    state.guard = recordActivation(
-      state.guard,
-      currentUnit.battleUnitId,
-      next.skillDefinition.skillDefinitionId,
-    );
     const activatedCandidate: PassiveCandidate = { ...next, unit: currentUnit };
-    const generator = deps.activate(activatedCandidate, top.event);
+    if (opportunity === undefined) {
+      state.guard = recordActivation(
+        state.guard,
+        currentUnit.battleUnitId,
+        next.skillDefinition.skillDefinitionId,
+      );
+    } else {
+      // R-PS-05 #1: 占有と発動済みの記録はPP消費・イベント発行より先に確定させる。
+      for (const group of limitGroups) {
+        opportunity.claimedLimitGroups.add(group);
+      }
+      recordPreAttackActivation(state, activatedCandidate);
+    }
+    const generator = deps.activate(activatedCandidate, triggerEvent);
     const violation = driveActivation(activatedCandidate, generator, state, deps);
     if (violation !== undefined) {
       return violation;
@@ -710,6 +868,7 @@ function driveSteps(
   candidate: PassiveCandidate | undefined,
 ): PassiveChainLimitViolationReason | undefined {
   state.pendingFrames.push([]);
+  state.reactionScopes.push(createEmptyPassiveActivationGuard());
   try {
     while (true) {
       const step = generator.next();
@@ -726,6 +885,14 @@ function driveSteps(
 
       if (step.value.kind === "TIMING_EVENT") {
         const violation = resolveEvent(step.value.event, state, deps);
+        if (violation !== undefined) {
+          return violation;
+        }
+        continue;
+      }
+
+      if (step.value.kind === "PRE_ATTACK_OBSERVATIONS") {
+        const violation = resolvePreAttackOpportunity(step.value.events, state, deps);
         if (violation !== undefined) {
           return violation;
         }
@@ -772,6 +939,17 @@ function driveSteps(
     }
   } finally {
     state.pendingFrames.pop();
+    closeReactionScope(state);
+  }
+}
+
+/** R-PS-07: 最も内側の反応スコープを閉じ、記録を親の反応スコープへ合流させる。 */
+function closeReactionScope(state: ChainState): void {
+  const closed = state.reactionScopes.pop();
+  const parentIndex = state.reactionScopes.length - 1;
+  const parent = state.reactionScopes[parentIndex];
+  if (closed !== undefined && parent !== undefined) {
+    state.reactionScopes[parentIndex] = mergeActivationGuards(parent, closed);
   }
 }
 
@@ -855,6 +1033,23 @@ export function resolvePendingCandidateGroups(
   });
 }
 
+/**
+ * R-ATM-03: トップレベルの攻撃（AS/EX使用・チャージ解放）の攻撃前観測を、全対象ぶん
+ * まとめて1つの発動機会として解決する入口。呼び出し側は観測ごとに状態保守を確定させた
+ * 直後に`detectPreAttackObservation`で候補を検出し、その結果を発行順に渡す
+ * （全観測の状態保守を先に済ませてから検出すると、観測ごとに進むcounterなどを
+ * 条件にする候補を取りこぼす）。状態保守は検出時に確定済みのため、ここでは再度行わない。
+ */
+export function resolvePreAttackObservations(
+  observations: readonly PassiveResolutionStackEntry[],
+  initialGuard: PassiveActivationGuard,
+  deps: PassiveChainDependencies,
+): PassiveChainResult {
+  return runChain(initialGuard, (state) =>
+    resolveDetectedPreAttackOpportunity(observations, state, deps),
+  );
+}
+
 function runChain(
   initialGuard: PassiveActivationGuard,
   run: (state: ChainState) => PassiveChainLimitViolationReason | undefined,
@@ -866,6 +1061,7 @@ function runChain(
     stack: createEmptyPassiveResolutionStack(),
     effectRuntimeCounterDepth: 0,
     pendingFrames: [],
+    reactionScopes: [],
   };
 
   const violation = run(state);
