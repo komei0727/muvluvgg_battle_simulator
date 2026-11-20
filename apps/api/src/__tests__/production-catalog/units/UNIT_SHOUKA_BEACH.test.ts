@@ -24,6 +24,7 @@ import type { BattleUnit } from "../../../domain/battle/model/battle-unit.js";
 import { openPassiveChain } from "../../../testing/production-unit/passive-activation.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
   productionBoard,
@@ -638,5 +639,56 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
         isLinkedDamage: true,
       },
     ]);
+  });
+
+  it("IT-UNIT-SHOUKA-BEACH-007 [R-LNK-02] (R-LNK-01/02): EXのリンク25%は小花が受けた1060から敵の分265を差し引いて分配し、小花は795だけ受ける（SR-232）。小花がその795で倒れても敵への265は発生する", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const linked = applyPrecedingActions(board, [
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_BEACH_EX_DAMAGE_LINK",
+        target: "SELF",
+        payloadBindingIds: ["TGT_TARGET"],
+      },
+    ]);
+    const linkTo = linked
+      .find((unit) => unit.battleUnitId === "ally:subject")!
+      .appliedEffects.find(
+        (effect) => effect.effectActionDefinitionId === "ACT_SHOUKA_BEACH_EX_DAMAGE_LINK",
+      )!.damageLink!.linkToUnitId;
+    const attacker = linked.find(
+      (unit) => unit.side === "ENEMY" && unit.battleUnitId !== linkTo,
+    )!.battleUnitId;
+
+    const hit = observeDamageProbe({
+      units: linked,
+      attackerUnitId: attacker,
+      targetUnitId: "ally:subject",
+      power: 2.12,
+      battleId: "B_SHOUKA_BEACH_EX_LINK_HIT",
+    });
+    expect(hit.linked).toMatchObject([
+      {
+        effectActionDefinitionId: "ACT_SHOUKA_BEACH_EX_DAMAGE_LINK",
+        linkedFromUnitId: "ally:subject",
+        linkToUnitId: linkTo,
+        sourceDamage: 1060,
+        linkedDamage: 265,
+      },
+    ]);
+    expect(hit.hpDeltas).toEqual({ "ally:subject": -795, [linkTo]: -265 });
+
+    // 小花HP500で795に倒れても、敵への265は失われない。
+    const lethal = observeDamageProbe({
+      units: linked.map((unit) =>
+        unit.battleUnitId === "ally:subject"
+          ? { ...unit, currentHp: createHitPoint(500, Math.trunc(unit.combatStats.maximumHp)) }
+          : unit,
+      ),
+      attackerUnitId: attacker,
+      targetUnitId: "ally:subject",
+      power: 2.12,
+      battleId: "B_SHOUKA_BEACH_EX_LINK_LETHAL",
+    });
+    expect(lethal.hpDeltas).toEqual({ "ally:subject": -500, [linkTo]: -265 });
   });
 });

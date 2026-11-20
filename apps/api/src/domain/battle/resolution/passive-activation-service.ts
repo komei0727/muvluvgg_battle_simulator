@@ -747,11 +747,11 @@ export class PassiveActivationRuntime {
         stateDelta: {
           units: {
             [change.ownerUnitId]: {
-              // `value`(公開値)が変化した場合だけ
-              // `skillCounters`を持つ。carryのみの変化では公開値のstateDeltaを
-              // 持たせない（「変更した項目だけを持つ」契約、carryは
+              // `value`(公開値)が変化した場合と、エントリを初めて作った場合だけ
+              // `skillCounters`を持つ。既存エントリのcarryのみの変化では公開値の
+              // stateDeltaを持たせない（「変更した項目だけを持つ」契約、carryは
               // `skillCounterCarry`側に独立して持つ）。
-              ...(change.valueChanged
+              ...(change.valueChanged || change.valueEntryCreated
                 ? {
                     skillCounters: {
                       [change.skillDefinitionId]: {

@@ -49,6 +49,8 @@ const snapshot = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
   "UNIT_MIRIAM_MAGE",
   "UNIT_SHIRANA_SORA",
   "UNIT_EVIE_ECO",
+  "UNIT_NADYA_SUCCESSOR",
+  "UNIT_MERU_BESIDE",
 ]);
 
 /** 「うみのともだちⅢ」1体の追加ダメージ: 付与時攻撃力1000×8.5%（所持者攻撃1000 ≥ 防御500）。 */
@@ -485,4 +487,93 @@ describe("FIX-12 追加ヒットにはその対象を攻撃した攻撃の消費
       ["enemy:right", 85],
     ]);
   });
+});
+
+/**
+ * 段階G（Issue #840）: 要修正のうちサブユニットを付与する12評価行すべてについて、付与される
+ * 実サブユニット定義ごとに「対象ごと・1体ごとに1行動1ヒット」を確かめる。リリィAS1は基準＋
+ * 隣接の複数対象へ複数のDAMAGEを撃ち、AS2は単体へ1回だけ撃つ。追加ヒット1回分の量は
+ * 対象ごとに同じため、AS1の各対象への追加がAS2の1回分と一致すれば、DAMAGEの数だけ
+ * 増えていないことになる。
+ */
+const SUB_UNIT_ROWS = [
+  ["SR-354", "UNIT_NADYA_SUCCESSOR", "ACT_NADYA_SUCCESSOR_AS1_SUBUNIT"],
+  ["SR-355", "UNIT_NADYA_SUCCESSOR", "ACT_NADYA_SUCCESSOR_PS1_SUBUNIT"],
+  ["SR-356", "UNIT_NADYA_SUCCESSOR", "ACT_NADYA_SUCCESSOR_PS2_SUBUNIT"],
+  ["SR-358", "UNIT_NADYA_SUCCESSOR", "ACT_NADYA_SUCCESSOR_EX_SUBUNIT"],
+  ["SR-364", "UNIT_OLGA_VETERAN", "ACT_OLGA_VETERAN_PS1_SUBUNIT"],
+  ["SR-365", "UNIT_OLGA_VETERAN", "ACT_OLGA_VETERAN_PS2_SUBUNIT"],
+  ["SR-366", "UNIT_SHIRANA_SORA", "ACT_SHIRANA_SORA_AS1_SUBUNIT"],
+  ["SR-368", "UNIT_SHIRANA_SORA", "ACT_SHIRANA_SORA_EX_SUBUNIT"],
+  ["SR-369", "UNIT_LYDIA_SUMMER", "ACT_LYDIA_SUMMER_PS1_SUBUNIT"],
+  ["SR-370", "UNIT_LYDIA_SUMMER", "ACT_LYDIA_SUMMER_PS2_SUBUNIT"],
+  ["SR-371", "UNIT_LYDIA_SUMMER", "ACT_LYDIA_SUMMER_EX_SUBUNIT"],
+  ["SR-376", "UNIT_MERU_BESIDE", "ACT_MERU_BESIDE_EX_SUBUNIT"],
+] as const;
+
+/**
+ * めるEXのサブユニットは耐久をそのスキルの与ダメージ合計から決めるため、前提アクション
+ * 単独では耐久を評価できない。追加ヒットの回数・量は耐久と独立なので、耐久だけを定数へ
+ * 置き換え、追加ダメージの実定義はそのまま使う。
+ */
+function withConstantDurability(effectActionDefinitionId: string): typeof snapshot {
+  const id = createEffectActionDefinitionId(effectActionDefinitionId);
+  const definition = snapshot.effectActions.get(id)!;
+  const payload = definition.payload as { readonly durability: unknown };
+  return {
+    ...snapshot,
+    effectActions: new Map(snapshot.effectActions).set(id, {
+      ...definition,
+      payload: { ...payload, durability: { formula: { kind: "CONSTANT", value: 1000 } } },
+    } as typeof definition),
+  };
+}
+
+const DURABILITY_FROM_SKILL_RESULT = new Set(["ACT_MERU_BESIDE_EX_SUBUNIT"]);
+
+describe("FIX-12 サブユニット付与12評価行の1行動1ヒット（段階G）", () => {
+  function extraDamage(
+    skillDefinitionId: string,
+    subUnit: string,
+    bodies: number,
+    board: BoardOverrides,
+  ): Readonly<Record<string, number>> {
+    const observe = (count: number) =>
+      observeSkillUse({
+        snapshot: DURABILITY_FROM_SKILL_RESULT.has(subUnit)
+          ? withConstantDurability(subUnit)
+          : snapshot,
+        unitDefinitionId: "UNIT_LILY_HERO",
+        use: { kind: "ACTIVE", skillDefinitionId },
+        board,
+        precedingActions: Array.from(
+          { length: count },
+          (): PrecedingAction => ({ effectActionDefinitionId: subUnit, target: "SELF" }),
+        ),
+      }).hpDeltas ?? {};
+    const without = observe(0);
+    const withSubUnits = observe(bodies);
+    return Object.fromEntries(
+      Object.keys(without).map((unitId) => [
+        unitId,
+        (withSubUnits[unitId] ?? 0) - (without[unitId] ?? 0),
+      ]),
+    );
+  }
+
+  it.each(SUB_UNIT_ROWS)(
+    "IT-CAT-SUBACT-014 [R-SUB-02] (%s): %s の %s は、複数対象×複数DAMAGEの攻撃でも対象ごと・1体ごとに追加1ヒットで、単体1DAMAGEの追加と同じ量になる",
+    (_sr, _unitDefinitionId, subUnit) => {
+      const single = extraDamage("SKL_LILY_HERO_AS2", subUnit, 1, {
+        enemies: [{ id: "enemy:center", position: { column: "CENTER", row: "FRONT" } }],
+      });
+      const perHit = single["enemy:center"]!;
+      expect(perHit).toBeLessThan(0);
+
+      const multi = extraDamage("SKL_LILY_HERO_AS1", subUnit, 2, THREE_FRONT);
+      for (const enemy of ["enemy:center", "enemy:left", "enemy:right"]) {
+        expect(multi[enemy]).toBe(2 * perHit);
+      }
+    },
+  );
 });

@@ -21,6 +21,7 @@ import type { DurationDefinition } from "../../catalog/definitions/duration-defi
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { applyStateDelta } from "../events/state-delta-reducer.js";
+import { captureBattleUnitSnapshot } from "../events/battle-unit-snapshot.js";
 import type { BattleStateSnapshot } from "../lifecycle/battle-state-snapshot.js";
 import { ExecutionGuardExceededError } from "../../shared/errors.js";
 import {
@@ -2274,6 +2275,156 @@ describe("PassiveActivationRuntime.onFactEvent", () => {
 
     expect(() => runtime.finalizeResolutionScope(turnStarted.eventId)).toThrow(
       /exceeded .* discard\/emit\/resolve rounds/,
+    );
+  });
+
+  it("UT-R-EFF-11-030 [R-EFF-11]: a counter whose damage stays below the threshold (carry-only updates) still reconstructs to the real state — the first update materializes the counter at 0, so its StateDelta carries that 0 alongside the carry", () => {
+    const unitDefinitionId = createUnitDefinitionId("UNIT_PS_CARRY_ONLY_OWNER");
+    const counterId = createRuntimeCounterId("RUNTIME_COUNTER_CARRY_ZERO");
+    const skill: SkillDefinition = {
+      skillDefinitionId: createSkillDefinitionId("SKL_PS_CARRY_ONLY"),
+      skillType: "PS",
+      cost: { resource: "PP", amount: 1 },
+      activationCondition: { kind: "TRUE" },
+      triggers: [
+        {
+          eventType: "RuntimeCounterChanged",
+          category: "FACT",
+          sourceSelector: "SELF",
+          targetSelector: "ANY",
+          condition: {
+            kind: "AND",
+            conditions: [
+              { kind: "EVENT_PAYLOAD", field: "counter", op: "EQ", value: counterId },
+              { kind: "EVENT_PAYLOAD", field: "valueChanged", op: "EQ", value: true },
+            ],
+          },
+        },
+      ],
+      counterUpdates: [
+        {
+          kind: "CUMULATIVE_DAMAGE_THRESHOLD",
+          counter: counterId,
+          scope: "SKILL_RUNTIME",
+          trigger: {
+            eventType: "DamageApplied",
+            category: "FACT",
+            sourceSelector: "ENEMY",
+            targetSelector: "SELF",
+            condition: { kind: "TRUE" },
+          },
+          maxHpRatio: 0.5,
+          resetScope: "RESOLUTION_SCOPE",
+        },
+      ],
+      resolution: { kind: "IMMEDIATE", targetBindings: [], steps: [] },
+      cooldown: { unit: "ACTION", count: 0 },
+      traits: {
+        priorityAttack: false,
+        simultaneousActivationLimited: false,
+        exclusiveActivationGroupId: null,
+        accuracy: { guaranteedHit: false },
+        piercing: { defenseIgnoreRate: 0, shieldIgnoreRate: 0, damageReductionIgnoreRate: 0 },
+      },
+      metadata: { displayName: "SKL_PS_CARRY_ONLY", tags: [] },
+    };
+    const owner = unit("OWNER", "ALLY", {
+      unitDefinitionId,
+      currentPp: 3,
+      maximumPp: 3,
+      maximumHp: 100,
+    });
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_CARRY_ONLY_ENEMY");
+    const enemy = unit("ENEMY", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [unitDefinitionId, unitDefinitionOf(unitDefinitionId, [skill.skillDefinitionId])],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId, [])],
+      ]),
+      new Map([[skill.skillDefinitionId, skill]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const turnStarted = recordTurnStarted(recorder);
+    const runtime = new PassiveActivationRuntime(
+      contextOf(recorder, definitions, turnStarted, createActionId("B_1:action:1")),
+      [owner, enemy],
+    );
+
+    function damageAppliedEvent(damage: number): BattleDomainEvent {
+      return recorder.record({
+        eventType: "DamageApplied",
+        category: "FACT",
+        turnNumber: 1,
+        cycleNumber: 1,
+        resolutionScopeId: turnStarted.resolutionScopeId,
+        parentEventId: turnStarted.eventId,
+        rootEventId: turnStarted.eventId,
+        sourceUnitId: enemy.battleUnitId,
+        targetUnitIds: [owner.battleUnitId],
+        payload: {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_CARRY_ZERO_HIT"),
+          hitIndex: 1,
+          targetUnitId: owner.battleUnitId,
+          calculatedDamage: damage,
+          // DMG-004（R-SHD-02/03）: シールド未所持の対象なので全量がHPへ向かう。
+          hpDirectDamage: 0,
+          typedShieldAbsorbed: 0,
+          untypedShieldAbsorbed: 0,
+          subUnitAbsorbed: 0,
+          discardedDamage: 0,
+          hitPointDamage: damage,
+          hpBefore: owner.currentHp,
+          hpAfter: owner.currentHp - damage,
+          defeated: false,
+        },
+      });
+    }
+
+    let snapshot: BattleStateSnapshot = {
+      status: "RUNNING",
+      currentTurn: 1,
+      units: {
+        [owner.battleUnitId]: {
+          hp: owner.currentHp,
+          ap: owner.currentAp,
+          pp: owner.currentPp,
+          extraGauge: owner.currentExtraGauge,
+          maximumAp: owner.maximumAp,
+          maximumPp: owner.maximumPp,
+          maximumExtraGauge: owner.maximumExtraGauge,
+          combatStats: owner.combatStats,
+          baseCombatStats: owner.combatStats,
+        },
+      },
+    };
+    let appliedEventCount = 0;
+    // `?? {}`で個別フィールドを緩く比較するのでは
+    // なく、`captureBattleState`相当の完全なSnapshot同士を直接突き合わせる
+    // ため、RuntimeCounterChanged/Reset以外（PP消費・EX増加等）も含め全ての
+    // イベントのstateDeltaを順に適用し、実状態と同じ完全なunit射影を再構築する。
+    function replayNewEventDeltasIntoSnapshot(): void {
+      const events = recorder.getEvents();
+      for (; appliedEventCount < events.length; appliedEventCount += 1) {
+        const event = events[appliedEventCount]!;
+        if (event.stateDelta !== undefined) {
+          snapshot = applyStateDelta(snapshot, event.stateDelta);
+        }
+      }
+    }
+
+    // 閾値50（最大HP100×50%）に届かない2回の被弾。値は0のまま、carryだけが20→40と動く。
+    runtime.onFactEvent(damageAppliedEvent(20), [owner, enemy]);
+    runtime.onFactEvent(damageAppliedEvent(20), runtime.currentUnits);
+    replayNewEventDeltasIntoSnapshot();
+    const ownerNow = runtime.currentUnits.find((u) => u.battleUnitId === owner.battleUnitId)!;
+    expect(ownerNow.skillCounters?.[skill.skillDefinitionId]).toEqual({
+      [counterId]: { value: 0, carry: 40 },
+    });
+    expect(snapshot.units[owner.battleUnitId]!.skillCounters).toEqual(
+      captureBattleUnitSnapshot(ownerNow).skillCounters,
+    );
+    expect(snapshot.units[owner.battleUnitId]!.skillCounterCarry).toEqual(
+      captureBattleUnitSnapshot(ownerNow).skillCounterCarry,
     );
   });
 

@@ -168,4 +168,21 @@ describe("ダメージ無効は0ダメージ（R-DMG-02 #2）", () => {
     // 現在HP5000の20%＝1000（付与時攻撃力1000の上限ちょうど）。
     expect(poison.steps[0]!.ticks.map((tick) => tick.hitPointDamage)).toEqual([1000]);
   });
+
+  it("IT-CAT-IMMUNITY-006 [R-DMG-02, R-EFF-07] SR-194: リリーAS1の無効は13ヒット攻撃2回の全ヒットを0にし（最低1も残さない）、各攻撃の終了で2→1→0と減り、3回目は通常値", () => {
+    const holder = holderWith("UNIT_LILY_SINGER", ["ACT_LILY_SINGER_AS1_IMMUNITY"]);
+    expect(remainingOf(holder.units, "ACT_LILY_SINGER_AS1_IMMUNITY")).toEqual([2]);
+
+    const first = strike(holder);
+    expect(hitDamagesOf(first)).toEqual(new Array<number>(13).fill(0));
+    expect(hpLossOf(first)).toBe(0);
+    expect(remainingOf(first.units, "ACT_LILY_SINGER_AS1_IMMUNITY")).toEqual([1]);
+
+    const second = strike(first);
+    expect(hitDamagesOf(second)).toEqual(new Array<number>(13).fill(0));
+    expect(hpLossOf(second)).toBe(0);
+    expect(remainingOf(second.units, "ACT_LILY_SINGER_AS1_IMMUNITY")).toEqual([]);
+
+    expect(hpLossOf(strike(second))).toBe(66 * 13);
+  });
 });

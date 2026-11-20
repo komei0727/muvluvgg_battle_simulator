@@ -200,6 +200,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 0,
         carryBefore: 0,
         valueChanged: true,
+        valueEntryCreated: true,
       },
     ]);
     expect(
@@ -265,6 +266,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 0,
         carryBefore: 0,
         valueChanged: true,
+        valueEntryCreated: false,
       },
     ]);
     expect(
@@ -352,6 +354,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 0,
         carryBefore: 0,
         valueChanged: true,
+        valueEntryCreated: false,
       },
     ]);
   });
@@ -384,7 +387,9 @@ describe("detectRuntimeCounterUpdates", () => {
     });
 
     expect(result.changes).toEqual([]);
-    expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]).toEqual({});
+    // 変化の無い更新は1段目（スキル）のエントリも作らない。空のエントリでも状態の射影には
+    // 現れるため、差分を伴わずに作ると独立Reducerの復元と食い違う。
+    expect(result.units[0]?.skillCounters?.[skill.skillDefinitionId]).toBeUndefined();
   });
 
   it("UT-RCOUNTER-M-002 [R-EFF-11]: accumulates across repeated matching events (N-th crossing reachable via modulo on the resulting value)", () => {
@@ -430,6 +435,7 @@ describe("detectRuntimeCounterUpdates", () => {
       carry: 0,
       carryBefore: 0,
       valueChanged: true,
+      valueEntryCreated: false,
     });
   });
 
@@ -472,6 +478,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 0,
         carryBefore: 0,
         valueChanged: true,
+        valueEntryCreated: true,
       },
     ]);
   });
@@ -549,6 +556,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 25,
         carryBefore: 0,
         valueChanged: true,
+        valueEntryCreated: true,
       },
     ]);
   });
@@ -592,6 +600,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 10,
         carryBefore: 0,
         valueChanged: false,
+        valueEntryCreated: true,
       },
     ]);
   });
@@ -668,6 +677,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 30,
         carryBefore: 0,
         valueChanged: false,
+        valueEntryCreated: true,
       },
     ]);
     const ownerAfterFirst = first.units.find((u) => u.battleUnitId === owner.battleUnitId);
@@ -692,6 +702,7 @@ describe("detectRuntimeCounterUpdates", () => {
         carry: 5,
         carryBefore: 30,
         valueChanged: true,
+        valueEntryCreated: false,
       },
     ]);
   });

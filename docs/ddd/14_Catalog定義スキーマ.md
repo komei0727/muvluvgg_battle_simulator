@@ -2313,7 +2313,7 @@ counterUpdates:
     resetScope: RESOLUTION_SCOPE
 ```
 
-公開値（`value`）が変わらない更新（例: 累計ダメージ閾値未到達のヒット）でも、内部端数（`carry`）が変化していれば`RuntimeCounterChanged`を発行する（`value`不変・`carry`不変（トリガー自体が不成立、または加算量0）の場合だけ何も発行しない）。可変状態の変化を必ずイベント列から追跡できるようにするため。
+公開値（`value`）が変わらない更新（例: 累計ダメージ閾値未到達のヒット）でも、内部端数（`carry`）が変化していれば`RuntimeCounterChanged`を発行する（`value`不変・`carry`不変（トリガー自体が不成立、または加算量0）の場合だけ何も発行しない）。可変状態の変化を必ずイベント列から追跡できるようにするため。そのcounterの初回の更新は、値が0のままでも状態にcounterを値0で作る。このため初回の`RuntimeCounterChanged`は、carryだけが動いた場合でも公開値の差分（`before: 0`→`after: 0`）を持ち、公開差分からの独立再構築でcounterが欠けないようにする。何も変わらない更新では、counter（1段目のスキル・SkillUseのエントリを含む）を作らない。
 
 `RESET`は`amount`／`maxHpRatio`／`resetScope`のいずれも持たない（許可キーは`kind`／`counter`／`scope`／`trigger`だけ）。値0のままキー自体は残し、発行イベントは`RuntimeCounterChanged`（`after: 0`、`valueChanged: true`）を再利用する — `RuntimeCounterReset`（`resetScope: RESOLUTION_SCOPE`／`EffectSequence`完了時の破棄）はキー自体を削除するイベントであり、StateDelta・独立Reducer・state復元の規約が別物になるため兼用しない。値を保持していないcounterへの`RESET`はno-opで、イベントも発行しない（StateDeltaを伴わないキー生成を作らないため）。`scope`は`SKILL_RUNTIME`だけを受理する — `APPLIED_EFFECT`は効果インスタンス自身の失効が、`EFFECT_SEQUENCE`は解決の完了が、それぞれ破棄を必ず兼ねるため、この位置の宣言は意味を持たない。
 
