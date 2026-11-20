@@ -10394,6 +10394,192 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.326 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_EX_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 3 },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.378 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_AS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.5 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_OUTGOING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_AS2_SHIELD",
+    "kind": "APPLY_SHIELD",
+    "payload": {
+      "formula": {
+        "kind": "STAT_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "stat": "ATTACK",
+        "ratio": 1.5
+      },
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_SOURCE" },
+        "linkedEffectGroupId": "RATOROWA_ICEWITCH_AS2_STAND_FIRM",
+        "linkedEffectGroupScope": "SKILL_USE_ANY_HOLDER",
+        "linkedEffectGroupRole": "PARENT"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_AS2_DAMAGE_LINK",
+    "kind": "APPLY_DAMAGE_LINK",
+    "payload": {
+      "linkTo": { "kind": "SELF" },
+      "linkRate": 1,
+      "polarity": "BUFF",
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "RATOROWA_ICEWITCH_AS2_STAND_FIRM",
+        "linkedEffectGroupScope": "SKILL_USE_ANY_HOLDER",
+        "linkedEffectGroupRole": "CHILD"
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_AS2_DEBUFF_IMMUNITY",
+    "kind": "EFFECT_IMMUNITY",
+    "payload": {
+      "categories": ["DEBUFF"],
+      "duration": {
+        "dispellable": false,
+        "linkedEffectGroupId": "RATOROWA_ICEWITCH_AS2_STAND_FIRM",
+        "linkedEffectGroupScope": "SKILL_USE_ANY_HOLDER",
+        "linkedEffectGroupRole": "CHILD"
+      },
+      "maxBlocks": null
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS1_ATK_UP",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS1_DAMAGE_IMMUNITY",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "DAMAGE_IMMUNITY",
+      "duration": { "dispellable": true, "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS1_CD_RESET",
+    "kind": "COOLDOWN_MANIPULATION",
+    "payload": { "targetSkillDefinitionId": "SKL_RATOROWA_ICEWITCH_AS1", "operation": "RESET" },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_ATK_UP_3",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.225 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_DEF_UP_3",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.225 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_ATK_UP_2",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_DEF_UP_2",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.15 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_ATK_UP_1",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "ATTACK",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_RATOROWA_ICEWITCH_PS2_DEF_UP_1",
+    "kind": "APPLY_STAT_MOD",
+    "payload": {
+      "stat": "DEFENSE",
+      "valueType": "RATIO",
+      "formula": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_RAVEL_MODEL_EX_DAMAGE",
     "kind": "DAMAGE",
     "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },

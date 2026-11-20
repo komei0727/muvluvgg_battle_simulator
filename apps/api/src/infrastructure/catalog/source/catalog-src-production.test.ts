@@ -176,6 +176,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
         // Issue #869: 朽葉ラミの3バリアント目（#866 エンジン拡張依存）
         "UNIT_RAMI_SKYWING",
+        // Issue #870: 新キャラクター（#867 エンジン拡張依存）
+        "UNIT_RATOROWA_ICEWITCH",
       ].sort(),
     );
   });
