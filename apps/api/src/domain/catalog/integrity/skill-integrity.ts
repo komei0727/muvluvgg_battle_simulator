@@ -7,6 +7,7 @@ import type { EffectStepDefinition } from "../definitions/effect-sequence.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
+  actionSelectionUnevaluableKindsIn,
   collectConditionEffectActionReferences,
   collectConditionTargetReferencePaths,
   collectTargetStateOrMarkerReferences,
@@ -269,6 +270,20 @@ export function validateSkill(
       targetId: skill.skillDefinitionId,
       rule: `${activationScopedKind}_REQUIRES_TRIGGER`,
       message: `a ${activationScopedKind} condition is trigger-scoped (TriggerDefinition.condition only) — an activationCondition cannot resolve it, so "${skill.skillDefinitionId}" would fail at action selection`,
+    });
+  }
+  // R-ACT-02: AS/EXの`activationCondition`は行動選択時にEffectStep評価器で評価される。
+  // 評価器が扱えないkindはロードを通すと行動選択で例外になるため、ロード時点で拒否する。
+  const unevaluableKinds =
+    (skill.skillType === "AS" || skill.skillType === "EX") &&
+    skill.activationCondition !== undefined
+      ? actionSelectionUnevaluableKindsIn(skill.activationCondition)
+      : [];
+  if (unevaluableKinds.length > 0) {
+    violations.push({
+      targetId: skill.skillDefinitionId,
+      rule: "ACTIVATION_CONDITION_UNEVALUABLE_KIND",
+      message: `an ${skill.skillType} activationCondition is evaluated at action selection, which cannot evaluate condition kind ${unevaluableKinds.map((kind) => `"${kind}"`).join("/")} — "${skill.skillDefinitionId}" would fail when its unit selects an action. To gate on how many units are alive, declare an optional targetBinding that selects them and compare its size with TARGET_SET_COUNT instead`,
     });
   }
   // R-PS-09: `SELECTED_TARGET_STATE`はPSの発動判定（trigger条件・PSの

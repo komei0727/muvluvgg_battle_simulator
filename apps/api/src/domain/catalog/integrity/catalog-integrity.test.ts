@@ -3447,6 +3447,106 @@ describe("buildCatalogIndex", () => {
       }
     });
 
+    /**
+     * R-ACT-02: AS/EXの`activationCondition`は行動選択時にEffectStep評価器で評価される。
+     * 評価器が扱えないkindはロードを通すと行動選択で例外になるため、ロード時点で拒否する。
+     */
+    const singleEnemySelector: TargetSelectorDefinitionInput = {
+      kind: "SELECT",
+      side: "ENEMY",
+      count: 1,
+      order: ["DEFAULT"],
+    };
+    const aliveAllies: ConditionDefinitionInput = {
+      kind: "ALIVE_UNIT_COUNT",
+      side: "ALLY",
+      op: "GTE",
+      value: 5,
+    };
+
+    it("UT-CAT-IDX-141 [R-ACT-02] (Issue #868): rejects an AS/EX activationCondition that declares a condition kind the action-selection evaluator cannot evaluate", () => {
+      const defs = baseDefinitions();
+      const unevaluable: ConditionDefinitionInput[] = [
+        aliveAllies,
+        { kind: "TURN_NUMBER", op: "GTE", value: 2 },
+        { kind: "SELF_MEMORY_EQUIPPED", memoryDefinitionId: "MEM_TEST" },
+        { kind: "RESOLUTION_PHASE", phase: "BATTLE_START" },
+        { kind: "LAST_RESULT", field: "damageDealt", op: "GT", value: 0 },
+        { kind: "EVENT_PAYLOAD", field: "calculatedDamage", op: "GT", value: 0 },
+      ];
+      for (const skillType of ["AS", "EX"] as const) {
+        for (const condition of unevaluable) {
+          const skill = activationConditionSkill(condition, singleEnemySelector, skillType);
+          const others =
+            skillType === "AS" ? [exSkill("SKL_EX1", 7)] : [asSkill("SKL_AS1", "ACT_DAMAGE_1")];
+          expect(() => buildCatalogIndex({ ...defs, skills: [skill, ...others] })).toThrowError(
+            /ACTIVATION_CONDITION_UNEVALUABLE_KIND[\s\S]*TARGET_SET_COUNT/,
+          );
+        }
+      }
+    });
+
+    it("UT-CAT-IDX-142 [R-ACT-02] (Issue #868): rejects the unevaluable kind nested inside AND/OR/NOT of an AS activationCondition", () => {
+      const defs = baseDefinitions();
+      const selfAlive: ConditionDefinitionInput = {
+        kind: "TARGET_STATE",
+        target: { kind: "SELF" },
+        field: "IS_ALIVE",
+        op: "EQ",
+        value: true,
+      };
+      for (const condition of [
+        { kind: "AND", conditions: [selfAlive, aliveAllies] },
+        { kind: "OR", conditions: [selfAlive, aliveAllies] },
+        { kind: "NOT", condition: aliveAllies },
+        { kind: "AND", conditions: [selfAlive, { kind: "NOT", condition: aliveAllies }] },
+      ] satisfies ConditionDefinitionInput[]) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [
+              activationConditionSkill(condition, singleEnemySelector),
+              exSkill("SKL_EX1", 7),
+            ],
+          }),
+        ).toThrowError(/ACTIVATION_CONDITION_UNEVALUABLE_KIND/);
+      }
+    });
+
+    it("UT-CAT-IDX-143 [R-ACT-02] (Issue #868): keeps accepting ALIVE_UNIT_COUNT on a PS activationCondition and TARGET_SET_COUNT on an AS activationCondition", () => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(aliveAllies, singleEnemySelector, "PS"),
+            asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+            exSkill("SKL_EX1", 7),
+          ],
+        }),
+      ).not.toThrow();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(
+              {
+                kind: "NOT",
+                condition: {
+                  kind: "TARGET_SET_COUNT",
+                  target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                  op: "GTE",
+                  value: 1,
+                },
+              },
+              { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
+            ),
+            exSkill("SKL_EX1", 7),
+          ],
+        }),
+      ).not.toThrow();
+    });
+
     it("UT-CAT-IDX-097 [R-EFF-02] (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
       const defs = baseDefinitions();
       const chargeSkill = (

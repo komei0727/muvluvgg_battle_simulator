@@ -601,6 +601,40 @@ export type ConditionDefinition =
       readonly value: number;
     };
 
+/**
+ * EffectStep評価器（`effect-step-condition-evaluator.ts`の`evaluateEffectStepCondition`）が
+ * 扱わないkind。trigger専用kind・PSの発動判定専用kindのほか、`RUNTIME_COUNTER`等は
+ * PSの発動判定の評価器（`battle/triggering`）だけが評価する。評価器はこの一覧に無い
+ * kindを必ず処理することを型で保証するため、kindを追加したら評価器か一覧の一方へ必ず入る。
+ */
+export const EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS = [
+  "DAMAGE_MAX_HP_RATIO",
+  "HP_RATIO_CROSSED",
+  "RUNTIME_COUNTER",
+  "TURN_NUMBER",
+  "ALIVE_UNIT_COUNT",
+  "SELF_MEMORY_EQUIPPED",
+  "POSITION_RELATION",
+  "RESOLUTION_PHASE",
+  "SELECTED_TARGET_STATE",
+  "TRIGGER_SKILL_USE_HIT",
+  "TRIGGER_SKILL_USE_TARGET",
+] as const satisfies readonly ConditionDefinition["kind"][];
+export type EffectStepUnevaluableConditionKind =
+  (typeof EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS)[number];
+
+/**
+ * R-ACT-02: AS/EXの`activationCondition`を行動選択時に評価できないkind。行動選択の評価器
+ * （`activation-condition-evaluator.ts`）はEffectStep評価器を、直前の効果結果・契機イベントの
+ * payload・契機のスキル使用の合計を渡さずに呼ぶため、それらを読むkindも評価できない。
+ */
+export const ACTION_SELECTION_UNEVALUABLE_CONDITION_KINDS = [
+  ...EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS,
+  "LAST_RESULT",
+  "EVENT_PAYLOAD",
+  "TRIGGER_SKILL_USE_DAMAGE",
+] as const satisfies readonly ConditionDefinition["kind"][];
+
 export interface ConditionDefinitionInput {
   readonly kind: string;
   readonly threshold?: number;
