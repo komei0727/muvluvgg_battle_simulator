@@ -234,6 +234,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:subject"],
         },
       ],
+      // 契機の被弾後4500/10000から、最大HP+30%で割合を保って5850/13000（R-ACTN-03）。
+      hpDeltas: { "ally:subject": 1350 },
       effectsApplied: [
         {
           unitId: "ally:subject",

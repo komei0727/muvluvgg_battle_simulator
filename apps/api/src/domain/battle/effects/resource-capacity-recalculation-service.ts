@@ -293,8 +293,10 @@ export function* recalculateResourceCapacitiesSteps(
     lastEventId = event.eventId;
   }
 
-  // 上限が上がった場合に現在値を追随させることはしない（R-ACT-04: 変化させるのは
-  // 明示的なリソース操作・ターン開始回復だけ）。下がった場合だけ可動域へ収める。
+  // AP/PP/EXは上限が上がっても現在値を追随させない（R-ACT-04: 変化させるのは
+  // 明示的なリソース操作・ターン開始回復だけ）。HPの上昇時の割合維持は呼び出し元が
+  // 先に`raiseCurrentHpByMaximumHpIncrease`で済ませている。ここでは下がった場合だけ
+  // 可動域へ収める。
   const wasDefeated = isDefeated(updated);
   for (const resource of [...GAUGE_CAPACITY_RESOURCES, "HP"] as const) {
     const maximum =
@@ -435,6 +437,66 @@ export function raiseCurrentResourceByCapacityIncrease(
     },
     stateDelta: {
       units: { [targetUnitId]: { [RESOURCE_DELTA_FIELD[resource]]: { before, after } } },
+    },
+  });
+  return {
+    units: units.map((u) => (u.battleUnitId === targetUnitId ? updated : u)),
+    lastEventId: event.eventId,
+  };
+}
+
+/**
+ * R-ACTN-03「最大HPの上昇」: 最大HPが上がったとき、変更直前のHP割合を維持するよう
+ * 現在HPを増やし、`ResourceChanged`（`reason: EFFECT_ACTION`、発生源は保持者自身）を
+ * 発行する。割合の分子・分母はゲージとしての整数最大HP（R-NUM-02の切り捨て）を使い、
+ * 増加後の現在HPも切り捨てる。回復ではないため回復補正・回復を契機とするPSの対象外で、
+ * 戦闘不能（現在HP0）のユニットはこの増加で復活しない。上限が下がる場合は
+ * `recalculateResourceCapacitiesSteps`の切り下げだけを行い、割合では縮めない。
+ */
+export function raiseCurrentHpByMaximumHpIncrease(
+  context: ResourceCapacityRecalculateContext,
+  units: readonly BattleUnit[],
+  targetUnitId: BattleUnitId,
+  previousMaximumHp: number,
+  parentEventId: DomainEventId,
+): RecalculateResourceCapacitiesResult {
+  const target = requireUnit(units, targetUnitId);
+  const previousMaximum = truncateFraction(previousMaximumHp);
+  const maximum = truncateFraction(target.combatStats.maximumHp);
+  const before = target.currentHp;
+  if (before <= 0 || previousMaximum <= 0 || maximum <= previousMaximum) {
+    return { units, lastEventId: parentEventId };
+  }
+  // 演習の敵は最大HPが大きく、積が2^53を超えうるため整数演算で切り捨てる。
+  const scaled = Number((BigInt(before) * BigInt(maximum)) / BigInt(previousMaximum));
+  const after = Math.min(maximum, scaled);
+  if (after <= before) {
+    return { units, lastEventId: parentEventId };
+  }
+  const updated = withClampedCurrentValue(target, "HP", maximum, after);
+  const event = context.recorder.record({
+    eventType: "ResourceChanged",
+    category: "FACT",
+    turnNumber: context.turnNumber,
+    cycleNumber: context.cycleNumber,
+    ...(context.actionId !== undefined ? { actionId: context.actionId } : {}),
+    ...(context.skillUseId !== undefined ? { skillUseId: context.skillUseId } : {}),
+    resolutionScopeId: context.resolutionScopeId,
+    parentEventId,
+    rootEventId: context.rootEventId,
+    sourceUnitId: targetUnitId,
+    payload: {
+      battleUnitId: targetUnitId,
+      resource: "HP",
+      before,
+      after,
+      delta: after - before,
+      baseDelta: after - before,
+      reason: "EFFECT_ACTION",
+      causeEventId: parentEventId,
+    },
+    stateDelta: {
+      units: { [targetUnitId]: { [RESOURCE_DELTA_FIELD.HP]: { before, after } } },
     },
   });
   return {

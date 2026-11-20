@@ -452,6 +452,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:subject"],
         },
       ],
+      // 最大HP+80%で割合を保って5000/10000 → 9000/18000（R-ACTN-03）。
+      hpDeltas: { "ally:subject": 4000 },
       effectsApplied: [
         {
           unitId: "ally:subject",

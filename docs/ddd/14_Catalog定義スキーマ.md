@@ -1300,7 +1300,7 @@ payload:
 | `operation`    | enum               | `ADD` / `SET`。`SET_TO_MAX` と `DISTRIBUTE` は上限変更に意味を持たないため許可しない。有効な`SET`が複数ある場合は付与順で後のものが基準を置き換え、`ADD`はその結果へ合算する（R-ACTN-03）                                                                                                           |
 | `formula`      | FormulaDefinition  | 変更量。`APPLY_STAT_MOD`と同じ評価規約で付与時点に一度だけ評価する                                                                                                                                                                                                                                  |
 | `duration`     | DurationDefinition | 恒久的な上限変更は `timeLimit.unit: BATTLE, count: 1, dispellable: false` で表す                                                                                                                                                                                                                    |
-| `raiseCurrent` | `true`（省略可）   | 付与で上限が実際に増えた分だけ現在値も増やす（`07_戦闘ルール詳細.md` R-ACTN-03）。`resource: HP`（現在HPの増加は回復であり回復規則を迂回する）と `operation: SET` には宣言できない。`false` は受理しない                                                                                            |
+| `raiseCurrent` | `true`（省略可）   | 付与で上限が実際に増えた分だけ現在値も増やす（`07_戦闘ルール詳細.md` R-ACTN-03）。`resource: HP`（最大HPの上昇は宣言の有無によらず変更直前のHP割合を維持する — R-ACTN-03「最大HPの上昇」）と `operation: SET` には宣言できない。`false` は受理しない                                                |
 
 ### APPLY_RESOURCE_GAIN_MOD
 

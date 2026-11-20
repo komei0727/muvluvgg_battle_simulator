@@ -33,6 +33,8 @@ import {
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { turnStarted, unitBeingAttacked } from "../../../testing/production-unit/trigger-events.js";
 import { observeHitPointRatioCritical } from "../../../testing/production-unit/hit-point-ratio-critical-probe.js";
+import { reduceStateDeltas } from "../../../domain/battle/events/state-delta-reducer.js";
+import { initialSnapshotFor } from "../../../testing/fixtures/battle-state.js";
 
 /**
  * `UNIT_SHOUKA_BEACH`（【砂浜の策謀家】姜小花）のユニット単位production結合テスト
@@ -364,6 +366,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           timeLimit: { unit: "BATTLE", count: 1 },
         },
       ],
+      // 最大HP上昇は変更直前のHP割合を維持する（R-ACTN-03）: 5000/10000 → 9000/18000。
+      hpDeltas: { "ally:subject": 4000 },
       resources: [
         { unitId: "ally:subject", resource: "PP", delta: -2 },
         { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
@@ -690,5 +694,52 @@ describe("production Catalog UNIT_SHOUKA_BEACH (【砂浜の策謀家】姜小�
       battleId: "B_SHOUKA_BEACH_EX_LINK_LETHAL",
     });
     expect(lethal.hpDeltas).toEqual({ "ally:subject": -500, [linkTo]: -265 });
+  });
+
+  it("IT-UNIT-SHOUKA-BEACH-008 [R-ACTN-03] (R-ACTN-03): PS2の最大HP+80%は変更直前のHP割合を保って現在HPも増やす（満タン10000/10000→18000/18000、半分5000/10000→9000/18000）。増加は回復ではなく `ResourceChanged` として記録され、公開差分だけから同じ最終状態を復元できる", () => {
+    const activate = (currentHp: number) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, {
+        subject: { state: { currentHp } },
+      });
+      const chain = openPassiveChain({
+        definitions: board.definitions,
+        actorUnitId: "ally:subject",
+        battleId: `B_SHOUKA_BEACH_MAX_HP_${currentHp}`,
+      });
+      const initial = initialSnapshotFor(board.units, { include: ["effects", "skillCounters"] });
+      const after = chain.fire(turnStarted({ turnNumber: 1 }), board.units);
+      const subject = after.find((unit) => unit.battleUnitId === "ally:subject")!;
+      const events = chain.recorder.getEvents();
+      expect(
+        reduceStateDeltas(
+          initial,
+          events.flatMap((event) => (event.stateDelta === undefined ? [] : [event.stateDelta])),
+        ),
+      ).toEqual(initialSnapshotFor(after, { include: ["effects", "skillCounters"] }));
+      return { subject, events };
+    };
+
+    const full = activate(10000);
+    expect(full.subject.combatStats.maximumHp).toBe(18000);
+    expect(full.subject.currentHp).toBe(18000);
+    expect(
+      full.events
+        .filter((event) => event.eventType === "ResourceChanged")
+        .map((event) => event.payload)
+        .filter((payload) => payload.resource === "HP"),
+    ).toEqual([
+      expect.objectContaining({
+        battleUnitId: "ally:subject",
+        before: 10000,
+        after: 18000,
+        delta: 8000,
+        reason: "EFFECT_ACTION",
+      }),
+    ]);
+    expect(full.events.some((event) => event.eventType === "HealApplied")).toBe(false);
+
+    const half = activate(5000);
+    expect(half.subject.combatStats.maximumHp).toBe(18000);
+    expect(half.subject.currentHp).toBe(9000);
   });
 });

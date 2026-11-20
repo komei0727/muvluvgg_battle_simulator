@@ -208,6 +208,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_PS1_MAXHP_UP", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_KEI_JACKKNIFE_PS1_DMG_DOWN", targets: ["ally:subject"] },
       ],
+      // 最大HP+20%で割合を保って5000/10000 → 6000/12000（R-ACTN-03）。
+      hpDeltas: { "ally:subject": 1000 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -492,7 +494,8 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
   });
 
   it("IT-UNIT-KEI-JACKKNIFE-006 [R-DMG-04] (R-ACTN-03, R-DMG-04): PS1の実 被ダメージ補正は `direction`／`damageType`／`UNIT_STATE` 条件を持ったまま `EffectApplied` の StateDelta へ載り、独立Reducerが同じ形を復元する。条件は被弾ごとに評価され、HP割合が65%を下回ると効かなくなる", () => {
-    // PS1は同じ解決で最大HPを20%上げるため、条件が見る割合の分母は12000になる。
+    // PS1は同じ解決で最大HPを20%上げるが、現在HPも変更直前の割合を保って増える
+    // （R-ACTN-03）ため、条件が見る割合は付与前の割合と変わらない。
     // `-001` のPS1行は付与時点の `magnitude`（-0.3）までを持つが、`damageModifier` の
     // 中身と、それが**別のスキル使用**である被弾でどう効くかは表の外にある。
     const grantAt = (currentHp: number) => {
@@ -552,11 +555,12 @@ describe("production Catalog UNIT_KEI_JACKKNIFE (【無邪気なジャックナ�
         battleId: `B_KEI_DMG_DOWN_HIT_${currentHp}`,
       }).calculated.incomingDamageMultiplier;
 
-    // 9000/12000＝75%は成立、7800/12000＝65%ちょうども `GTE` に当たる（境界）。
+    // 付与前9000/10000は10800/12000＝90%で成立、6500/10000は7800/12000＝65%ちょうどで
+    // `GTE` に当たる（境界）。6499/10000は7798/12000で65%を下回る。
     expect(incomingMultiplierAt(9000)).toBeCloseTo(0.7);
-    expect(incomingMultiplierAt(7800)).toBeCloseTo(0.7);
-    expect(incomingMultiplierAt(7799)).toBe(1);
-    // 既定盤面の5000は最大HP上昇後の割合が41.6%で、同じ効果を持っていても効かない。
+    expect(incomingMultiplierAt(6500)).toBeCloseTo(0.7);
+    expect(incomingMultiplierAt(6499)).toBe(1);
+    // 既定盤面の5000は最大HP上昇後も6000/12000＝50%で、同じ効果を持っていても効かない。
     expect(incomingMultiplierAt(5000)).toBe(1);
   });
 
