@@ -350,9 +350,10 @@ export interface EffectDurationState {
    */
   readonly grantedSkillUseId?: SkillUseId;
   /**
-   * R-EFF-09: `definition.linkedEffectGroupScope === "SKILL_USE"`の場合、付与時の
-   * `SkillUseId`。同じスキル使用で付与されたメンバーだけを連動させるキーに使う。
-   * スキル使用の外の付与では持たず、その場合は保持ユニット単位で連動する（`HOLDER`と同じ）。
+   * R-EFF-09: `definition.linkedEffectGroupScope`が`SKILL_USE`／`SKILL_USE_ANY_HOLDER`の
+   * 場合、付与時の`SkillUseId`。同じスキル使用で付与されたメンバーだけを連動させるキーに使う。
+   * スキル使用の外の付与では持たず、その場合`SKILL_USE`は保持ユニット単位（`HOLDER`と同じ）、
+   * `SKILL_USE_ANY_HOLDER`はスキル使用の外で付与されたメンバー同士で連動する。
    */
   readonly linkedGroupSkillUseId?: SkillUseId;
   /**
@@ -403,7 +404,9 @@ export function buildInitialDurationState(
     ...(timeLimit?.unit === "SKILL_USE" && context.skillUseId !== undefined
       ? { grantedSkillUseId: context.skillUseId }
       : {}),
-    ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.skillUseId !== undefined
+    ...((definition.linkedEffectGroupScope === "SKILL_USE" ||
+      definition.linkedEffectGroupScope === "SKILL_USE_ANY_HOLDER") &&
+    context.skillUseId !== undefined
       ? { linkedGroupSkillUseId: context.skillUseId }
       : {}),
     ...(definition.linkedEffectGroupScope === "SKILL_USE" && context.linkedGroupAnchor !== undefined

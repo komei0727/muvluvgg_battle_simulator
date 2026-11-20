@@ -2474,6 +2474,131 @@ describe("buildCatalogIndex", () => {
     }
   });
 
+  it("UT-R-EFF-09-047 [R-EFF-09, R-EFF-10]: rejects linkedEffectGroupScope SKILL_USE_ANY_HOLDER on a REFRESH/REPLACE APPLY_MARKER, like SKILL_USE", () => {
+    const markerWith = (id: string, policy: string) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_MARKER",
+          payload: {
+            markerId: `MARKER_${id}`,
+            stack: { policy, max: null },
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: `GROUP_${id}`,
+              linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+            },
+          },
+        },
+        "effectAction",
+      );
+    const defs = baseDefinitions();
+    try {
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [
+          ...defs.effectActions,
+          markerWith("ACT_MARKER_ADD", "ADD"),
+          markerWith("ACT_MARKER_REFRESH", "REFRESH"),
+          markerWith("ACT_MARKER_REPLACE", "REPLACE"),
+        ],
+      });
+      expect.unreachable();
+    } catch (error) {
+      const err = error as CatalogIntegrityError;
+      expect(
+        err.violations
+          .filter((v) => v.rule === "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE")
+          .map((v) => v.targetId),
+      ).toEqual(["ACT_MARKER_REFRESH", "ACT_MARKER_REPLACE"]);
+    }
+  });
+
+  it("UT-R-EFF-09-048 [R-EFF-09]: accepts one SKILL_USE_ANY_HOLDER PARENT on a single unit per skill use, and rejects a skill that can grant it more than once in one use", () => {
+    const groupMember = (id: string, role: "PARENT" | "CHILD"): EffectActionDefinition =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "FIXED",
+            formula: { kind: "CONSTANT", value: 20 },
+            stacking: { mode: "STACKABLE" },
+            duration: {
+              dispellable: true,
+              linkedEffectGroupId: "GROUP_GUARD",
+              linkedEffectGroupRole: role,
+              linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+            },
+          },
+        },
+        "effectAction",
+      );
+    const actionOn = (
+      target: TargetReferenceInput,
+      effectActionDefinitionId: string,
+    ): EffectStepDefinitionInput => ({
+      kind: "ACTION",
+      target,
+      actions: [{ effectActionDefinitionId }],
+    });
+    const self = { kind: "SELF" } as const;
+    const allies = { kind: "BINDING", targetBindingId: "TGT_ALLIES" } as const;
+    const skillWith = (steps: readonly EffectStepDefinitionInput[]): SkillDefinition =>
+      createSkillDefinition({
+        skillDefinitionId: "SKL_AS2",
+        skillType: "AS",
+        cost: { resource: "AP", amount: 1 },
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: "TGT_ALLIES",
+              selector: { kind: "SELECT", side: "ALLY", count: "ALL" },
+            },
+          ],
+          steps,
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        metadata: { displayName: "AS" },
+      });
+    const defs = baseDefinitions();
+    const buildWith = (steps: readonly EffectStepDefinitionInput[]) => () =>
+      buildCatalogIndex({
+        ...defs,
+        units: [unit("UNIT_001", { active: ["SKL_AS1", "SKL_AS2"] })],
+        skills: [...defs.skills, skillWith(steps)],
+        effectActions: [
+          ...defs.effectActions,
+          groupMember("ACT_GUARD_SHIELD", "PARENT"),
+          groupMember("ACT_GUARD_LINK", "CHILD"),
+        ],
+      });
+    const violationsOf = (steps: readonly EffectStepDefinitionInput[]) => {
+      try {
+        buildWith(steps)();
+        return [];
+      } catch (error) {
+        return (error as CatalogIntegrityError).violations.filter(
+          (v) => v.rule === "AMBIGUOUS_SKILL_USE_ANY_HOLDER_PARENT",
+        );
+      }
+    };
+    const parentOnSelf = actionOn(self, "ACT_GUARD_SHIELD");
+    const childOnAllies = actionOn(allies, "ACT_GUARD_LINK");
+
+    expect(buildWith([parentOnSelf, childOnAllies])).not.toThrow();
+    expect(violationsOf([parentOnSelf, childOnAllies, parentOnSelf])).toHaveLength(1);
+    expect(violationsOf([actionOn(allies, "ACT_GUARD_SHIELD"), childOnAllies])).toHaveLength(1);
+    expect(
+      violationsOf([{ kind: "REPEAT", count: 2, steps: [parentOnSelf] }, childOnAllies]),
+    ).toHaveLength(1);
+    expect(violationsOf([parentOnSelf, childOnAllies])).toEqual([]);
+    expect(violationsOf([parentOnSelf, parentOnSelf])[0]?.targetId).toBe("SKL_AS2");
+  });
+
   it("UT-R-EFF-10-057 [R-EFF-10]: rejects a markerId granted both by ADD and by REFRESH/REPLACE, since ADD keeps several grants that REFRESH/REPLACE cannot address", () => {
     const markerWith = (id: string, policy: string) =>
       createEffectActionDefinition(

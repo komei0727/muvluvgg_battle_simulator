@@ -25,6 +25,7 @@ import {
   validateBranchTargetStateUnboundedReference,
   validateConditionEffectActionReferences,
   validateDamageLinkBindingReferences,
+  validateSkillUseAnyHolderParents,
   validateEffectActionReferences,
   validateHitConditionReferences,
   validateGrantedByScope,
@@ -164,6 +165,7 @@ export function validateSkill(
       effectActions,
       violations,
     );
+    validateSkillUseAnyHolderParents(sequence, skill.skillDefinitionId, effectActions, violations);
     validateGrantedByScope(
       sequence,
       skill.activationCondition,

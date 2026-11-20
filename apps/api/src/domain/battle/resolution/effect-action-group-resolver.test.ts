@@ -5,6 +5,7 @@ import {
 } from "./effect-action-group-resolver.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import { applyMarker } from "../effects/marker-apply-service.js";
+import { expireEffects } from "../effects/duration-expiry-service.js";
 import { shieldPoolsOf } from "../combat/shield-policy.js";
 import { subUnitDurabilityTotal } from "../combat/sub-unit-policy.js";
 import {
@@ -1067,6 +1068,93 @@ describe("applyEffectActionGroups", () => {
         effectParent.effectActionDefinitionId,
         child.effectActionDefinitionId,
       ]);
+    });
+
+    it("UT-R-EFF-09-046 [R-EFF-09]: a SKILL_USE_ANY_HOLDER shield on self takes the link its skill use put on an ally with it, while the set from the next use of the same skill survives", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const ally = unit("ALLY", "ALLY");
+      const group = {
+        dispellable: true,
+        linkedEffectGroupId: "GUARD_LINK",
+        linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+      } as const;
+      const shield: EffectActionDefinition = {
+        kind: "APPLY_SHIELD",
+        effectActionDefinitionId: createEffectActionDefinitionId("ACT_GUARD_SHIELD"),
+        metadata: { tags: [] },
+        payload: {
+          formula: { kind: "CONSTANT", value: 100 },
+          duration: { ...group, linkedEffectGroupRole: "PARENT" },
+        },
+      };
+      const baseChild = statModAction("ACT_GUARD_LINK");
+      const child: EffectActionDefinition =
+        baseChild.kind === "APPLY_STAT_MOD"
+          ? {
+              ...baseChild,
+              payload: {
+                ...baseChild.payload,
+                duration: { ...group, linkedEffectGroupRole: "CHILD" },
+              },
+            }
+          : baseChild;
+      const effectActions = new Map([
+        [shield.effectActionDefinitionId, shield],
+        [child.effectActionDefinitionId, child],
+      ]);
+      const { recorder, rootEventId } = seedRecorder();
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, actor.battleUnitId, shield.effectActionDefinitionId),
+          singleActionStep(1, true, ally.battleUnitId, child.effectActionDefinitionId),
+        ],
+        targetUnitIds: [actor.battleUnitId, ally.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+      const first = applyEffectActionGroups(
+        plan,
+        [actor, ally],
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+      const second = applyEffectActionGroups(
+        plan,
+        first.units,
+        contextFor(actor, effectActions, recorder, rootEventId),
+      );
+      const [firstShield, secondShield] = second.units.find(
+        (u) => u.battleUnitId === actor.battleUnitId,
+      )!.appliedEffects;
+      const [, secondLink] = second.units.find(
+        (u) => u.battleUnitId === ally.battleUnitId,
+      )!.appliedEffects;
+
+      const expired = expireEffects(
+        {
+          recorder,
+          turnNumber: 1,
+          cycleNumber: 0,
+          resolutionScopeId: recorder.nextResolutionScopeId(),
+          rootEventId: rootEventId as never,
+        },
+        second.units,
+        [
+          {
+            battleUnitId: actor.battleUnitId,
+            effectInstanceId: firstShield!.effectInstanceId,
+            reason: "SHIELD_DEPLETED",
+          },
+        ],
+        effectActions,
+        rootEventId as never,
+      );
+
+      const idsOf = (unitId: BattleUnit["battleUnitId"]) =>
+        expired.units
+          .find((u) => u.battleUnitId === unitId)!
+          .appliedEffects.map((e) => e.effectInstanceId);
+      expect(idsOf(actor.battleUnitId)).toEqual([secondShield!.effectInstanceId]);
+      expect(idsOf(ally.battleUnitId)).toEqual([secondLink!.effectInstanceId]);
     });
 
     it("UT-R-EFF-09-038 [R-EFF-09, R-EFF-10]: when one skill use grants the same PARENT Marker twice to a holder, each CHILD links to the grant made just before it, so removing one grant removes only its own child", () => {

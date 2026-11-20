@@ -184,8 +184,18 @@ export type LinkedEffectGroupRole = (typeof LINKED_EFFECT_GROUP_ROLES)[number];
  * `SKILL_USE`は同じ保持ユニットかつ同じスキル使用（`SkillUseId`）で付与されたメンバー
  * だけで連動する。同じスキルを繰り返し使って重複付与したセット（例: シールドと、
  * シールドと同時に消えるバフ）を、セットごとに独立して連動させるためのもの。
+ * `SKILL_USE_ANY_HOLDER`は保持ユニットを問わず、同じスキル使用で付与されたメンバー
+ * だけで連動する。自身のシールドと、味方が保持するリンクのように、1回のスキル使用で
+ * 別々のユニットへ付与したセットを、連続使用しても互いに巻き込まず連動させるためのもの。
+ * 付与分ごとのアンカーを持たないため、`PARENT`は1スキル使用につき1つに限る
+ * （Catalogロード時に検査する）。
  */
-export const LINKED_EFFECT_GROUP_SCOPES = ["BATTLE", "HOLDER", "SKILL_USE"] as const;
+export const LINKED_EFFECT_GROUP_SCOPES = [
+  "BATTLE",
+  "HOLDER",
+  "SKILL_USE",
+  "SKILL_USE_ANY_HOLDER",
+] as const;
 export type LinkedEffectGroupScope = (typeof LINKED_EFFECT_GROUP_SCOPES)[number];
 
 export interface DurationDefinition {

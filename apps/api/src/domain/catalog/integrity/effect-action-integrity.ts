@@ -352,19 +352,20 @@ export function validateEffectAction(
       message: `duration.removeOnSourceDefeated is only supported on APPLY_MARKER and APPLY_SHIELD (R-EFF-10, M7-020, Issue #660): this kind has no source-defeat expiration mechanism, received kind "${effectAction.kind}"`,
     });
   }
-  // R-EFF-09: `SKILL_USE`範囲は付与分ごとのインスタンスが付与時の`SkillUseId`を持つことを
-  // 前提にする。REFRESH/REPLACEは既存の付与分をその場で作り直し、付与キーが新しい
-  // スキル使用へ移るため、前の付与で紐づけた子がどの親の解除でも消えなくなる。
+  // R-EFF-09: `SKILL_USE`／`SKILL_USE_ANY_HOLDER`範囲は付与分ごとのインスタンスが付与時の
+  // `SkillUseId`を持つことを前提にする。REFRESH/REPLACEは既存の付与分をその場で作り直し、
+  // 付与キーが新しいスキル使用へ移るため、前の付与で紐づけた子がどの親の解除でも消えなくなる。
   if (
     effectAction.kind === "APPLY_MARKER" &&
-    duration?.linkedEffectGroupScope === "SKILL_USE" &&
+    (duration?.linkedEffectGroupScope === "SKILL_USE" ||
+      duration?.linkedEffectGroupScope === "SKILL_USE_ANY_HOLDER") &&
     (effectAction.payload.stack.policy === "REFRESH" ||
       effectAction.payload.stack.policy === "REPLACE")
   ) {
     violations.push({
       targetId: effectAction.effectActionDefinitionId,
       rule: "UNSUPPORTED_SKILL_USE_LINKED_GROUP_SCOPE",
-      message: `duration.linkedEffectGroupScope "SKILL_USE" is not supported on APPLY_MARKER with stack.policy "${effectAction.payload.stack.policy}" (R-EFF-09): the grant is rebuilt in place under the new SkillUseId, orphaning the children linked to the previous grant`,
+      message: `duration.linkedEffectGroupScope "${duration.linkedEffectGroupScope}" is not supported on APPLY_MARKER with stack.policy "${effectAction.payload.stack.policy}" (R-EFF-09): the grant is rebuilt in place under the new SkillUseId, orphaning the children linked to the previous grant`,
     });
   }
   // R-EFF-12（`DYNAMIC_DURATION_ON_REAPPLY`、M7-014、Issue #268）: 再付与時の動的

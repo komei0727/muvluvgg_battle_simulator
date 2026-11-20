@@ -68,6 +68,7 @@ export function linkedGroupMemberKey(member: LinkedGroupMember): LinkedGroupMemb
  * R-EFF-09: 連動グループを識別するキー。`linkedEffectGroupScope: HOLDER`のメンバーは
  * 保持ユニットごとに別のグループとして扱う（同じ`linkedEffectGroupId`でも他ユニットの
  * メンバーとは連動しない）。`SKILL_USE`はさらに付与時の`SkillUseId`ごとに分ける。
+ * `SKILL_USE_ANY_HOLDER`は保持ユニットを含めず、付与時の`SkillUseId`ごとに分ける。
  * 連動しない（`linkedEffectGroupId: null`）なら`null`。
  *
  * キーは要素数の違うJSON配列で表す。区切り文字で連結すると、`HOLDER`の
@@ -92,6 +93,13 @@ export function linkedGroupKeyOf(
         holderUnitId,
         duration.linkedGroupSkillUseId ?? null,
         duration.linkedGroupAnchor ?? null,
+      ]);
+    case "SKILL_USE_ANY_HOLDER":
+      // 範囲名を要素に含め、要素数が同じ`HOLDER`のキー（ID＋保持者）と衝突させない。
+      return JSON.stringify([
+        groupId,
+        "SKILL_USE_ANY_HOLDER",
+        duration.linkedGroupSkillUseId ?? null,
       ]);
     default:
       return JSON.stringify([groupId]);

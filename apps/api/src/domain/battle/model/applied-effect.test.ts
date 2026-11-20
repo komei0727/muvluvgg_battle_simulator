@@ -124,6 +124,27 @@ describe("buildInitialDurationState", () => {
     expect(state.grantedSkillUseId).toBeUndefined();
   });
 
+  it("UT-R-EFF-01-073 [R-EFF-09]: records the granting SkillUseId but no anchor for a SKILL_USE_ANY_HOLDER-scoped linked group", () => {
+    const definition: DurationDefinition = {
+      dispellable: true,
+      linkedEffectGroupId: "GROUP_GUARD",
+      linkedEffectGroupRole: "PARENT",
+      linkedEffectGroupScope: "SKILL_USE_ANY_HOLDER",
+    };
+    const skillUseId = createSkillUseId("battle-1:skill-use:4");
+
+    const state = buildInitialDurationState(definition, {
+      turnNumber: 1,
+      skillUseId,
+      linkedGroupAnchor: "E:shield",
+      linkedGroupGrantOrder: 3,
+    });
+
+    expect(state.linkedGroupSkillUseId).toBe(skillUseId);
+    expect(state.linkedGroupAnchor).toBeUndefined();
+    expect(state.linkedGroupGrantOrder).toBeUndefined();
+  });
+
   it("UT-R-EFF-01-069 [R-EFF-09]: does not record a SkillUseId for linked groups of other scopes", () => {
     const definition: DurationDefinition = {
       dispellable: true,
