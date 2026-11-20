@@ -116,8 +116,7 @@ export function emitPreAttackObservations(
   attackerUnitId: BattleUnitId,
   /**
    * 追撃ライダー（R-FUP-01）の型を`damageTypes`へ足す場合にだけ渡す。捕捉を行うのは
-   * AS/EXスキル使用だけ（`FollowUpAttackCapture`を作るのは`resolveSkillUse`のみ）
-   * のため、チャージ解放・PS・Memoryでは`undefined`を渡す。
+   * AS/EXスキル使用とチャージ解放だけのため、PS・Memoryでは`undefined`を渡す。
    */
   followUpRiderEffectActions:
     | ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>

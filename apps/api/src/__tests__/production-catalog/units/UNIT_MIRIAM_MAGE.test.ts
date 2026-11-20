@@ -12,11 +12,13 @@ import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardUnitSpec,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { skillUseCompleted } from "../../../testing/production-unit/trigger-events.js";
+import { chargeAndRelease } from "../../../testing/production-unit/follow-up-ride.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -435,5 +437,27 @@ describe("production Catalog UNIT_MIRIAM_MAGE (【元気印の大魔導士】ミ
       hitConfirmed: 1,
       damaged: true,
     });
+  });
+
+  it("IT-UNIT-MIRIAM-MAGE-006 [R-ATM-02]: AS2の解放は凍結だけで攻撃を含まないため、他の味方の「アクティブスキルで攻撃する前」PS（フィーPS1）はチャージ開始でも解放でも発動しない", () => {
+    const withFee = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_FEE_ACTOR",
+    ]);
+    const board = productionBoard(withFee, "UNIT_FEE_ACTOR");
+    const { startEvents, releaseEvents } = chargeAndRelease({
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+      chargeSkill: withFee.skills.get(createSkillDefinitionId("SKL_MIRIAM_MAGE_AS2"))!,
+      battleId: "B_MIRIAM_AS2_RELEASE_FEE",
+      random: Array.from({ length: 64 }, () => 0.99),
+    });
+    expect(
+      [...startEvents, ...releaseEvents].filter((event) => event.eventType === "PassiveActivated"),
+    ).toEqual([]);
+    expect(
+      releaseEvents.find((event) => event.eventType === "SkillUseStarting")?.payload,
+    ).toMatchObject({ skillDefinitionId: "SKL_MIRIAM_MAGE_AS2", isAttack: false });
   });
 });

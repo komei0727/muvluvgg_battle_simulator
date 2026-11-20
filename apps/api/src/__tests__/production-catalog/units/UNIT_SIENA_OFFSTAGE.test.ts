@@ -12,6 +12,7 @@ import {
   skillFrom,
   unitFrom,
 } from "../../../testing/fixtures/index.js";
+import { chargeAndRelease } from "../../../testing/production-unit/follow-up-ride.js";
 import {
   observeChargeEvasion,
   observeChargeLifecycle,
@@ -532,5 +533,53 @@ describe("production Catalog UNIT_SIENA_OFFSTAGE (【舞台を降りた元歌姫
       hitConfirmed: 1,
       damaged: true,
     });
+  });
+
+  it("IT-UNIT-SIENA-OFFSTAGE-008 [R-ATM-02, R-FUP-01]: 実AS1のチャージ開始では他の味方の「アクティブスキルで攻撃する前」PS（フィーPS1）は発動せず、解放の直前に発動して、その追撃が解放の敵全体攻撃に相乗りする", () => {
+    const withFee = loadProductionSnapshot(PRODUCTION_CATALOG_DIR, [
+      UNIT_DEFINITION_ID,
+      "UNIT_FEE_ACTOR",
+    ]);
+    const board = productionBoard(withFee, "UNIT_FEE_ACTOR");
+    const { startEvents, releaseEvents } = chargeAndRelease({
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+      chargeSkill: skillFrom(withFee, "SKL_SIENA_OFFSTAGE_AS1"),
+      battleId: "B_SIENA_AS1_RELEASE_FEE",
+      random: Array.from({ length: 64 }, () => 0.99),
+    });
+    const feePs1 = (events: typeof startEvents) =>
+      events.filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          event.payload.skillDefinitionId === "SKL_FEE_ACTOR_PS1",
+      );
+    expect(feePs1(startEvents)).toEqual([]);
+    expect(feePs1(releaseEvents)).toHaveLength(1);
+    expect(
+      releaseEvents.find((event) => event.eventType === "SkillUseStarting")?.payload,
+    ).toMatchObject({ skillDefinitionId: "SKL_SIENA_OFFSTAGE_AS1", isAttack: true, costAmount: 0 });
+
+    // 追撃は解放攻撃の対象（敵全体）へ1ヒットずつ入る（R-FUP-01 #6）。
+    const releaseTargets = new Set(
+      releaseEvents
+        .filter(
+          (event) =>
+            event.eventType === "DamageCalculated" &&
+            event.payload.effectActionDefinitionId !== "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+        )
+        .flatMap((event) => event.targetUnitIds ?? []),
+    );
+    const followUpTargets = releaseEvents
+      .filter(
+        (event) =>
+          event.eventType === "DamageCalculated" &&
+          event.payload.effectActionDefinitionId === "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+      )
+      .flatMap((event) => event.targetUnitIds ?? []);
+    expect(releaseTargets.size).toBeGreaterThan(1);
+    expect(new Set(followUpTargets)).toEqual(releaseTargets);
+    expect(followUpTargets).toHaveLength(releaseTargets.size);
   });
 });

@@ -26,7 +26,10 @@ import {
   skillUseStarting,
   turnStarted,
 } from "../../../testing/production-unit/trigger-events.js";
-import { rideStandInAttack } from "../../../testing/production-unit/follow-up-ride.js";
+import {
+  chargeAndRelease,
+  rideStandInAttack,
+} from "../../../testing/production-unit/follow-up-ride.js";
 import { repeatedStatModGrant } from "../../../testing/production-unit/stat-mod-stacking.js";
 
 /**
@@ -599,5 +602,45 @@ describe("production Catalog UNIT_FEE_ACTOR (【空っぽのアクター】フ�
     // 選ぶ（R-EFF-05）。2件保持していても実効値は1件分にとどまる。
     expect(instanceCount).toBe(2);
     expect(effectiveValue).toBeCloseTo(baseValue - 100, 10);
+  });
+
+  it("IT-UNIT-FEE-ACTOR-009 [R-ATM-02, R-FUP-01]: 他の味方の攻撃チャージASではPS1がチャージ開始では発動せず、解放の直前に発動して追撃バフを付与し、威力28.08のEN追撃が解放攻撃に相乗りする", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const { startEvents, releaseEvents, units } = chargeAndRelease({
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+      battleId: "B_FEE_PS1_CHARGE_RIDE",
+    });
+    const ps1Resolved = (events: typeof startEvents) =>
+      events.filter(
+        (event) =>
+          event.eventType === "PassiveResolved" &&
+          event.payload.skillDefinitionId === "SKL_FEE_ACTOR_PS1",
+      );
+    expect(ps1Resolved(startEvents)).toEqual([]);
+    expect(ps1Resolved(releaseEvents)).toHaveLength(1);
+
+    // 「直前」: PS1は解放の`SkillUseStarting`で発動し、解放攻撃のダメージより前に解決する。
+    const types = releaseEvents.map((event) => event.eventType);
+    const ps1At = releaseEvents.indexOf(ps1Resolved(releaseEvents)[0]!);
+    expect(types.indexOf("SkillUseStarting")).toBeLessThan(ps1At);
+    expect(ps1At).toBeLessThan(types.indexOf("DamageApplied"));
+
+    // 解放本体: (1000 - 500) x 1.0 = 500。追撃: (1000 - 500) x 0.2808 = 140（EN）。
+    const followUpDamage = releaseEvents.filter(
+      (event) =>
+        event.eventType === "DamageCalculated" &&
+        event.payload.effectActionDefinitionId === "ACT_FEE_ACTOR_PS1_FOLLOW_UP",
+    );
+    expect(followUpDamage).toHaveLength(1);
+    expect(followUpDamage[0]?.payload).toMatchObject({ finalDamage: 140, damageType: "EN" });
+    const attacked = units.filter(
+      (unit) => unit.side === "ENEMY" && unit.currentHp < unit.combatStats.maximumHp / 2,
+    );
+    expect(attacked.map((unit) => unit.currentHp)).toEqual([5000 - 500 - 140]);
+    const holderAfter = units.find((unit) => unit.battleUnitId === "ally:front")!;
+    expect(holderAfter.appliedEffects.some((effect) => effect.isFollowUpAttack)).toBe(false);
+    expect(types).toContain("ChargeReleaseCompleted");
   });
 });

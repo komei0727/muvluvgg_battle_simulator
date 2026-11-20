@@ -476,8 +476,8 @@ export function* resolveEffectSequencePlan(
 }
 
 /**
- * R-FUP-01: AS/EXスキル使用が捕捉した追撃をDAMAGE区間の終わりで解決する。捕捉
- * （`followUpAttackCapture`）を持たないPS・Memory・チャージ解放の解決では何もしない。
+ * R-FUP-01: AS/EXスキル使用（チャージ解放を含む）が捕捉した追撃をDAMAGE区間の終わりで
+ * 解決する。捕捉（`followUpAttackCapture`）を持たないPS・Memoryの解決では何もしない。
  * 解決済みの捕捉は`resolved`で印を付け、同じスキル使用で2回解決しない。
  */
 function resolvePendingFollowUpAttacks(

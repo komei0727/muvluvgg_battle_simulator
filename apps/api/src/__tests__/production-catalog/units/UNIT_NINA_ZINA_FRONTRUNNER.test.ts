@@ -35,6 +35,7 @@ import {
   skillUseStarting,
 } from "../../../testing/production-unit/trigger-events.js";
 import {
+  chargeAndRelease,
   rideStandInAttack,
   useStandInNonAttackSkill,
 } from "../../../testing/production-unit/follow-up-ride.js";
@@ -1286,4 +1287,28 @@ describe("production Catalog UNIT_NINA_ZINA_FRONTRUNNER (【双翼のフロン�
       );
     },
   );
+
+  it("IT-UNIT-NINA-ZINA-FRONTRUNNER-014 [R-ATM-02, R-FUP-01]: 同じ横一列の味方の攻撃チャージASではPS2がチャージ開始では発動せず解放の直前に発動し、威力53の追撃が解放攻撃に相乗りする", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const { startEvents, releaseEvents, units } = chargeAndRelease({
+      attackerUnitId: "ally:front",
+      units: board.units,
+      definitions: board.definitions,
+      battleId: "B_NINA_ZINA_PS2_CHARGE_RIDE",
+    });
+    const ps2Activations = (events: typeof startEvents) =>
+      events.filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          event.payload.skillDefinitionId === "SKL_NINA_ZINA_FRONTRUNNER_PS2",
+      );
+    expect(ps2Activations(startEvents)).toEqual([]);
+    expect(ps2Activations(releaseEvents)).toHaveLength(1);
+
+    // 解放本体: (1000 − 500) × 1.0 = 500。追撃: (1000 − 500) × 0.53 = 265。
+    const attacked = units.filter(
+      (unit) => unit.side === "ENEMY" && unit.currentHp < unit.combatStats.maximumHp / 2,
+    );
+    expect(attacked.map((unit) => unit.currentHp)).toEqual([5000 - 500 - 265]);
+  });
 });

@@ -103,10 +103,9 @@ export interface EffectActionGroupContext {
    */
   readonly damageResults?: DamageResultRegistry;
   /**
-   * R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉。AS/EXスキル使用
-   * （`action-skill-use-resolver.ts`）だけがスキル使用ごとに1つ渡し、DAMAGE経路
-   * （`resolveDamage`→`applyDamageActionSteps`）が書き込む。PS/Memory自身の
-   * EffectSequence解決・チャージ解放は渡さない（追撃の相乗り対象外）。
+   * R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉。AS/EXスキル使用とチャージ解放
+   * だけがスキル使用ごとに1つ渡し、DAMAGE経路（`resolveDamage`→`applyDamageActionSteps`）
+   * が書き込む。PS/Memory自身のEffectSequence解決は渡さない（追撃の相乗り対象外）。
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**

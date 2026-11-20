@@ -70,8 +70,9 @@ export interface DamageHitOutcome {
 }
 
 /**
- * R-FUP-01（Issue #474）: 1回のAS/EXスキル使用が横断的に蓄積する追撃（攻撃ライダー）の
- * 捕捉。呼び出し側（`action-skill-use-resolver.ts`）がスキル使用ごとに
+ * R-FUP-01（Issue #474）: 1回のAS/EXスキル使用（チャージ解放を含む）が横断的に蓄積する
+ * 追撃（攻撃ライダー）の捕捉。呼び出し側（`action-skill-use-resolver.ts`・
+ * `action-charge-resolver.ts`）がスキル使用ごとに
  * {@link emptyFollowUpAttackCapture}で1つ生成して`DamageEventContext`へ渡し、
  * `applyDamageActionSteps`が命中判定へ到達したヒットを基準に書き込む（mutable）。
  *
@@ -171,9 +172,9 @@ export interface DamageEventContext {
    */
   readonly skillType?: SkillType;
   /**
-   * R-FUP-01（Issue #474）: AS/EXスキル使用側（`action-skill-use-resolver.ts`）だけが
-   * 渡す追撃捕捉。未指定なら捕捉を行わない — PS/Memory自身のEffectSequenceや
-   * チャージ解放の攻撃は追撃の相乗り対象外（消費だけが起こる）である。
+   * R-FUP-01（Issue #474）: AS/EXスキル使用（チャージ解放を含む）だけが渡す追撃捕捉。
+   * 未指定なら捕捉を行わない — PS/Memory自身のEffectSequenceの攻撃は追撃の相乗り
+   * 対象外（消費だけが起こる）である。
    */
   readonly followUpAttackCapture?: FollowUpAttackCapture;
   /**
