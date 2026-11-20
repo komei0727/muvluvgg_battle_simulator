@@ -1,0 +1,37 @@
+{
+  "unitDefinitionId": "UNIT_RAMI_SKYWING",
+  "attribute": "SMART",
+  "unitType": "PHYSICAL",
+  "role": "SUPPORT",
+  "positionAptitudes": ["BACK"],
+  "baseStats": {
+    "maximumHp": 28045,
+    "attack": 22137,
+    "defense": 10945,
+    "criticalRate": 0.2,
+    "actionSpeed": 717,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 259,
+    "attack": 206,
+    "defense": 100,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 7,
+  "activeSkillDefinitionIds": [
+    "SKL_RAMI_SKYWING_AS1",
+    "SKL_RAMI_SKYWING_AS2",
+    "SKL_RAMI_SKYWING_AS3"
+  ],
+  "passiveSkillDefinitionIds": ["SKL_RAMI_SKYWING_PS1"],
+  "extraSkillDefinitionId": "SKL_RAMI_SKYWING_EX",
+  "metadata": {
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
+    "tags": [],
+    "displayName": "【穹を駆ける不屈の翼】朽葉ラミ",
+    "characterName": "朽葉ラミ",
+    "characterId": "CHAR_RAMI_KUZUHA"
+  }
+}
