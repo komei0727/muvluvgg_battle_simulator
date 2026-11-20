@@ -3,7 +3,7 @@ import type { FullObservationBattleResult, FullObservationExerciseResult } from 
 import { runProductionExerciseBattle, runProductionPartyBattle } from "./run-production-battle.js";
 
 /**
- * スキルレビュー（評価シート）の対象だった通常ユニット84体。レビュー対象コミット
+ * スキルレビュー（Issue #824）の対象だった通常ユニット84体。レビュー対象コミット
  * `4943e671` 時点の範囲で固定し、後から追加されたユニットを段階Gの完了件数へ含めない。
  */
 export const REVIEWED_UNIT_IDS: readonly string[] = [
