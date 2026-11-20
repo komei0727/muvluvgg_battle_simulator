@@ -1,5 +1,8 @@
 import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
-import type { ConditionDefinition } from "../definitions/condition-definition.js";
+import {
+  ACTION_SELECTION_UNEVALUABLE_CONDITION_KINDS,
+  type ConditionDefinition,
+} from "../definitions/condition-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 
 /**
@@ -126,6 +129,35 @@ export function triggerScopedConditionKindIn(
   condition: ConditionDefinition,
 ): TriggerScopedConditionKind | undefined {
   return TRIGGER_SCOPED_CONDITION_KINDS.find((kind) => conditionContainsKind(condition, kind));
+}
+
+/**
+ * 行動選択時に評価できないkindのうち、専用の規則（`*_REQUIRES_TRIGGER`・
+ * `SELECTED_TARGET_STATE_REQUIRES_PS_TRIGGER`・`TRIGGER_SKILL_USE_HIT_REQUIRES_PS_TRIGGER`・
+ * `TRIGGER_SKILL_USE_DAMAGE_REQUIRES_PS_SKILL`）が既に拒否するもの。同じ違反を二重に
+ * 報告しないため、`ACTIVATION_CONDITION_UNEVALUABLE_KIND`はこれらを除いて報告する。
+ */
+const ACTION_SELECTION_KINDS_WITH_DEDICATED_RULE: ReadonlySet<ConditionDefinition["kind"]> =
+  new Set([
+    ...TRIGGER_SCOPED_CONDITION_KINDS,
+    "SELECTED_TARGET_STATE",
+    "TRIGGER_SKILL_USE_HIT",
+    "TRIGGER_SKILL_USE_TARGET",
+    "TRIGGER_SKILL_USE_DAMAGE",
+  ]);
+
+/**
+ * R-ACT-02: `condition`（AND/OR/NOTの内側を含む）が含む、行動選択時に評価できないkind
+ * （`ACTION_SELECTION_UNEVALUABLE_CONDITION_KINDS`）のうち、専用の規則を持たないもの。
+ */
+export function actionSelectionUnevaluableKindsIn(
+  condition: ConditionDefinition,
+): ConditionDefinition["kind"][] {
+  return ACTION_SELECTION_UNEVALUABLE_CONDITION_KINDS.filter(
+    (kind) =>
+      !ACTION_SELECTION_KINDS_WITH_DEDICATED_RULE.has(kind) &&
+      conditionContainsKind(condition, kind),
+  );
 }
 
 /**

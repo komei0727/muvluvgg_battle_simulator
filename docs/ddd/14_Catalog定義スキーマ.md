@@ -2396,6 +2396,8 @@ triggers:
 
 `ALIVE_UNIT_COUNT` は `FormulaDefinition.ALIVE_UNIT_COUNT_SCALE` が倍率計算専用（発動可否のゲーティングに使えない）だったことを受けて追加した。`excludeSelf: true` で自身を母数から除外できる（例: 「自身以外の味方が0体なら不発」は `side: ALLY, excludeSelf: true, op: GT, value: 0` を `activationCondition` に設定する）。
 
+`ALIVE_UNIT_COUNT`・`RUNTIME_COUNTER`・`TURN_NUMBER`・`SELF_MEMORY_EQUIPPED`・`POSITION_RELATION`・`RESOLUTION_PHASE`を評価できるのは、PSの発動判定（trigger条件・PSの`activationCondition`）だけである。AS/EXの`activationCondition`は行動選択時（`R-ACT-02`）にEffectStep評価器で評価され、この評価器はこれらのkindを扱えない。さらに行動選択は直前の効果結果・契機イベント・契機のスキル使用を持たないため、`LAST_RESULT`・`EVENT_PAYLOAD`も評価できない。AS/EXの`activationCondition`にこれらのkindを置くと（`AND`/`OR`/`NOT`の内側を含む）、Catalogロード時点で`ACTIVATION_CONDITION_UNEVALUABLE_KIND`として拒否する。評価できないkindの一覧は`condition-definition.ts`の`EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS`（EffectStep評価器が扱わないkind。評価器はこの一覧以外のkindを処理することを型で保証する）と、それに`LAST_RESULT`・`EVENT_PAYLOAD`・`TRIGGER_SKILL_USE_DAMAGE`を足した`ACTION_SELECTION_UNEVALUABLE_CONDITION_KINDS`である。trigger専用kind・`SELECTED_TARGET_STATE`・`TRIGGER_SKILL_USE_HIT`/`TRIGGER_SKILL_USE_TARGET`・`TRIGGER_SKILL_USE_DAMAGE`は、それぞれの専用規則で拒否する。「生存している味方が5人以上の場合、このスキルは発動しない」のようなASの人数条件は、生存者を選ぶ`optional: true`のtargetBindingを宣言し、その大きさを`TARGET_SET_COUNT`で比べて書く（`TARGET_SET_COUNT`による発動可否の前例: `SKL_LYDIA_GENIUS_AS1`）。
+
 ```yaml
 kind: ALIVE_UNIT_COUNT
 side: ALLY

@@ -1,10 +1,12 @@
 import { heldMarkerStackTotal } from "../model/marker-state.js";
 import { hasAttributeAdvantage } from "../model/attribute-advantage.js";
-import type {
-  ConditionDefinition,
-  JsonPrimitive,
-  TargetStateField,
-  TriggerSkillUseDamageField,
+import {
+  EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS,
+  type ConditionDefinition,
+  type EffectStepUnevaluableConditionKind,
+  type JsonPrimitive,
+  type TargetStateField,
+  type TriggerSkillUseDamageField,
 } from "../../catalog/definitions/condition-definition.js";
 import type { UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
@@ -506,10 +508,15 @@ export function evaluateEffectStepCondition(
         condition.value,
       );
     }
-    default:
+    default: {
+      // 未処理のkindが`EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS`と一致することを型で保証する。
+      // Catalog検査はこの一覧でAS/EXの`activationCondition`を拒否するため、食い違うと
+      // ロードを通った定義が行動選択で例外になる。
+      const unevaluableKind: EffectStepUnevaluableConditionKind = condition.kind;
       throw new DomainValidationError(
         "step.condition",
-        `kind "${condition.kind}" is not supported by this basic ACTION step condition evaluator (RUNTIME_COUNTER/TURN_NUMBER/ALIVE_UNIT_COUNT/POSITION_RELATION/RESOLUTION_PHASE are PS trigger/activation scope)`,
+        `kind "${unevaluableKind}" is not supported by this basic ACTION step condition evaluator (${EFFECT_STEP_UNEVALUABLE_CONDITION_KINDS.join("/")} are PS trigger/activation scope)`,
       );
+    }
   }
 }
