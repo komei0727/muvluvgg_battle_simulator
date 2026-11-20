@@ -688,7 +688,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // 継続回復を付与時固定に、フルート（配信者）EXの追加回復先を全体回復後の再選択に、ロージー
     // （アーティスト）EXの敵数補正を戦闘開始時の敵数比に、ジュリーPS1の軽減条件を攻撃開始時の
     // HP割合比較にした。
-    expect(catalog.catalogRevision).toBe("2026-11-20.1");
+    // `2026-11-20.2` は新Unit `UNIT_RAMI_SKYWING`（【穹を駆ける不屈の翼】朽葉ラミ）を追加した
+    // （Issue #869）。既存のUnit・Skill・EffectActionは変更していない。
+    expect(catalog.catalogRevision).toBe("2026-11-20.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {

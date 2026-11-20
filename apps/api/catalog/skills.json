@@ -17038,6 +17038,247 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_RAMI_SKYWING_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 7 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_RAMI_SKYWING_SHISSEI",
+                "direction": "DESC"
+              },
+              "DEFAULT"
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ENEMIES" },
+          "actions": [{ "effectActionDefinitionId": "ACT_RAMI_SKYWING_EX_BLIND" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_EX_DAMAGE" },
+            {
+              "effectActionDefinitionId": "ACT_RAMI_SKYWING_EX_ATK_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_SKYWING_EX_DAMAGE"] }
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "ほんと、ざ～こ♡", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_SKYWING_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": [
+              {
+                "kind": "MARKER_COUNT",
+                "markerId": "MARKER_RAMI_SKYWING_SHISSEI",
+                "direction": "DESC"
+              },
+              "DEFAULT"
+            ]
+          }
+        },
+        {
+          "targetBindingId": "TGT_ROW",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "SAME_ROW_AS_BASE", "includeBase": true }
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ROW" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS1_SPD_DOWN" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS1_BLIND" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS1_DEBUFF_MARKER" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS1_ATK_DOWN" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS1_DEF_DOWN" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "よわよわすぎ～♪", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_SKYWING_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_LOWEST",
+          "selector": { "kind": "SELECT", "side": "ALLY", "count": 1, "order": ["LOWEST_HP_RATIO"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS2_EVASION" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS2_DMG_CUT" }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_LOWEST" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS2_EVASION" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS2_DMG_CUT" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "助けてあげよっか?", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_SKYWING_AS3",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["NEAREST"] }
+        },
+        {
+          "targetBindingId": "TGT_ADJ",
+          "optional": true,
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "side": "ENEMY",
+            "base": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+            "area": { "kind": "ADJACENT_ORTHOGONAL" },
+            "order": ["ADJACENT_DIRECTION"],
+            "count": 2
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_BASE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_DOWN" },
+            {
+              "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_GAIN_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_SKYWING_AS3_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_GAIN_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_SKYWING_AS3_DAMAGE"] }
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_ADJ" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_DAMAGE" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_DOWN" },
+            {
+              "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_GAIN_DOWN_MARKER",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_SKYWING_AS3_DAMAGE"] }
+            },
+            {
+              "effectActionDefinitionId": "ACT_RAMI_SKYWING_AS3_EX_GAIN_DOWN",
+              "hitCondition": { "effectActionDefinitionIds": ["ACT_RAMI_SKYWING_AS3_DAMAGE"] }
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "クロス・クラッシュ", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_RAMI_SKYWING_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_PS1_SKILL_POWER_DOWN" },
+            { "effectActionDefinitionId": "ACT_RAMI_SKYWING_PS1_SHISSEI" }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": { "simultaneousActivationLimited": true },
+    "metadata": { "displayName": "何してんのよ！", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "UnitBeingAttacked",
+        "category": "TIMING",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "ALLY",
+        "condition": {
+          "kind": "POSITION_RELATION",
+          "target": { "kind": "TRIGGER_TARGET" },
+          "relation": "IN_FRONT_OF"
+        }
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_RAMI_UNYIELDING_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 6 },

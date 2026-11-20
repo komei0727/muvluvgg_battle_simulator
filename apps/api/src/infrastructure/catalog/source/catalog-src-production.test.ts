@@ -174,6 +174,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_NANAE_SOVEREIGN_TEX",
         // Issue #749: 戦術演習敵ユニット追加: 破壊：ニーナ／ジーナ・ミーシナ
         "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
+        // Issue #869: 朽葉ラミの3バリアント目（#866 エンジン拡張依存）
+        "UNIT_RAMI_SKYWING",
       ].sort(),
     );
   });
