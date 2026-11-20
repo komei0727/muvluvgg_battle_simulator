@@ -357,7 +357,8 @@ export function resolveSkillUse(
   });
 
   // `resolveSkillOrder`（`plan`）がkind==="IMMEDIATE"を検証済み。CHARGEのスキルは
-  // `resolveChargeStart`へ振り分けられ、`SkillUseStarting`自体を発行しない。
+  // `resolveChargeStart`へ振り分けられる（チャージ開始は`SkillUseStarting`を発行せず、
+  // 解放側の`resolveChargeRelease`が発行する）。
   const isAttack = containsAttack(
     skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
     definitions.effectActions,
@@ -454,7 +455,7 @@ export function resolveSkillUse(
   );
   working = observation.units;
 
-  // R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉はAS/EXスキル使用だけが行う。
+  // R-FUP-01（Issue #474）: 追撃（攻撃ライダー）の捕捉はAS/EXスキル使用（とチャージ解放）だけが行う。
   // このスキル使用の全DAMAGE EffectActionを横断して、命中判定へ到達した時点の
   // ライダー・攻撃対象・命中/会心を蓄積し、DAMAGE区間の終わりに1回だけ追撃を解決する。
   const followUpAttackCapture = emptyFollowUpAttackCapture();

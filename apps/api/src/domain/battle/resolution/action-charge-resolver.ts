@@ -19,6 +19,7 @@ import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
   collectPreAttackObservations,
+  containsAttack,
   resolveChargeReleaseOrder,
 } from "../skill/skill-resolution-service.js";
 import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
@@ -36,7 +37,10 @@ import type { RandomSource } from "../../ports/random-source.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
-import type { DepletedAbsorberReason } from "../combat/damage-application-service.js";
+import {
+  emptyFollowUpAttackCapture,
+  type DepletedAbsorberReason,
+} from "../combat/damage-application-service.js";
 
 /**
  * `06_戦闘状態遷移.md`「チャージ開始」: 元スキルのコストはRESOURCE_CONSUMINGで
@@ -470,6 +474,37 @@ export function resolveChargeRelease(
     },
   });
 
+  // R-ATM-02 #1（チャージ解放行）: 解放は元ASの攻撃そのものであるため、AS/EX経路と
+  // 同じ`SkillUseStarting`を解放の前段で発行し、「アクティブスキルで攻撃する前」の
+  // PSを解放の直前に発動させる（チャージ開始は攻撃しないため発行しない）。保持者
+  // 自身はまだチャージ中であり、自身のPSはR-SKL-05により候補にならない。解放は
+  // AP・EXゲージを消費しないため、コストは0として報告する。
+  const releaseSteps =
+    skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease.steps : [];
+  const skillUseStarting = recorder.record({
+    eventType: "SkillUseStarting",
+    category: "TIMING",
+    turnNumber,
+    cycleNumber,
+    actionId,
+    skillUseId,
+    resolutionScopeId: actionScope,
+    parentEventId: targetsSelected.eventId,
+    rootEventId: actionStarted.eventId,
+    sourceUnitId: actorUnitId,
+    targetUnitIds,
+    payload: {
+      skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
+      isAttack: containsAttack(releaseSteps, definitions.effectActions),
+      actorUnitId,
+      targetUnitIds,
+      costResource: skill.cost.resource,
+      costAmount: 0,
+    },
+  });
+  working = passiveRuntime.onFactEvent(skillUseStarting, working).units;
+
   const chargeReleased = recorder.record({
     eventType: "ChargeReleased",
     category: "FACT",
@@ -478,7 +513,7 @@ export function resolveChargeRelease(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: targetsSelected.eventId,
+    parentEventId: skillUseStarting.eventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorUnitId,
     targetUnitIds,
@@ -516,7 +551,7 @@ export function resolveChargeRelease(
       attackerUnitId: actorUnitId,
     },
     collectPreAttackObservations(
-      skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease.steps : [],
+      releaseSteps,
       plan.resolvedBindings,
       requireUnit(working, actorUnitId),
       working,
@@ -524,8 +559,8 @@ export function resolveChargeRelease(
     ),
     working,
     actorUnitId,
-    // R-FUP-01の捕捉はAS/EXスキル使用だけが行うため、チャージ解放にライダーは乗らない。
-    undefined,
+    // R-FUP-01 #2: チャージ解放の攻撃にも追撃ライダーが相乗りするため、その型を含める。
+    definitions.effectActions,
     chargeReleased.eventId,
     (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
   );
@@ -560,6 +595,9 @@ export function resolveChargeRelease(
         skillDefinitionId: skill.skillDefinitionId,
         onFactEventForPassiveChain: (event, unitsForChain) =>
           passiveRuntime.onFactEvent(event, unitsForChain).units,
+        // R-FUP-01 #2〜#3: 解放の攻撃もAS/EXと同じく追撃ライダーを捕捉し、DAMAGE区間の
+        // 終わりで追撃を解決する（解放直前に発動した追撃系PSのバフが解放攻撃へ乗る）。
+        followUpAttackCapture: emptyFollowUpAttackCapture(),
         // R-SKL-08: `action-skill-use-resolver.ts`と
         // 同じ理由で、この行動専用の`passiveRuntime`が持つregistryをチャージ解放
         // 自身のEffectSequenceにも使い回す。
@@ -569,7 +607,8 @@ export function resolveChargeRelease(
       });
   // R-TEX-06 #5: 効果処理フェーズ末尾で保留ブレイクを解決する（`EffectSequence`
   // スコープの`RuntimeCounterReset`より前・完了イベントの発行前）。R-FUP-01の追撃は
-  // AS/EX専用のためチャージ解放にはこの間の処理が無い。R-TEX-06 #7: 中断でも解決する。
+  // `applyEffectActionGroups`の内側（DAMAGE区間の終わり）で解決済みである。
+  // R-TEX-06 #7: 中断でも解決する。
   // 解決後の`units`は`passiveRuntime`側へ同期されるため、直下の
   // `finalizeEffectSequenceResolution`の戻り値が引き継ぐ。
   passiveRuntime.resolveDeferredBreak(
@@ -606,7 +645,7 @@ export function resolveChargeRelease(
 
   // 「チャージ効果発動」#5: 解放が終わったことを表すFACTイベント。AS/EX経路の
   // `SkillUseCompleted`/`SkillUseInterrupted`に相当する — チャージ経路は
-  // `SkillUseStarting`/`SkillUseCompleted`を一切発行しないため、これが無いと
+  // `SkillUseCompleted`を発行しないため、これが無いと
   // 「自身がアクティブスキルで攻撃した後に発動」を表すtriggerが
   // `resolution.kind: CHARGE` のスキルからは一度も成立しない（`SKL_SIENA_OFFSTAGE_PS2`）。
   //

@@ -3039,9 +3039,18 @@ describe("resolveActionPhase", () => {
     const chargeReleased = events.filter((e) => e.eventType === "ChargeReleased");
     expect(chargeStarted).toHaveLength(1);
     expect(chargeReleased).toHaveLength(1);
-    // チャージ経路は開始・解放のどちらでも`SkillUseStarting`を発行しない。そのため
-    // 「アクティブスキルで攻撃する前」のPS（`isAttack`条件）はCHARGEのASでは成立しない。
-    expect(events.some((e) => e.eventType === "SkillUseStarting")).toBe(false);
+    // R-ATM-02 #1（チャージ解放行）: `SkillUseStarting`は開始では発行せず、解放の前段
+    // （`ChargeReleased`の直前）で1回だけ発行する。「アクティブスキルで攻撃する前」は
+    // 解放の直前に成立する。
+    const skillUseStarting = events.filter((e) => e.eventType === "SkillUseStarting");
+    expect(skillUseStarting).toHaveLength(1);
+    expect(skillUseStarting[0]!.actionId).toBe(chargeReleased[0]!.actionId);
+    expect(skillUseStarting[0]!.payload).toMatchObject({
+      skillDefinitionId: skill.skillDefinitionId,
+      isAttack: true,
+      costAmount: 0,
+    });
+    expect(chargeReleased[0]!.parentEventId).toBe(skillUseStarting[0]!.eventId);
     expect(chargeStarted[0]!.payload).toMatchObject({
       actorUnitId: ally.battleUnitId,
       skillDefinitionId: skill.skillDefinitionId,

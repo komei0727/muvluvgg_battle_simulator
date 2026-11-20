@@ -941,8 +941,8 @@ export interface BattleDomainEventPayloadMap {
    *
    * `ChargeReleased`は解決**開始**のトリガーであり、「攻撃した後に発動」を表す
    * triggerの契機にはできない（解決前なので、その攻撃自身へ与ダメージバフが
-   * 乗ってしまう）。チャージ経路は`SkillUseStarting`/`SkillUseCompleted`を
-   * 一切発行しないため、`resolution.kind: CHARGE` のスキルには「使用し終えた」
+   * 乗ってしまう）。チャージ経路は`SkillUseCompleted`を発行しないため、
+   * `resolution.kind: CHARGE` のスキルには「使用し終えた」
    * ことを表すFACTイベントがどこにも無かった。`SkillUseCompleted`と同じ欄
    * （`skillDefinitionId`/`skillType`/`resolvedStepCount`/`targetUnitIds`）を
    * 持たせ、trigger条件を書き分けずに済むようにする。

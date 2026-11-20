@@ -1,4 +1,9 @@
 import { resolveSkillUse } from "../../domain/battle/resolution/action-skill-use-resolver.js";
+import {
+  resolveChargeRelease,
+  resolveChargeStart,
+} from "../../domain/battle/resolution/action-charge-resolver.js";
+import type { BattleDomainEvent } from "../../domain/battle/events/domain-event.js";
 import { EventRecorder } from "../../domain/battle/events/event-recorder.js";
 import type { BattleUnit } from "../../domain/battle/model/battle-unit.js";
 import type { BattleDefinitions } from "../../domain/battle/model/battle-definitions.js";
@@ -193,4 +198,104 @@ function useStandInSkill(
     recorder.nextResolutionScopeId(),
   );
   return { units: result.units, recorder };
+}
+
+const RIDE_CHARGE_AS_ID = "SKL_TEST_FOLLOW_UP_RIDE_CHARGE_AS";
+
+/** 開始側は何も解決せず、解放で`rideDamageAction`を敵単体へ1回適用する合成チャージAS。 */
+function standInChargeSkill(): SkillDefinition {
+  const immediate = standInEnemySingleSkill(RIDE_CHARGE_AS_ID, RIDE_DAMAGE_ID);
+  if (immediate.resolution.kind !== "IMMEDIATE") {
+    throw new Error("stand-in skill must be IMMEDIATE");
+  }
+  return {
+    ...immediate,
+    resolution: {
+      kind: "CHARGE",
+      targetBindings: [],
+      steps: [],
+      counterUpdates: [],
+      chargeRelease: {
+        targetBindings: immediate.resolution.targetBindings,
+        steps: immediate.resolution.steps,
+        counterUpdates: [],
+      },
+    },
+  };
+}
+
+export interface ChargeAndReleaseOptions extends RideStandInAttackOptions {
+  /** 開始・解放させるチャージAS。省略時は解放で敵単体へ1ヒットする合成チャージAS。 */
+  readonly chargeSkill?: SkillDefinition;
+}
+
+export interface ChargeAndReleaseResult {
+  readonly startEvents: readonly BattleDomainEvent[];
+  readonly releaseEvents: readonly BattleDomainEvent[];
+  readonly units: readonly BattleUnit[];
+}
+
+/**
+ * R-ATM-02 #1（チャージ解放行）／R-FUP-01 #2: `attackerUnitId`にチャージASを実
+ * `resolveChargeStart`→`resolveChargeRelease`の2行動で開始・解放させる。開始と解放の
+ * イベント列を分けて返すため、「攻撃する前」のPSがどちらで発動したかを読み分けられる。
+ */
+export function chargeAndRelease(options: ChargeAndReleaseOptions): ChargeAndReleaseResult {
+  const attackerUnitId = createBattleUnitId(options.attackerUnitId);
+  const attackerBase = options.units.find((unit) => unit.battleUnitId === attackerUnitId);
+  if (attackerBase === undefined) {
+    throw new Error(`attacker "${options.attackerUnitId}" is not on the board`);
+  }
+  const skill = options.chargeSkill ?? standInChargeSkill();
+  const attacker: BattleUnit = { ...attackerBase, currentAp: skill.cost.amount };
+  const roster = options.units.map((unit) =>
+    unit.battleUnitId === attackerUnitId ? attacker : unit,
+  );
+  const ride = rideDamageAction();
+  const definitions: BattleDefinitions = {
+    ...options.definitions,
+    skillDefinitions: new Map(options.definitions.skillDefinitions).set(
+      skill.skillDefinitionId,
+      skill,
+    ),
+    effectActions: new Map(options.definitions.effectActions).set(
+      ride.effectActionDefinitionId,
+      ride,
+    ),
+  };
+  const recorder = new EventRecorder(createBattleId(options.battleId));
+  const random = new SequenceRandomSource([...(options.random ?? [])]);
+  const started = resolveChargeStart(
+    attacker,
+    skill,
+    "AS",
+    "AS",
+    roster,
+    definitions,
+    random,
+    recorder,
+    1,
+    0,
+    createActionId(`${options.battleId}:action:1`),
+    recorder.nextResolutionScopeId(),
+  );
+  const startEvents = [...recorder.getEvents()];
+  const charger = started.units.find((unit) => unit.battleUnitId === attackerUnitId)!;
+  const released = resolveChargeRelease(
+    charger,
+    "AS",
+    started.units,
+    definitions,
+    random,
+    recorder,
+    1,
+    0,
+    createActionId(`${options.battleId}:action:2`),
+    recorder.nextResolutionScopeId(),
+  );
+  return {
+    startEvents,
+    releaseEvents: recorder.getEvents().slice(startEvents.length),
+    units: released.units,
+  };
 }

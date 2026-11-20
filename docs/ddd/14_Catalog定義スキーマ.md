@@ -2209,7 +2209,7 @@ stepCondition: { kind: TRIGGER_SKILL_USE_DAMAGE, field: DEALT, op: LTE, value: 1
 - { kind: EVENT_PAYLOAD, field: statusKind, op: EQ, value: STUN }
 ```
 
-`SkillUseStarting`・`SkillUseCompleted`の`isAttack`（boolean）は、そのスキルが攻撃を含むか（`07_戦闘ルール詳細.md` `R-ATM-02`）を表す（両イベントで同じ値）。原文が「アクティブスキルで**攻撃する前**に発動」のPSは`SkillUseStarting`の、「アクティブスキルで**攻撃した後**に発動」のPSは`SkillUseCompleted`の`skillType`と併せてこれを`AND`で要求し、攻撃を含まないASで発動させない（`SKL_URUU_SUMMER_PS1`、Issue #837）。自身のASだけが契機になる場合でも、攻撃ASを`skillDefinitionId IN [...]`で列挙する代わりに使える。
+`SkillUseStarting`・`SkillUseCompleted`の`isAttack`（boolean）は、そのスキルが攻撃を含むか（`07_戦闘ルール詳細.md` `R-ATM-02`）を表す（両イベントで同じ値）。原文が「アクティブスキルで**攻撃する前**に発動」のPSは`SkillUseStarting`の、「アクティブスキルで**攻撃した後**に発動」のPSは`SkillUseCompleted`の`skillType`と併せてこれを`AND`で要求し、攻撃を含まないASで発動させない（`SKL_URUU_SUMMER_PS1`、Issue #837）。自身のASだけが契機になる場合でも、攻撃ASを`skillDefinitionId IN [...]`で列挙する代わりに使える。チャージAS（`resolution.kind: CHARGE`）では`SkillUseStarting`をチャージ解放の直前に発行し、`isAttack`は`chargeRelease`から決まるため、同じtriggerのまま他の味方のチャージ解放の直前にも発動する（自身のチャージ解放では`R-SKL-05`により発動しない）。
 
 ```yaml
 # 例: 「自身と同じ横一列の他の味方がアクティブスキルで攻撃する前に発動」（SKL_NINA_ZINA_FRONTRUNNER_PS2）

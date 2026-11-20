@@ -9,9 +9,14 @@ import {
   unitEffectActionClosure,
 } from "../../../testing/production-unit/definition-closure.js";
 import {
+  chargeAndRelease,
+  rideStandInAttack,
+} from "../../../testing/production-unit/follow-up-ride.js";
+import {
   PRODUCTION_CATALOG_DIR,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
@@ -629,5 +634,34 @@ describe("production Catalog UNIT_JUNKA_CHILDHOOD (【唯一無二の幼なじ�
         collectedExecutedActionIds(),
       ),
     ).toEqual([]);
+  });
+
+  it("IT-UNIT-JUNKA-CHILDHOOD-004 [R-ATM-02, R-SKL-05]: 自身が攻撃チャージASを解放する直前は自身がまだチャージ中のため、自身のASが契機のPS1は発動しない（同じ攻撃を通常のASで行えば発動する）", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID);
+    const ps1 = (events: readonly { eventType: string; payload: unknown }[]) =>
+      events.filter(
+        (event) =>
+          event.eventType === "PassiveActivated" &&
+          (event.payload as { skillDefinitionId?: string }).skillDefinitionId ===
+            "SKL_JUNKA_CHILDHOOD_PS1",
+      );
+    // PS1は自身のHP60%以上が条件のため、既定盤面（HP50%）から自身だけ満タンにする。
+    const units = board.units.map((unit) =>
+      unit.battleUnitId === board.subject.battleUnitId
+        ? { ...unit, currentHp: unit.combatStats.maximumHp }
+        : unit,
+    );
+    const options = {
+      attackerUnitId: board.subject.battleUnitId,
+      units,
+      definitions: board.definitions,
+    };
+
+    const charged = chargeAndRelease({ ...options, battleId: "B_JUNKA_PS1_CHARGE" });
+    expect(ps1(charged.startEvents)).toEqual([]);
+    expect(ps1(charged.releaseEvents)).toEqual([]);
+
+    const immediate = rideStandInAttack({ ...options, battleId: "B_JUNKA_PS1_IMMEDIATE" });
+    expect(ps1(immediate.recorder.getEvents())).toHaveLength(1);
   });
 });
