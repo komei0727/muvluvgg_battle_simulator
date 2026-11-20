@@ -1307,8 +1307,9 @@ describe("HTTP response state restoration (independent Reducer)", () => {
     );
     expect(actorInitial?.hp.maximum).toBe(1000);
     expect(actorFinal?.hp.maximum).toBe(1500);
-    // 上限が上がっただけでは現在値は追随しない（R-ACT-04）。
-    expect(actorFinal?.hp.current).toBe(1000);
+    // 最大HPの上昇は変更直前のHP割合を保って現在HPも増やす（R-ACTN-03）。満タンの
+    // 1000/1000は1500/1500になり、その増加もstateTransitionsから復元できる。
+    expect(actorFinal?.hp.current).toBe(1500);
 
     const combatStatChanged = body.events.find((e) => e.type === "COMBAT_STAT_CHANGED");
     expect(combatStatChanged).toBeDefined();

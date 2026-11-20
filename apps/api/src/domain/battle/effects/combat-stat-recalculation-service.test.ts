@@ -841,3 +841,143 @@ describe("recalculateCombatStats — ResourceCapacityChanged配線（G-09）", (
     expect(recorder.getEvents().filter((e) => e.eventType === "UnitDefeated")).toHaveLength(1);
   });
 });
+
+/**
+ * R-ACTN-03「最大HPの上昇」: 最大HPが上がったとき、変更直前のHP割合を維持するよう
+ * 現在HPも増やす。回復ではない（`HealApplied`を出さず回復補正も受けない）ため、
+ * `ResourceChanged(reason: EFFECT_ACTION)`として記録する。
+ */
+describe("recalculateCombatStats — 最大HP上昇時のHP割合維持（R-ACTN-03）", () => {
+  const maxHpUp = statModDefinition("ACT_MAX_HP_UP", "MAXIMUM_HP", "RATIO");
+  const definitions = new Map([[maxHpUp.effectActionDefinitionId, maxHpUp]]);
+
+  function recalc(beforeUnit: BattleUnit, afterUnit: BattleUnit, map = definitions) {
+    const { recorder, rootEventId } = createRoot();
+    const result = recalculateCombatStats(
+      {
+        recorder,
+        turnNumber: 1,
+        cycleNumber: 0,
+        resolutionScopeId: recorder.nextResolutionScopeId(),
+        rootEventId,
+      },
+      [beforeUnit],
+      [afterUnit],
+      afterUnit.battleUnitId,
+      map,
+      rootEventId,
+      "EFFECT_APPLIED",
+    );
+    return { updated: result.units[0]!, events: recorder.getEvents() };
+  }
+
+  it("UT-R-ACTN-03-019: a full-HP unit stays at full HP when +80% maximum HP is applied", () => {
+    const up = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const { updated, events } = recalc(unit(), unit({ appliedEffects: [up] }));
+
+    expect(updated.combatStats.maximumHp).toBe(1800);
+    expect(updated.currentHp).toBe(1800);
+    const resourceEvents = events.filter((e) => e.eventType === "ResourceChanged");
+    expect(resourceEvents).toHaveLength(1);
+    expect(resourceEvents[0]!.payload).toMatchObject({
+      resource: "HP",
+      before: 1000,
+      after: 1800,
+      delta: 800,
+      baseDelta: 800,
+      reason: "EFFECT_ACTION",
+    });
+    expect(resourceEvents[0]!.stateDelta?.units?.[updated.battleUnitId]?.hp).toEqual({
+      before: 1000,
+      after: 1800,
+    });
+    // 現在HPの増加は確定した最大HPの後に記録する（上限を超えた中間状態を作らない）。
+    const statIndex = events.findIndex((e) => e.eventType === "CombatStatChanged");
+    expect(events.indexOf(resourceEvents[0]!)).toBeGreaterThan(statIndex);
+    expect(events.some((e) => e.eventType === "HealApplied")).toBe(false);
+  });
+
+  it("UT-R-ACTN-03-020: a half-HP unit keeps the 50% ratio (500/1000 → 900/1800)", () => {
+    const up = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const { updated } = recalc(
+      unit({ currentHp: 500 }),
+      unit({ currentHp: 500, appliedEffects: [up] }),
+    );
+
+    expect(updated.combatStats.maximumHp).toBe(1800);
+    expect(updated.currentHp).toBe(900);
+  });
+
+  it("UT-R-ACTN-03-021: consecutive raises each keep the ratio just before that change, and a recalculation without a maximum HP change adds nothing", () => {
+    const first = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const second = statMod(maxHpUp.effectActionDefinitionId, true, 0.2);
+    const raised = unit({
+      currentHp: 900,
+      combatStats: { ...BASE_COMBAT_STATS, maximumHp: 1800 },
+      appliedEffects: [first],
+    });
+
+    const once = recalc(raised, { ...raised, appliedEffects: [first, second] });
+    expect(once.updated.combatStats.maximumHp).toBe(2000);
+    expect(once.updated.currentHp).toBe(1000);
+
+    const again = recalc(once.updated, once.updated);
+    expect(again.updated.currentHp).toBe(1000);
+    expect(again.events.filter((e) => e.eventType === "ResourceChanged")).toHaveLength(0);
+  });
+
+  it("UT-R-ACTN-03-022 (boundary): a unit at 0 HP is not revived by a maximum HP raise", () => {
+    const up = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const { updated, events } = recalc(
+      unit({ currentHp: 0 }),
+      unit({ currentHp: 0, appliedEffects: [up] }),
+    );
+
+    expect(updated.combatStats.maximumHp).toBe(1800);
+    expect(updated.currentHp).toBe(0);
+    expect(events.filter((e) => e.eventType === "ResourceChanged")).toHaveLength(0);
+  });
+
+  it("UT-R-ACTN-03-023 (boundary): a maximum HP drop only clamps — it does not scale the current HP down", () => {
+    const up = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const raisedStats = { ...BASE_COMBAT_STATS, maximumHp: 1800 };
+
+    const full = recalc(
+      unit({ currentHp: 1800, combatStats: raisedStats, appliedEffects: [up] }),
+      unit({ currentHp: 1800, combatStats: raisedStats }),
+    );
+    expect(full.updated.combatStats.maximumHp).toBe(1000);
+    expect(full.updated.currentHp).toBe(1000);
+
+    const half = recalc(
+      unit({ currentHp: 900, combatStats: raisedStats, appliedEffects: [up] }),
+      unit({ currentHp: 900, combatStats: raisedStats }),
+    );
+    expect(half.updated.currentHp).toBe(900);
+    expect(half.events.filter((e) => e.eventType === "ResourceChanged")).toHaveLength(0);
+  });
+
+  it("UT-R-ACTN-03-024 (boundary): the ratio uses the truncated integer maxima (R-NUM-02), so a full-HP unit with a fractional maximum stays full", () => {
+    const up = statMod(maxHpUp.effectActionDefinitionId, true, 0.8);
+    const fractional = { ...BASE_COMBAT_STATS, maximumHp: 999.9 };
+    const before = unit({ currentHp: 999, combatStats: fractional, baseCombatStats: fractional });
+
+    const { updated } = recalc(before, { ...before, appliedEffects: [up] });
+
+    // 999.9 × 1.8 = 1799.82 → ゲージ上限は1799。
+    expect(updated.currentHp).toBe(1799);
+  });
+
+  it("UT-R-ACTN-03-025: a MODIFY_RESOURCE_CAPACITY(resource: HP) raise joins the same ratio-keeping path", () => {
+    const capacity = hpCapacityDefinition("ACT_MAX_HP_ADD", "ADD");
+    const add = statMod(capacity.effectActionDefinitionId, true, 500);
+    const { updated } = recalc(
+      unit({ currentHp: 600 }),
+      unit({ currentHp: 600, appliedEffects: [add] }),
+      new Map([[capacity.effectActionDefinitionId, capacity]]),
+    );
+
+    expect(updated.combatStats.maximumHp).toBe(1500);
+    expect(updated.currentHp).toBe(900);
+  });
+});

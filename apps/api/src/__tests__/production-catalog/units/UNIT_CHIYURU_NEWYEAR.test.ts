@@ -365,8 +365,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_PS1_CD_RESET", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_CHIYURU_NEWYEAR_PS1_MOCHI", targets: ["ally:subject"] },
       ],
+      // 回復1500で6500/10000、続く最大HP+5%で割合を保って6825/10500（R-ACTN-03）。
       hpDeltas: {
-        "ally:subject": 1500,
+        "ally:subject": 1825,
       },
       effectsApplied: [
         {

@@ -322,6 +322,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MARKER", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MAX_HP_UP", targets: ["ally:subject"] },
       ],
+      // 最大HP+3.15%で割合を保って5000/10000 → 5157/10315（R-ACTN-03、切り捨て）。
+      hpDeltas: { "ally:subject": 157 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -356,8 +358,9 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS2_SPEED_DOWN", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_AS2_EX_GAIN_DOWN", targets: ["ally:subject"] },
       ],
-      // 546（威力109.2%）に混乱倍率（1 - 0.3）が乗って382。
-      hpDeltas: { "ally:subject": -382 },
+      // PS1の最大HP上昇で+157（割合維持、R-ACTN-03）、続く自傷は546（威力109.2%）に
+      // 混乱倍率（1 - 0.3）が乗って382。差し引き-225。
+      hpDeltas: { "ally:subject": -225 },
       effectsApplied: [
         {
           unitId: "ally:subject",
@@ -406,7 +409,8 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_HEAL", targets: ["ally:subject"] },
         { effectActionDefinitionId: "ACT_MAIA_SALON_PS1_MAX_HP_UP", targets: ["ally:subject"] },
       ],
-      hpDeltas: { "ally:subject": 585 },
+      // 回復585で5585/10000、続く最大HP+3.15%で割合を保って5760/10315（R-ACTN-03、切り捨て）。
+      hpDeltas: { "ally:subject": 760 },
       effectsApplied: [
         {
           unitId: "ally:subject",

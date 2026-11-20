@@ -7,6 +7,7 @@ import {
 } from "../model/effective-effect-selector.js";
 import {
   composeResourceCapacity,
+  raiseCurrentHpByMaximumHpIncrease,
   recalculateResourceCapacitiesSteps,
 } from "./resource-capacity-recalculation-service.js";
 import { toEffectSnapshot, type EffectSnapshot, type ValueChange } from "../events/state-delta.js";
@@ -325,6 +326,23 @@ export function* recalculateCombatStatsSteps(
       },
     });
     lastEventId = event.eventId;
+  }
+
+  // R-ACTN-03: 最大HPの上昇は変更直前のHP割合を維持するよう現在HPも増やす。
+  // `APPLY_STAT_MOD(MAXIMUM_HP)`と`MODIFY_RESOURCE_CAPACITY(resource: HP)`はどちらも
+  // ここで`MAXIMUM_HP`の変化へ合流するため、両者を同じ規則で扱える。変化した場合に
+  // だけ呼ぶので、最大HPが変わらない再計算で現在HPが再加算されることはない。
+  const maximumHpChange = changedStats.find((change) => change.stat === "MAXIMUM_HP");
+  if (maximumHpChange !== undefined) {
+    const raised = raiseCurrentHpByMaximumHpIncrease(
+      context,
+      nextUnits,
+      targetUnitId,
+      maximumHpChange.before,
+      lastEventId,
+    );
+    nextUnits = raised.units;
+    lastEventId = raised.lastEventId;
   }
 
   // G-09（M7-002A／Issue #255）: R-STA-04の再計算契機はCombatStatだけでなく
