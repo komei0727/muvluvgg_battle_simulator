@@ -451,7 +451,8 @@ export function resolveSkillUse(
     actorUnitId,
     definitions.effectActions,
     skillUseStarted.eventId,
-    (event, unitsForChain) => passiveRuntime.onFactEvent(event, unitsForChain).units,
+    (events, unitsForChain) =>
+      passiveRuntime.onPreAttackObservations(events, unitsForChain, events[0]!.eventId).units,
   );
   working = observation.units;
 

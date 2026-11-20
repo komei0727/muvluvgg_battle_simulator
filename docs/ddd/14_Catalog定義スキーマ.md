@@ -347,16 +347,16 @@ metadata:
 
 ### traits
 
-| フィールド                           | 型          | 必須 | 制約                                                               |
-| ------------------------------------ | ----------- | ---- | ------------------------------------------------------------------ |
-| `priorityAttack`                     | boolean     | ✓    | 先制攻撃なら true                                                  |
-| `simultaneousActivationLimited`      | boolean     | ✓    | 同一イベントで候補になった同時発動制限PSのうち1件だけを発動する    |
-| `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし                |
-| `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                      |
-| `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                                 |
-| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1。各吸収体の機能しない割合（R-DMG-03）         |
-| `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                           |
-| `firstTriggerOnly`                   | boolean     | —    | PSのみ。同じ解決スコープで最初に一致した契機だけを発動判定にかける |
+| フィールド                           | 型          | 必須 | 制約                                                                                                   |
+| ------------------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------ |
+| `priorityAttack`                     | boolean     | ✓    | 先制攻撃なら true                                                                                      |
+| `simultaneousActivationLimited`      | boolean     | ✓    | 同一イベント（攻撃前観測は1回のスキル使用の全対象）で候補になった同時発動制限PSのうち1件だけを発動する |
+| `exclusiveActivationGroupId`         | string/null | ✓    | 同タイミング排他グループ。null なら排他グループなし                                                    |
+| `accuracy.guaranteedHit`             | boolean     | ✓    | 必中なら true                                                                                          |
+| `piercing.defenseIgnoreRate`         | number      | ✓    | 防御力無視率。0〜1                                                                                     |
+| `piercing.shieldIgnoreRate`          | number      | ✓    | シールド無視率。0〜1。各吸収体の機能しない割合（R-DMG-03）                                             |
+| `piercing.damageReductionIgnoreRate` | number      | ✓    | ダメージ軽減無視率。0〜1                                                                               |
+| `firstTriggerOnly`                   | boolean     | —    | PSのみ。同じ解決スコープで最初に一致した契機だけを発動判定にかける                                     |
 
 `firstTriggerOnly: true`（`R-PS-07`、Issue #831）のPSは、同じ解決スコープでtriggerが最初に一致した契機だけを発動判定にかける。`activationCondition`は候補化の時点では評価せず、発動直前確認（`R-PS-04`）で評価する。そこで不成立になった場合も発動済み集合へ入れ、同じスコープの後続の契機では発動しない。「最初に命中させた敵が元攻撃で倒れていれば、後続の命中対象へ振り替えず発動しない」を表す（`SKL_OLGA_NADYA_BOND_PS1`）。AS/EXへの宣言はCatalogロード時点で拒否する。
 

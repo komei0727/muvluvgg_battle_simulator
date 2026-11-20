@@ -34,3 +34,16 @@ export function recordActivation(
 ): PassiveActivationGuard {
   return new Set(guard).add(guardKey(battleUnitId, skillDefinitionId));
 }
+
+/** 複数の発動済み集合の和。R-PS-07の判定は解決スコープの集合と開いている反応スコープの集合の和で行う。 */
+export function mergeActivationGuards(
+  ...guards: readonly PassiveActivationGuard[]
+): PassiveActivationGuard {
+  const merged = new Set<string>();
+  for (const guard of guards) {
+    for (const key of guard) {
+      merged.add(key);
+    }
+  }
+  return merged;
+}
