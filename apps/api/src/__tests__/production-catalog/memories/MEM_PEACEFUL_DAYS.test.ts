@@ -181,6 +181,69 @@ function firstTurnActionOrder(allyMemories: readonly string[]): readonly string[
   return [...new Set(reservations.map((reservation) => reservation.battleUnitId))];
 }
 
+/** 倍率の比較で浮動小数の加算順の差を吸収する。 */
+function rounded(value: number): number {
+  return Math.round(value * 1e9) / 1e9;
+}
+
+/** 実戦闘の1ヒット（`DAMAGE_WILL_BE_APPLIED`）と、Memory由来効果の失効（`EFFECT_EXPIRED`）の列。 */
+type TraceEntry =
+  | {
+      readonly kind: "HIT";
+      readonly hit: string;
+      readonly outgoing: number;
+      readonly incoming: number;
+    }
+  | {
+      readonly kind: "EXPIRED";
+      readonly effect: string;
+      readonly unitId: string;
+      readonly reason: string;
+    };
+
+/**
+ * コミカル（MERU_FLATSPIN）・クレバー（YURIA_JOKER）を味方に置いた実戦闘の、ヒットと失効の列。
+ * 相手もコミカル（LYDIA_GENIUS）・クレバー（OLGA_VETERAN）だが、このMemoryの対象陣営ではない。
+ */
+function consumptionTrace(allyMemories: readonly string[]): readonly TraceEntry[] {
+  const result = runProductionPartyBattle(
+    PRODUCTION_CATALOG_DIR,
+    {
+      ally: ["UNIT_MERU_FLATSPIN", "UNIT_YURIA_JOKER"],
+      enemy: ["UNIT_LYDIA_GENIUS", "UNIT_OLGA_VETERAN"],
+      allyMemories,
+    },
+    { turnLimit: 2 },
+  );
+  return result.events.flatMap((event): TraceEntry[] => {
+    const details = event.details as Readonly<Record<string, unknown>>;
+    if (event.type === "DAMAGE_WILL_BE_APPLIED") {
+      return [
+        {
+          kind: "HIT",
+          hit: `${String(details["skillDefinitionId"])}#${String(details["hitIndex"])}->${String(details["targetUnitId"])}`,
+          outgoing: rounded(details["outgoingDamageMultiplier"] as number),
+          incoming: rounded(details["incomingDamageMultiplier"] as number),
+        },
+      ];
+    }
+    if (
+      event.type === "EFFECT_EXPIRED" &&
+      String(details["effectActionDefinitionId"]).startsWith("ACT_MEM_")
+    ) {
+      return [
+        {
+          kind: "EXPIRED",
+          effect: String(details["effectActionDefinitionId"]),
+          unitId: String(details["battleUnitId"]),
+          reason: String(details["reason"]),
+        },
+      ];
+    }
+    return [];
+  });
+}
+
 describe("production Catalog MEM_PEACEFUL_DAYS (穏やかな日々)", () => {
   it("IT-MEM-PEACEFUL-DAYS-001: at startBattle each attribute's buffs land only on the ally of that attribute, with the declared magnitudes and lifetimes", () => {
     const observed = observeMemory(MEMORY_DEFINITION_ID, "ALLY", BOARD);
@@ -333,5 +396,56 @@ describe("production Catalog MEM_PEACEFUL_DAYS (穏やかな日々)", () => {
     // 編成は前列左から ally:1（MIRIAM_MAGE）、ally:2（SHIRANA_SORA）。敵は enemy:1（MERU_FLATSPIN）。
     expect(firstTurnActionOrder([])).toEqual(["enemy:1", "ally:2", "ally:1"]);
     expect(firstTurnActionOrder([MEMORY_DEFINITION_ID])).toEqual(["ally:1", "enemy:1", "ally:2"]);
+  });
+
+  /**
+   * Memoryの有無でヒットの並び（スキル・ヒット番号・対象）は変わらない。差はコミカルの
+   * 最初の攻撃の与ダメージ倍率と、クレバーが最初に受けた攻撃の被ダメージ倍率だけで、
+   * それぞれの直後に消費（`CONSUMPTION`）で失効し、以降のヒットは基準と一致する。
+   */
+  it("IT-MEM-PEACEFUL-DAYS-009 (R-EFF-01): the comical and clever effects modify exactly one attack each and are then consumed", () => {
+    const baseline = consumptionTrace([]);
+    expect(baseline.filter((entry) => entry.kind === "EXPIRED")).toEqual([]);
+    const comicalHit = baseline.findIndex(
+      (entry) =>
+        entry.kind === "HIT" &&
+        entry.hit.startsWith("SKL_MERU_FLATSPIN_") &&
+        entry.hit.endsWith("->enemy:1"),
+    );
+    const cleverHit = baseline.findIndex(
+      (entry) => entry.kind === "HIT" && entry.hit.endsWith("->ally:2"),
+    );
+    expect(comicalHit).toBeGreaterThanOrEqual(0);
+    expect(cleverHit).toBeGreaterThanOrEqual(0);
+
+    const expected = baseline.flatMap((entry, index): TraceEntry[] => {
+      if (entry.kind !== "HIT") {
+        return [entry];
+      }
+      if (index === comicalHit) {
+        return [
+          { ...entry, outgoing: rounded(entry.outgoing + 0.035) },
+          {
+            kind: "EXPIRED",
+            effect: "ACT_MEM_PEACEFUL_DAYS_COMICAL_DMG_UP",
+            unitId: "ally:1",
+            reason: "CONSUMPTION",
+          },
+        ];
+      }
+      if (index === cleverHit) {
+        return [
+          { ...entry, incoming: rounded(entry.incoming - 0.035) },
+          {
+            kind: "EXPIRED",
+            effect: "ACT_MEM_PEACEFUL_DAYS_CLEVER_DMG_TAKEN_DOWN",
+            unitId: "ally:2",
+            reason: "CONSUMPTION",
+          },
+        ];
+      }
+      return [entry];
+    });
+    expect(consumptionTrace([MEMORY_DEFINITION_ID])).toEqual(expected);
   });
 });
