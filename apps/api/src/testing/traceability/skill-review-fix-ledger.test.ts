@@ -7,7 +7,10 @@ import { allExerciseEnemyProductionUnitIds } from "../scenario/run-production-ba
 import { REVIEWED_UNIT_IDS, stageGScenarios } from "../scenario/stage-g-sweep.js";
 import { collectTestCaseDefinitions } from "./test-case-definitions.js";
 import {
+  CROSS_FIX_ANCHORS,
+  FIX16_ADDED_TEST_IDS,
   FIX_DELIVERIES,
+  FIX_PR_TEST_IDS,
   OPEN_ISSUE_TITLES,
   OPEN_RELATED_ISSUES,
   SKILL_REVIEW_FIX_ANCHORS,
@@ -80,7 +83,7 @@ describe("skill-review fix ledger (Issue #840)", () => {
     }
   });
 
-  it("UT-TRACEABILITY-015: every assigned fix of every row is anchored to an executable test that names the row (its SR or one of its skills) or sweeps the row's skill", () => {
+  it("UT-TRACEABILITY-015: every assigned fix of every row is anchored to an executable test that the fix itself added or changed (or a declared exception), and that test names the row (its SR or one of its skills) or sweeps the row's skill", () => {
     const definitions = collectTestCaseDefinitions(SRC_DIR);
     const sources = new Map<string, string>();
     const sourceOf = (file: string): string => {
@@ -99,6 +102,15 @@ describe("skill-review fix ledger (Issue #840)", () => {
           problems.push(`${row.sr} ${fix}: no anchor`);
         }
         for (const testId of testIds) {
+          // 別担当のPRのテストを流用すると、その担当の修正を確かめた証跡にならない。
+          const ownedByFix =
+            FIX_PR_TEST_IDS[fix as FixId].includes(testId) ||
+            (FIX16_ADDED_TEST_IDS[fix as FixId] ?? []).includes(testId) ||
+            (CROSS_FIX_ANCHORS[`${row.sr}/${fix}`]?.testIds ?? []).includes(testId) ||
+            SWEEP_ANCHOR_TEST_IDS.has(testId);
+          if (!ownedByFix) {
+            problems.push(`${row.sr} ${fix}: ${testId} was not added or changed by ${fix}`);
+          }
           const found = definitions.get(testId);
           if (found === undefined || found.length !== 1) {
             problems.push(`${row.sr} ${fix}: ${testId} is not exactly one executable test`);
@@ -120,6 +132,13 @@ describe("skill-review fix ledger (Issue #840)", () => {
             problems.push(`${row.sr} ${fix}: ${testId}'s file names neither the SR nor its skill`);
           }
         }
+      }
+    }
+    for (const [pair, { testIds, reason }] of Object.entries(CROSS_FIX_ANCHORS)) {
+      const [sr, fix] = pair.split("/") as [string, FixId];
+      const anchors = SKILL_REVIEW_FIX_ANCHORS[sr]?.[fix] ?? [];
+      if (reason.length === 0 || !testIds.every((testId) => anchors.includes(testId))) {
+        problems.push(`${pair}: the exception is unused or has no reason`);
       }
     }
     expect(problems).toEqual([]);
@@ -161,10 +180,11 @@ describe("skill-review fix ledger (Issue #840)", () => {
         if (!references.includes(`PR #${FIX_DELIVERIES[fix as FixId].pullRequest}`)) {
           problems.push(`${row.sr}: references omit the ${fix} PR`);
         }
-        for (const testId of testIds) {
-          if (!verification.includes(`\`${testId}\``)) {
-            problems.push(`${row.sr}: verification omits ${testId}`);
-          }
+        // 担当ごとの行（`FIX-07：\`IT-…\`・…`）が台帳の恒久テストと過不足なく一致する。
+        const listed = new RegExp(`(?:^|<br>)${fix}：([^<]*)`).exec(verification)?.[1] ?? "";
+        const listedIds = [...listed.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
+        if (listedIds.join(",") !== testIds.join(",")) {
+          problems.push(`${row.sr}: ${fix} lists ${listedIds.join(",")}`);
         }
       }
     }

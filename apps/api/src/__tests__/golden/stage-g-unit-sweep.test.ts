@@ -162,12 +162,24 @@ describe("段階G: レビュー対象84ユニットの固定乱数による横�
     120_000,
   );
 
-  it("E2E-STAGEG-003: different runIndex values reach different battles, so the reproduction above is not vacuous", () => {
-    const fingerprints = SCENARIOS.filter((scenario) => scenario.kind === "EXERCISE").map(
-      (scenario) => summaries.get(scenario.scenarioId)!.fingerprint,
-    );
-    expect(new Set(fingerprints).size).toBe(fingerprints.length);
-  });
+  // 編成・敵・battleIdが異なれば乱数と無関係にイベント列が変わるため、それらを固定し
+  // runIndex（乱数列）だけを変える。乱数源がrunIndexを無視すれば同じ戦闘になり失敗する。
+  it.each(
+    DETERMINISM_SCENARIOS.filter((scenario) => scenario.kind === "EXERCISE").map(
+      (scenario) => [scenario.scenarioId, scenario] as const,
+    ),
+  )(
+    "E2E-STAGEG-003: %s reaches a different battle when only runIndex changes, so the reproduction above is not vacuous",
+    (scenarioId, scenario) => {
+      const rerolled = runStageGScenario(CATALOG_DIR, {
+        ...scenario,
+        runIndex: scenario.runIndex + 1000,
+      });
+      expect(rerolled.battleId).toBe(`B_STAGEG_${scenarioId}`);
+      expect(fingerprintOf(rerolled)).not.toBe(summaries.get(scenarioId)!.fingerprint);
+    },
+    120_000,
+  );
 
   it.each(REVIEWED_UNIT_IDS.map((unitId) => [unitId] as const))(
     "E2E-STAGEG-004: %s fires every one of its Active, Passive and EX skills somewhere in the sweep",
