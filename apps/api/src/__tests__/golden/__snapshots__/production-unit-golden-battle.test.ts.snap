@@ -3077,6 +3077,57 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAMI_UNYIELDING compl
 }
 `;
 
+exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RATOROWA_ICEWITCH completes a deterministic mirror battle and holds battle invariants 1`] = `
+{
+  "completedTurn": 5,
+  "completionReason": "TURN_LIMIT_REACHED",
+  "eventCount": 988,
+  "eventSequenceHash": "sha256:a8155b6cf47499be",
+  "eventTypeCounts": {
+    "ACTION_COMPLETED": 46,
+    "ACTION_COMPLETING": 46,
+    "ACTION_QUEUE_CREATED": 23,
+    "ACTION_STARTED": 46,
+    "ACTION_WAITED": 18,
+    "BATTLE_COMPLETED": 1,
+    "BATTLE_STARTED": 1,
+    "COOLDOWN_COMPLETED": 20,
+    "COOLDOWN_REDUCED": 28,
+    "COOLDOWN_STARTED": 24,
+    "CRITICAL_CHECK_RESOLVED": 28,
+    "DAMAGE_APPLIED": 28,
+    "DAMAGE_CALCULATED": 28,
+    "DAMAGE_WILL_BE_APPLIED": 28,
+    "EFFECT_ACTION_COMPLETED": 56,
+    "EFFECT_ACTION_STARTING": 56,
+    "EFFECT_APPLIED": 28,
+    "EFFECT_CONSUMPTION_CHANGED": 21,
+    "EFFECT_EXPIRED": 26,
+    "EFFECT_STEP_COMPLETED": 46,
+    "EFFECT_STEP_STARTING": 46,
+    "EXTRA_GAUGE_INCREASED": 2,
+    "HIT_CONFIRMED": 28,
+    "HIT_POINT_REDUCED": 28,
+    "PASSIVE_ACTIVATED": 2,
+    "PASSIVE_POINT_CONSUMED": 2,
+    "PASSIVE_RESOLVED": 2,
+    "RESOURCES_RECOVERED": 5,
+    "RESOURCE_CHANGED": 104,
+    "SHIELD_CONSUMED": 16,
+    "SKILL_USE_COMPLETED": 28,
+    "SKILL_USE_STARTED": 28,
+    "SKILL_USE_STARTING": 28,
+    "TARGETS_SELECTED": 28,
+    "TURN_COMPLETED": 5,
+    "TURN_COMPLETING": 5,
+    "TURN_STARTED": 5,
+    "UNIT_BEING_ATTACKED": 28,
+  },
+  "outcome": "ALLY_LOSE",
+  "unitDefinitionId": "UNIT_RATOROWA_ICEWITCH",
+}
+`;
+
 exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAVEL_MODEL completes a deterministic mirror battle and holds battle invariants 1`] = `
 {
   "completedTurn": 1,

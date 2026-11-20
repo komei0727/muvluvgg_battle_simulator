@@ -1,0 +1,33 @@
+{
+  "unitDefinitionId": "UNIT_RATOROWA_ICEWITCH",
+  "attribute": "SHY",
+  "unitType": "PHYSICAL",
+  "role": "SUPPORT",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 34822,
+    "attack": 20005,
+    "defense": 15934,
+    "criticalRate": 0.15,
+    "actionSpeed": 752,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "levelGrowth": {
+    "hp": 336,
+    "attack": 182,
+    "defense": 153,
+    "actionSpeed": 2
+  },
+  "extraGaugeMaximum": 6,
+  "activeSkillDefinitionIds": ["SKL_RATOROWA_ICEWITCH_AS1", "SKL_RATOROWA_ICEWITCH_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_RATOROWA_ICEWITCH_PS1", "SKL_RATOROWA_ICEWITCH_PS2"],
+  "extraSkillDefinitionId": "SKL_RATOROWA_ICEWITCH_EX",
+  "metadata": {
+    "affiliations": [],
+    "tags": [],
+    "displayName": "【氷の魔女】フィカーツィア・ラトロワ",
+    "characterName": "フィカーツィア・ラトロワ",
+    "characterId": "CHAR_FIKATSIA_LATROVA"
+  }
+}

@@ -690,7 +690,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // HP割合比較にした。
     // `2026-11-20.2` は新Unit `UNIT_RAMI_SKYWING`（【穹を駆ける不屈の翼】朽葉ラミ）を追加した
     // （Issue #869）。既存のUnit・Skill・EffectActionは変更していない。
-    expect(catalog.catalogRevision).toBe("2026-11-20.2");
+    // `2026-11-20.3` は新Unit `UNIT_RATOROWA_ICEWITCH`（【氷の魔女】フィカーツィア・ラトロワ）を
+    // 追加した（Issue #870）。既存のUnit・Skill・EffectActionは変更していない。
+    expect(catalog.catalogRevision).toBe("2026-11-20.3");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {
