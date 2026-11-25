@@ -43,7 +43,7 @@ function memoryModifierAction(id: string): EffectActionDefinition {
         damageType: null,
         formula: { kind: "CONSTANT", value: 0.1 },
         stacking: { mode: "STACKABLE" },
-        duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+        duration: { dispellable: false, timeLimit: { unit: "BATTLE", count: 1 } },
       },
     },
     "effectAction",
@@ -4443,6 +4443,67 @@ describe("buildCatalogIndex", () => {
     ).toThrowError(/references the source BattleUnit/);
   });
 
+  it("UT-R-MEM-05-001: rejects a Memory whose granted effect is dispellable (explicit true or the default)", () => {
+    const defs = baseDefinitions();
+    const statModWith = (id: string, duration: Record<string, unknown>) =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: id,
+          kind: "APPLY_STAT_MOD",
+          payload: {
+            stat: "ATTACK",
+            valueType: "RATIO",
+            formula: { kind: "CONSTANT", value: 0.1 },
+            stacking: { mode: "STACKABLE" },
+            duration: { timeLimit: { unit: "BATTLE", count: 1 }, ...duration },
+          },
+        },
+        "effectAction",
+      );
+    for (const [id, duration] of [
+      ["ACT_MEMORY_DISPELLABLE", { dispellable: true }],
+      ["ACT_MEMORY_DISPELLABLE_DEFAULT", {}],
+    ] as const) {
+      const rules = (() => {
+        try {
+          buildCatalogIndex({
+            ...defs,
+            effectActions: [...defs.effectActions, statModWith(id, duration)],
+            memories: [memoryUsing("MEM_DISPELLABLE", id)],
+          });
+          return [];
+        } catch (error) {
+          if (!(error instanceof CatalogIntegrityError)) throw error;
+          return error.violations.map((violation) => violation.rule);
+        }
+      })();
+      expect(rules).toEqual(["MEMORY_EFFECT_MUST_BE_UNDISPELLABLE"]);
+    }
+  });
+
+  it("UT-R-MEM-05-002: accepts a Memory whose granted effects all declare dispellable false", () => {
+    const defs = baseDefinitions();
+    const undispellable = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_MEMORY_UNDISPELLABLE",
+        kind: "APPLY_MARKER",
+        payload: {
+          markerId: "MARKER_MEMORY",
+          stack: { policy: "ADD", max: 1 },
+          duration: { timeLimit: { unit: "BATTLE", count: 1 }, dispellable: false },
+        },
+      },
+      "effectAction",
+    );
+    expect(() =>
+      buildCatalogIndex({
+        ...defs,
+        effectActions: [...defs.effectActions, undispellable],
+        memories: [memoryUsing("MEM_UNDISPELLABLE", "ACT_MEMORY_UNDISPELLABLE")],
+      }),
+    ).not.toThrow();
+  });
+
   it("UT-CAT-IDX-086 [R-MEM-04] (R-MEM-04): rejects Memory trigger conditions that need an owner BattleUnit", () => {
     const defs = baseDefinitions();
     const withMemory = (memory: ReturnType<typeof memoryWithTrigger>) => ({
@@ -4540,7 +4601,7 @@ describe("buildCatalogIndex", () => {
           stacking: { mode: "STACKABLE" },
           duration: {
             timeLimit: { unit: "BATTLE", count: 1 },
-            dispellable: true,
+            dispellable: false,
             expiration: {
               conditions: [
                 {

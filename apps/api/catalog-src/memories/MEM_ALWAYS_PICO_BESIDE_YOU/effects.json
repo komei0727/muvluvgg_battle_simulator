@@ -8,7 +8,7 @@
       "formula": { "kind": "CONSTANT", "value": 3000 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
@@ -20,7 +20,7 @@
     "payload": {
       "markerId": "MARKER_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -32,7 +32,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -44,7 +44,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   }

@@ -181,7 +181,12 @@ export function runProductionPartyBattle(
  */
 export function runProductionExerciseBattle(
   catalogDir: string,
-  matchup: { readonly ally: readonly string[]; readonly enemyUnitDefinitionId: string },
+  matchup: {
+    readonly ally: readonly string[];
+    readonly enemyUnitDefinitionId: string;
+    /** 味方編成に指定するMemory（API指定順）。省略時はなし。 */
+    readonly allyMemories?: readonly string[];
+  },
   options: Pick<
     ProductionBattleOptions,
     "randomValue" | "randomSourceFactory" | "battleId" | "logLevel"
@@ -189,7 +194,7 @@ export function runProductionExerciseBattle(
 ): FullObservationExerciseResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateTacticalExerciseCommand = {
-    allyFormation: partySlots(matchup.ally),
+    allyFormation: partySlots(matchup.ally, matchup.allyMemories),
     enemyFormation: {
       slots: [
         {

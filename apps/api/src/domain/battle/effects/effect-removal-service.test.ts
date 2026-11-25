@@ -344,6 +344,54 @@ describe("removeEffects (R-EFF-02)", () => {
     expect(result.units[0]!.appliedEffects).toHaveLength(1);
   });
 
+  it("UT-R-MEM-05-003 [R-MEM-05, R-EFF-02]: a Memory-granted (sourceSide only, dispellable:false) effect is skipped without using up maxRemovals, for both DEBUFF and BUFF removal", () => {
+    const def = statModDefinition("ACT_STAT_MOD");
+    const target = unit("target-1");
+    const { sourceUnitId: _unused, ...unitGranted } = effect(
+      "unused",
+      target.battleUnitId,
+      def.effectActionDefinitionId,
+    );
+    void _unused;
+    for (const [category, magnitude] of [
+      ["DEBUFF", -0.1],
+      ["BUFF", 0.1],
+    ] as const) {
+      // メモリー由来の付与は戦闘開始時に付くため常に最も古い（付与順の先頭）。
+      const memoryGranted: AppliedEffect = {
+        ...unitGranted,
+        effectInstanceId: createEffectInstanceId("memory"),
+        sourceSide: "ENEMY",
+        magnitude,
+        categories: [category],
+        appliedTurnNumber: 0,
+        duration: { definition: { dispellable: false, linkedEffectGroupId: null } },
+      };
+      const skillGranted = [1, 2].map((n) =>
+        effect(`skill-${n}`, target.battleUnitId, def.effectActionDefinitionId, {
+          magnitude,
+          categories: [category],
+        }),
+      );
+      const { recorder, rootEventId } = createRoot();
+
+      const result = removeEffects(
+        context(recorder, rootEventId),
+        [{ ...target, appliedEffects: [memoryGranted, ...skillGranted] }],
+        target.battleUnitId,
+        { categories: [category], maxRemovals: 1 },
+        new Map([[def.effectActionDefinitionId, def]]),
+        rootEventId,
+      );
+
+      expect(result.removedCount).toBe(1);
+      expect(result.units[0]!.appliedEffects.map((e) => e.effectInstanceId)).toEqual([
+        createEffectInstanceId("memory"),
+        createEffectInstanceId("skill-2"),
+      ]);
+    }
+  });
+
   it("UT-R-EFF-02-015 (R-EFF-01): a dispellable:false BUFF is not directly removed", () => {
     const buffDef = statModDefinition("ACT_ATK_UP");
     const target = unit("target-1");

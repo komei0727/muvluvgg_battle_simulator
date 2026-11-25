@@ -2848,6 +2848,8 @@ Memory発動エンジン（`BattleStarted` での `triggeredEffects` 解決、`R
 
 実行時（`FormulaEvaluator`・`TargetSelectionPolicy`・`EffectActionGroupResolver`）も同じ構成を明確なエラーで拒否するが、戦闘開始後に効果解決の途中で失敗させないため、Catalogロード時点で先に検出する。
 
+`R-MEM-05`「Memoryが付与する効果は解除不可」は、Catalog整合性検証の `MEMORY_EFFECT_MUST_BE_UNDISPELLABLE` が担う。Memory の `triggeredEffects` が参照する EffectAction のうち `DurationDefinition` を持つもの（`APPLY_STAT_MOD`・`APPLY_DAMAGE_MOD`・`APPLY_MARKER` など）は、`duration.dispellable: false` を宣言しなければならない。`dispellable` の既定値は `true` のため、省略も拒否する。解除不可は実行時に付与元（`sourceSide`）で免除するのではなく定義側の `dispellable` だけで表す — `REMOVE_EFFECTS` と、解除できる効果の数を問う `TARGET_EFFECT_COUNT` の `dispellable` 絞り込みが同じ値を正本として読むためである。
+
 ## raw からの変換例
 
 ### 例1: 単体攻撃 + 気絶

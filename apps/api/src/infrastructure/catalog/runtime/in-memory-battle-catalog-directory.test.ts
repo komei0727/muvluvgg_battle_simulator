@@ -45,7 +45,7 @@ function memoryModifierAction(id: string): EffectActionDefinition {
         damageType: null,
         formula: { kind: "CONSTANT", value: 0.1 },
         stacking: { mode: "STACKABLE" },
-        duration: { dispellable: true, timeLimit: { unit: "BATTLE", count: 1 } },
+        duration: { dispellable: false, timeLimit: { unit: "BATTLE", count: 1 } },
       },
     },
     "effectAction",
