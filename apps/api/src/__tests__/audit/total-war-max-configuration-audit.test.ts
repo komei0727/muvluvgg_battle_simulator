@@ -20,6 +20,7 @@ import { Mulberry32SeededRandomSourceProvider } from "../../infrastructure/rando
 import { SystemClock } from "../../infrastructure/time/system-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
 import { allProductionUnitIds } from "../../testing/scenario/run-production-battle.js";
+import { MEMORY_HEAVY_FORMATION } from "../../testing/scenario/memory-heavy-formation.js";
 
 /**
  * 総力戦の最大構成（各陣営3編成×5体×6メモリー、通算15ターン）が、本番と同じ実行保護
@@ -220,6 +221,43 @@ describe("total war maximum configuration audit", () => {
           durationMs: Math.round(durationMs),
         }),
       );
+    },
+    AUDIT_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "IT-AUDIT-TWMAX-004 [R-TWR-01, R-TWR-06]: 3 formations per side of the known memory-heavy maximum (6 memories each) resolve every stage's battle-start scope under the default execution limits",
+    () => {
+      const repeated = (
+        unitIds: readonly string[],
+        memories: readonly string[],
+      ): readonly FormationInput[] =>
+        Array.from({ length: FORMATIONS_PER_SIDE }, () => ({
+          slots: POSITIONS.map((position, slotIndex) => ({
+            unitDefinitionId: createUnitDefinitionId(unitIds[slotIndex]!),
+            position,
+          })),
+          memoryDefinitionIds: memories.map((id) => createMemoryDefinitionId(id)),
+        }));
+
+      const { result, durationMs } = runMaxConfiguration(
+        {
+          allyFormations: repeated(
+            MEMORY_HEAVY_FORMATION.ally,
+            MEMORY_HEAVY_FORMATION.allyMemories,
+          ),
+          enemyFormations: repeated(
+            MEMORY_HEAVY_FORMATION.enemy,
+            MEMORY_HEAVY_FORMATION.enemyMemories,
+          ),
+          logLevel: "DETAILED",
+        },
+        "twmax-memory-heavy",
+      );
+
+      expect(result.completedTurn).toBeLessThanOrEqual(15);
+      expect(["ALLY_WIN", "ALLY_LOSE", "DRAW"]).toContain(result.outcome);
+      expect(durationMs).toBeLessThan(DEFAULT_SIMULATION_TIMEOUT_MS);
     },
     AUDIT_TEST_TIMEOUT_MS,
   );

@@ -49,6 +49,15 @@ export function allExerciseEnemyProductionUnitIds(catalogDir: string): readonly 
   return allProductionUnitIdsByCategory(catalogDir, "EXERCISE_ENEMY");
 }
 
+/** production Memoryの定義ID全件（sort済み）。 */
+export function allProductionMemoryIds(catalogDir: string): readonly string[] {
+  const directory = loadBattleCatalogDirectory(catalogDir);
+  const result = new GetBattleSimulationCatalogUseCase({
+    battleCatalogDirectory: directory,
+  }).execute();
+  return result.memories.map((memory) => String(memory.memoryDefinitionId)).sort();
+}
+
 function allProductionUnitIdsByCategory(catalogDir: string, category: string): readonly string[] {
   const directory = loadBattleCatalogDirectory(catalogDir);
   const result = new GetBattleSimulationCatalogUseCase({
@@ -244,13 +253,19 @@ export function createProductionBattleRunner(
  */
 export function createProductionFormationBattleRunner(
   catalogDir: string,
-  parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
+  parties: {
+    readonly ally: readonly string[];
+    readonly enemy: readonly string[];
+    /** 各陣営の編成に指定するMemory（API指定順）。省略時はなし。 */
+    readonly allyMemories?: readonly string[];
+    readonly enemyMemories?: readonly string[];
+  },
   options: ProductionBattleOptions = {},
 ): (battleId: string) => SimulateBattleResult {
   const battleCatalog = loadCatalogFromDirectory(catalogDir);
   const command: SimulateBattleCommand = {
-    allyFormation: partySlots(parties.ally),
-    enemyFormation: partySlots(parties.enemy),
+    allyFormation: partySlots(parties.ally, parties.allyMemories),
+    enemyFormation: partySlots(parties.enemy, parties.enemyMemories),
     turnLimit: options.turnLimit ?? 5,
     logLevel: options.logLevel ?? "DETAILED",
   };

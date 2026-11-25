@@ -311,6 +311,8 @@ describe("POST /api/v1/total-war-simulations (10_API設計.md「総力戦をシ�
     });
   });
 
+  // 本番Catalogで総力戦を2回完走させるため、カバレッジ計測下で全スイートと並行すると
+  // 既定値（5秒）を超えうる。
   it("API-TWR-004 (12_テスト戦略.md「実際の代表レスポンスが生成Schemaへ適合する」): a real total war's DETAILED and SUMMARY 200 bodies satisfy the doc schema this route publishes to OpenAPI", async () => {
     for (const logLevel of ["DETAILED", "SUMMARY"] as const) {
       const response = await post({ ...REQUEST_BODY, options: { logLevel } });
@@ -322,7 +324,7 @@ describe("POST /api/v1/total-war-simulations (10_API設計.md「総力戦をシ�
       const valid = validate(response.json());
       expect(valid, JSON.stringify(validate.errors?.slice(0, 5) ?? [], null, 2)).toBe(true);
     }
-  });
+  }, 30_000);
 
   it("API-TWR-005 [R-TWR-01] (R-TWR-01 #5、10_API設計.md「TotalWarRequest」「`turnLimit`は持たない」): rejects turnLimit as an undefined top-level property (400 MALFORMED_REQUEST)", async () => {
     const response = await post({ ...REQUEST_BODY, turnLimit: 10 });
