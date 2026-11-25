@@ -14562,7 +14562,7 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14574,7 +14574,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.05 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14587,7 +14587,7 @@
       "formula": { "kind": "CONSTANT", "value": 3000 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
@@ -14599,7 +14599,7 @@
     "payload": {
       "markerId": "MARKER_MEM_ALWAYS_PICO_BESIDE_YOU_THREE_STARS",
       "stack": { "policy": "ADD", "max": null },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14611,7 +14611,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14623,7 +14623,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14660,7 +14660,7 @@
       "formula": { "kind": "CONSTANT", "value": -0.05 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
       }
     },
@@ -14674,7 +14674,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14686,7 +14686,7 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14698,7 +14698,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14710,7 +14710,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14722,7 +14722,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 200 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14734,7 +14734,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 750 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14746,7 +14746,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14758,7 +14758,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14770,7 +14770,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14782,7 +14782,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 2500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14794,7 +14794,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": -0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14806,7 +14806,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14818,7 +14818,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14830,7 +14830,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14842,7 +14842,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": -70 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14854,7 +14854,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.02 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14866,7 +14866,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14878,7 +14878,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14890,7 +14890,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14902,7 +14902,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.03 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -14914,7 +14914,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.105 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15020,7 +15020,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15032,7 +15032,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 12 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15044,7 +15044,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15056,7 +15056,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15068,7 +15068,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15080,7 +15080,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1500 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15092,7 +15092,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.04 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15104,7 +15104,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15116,7 +15116,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.085 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15128,7 +15128,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.1 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15140,7 +15140,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 800 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15152,7 +15152,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15164,7 +15164,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15176,7 +15176,7 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": 0.105 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15188,7 +15188,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15200,7 +15200,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.0125 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15212,7 +15212,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15224,7 +15224,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15236,7 +15236,7 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": 0.035 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15248,7 +15248,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15320,7 +15320,7 @@
       "damageType": "EN",
       "formula": { "kind": "CONSTANT", "value": 0.0175 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15332,7 +15332,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15344,7 +15344,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 80 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "ACTION", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15356,7 +15356,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.075 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15368,7 +15368,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15380,7 +15380,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1000 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15532,7 +15532,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15544,7 +15544,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 12 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15583,7 +15583,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15595,7 +15595,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15607,7 +15607,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15619,7 +15619,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 300 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15631,7 +15631,7 @@
       "damageType": "EN",
       "formula": { "kind": "CONSTANT", "value": 0.035 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15644,7 +15644,7 @@
       "formula": { "kind": "CONSTANT", "value": 2500 },
       "stacking": { "mode": "STACKABLE" },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": { "unit": "ACTION", "count": 1, "owner": "EFFECT_TARGET" }
       }
     },
@@ -15658,7 +15658,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 30 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15670,7 +15670,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15822,7 +15822,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15834,7 +15834,7 @@
       "valueType": "RATIO",
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15846,7 +15846,7 @@
       "damageType": null,
       "formula": { "kind": "CONSTANT", "value": 0.025 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15858,7 +15858,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 1250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15870,7 +15870,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15882,7 +15882,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.05 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15894,7 +15894,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15906,7 +15906,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15918,7 +15918,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 250 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15930,7 +15930,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 200 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15942,7 +15942,7 @@
       "damageType": "PHYSICAL",
       "formula": { "kind": "CONSTANT", "value": 0.042 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -15954,7 +15954,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.01 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -16014,7 +16014,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.15 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   },
@@ -16026,7 +16026,7 @@
       "valueType": "FIXED",
       "formula": { "kind": "CONSTANT", "value": 0.021 },
       "stacking": { "mode": "STACKABLE" },
-      "duration": { "dispellable": true, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
     },
     "metadata": { "tags": [] }
   }

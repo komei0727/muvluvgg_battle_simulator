@@ -13,7 +13,7 @@
         "mode": "STACKABLE"
       },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": {
           "unit": "BATTLE",
           "count": 1
@@ -38,7 +38,7 @@
         "mode": "STACKABLE"
       },
       "duration": {
-        "dispellable": true,
+        "dispellable": false,
         "timeLimit": {
           "unit": "ACTION",
           "count": 1,

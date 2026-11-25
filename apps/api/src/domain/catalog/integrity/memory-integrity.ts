@@ -279,6 +279,32 @@ function validateMemorySourceUnitIndependence(
   }
 }
 
+/**
+ * R-MEM-05: Memoryが付与する効果は解除不可である。`dispellable`は解除
+ * （`effect-removal-service.ts`）と「解除できる効果の数」を問う条件（`TARGET_EFFECT_COUNT`の
+ * `dispellable` narrowing）の単一の正本なので、実行時に発生源で免除するのではなく
+ * 定義側で`false`を宣言させる。既定値が`true`のため、宣言漏れもここで拒否する。
+ */
+function validateMemoryEffectsUndispellable(
+  memory: MemoryDefinition,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  violations: CatalogIntegrityViolation[],
+): void {
+  for (const triggeredEffect of memory.triggeredEffects) {
+    for (const ref of collectEffectActionReferences(triggeredEffect.effectSequence.steps)) {
+      const effectAction = effectActions.get(ref.effectActionDefinitionId);
+      const duration = effectAction === undefined ? undefined : durationOf(effectAction);
+      if (duration?.dispellable === true) {
+        violations.push({
+          targetId: memory.memoryDefinitionId,
+          rule: "MEMORY_EFFECT_MUST_BE_UNDISPELLABLE",
+          message: `EffectAction "${ref.effectActionDefinitionId}" is dispellable, but every effect a Memory grants is undispellable — declare duration.dispellable false (R-MEM-05)`,
+        });
+      }
+    }
+  }
+}
+
 export function validateMemory(
   memory: MemoryDefinition,
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
@@ -344,4 +370,5 @@ export function validateMemory(
     );
   }
   validateMemorySourceUnitIndependence(memory, effectActions, violations);
+  validateMemoryEffectsUndispellable(memory, effectActions, violations);
 }
