@@ -146,10 +146,18 @@ export const DEFAULT_PASSIVE_CHAIN_LIMITS: PassiveChainLimits = {
    * 1解決スコープあたり最大54件の効果解決を必要とする。旧値50はこれを**下回って
    * おり**、正常な混成編成が`EXECUTION_LIMIT_EXCEEDED`（503）で落ちていた
    * （暴走した定義ではなく、対象数の多いEffectSequenceが正しく解決された結果）。
-   * 実測値の約1.9倍へ引き上げる（`maxPassiveDepth`は実測4に対し8で2倍の余裕が
+   * 実測値の約1.9倍の100へ引き上げた（`maxPassiveDepth`は実測4に対し8で2倍の余裕が
    * あるため据え置き）。
+   *
+   * ただし上の走査はMemoryを持たない編成だけだった。戦闘開始時の1解決スコープには
+   * 両陣営のMemoryが味方全体・敵全体へ付与する効果と戦闘開始時PSの効果がまとめて
+   * 積まれるため、両陣営がMemoryを積むと100を超える（味方4枠・敵6枠の実在編成で115件）。
+   * 付与の多いMemory・PS持ちユニットを1枠ずつ入れ替える局所探索で詰めた最大構成
+   * （`testing/scenario/memory-heavy-formation.ts`）は、通常戦闘・総力戦とも233件を
+   * 必要とする。局所探索は全組み合わせの最悪を保証しないため、実測値の約2.1倍へ
+   * 引き上げる。
    */
-  maxEffectsPerScope: 100,
+  maxEffectsPerScope: 500,
   maxEffectRuntimeCounterDepth: MAX_RUNTIME_COUNTER_UPDATE_RECURSION_DEPTH,
 };
 

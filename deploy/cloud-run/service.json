@@ -40,7 +40,7 @@
               { "name": "WORKER_MAX_THREADS", "value": "1" },
               { "name": "SIMULATION_MAX_EVENTS", "value": "1000000" },
               { "name": "SIMULATION_MAX_PASSIVE_DEPTH", "value": "8" },
-              { "name": "SIMULATION_MAX_EFFECTS_PER_SCOPE", "value": "100" },
+              { "name": "SIMULATION_MAX_EFFECTS_PER_SCOPE", "value": "500" },
               { "name": "SIMULATION_MAX_EFFECT_RUNTIME_COUNTER_DEPTH", "value": "10" },
               { "name": "EVALUATION_ENDPOINT_ENABLED", "value": "false" },
               { "name": "SHUTDOWN_GRACE_MS", "value": "8000" },

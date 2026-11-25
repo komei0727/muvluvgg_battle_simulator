@@ -184,7 +184,7 @@ describe("loadConfig", () => {
     expect(config.executionLimits).toEqual({
       maxTotalEvents: 1_000_000,
       maxPassiveDepth: 8,
-      maxEffectsPerScope: 100,
+      maxEffectsPerScope: 500,
       maxEffectRuntimeCounterDepth: 10,
     });
   });

@@ -2,6 +2,7 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  allProductionMemoryIds,
   allProductionUnitIds,
   createProductionBattleRunner,
   createProductionFormationBattleRunner,
@@ -10,6 +11,7 @@ import {
   DEFAULT_SIMULATION_EXECUTION_LIMITS,
   type SimulationExecutionLimits,
 } from "../../application/simulation/battle-execution.js";
+import { MEMORY_HEAVY_FORMATION } from "../../testing/scenario/memory-heavy-formation.js";
 import { ExecutionGuardExceededError } from "../../domain/shared/errors.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
 
@@ -57,6 +59,38 @@ function mixedPartyMatchups(
     parties.push([...unitIds.slice(start, start + 5)]);
   }
   return parties.map((ally, index) => ({ ally, enemy: parties[(index + 1) % parties.length]! }));
+}
+
+interface Formation {
+  readonly ally: readonly string[];
+  readonly enemy: readonly string[];
+  readonly allyMemories?: readonly string[];
+  readonly enemyMemories?: readonly string[];
+}
+
+const MEMORIES_PER_FORMATION = 6;
+
+/**
+ * 全Memoryを6件ずつの組に区切り、`formations[k]`の両陣営へ組を割り当てる
+ * （ミラー編成は同じ組、混成編成は味方`k`・敵`k+1`の組）。戦闘開始時の1解決スコープには
+ * 両陣営のMemoryが味方全体・敵全体へ付与する効果がまとめて積まれるため、Memoryなしの
+ * 編成だけを走査すると必要量を過小評価する。
+ */
+function withMemories(
+  formations: readonly Formation[],
+  memoryIds: readonly string[],
+  mirror: boolean,
+): readonly Formation[] {
+  const group = (index: number): readonly string[] =>
+    Array.from(
+      { length: MEMORIES_PER_FORMATION },
+      (_, offset) => memoryIds[(index * MEMORIES_PER_FORMATION + offset) % memoryIds.length]!,
+    );
+  return formations.map((formation, index) => ({
+    ...formation,
+    allyMemories: group(index),
+    enemyMemories: group(mirror ? index : index + 1),
+  }));
 }
 
 function limitsWith(overrides: Partial<SimulationExecutionLimits>): SimulationExecutionLimits {
@@ -192,18 +226,24 @@ describe("battle execution capacity baseline", () => {
     expect(worst!.eventCount).toBeLessThan(DEFAULT_SIMULATION_EXECUTION_LIMITS.maxTotalEvents);
   }, 300_000);
 
-  it("LOAD-CAPACITY-002 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」の上限決定): measures the smallest execution guard limits every production formation actually needs — mirror and mixed parties alike — so the configured ceilings can be justified as headroom rather than guesses", () => {
+  it("LOAD-CAPACITY-002 (11_インフラストラクチャ設計.md「SimulationExecutionGuard」の上限決定): measures the smallest execution guard limits every production formation actually needs — mirror and mixed parties, with and without six memories per side — so the configured ceilings can be justified as headroom rather than guesses", () => {
     const unitIds = allProductionUnitIds(CATALOG_DIR);
     // ミラー編成と混成編成の両方を走査する。実行ガードへ実際に到達していたのは
     // 混成編成だったため、ミラー編成1つの二分探索では必要量を過小評価する。
-    const formations = [...maxScalePartyCandidates(unitIds), ...mixedPartyMatchups(unitIds)];
+    // さらに同じ編成へ両陣営ともMemory6枠を積んだものと、戦闘開始時の付与が最も多い
+    // 既知の最大構成も走査する。
+    const memoryIds = allProductionMemoryIds(CATALOG_DIR);
+    const mirror = maxScalePartyCandidates(unitIds);
+    const mixed = mixedPartyMatchups(unitIds);
+    const formations: readonly Formation[] = [
+      ...mirror,
+      ...mixed,
+      ...withMemories(mirror, memoryIds, true),
+      ...withMemories(mixed, memoryIds, false),
+      MEMORY_HEAVY_FORMATION,
+    ];
     const runWith =
-      (
-        parties: { readonly ally: readonly string[]; readonly enemy: readonly string[] },
-        executionLimits: SimulationExecutionLimits,
-        battleId: string,
-      ) =>
-      () =>
+      (parties: Formation, executionLimits: SimulationExecutionLimits, battleId: string) => () =>
         createProductionFormationBattleRunner(CATALOG_DIR, parties, {
           turnLimit: TURN_LIMIT,
           logLevel: "DETAILED",
