@@ -696,63 +696,94 @@ export function validateTotalWarResponse(body: unknown): TotalWarValidationResul
   return { ok: true, response: body as unknown as TotalWarResponse };
 }
 
-// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」: 統計実行の一括評価。
-// 統計量は返らず、UIが試行ごとの生値から集計する。集計は添字の対応（同じ添字が同じ
-// 試行、ユニット別配列の列が編成順の枠）に全面的に依存するため、長さの整合を
-// ここで確かめ、対応が崩れた応答を統計へ流さない。
+// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」: 統計実行の大量試行。
+// 統計量は返らず、UIが試行ごとのレコードから集計する。集計は「各要求番号が完了・未完了の
+// どちらか一方にちょうど1回現れる」ことと「味方枠の`unitIndex`が編成順の0..n-1である」ことに
+// 依存するため、その整合をここで確かめ、対応が崩れた応答を統計へ流さない。要求した番号の
+// 集合と一致するかは、要求を知っている実行側（`use-exercise-statistics-run.ts`）が見る。
 
 export type TacticalExerciseEvaluationValidationResult =
   | { readonly ok: true; readonly response: TacticalExerciseEvaluationResponse }
   | { readonly ok: false; readonly error: UiApiError };
 
-/** 候補は常に1件で送る（`exercise-request-mapper.ts`）ため、応答も1件でなければ対応が取れない。 */
-const EVALUATION_CANDIDATE_COUNT = 1;
+/** ケースは常に1件で送る（`exercise-request-mapper.ts`）ため、応答も1件でなければ対応が取れない。 */
+const EVALUATION_CASE_COUNT = 1;
 
-function isIntegerArrayOfLength(value: unknown, length: number): value is readonly number[] {
+const nonNegativeInteger = (value: unknown): value is number => isIntegerInRange(value, 0);
+
+/**
+ * 1試行の味方枠数。味方の`units`と`allyUnitBreaks`がどちらも`unitIndex`0..n-1を順に持つ
+ * ときだけ数を返す — 番号が飛ぶ・食い違うと、列をどの枠へ付けるか決められない。
+ */
+function allyColumnCount(run: Record<string, unknown>): number | undefined {
+  const units = run["units"];
+  const breaks = run["allyUnitBreaks"];
+  if (!Array.isArray(units) || !Array.isArray(breaks)) {
+    return undefined;
+  }
+  const unitRecords: readonly unknown[] = units;
+  const breakRecords: readonly unknown[] = breaks;
+  if (
+    !unitRecords.every(
+      (unit) =>
+        isRecord(unit) &&
+        (unit["side"] === "ALLY" || unit["side"] === "ENEMY") &&
+        nonNegativeInteger(unit["unitIndex"]) &&
+        isNonEmptyString(unit["unitDefinitionId"]) &&
+        nonNegativeInteger(unit["damageDealt"]),
+    )
+  ) {
+    return undefined;
+  }
+  const allyIndices = unitRecords
+    .filter((unit) => isRecord(unit) && unit["side"] === "ALLY")
+    .map((unit) => (unit as Record<string, unknown>)["unitIndex"]);
+  const breakIndices = breakRecords.map((entry) =>
+    isRecord(entry) && nonNegativeInteger(entry["breakCount"]) ? entry["unitIndex"] : undefined,
+  );
+  const sequential = (indices: readonly unknown[]) =>
+    indices.every((index, position) => index === position);
+  return sequential(allyIndices) &&
+    sequential(breakIndices) &&
+    allyIndices.length === breakIndices.length
+    ? allyIndices.length
+    : undefined;
+}
+
+function isValidEvaluationRun(value: unknown): value is Record<string, unknown> {
   return (
-    Array.isArray(value) &&
-    value.length === length &&
-    value.every((item) => isIntegerInRange(item, 0))
+    isRecord(value) &&
+    nonNegativeInteger(value["runIndex"]) &&
+    nonNegativeInteger(value["totalScore"]) &&
+    nonNegativeInteger(value["breakCount"]) &&
+    nonNegativeInteger(value["completedTurn"]) &&
+    isNonEmptyString(value["completionReason"])
   );
 }
 
-function isStringArrayOfLength(value: unknown, length: number): value is readonly string[] {
-  return Array.isArray(value) && value.length === length && value.every(isNonEmptyString);
-}
-
-/**
- * 試行×ユニットの行列。行数は`completedRuns`、列数は編成のユニット数で、試行が変わっても
- * 列数は変わらない。列数が試行ごとに違うと、どの列がどのユニットか決められない。
- */
-function unitColumnCount(value: unknown, runs: number): number | undefined {
-  if (!Array.isArray(value) || value.length !== runs) {
-    return undefined;
+function evaluationCaseMismatch(caseBody: unknown): string | undefined {
+  if (!isRecord(caseBody) || !isNonEmptyString(caseBody["caseId"])) {
+    return "case is not an object with a caseId.";
   }
-  const rows: readonly unknown[] = value;
-  const first = rows[0];
-  const columns = Array.isArray(first) ? first.length : 0;
-  return rows.every((row) => isIntegerArrayOfLength(row, columns)) ? columns : undefined;
-}
-
-function isValidEvaluationCandidate(value: unknown): boolean {
-  if (!isRecord(value)) {
-    return false;
+  const runs = caseBody["runs"];
+  const incomplete = caseBody["incompleteRunIndices"];
+  if (!Array.isArray(runs) || !Array.isArray(incomplete)) {
+    return "case does not carry runs and incompleteRunIndices arrays.";
   }
-  const completedRuns = value["completedRuns"];
-  if (!isIntegerInRange(completedRuns, 0)) {
-    return false;
+  const runRecords: readonly unknown[] = runs;
+  const incompleteIndices: readonly unknown[] = incomplete;
+  if (!runRecords.every(isValidEvaluationRun) || !incompleteIndices.every(nonNegativeInteger)) {
+    return "case runs or incomplete run indices are malformed.";
   }
-  if (
-    !isIntegerArrayOfLength(value["scores"], completedRuns) ||
-    !isIntegerArrayOfLength(value["breakCounts"], completedRuns) ||
-    !isIntegerArrayOfLength(value["completedTurns"], completedRuns) ||
-    !isStringArrayOfLength(value["completionReasons"], completedRuns)
-  ) {
-    return false;
+  const columnCounts = runRecords.map((run) => allyColumnCount(run));
+  if (columnCounts.some((count) => count === undefined || count !== columnCounts[0])) {
+    return "case runs do not number their ally slots consistently.";
   }
-  const damageColumns = unitColumnCount(value["allyUnitDamageTotals"], completedRuns);
-  const breakColumns = unitColumnCount(value["allyUnitBreakCounts"], completedRuns);
-  return damageColumns !== undefined && damageColumns === breakColumns;
+  const reported = [...runRecords.map((run) => run["runIndex"]), ...incompleteIndices];
+  if (new Set(reported).size !== reported.length) {
+    return "case reports a run index more than once.";
+  }
+  return undefined;
 }
 
 export function validateTacticalExerciseEvaluationResponse(
@@ -760,40 +791,48 @@ export function validateTacticalExerciseEvaluationResponse(
 ): TacticalExerciseEvaluationValidationResult {
   const evaluationMismatch = (message: string): TacticalExerciseEvaluationValidationResult => ({
     ok: false,
-    error: { kind: "RESPONSE_CONTRACT_MISMATCH", message },
+    error: {
+      kind: "RESPONSE_CONTRACT_MISMATCH",
+      message: `Tactical exercise evaluation ${message}`,
+    },
   });
 
   if (!isRecord(body)) {
-    return evaluationMismatch("Tactical exercise evaluation response body is not a JSON object.");
+    return evaluationMismatch("response body is not a JSON object.");
   }
   if (typeof body["schemaVersion"] !== "number") {
-    return evaluationMismatch(
-      "Tactical exercise evaluation response schemaVersion is not a number.",
-    );
+    return evaluationMismatch("response schemaVersion is not a number.");
   }
-  if (!isNonEmptyString(body["catalogRevision"])) {
-    return evaluationMismatch(
-      "Tactical exercise evaluation response catalogRevision is missing or empty.",
-    );
+  // seed・各revisionは再現の鍵であり、欠けた応答は「どの条件の結果か」を失う。
+  for (const field of ["seed", "seedDerivationVersion", "catalogRevision", "engineRevision"]) {
+    if (!isNonEmptyString(body[field])) {
+      return evaluationMismatch(`response ${field} is missing or empty.`);
+    }
   }
-  // seedは再現の鍵であり、欠けた応答は「どの実行の結果か」を失う（Q-TEX-17）。
-  if (!isNonEmptyString(body["seed"])) {
-    return evaluationMismatch("Tactical exercise evaluation response seed is missing or empty.");
+  const cases = body["cases"];
+  if (!Array.isArray(cases) || cases.length !== EVALUATION_CASE_COUNT) {
+    return evaluationMismatch("response does not carry exactly one case.");
   }
-  if (!isIntegerInRange(body["runsPerCandidate"], 1)) {
-    return evaluationMismatch(
-      "Tactical exercise evaluation response runsPerCandidate is not a positive integer.",
-    );
+  const caseList: readonly unknown[] = cases;
+  for (const caseBody of caseList) {
+    const mismatch = evaluationCaseMismatch(caseBody);
+    if (mismatch !== undefined) {
+      return evaluationMismatch(mismatch);
+    }
   }
-  const candidates = body["candidates"];
-  if (!Array.isArray(candidates) || candidates.length !== EVALUATION_CANDIDATE_COUNT) {
+  const caseRecords = caseList as readonly Record<string, readonly unknown[]>[];
+  const completed = caseRecords.reduce((total, caseBody) => total + caseBody["runs"]!.length, 0);
+  const incomplete = caseRecords.reduce(
+    (total, caseBody) => total + caseBody["incompleteRunIndices"]!.length,
+    0,
+  );
+  if (
+    body["completedRuns"] !== completed ||
+    body["requestedRuns"] !== completed + incomplete ||
+    body["partial"] !== incomplete > 0
+  ) {
     return evaluationMismatch(
-      "Tactical exercise evaluation response does not carry exactly one candidate.",
-    );
-  }
-  if (!candidates.every(isValidEvaluationCandidate)) {
-    return evaluationMismatch(
-      "Tactical exercise evaluation response candidate arrays do not agree with completedRuns.",
+      "response completedRuns / requestedRuns / partial disagree with its runs.",
     );
   }
 

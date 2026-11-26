@@ -144,7 +144,7 @@ export function UnitStatisticsSection({ aggregate, labels, score }: UnitStatisti
     const started = downloadTextFile(
       `exercise-runs-${score.completedRuns.toString()}.csv`,
       "text/csv",
-      buildRunsCsv(aggregate, labels),
+      buildRunsCsv(aggregate, labels, score.seed),
     );
     setDownloadFailed(!started);
   }

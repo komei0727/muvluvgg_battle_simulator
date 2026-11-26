@@ -114,22 +114,27 @@ export interface FormationStatPreviewRequestBody {
   readonly mode?: "NORMAL" | "TACTICAL_EXERCISE";
 }
 
-/** `10_API設計.md`「TacticalExerciseCandidateRequest」。評価対象の味方編成1件。 */
-export interface TacticalExerciseCandidateRequestBody {
+/**
+ * `10_API設計.md`「TacticalExerciseEvaluationCaseRequest」。両陣営をケースごとに持つ。
+ * 規定ターン数は演習で固定（R-TEX-01 #4）のため`turnLimit`を持たない。
+ */
+export interface TacticalExerciseEvaluationCaseRequestBody {
+  readonly caseId: string;
   readonly allyFormation: FormationRequestBody;
+  readonly enemyFormation: FormationRequestBody;
+  readonly runIndices: readonly number[];
 }
 
 /**
- * `10_API設計.md`「戦術演習の編成候補を一括評価する」（`POST /api/v1/tactical-exercise-evaluations`）の
- * request body契約。敵編成はリクエスト全体で1つを共有し、味方編成だけを候補として複数受け取る。
- * `options.logLevel`を持たない——返すのは試行ごとの数値だけで、イベント列は返さないためである。
+ * `10_API設計.md`「戦術演習を大量試行する」（`POST /api/v1/tactical-exercise-evaluations`）の
+ * request body契約。通常戦闘・総力戦の大量試行と同じトップレベル構造を持ち、`seed`は必須で
+ * サーバーは暗黙に生成しない。`options.logLevel`を持たない。
  */
 export interface TacticalExerciseEvaluationRequestBody {
-  readonly enemyFormation: FormationRequestBody;
-  readonly candidates: readonly TacticalExerciseCandidateRequestBody[];
-  readonly runsPerCandidate: number;
-  /** 省略時はサーバーが生成し、応答へ載せる（同じ結果を再現できるようにするため）。 */
-  readonly seed?: string;
+  readonly seed: string;
+  readonly cases: readonly TacticalExerciseEvaluationCaseRequestBody[];
+  readonly expectedCatalogRevision?: string;
+  readonly expectedEngineRevision?: string;
 }
 
 /** `10_API設計.md`「BattleEvaluationCaseRequest」。両陣営と規定ターン数をケースごとに持つ。 */

@@ -150,7 +150,7 @@ APIは0体の陣営を受け付けるため、片側だけ埋まった編集途�
 
 プレビューの失敗（ネットワーク・422・500のいずれも）は戦闘実行の可否へ影響させない。送信前検証にもプレビュー結果を使わない — サーバーが同じ検証を戦闘POSTでも行うため、プレビューを実行の前提条件にすると、プレビューだけが落ちた状態で戦闘を実行できなくなる。
 
-### 2.6 統計実行（一括評価）
+### 2.6 統計実行（大量試行）
 
 ```http
 POST {VITE_API_BASE_URL}/api/v1/tactical-exercise-evaluations
@@ -159,26 +159,28 @@ Accept: application/json
 X-Request-Id: ui-<UUID>
 ```
 
-戦術演習の統計実行（`UI-AC-041`／`UI-AC-042`）が使う。リクエストは共有の`enemyFormation`と候補1件（`candidates[0].allyFormation`）・`runsPerCandidate`・`seed`を持ち、`options`（`logLevel`）も`turnLimit`も持たない —— 返るのは試行ごとの数値だけで、イベント列・状態遷移は返らない。編成部分は単一実行（§2.3）とまったく同じ`FormationRequest`を組み立てて使う。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseEvaluationRequest」「TacticalExerciseEvaluationResponse」とする。
+戦術演習の統計実行（`UI-AC-041`／`UI-AC-042`）が使う。リクエストは`seed`とケース1件（`cases[0]`。`caseId: "exercise"`、`allyFormation`・`enemyFormation`・`runIndices`）を持ち、`options`（`logLevel`）も`turnLimit`も持たない —— 返るのは試行ごとの観測レコードだけで、イベント列・状態遷移は返らない。編成部分は単一実行（§2.3）とまったく同じ`FormationRequest`を組み立てて使う。正本は[../ddd/10_API設計.md](../ddd/10_API設計.md)「TacticalExerciseEvaluationRequest」「TacticalExerciseEvaluationRunResponse」とする。
 
 #### チャンク分割とseed規約
 
-1リクエストの総試行数には上限（`EVALUATION_MAX_TOTAL_RUNS`、既定300）があるため、画面が受け付ける実行回数（1～2,000）を300試行ずつのチャンクへ割り、**同時に1リクエストだけ**を直列に送る。並列化しないのは、サーバーが評価を`maxScale: 1`のWorker Poolへ流すため総所要時間が縮まらないからである。
+1リクエストの総試行数には上限（`TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`、既定300）があるため、画面が受け付ける実行回数（1～2,000）を300試行ずつのチャンクへ割り、**同時に1リクエストだけ**を直列に送る。並列化しないのは、サーバーが評価を`maxScale: 1`のWorker Poolへ流すため総所要時間が縮まらないからである。
 
-サーバーは1リクエストの中で試行番号（`runIndex`）を0から振り直して乱数列を決めるため、同じ`seed`のまま分割すると全チャンクがまったく同じ試行を繰り返す。チャンクごとに通し試行番号を埋めた`<seed>#<runOffset>`を送ることでこれを避ける。規約の正本はこの節と`apps/ui/src/features/exercise/evaluation-chunk-plan.ts`であり、**同じseed・同じ編成・同じチャンクサイズ・同じ実行回数なら同じ数値を出す**。この帰結として、実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）の3つになる。
+サーバーは各試行の乱数列を`(seed, runIndex)`だけから決める（`Q-TEX-17`）。したがって**全チャンクが同じ`seed`を送り**、チャンクごとに全体の通し試行番号の区間（1チャンク目は`[0..299]`、2チャンク目は`[300..599]`…）を`runIndices`として送る。規約の正本はこの節と`apps/ui/src/features/exercise/evaluation-chunk-plan.ts`であり、**同じseed・同じ編成・同じ実行回数なら、チャンクサイズを変えても同じ試行番号は同じ観測値になる**。実行を再現する鍵は（seed, 実行回数）と、応答の`catalogRevision`・`engineRevision`・`seedDerivationVersion`である。
 
-シード欄が空のときはUI側で実行seedを生成する。サーバー生成（`Q-TEX-17`）に任せないのは、チャンクごとに別のseedが生成されると分割そのものが再現できなくなるためである。
+Issue #891 以前は、サーバーが1リクエストの中で試行番号を0から振り直していたため、チャンクごとに`<seed>#<runOffset>`という別のseed文字列を送っていた。このため旧版の実行は**同じseed文字列でも新版とは別の試行集合**であり、旧版の結果・CSV（`chunk_seed`・`run_index_in_chunk`列を持つ）を新版のseed・試行番号と同一視しない。旧データを新版と比べる場合は新版で実行し直す。
+
+シード欄が空のときはUI側で実行seedを生成する。評価APIは`seed`を必須とし、サーバーは生成しない。
 
 #### 部分結果・中断・失敗
 
-- 自動retryしない。期限到達で`completedRuns`が要求未満のチャンク（`Q-TEX-18`）も再送しない —— 同じseedで送り直しても同じところで切れる。不足は実試行数として集計へ持ち込む。
+- 自動retryしない。期限到達で試行の一部が完了しなかったチャンク（`Q-TEX-18`）も再送しない。完了しなかった試行番号は応答の`incompleteRunIndices`から集約の`incompleteRunIndices`へ残し、統計は完了した試行だけで出す。同じseedでその番号だけを送り直せば同じ試行を補えるが、統計実行の画面はその操作を持たない（統計サマリJSONの`incompleteRunIndices`で利用側が判断する）。
 - 中断は完了済みチャンクまでで結果を確定する。実行中のチャンクは`AbortController`で中断し、その分は捨てる。page unload・unmountでも同じcontrollerをabortする（§7）。中断の状態遷移は実行ループが行う（単一実行のように同期的に`cancelled`へ移さない）—— 中断の結果は「完了済みチャンクまでの集約」であり、それを確定できるのはチャンクを積んでいるループだけだからである。
 - `404 ENDPOINT_DISABLED`は実装が無いのではなく配備の設定で閉じている（`Q-TEX-19`）。「この環境では統計実行を利用できません」と案内し、汎用のサーバーエラーとして出さない。判定は`code`だけで行う —— statusで判定すると、`VITE_API_BASE_URL`の設定ミスやプロキシのパス取り違えによる404まで同じ案内になり、単一実行も動かない状況で「単一実行は使えます」と誤って案内してしまう。
 - `429`は`Retry-After`の秒数を添えて中断する。
-- チャンク間で`catalogRevision`が変わった場合は集約せず中断する。前半と後半が別の定義で回った標本を混ぜた統計には意味がないためである。ユニット別配列の列数がチャンク間で変わった場合も同じく中断する —— 1レスポンス内の列数一致は応答検証が見るが、チャンクを跨いだ一致はここでしか見ておらず、通すと統計の描画時に初めて落ちる。
-- 応答の`seed`が送ったチャンクseedと一致しない場合も中断する。`#<runOffset>`規約が効いているかを判定できる唯一の材料であり、見逃すと全チャンクが同じ試行を繰り返していても数値が揃って見えるだけで気づけない。
+- チャンク間で`catalogRevision`・`engineRevision`・`seedDerivationVersion`のいずれかが変わった場合は集約せず中断する。前半と後半が別の条件で回った標本を混ぜた統計には意味がないためである。味方枠の数がチャンク間で変わった場合も同じく中断する —— 1レスポンス内の一致は応答検証が見るが、チャンクを跨いだ一致はここでしか見ておらず、通すと統計の描画時に初めて落ちる。
+- 応答の`seed`が送ったseedと一致しない場合、応答が要求したケース・試行番号をちょうど1回ずつ報告していない場合も中断する。どちらも通し試行番号と観測値の対応（再現の鍵）を壊すためである。
 - 1試行も完了しなかった場合は結果なしとして扱う。
-- 上記以外のHTTP失敗は§13の**種別ごとの表示文言**を単一実行と同じ表から採り、サーバーの生message・violationsをその下へ添える。422の`violations`は単一実行と同じくslot・入力欄へ対応づける（`UI-API-004`）。評価APIのpathは候補indexを含む（`/candidates/0/allyFormation/...`）ため、候補を1件しか送らないことを使って`/candidates/0`を落としてから対応づける。総試行数の違反は`/runsPerCandidate`で返り、送信前検証と同じ実行回数入力へ出る。
+- 上記以外のHTTP失敗は§13の**種別ごとの表示文言**を単一実行と同じ表から採り、サーバーの生message・violationsをその下へ添える。422の`violations`は単一実行と同じくslot・入力欄へ対応づける（`UI-API-004`）。評価APIのpathはケースindexを含む（`/cases/0/allyFormation/...`）ため、ケースを1件しか送らないことを使って`/cases/0`を落としてから対応づける。ケース数・総試行数・試行番号の違反（`/cases`、`/cases/0/runIndices/...`）は送信前検証と同じ実行回数入力（`/runCount`）へ出す。
 
 #### 結果の鮮度
 
@@ -186,7 +188,9 @@ X-Request-Id: ui-<UUID>
 
 #### レスポンスの検証
 
-6つの配列（`scores`／`breakCounts`／`completedTurns`／`completionReasons`／`allyUnitDamageTotals`／`allyUnitBreakCounts`）は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。集計はこの添字の対応に全面的に依存するため、長さの整合（ユニット別配列の列数が試行間で一致すること、与ダメージ列とブレイク列の列数が一致すること）を§8と同じ`RESPONSE_CONTRACT_MISMATCH`として検証する。候補が1件でない応答も、どの編成の値か決められないため契約違反とする。
+集計は「各要求番号が完了・未完了のどちらか一方にちょうど1回現れる」ことと「味方枠の`unitIndex`が編成順の0..n-1である」ことに依存する。応答検証（§8と同じ`RESPONSE_CONTRACT_MISMATCH`）は、再現条件（`seed`・`seedDerivationVersion`・`catalogRevision`・`engineRevision`）の欠落、ケースが1件でない応答、`completedRuns`・`requestedRuns`・`partial`と試行レコード・未完了番号の不一致、試行番号の重複、試行間で味方枠の数や番号が食い違う応答を拒否する。要求した番号の集合との一致は、要求を知っている実行側が見る。
+
+統計用の標本（`ExerciseStatisticsSample`）は、試行レコードの`totalScore`・`breakCount`・`completedTurn`・`completionReason`と、味方の`units[].damageDealt`・`allyUnitBreaks[].breakCount`を`unitIndex`順に並べて作る。
 
 ### 2.7 総力戦
 
@@ -203,7 +207,7 @@ X-Request-Id: ui-<UUID>
 - 成功レスポンスは戦闘シミュレーションと同じ構造を再利用し、`result`だけが総力戦の結果（`outcome`に`DRAW`を含む、`completionReason`、`completedTurn`、`stages[]`、`defeatedFormationCounts`）となる。加えて、全編成の全ユニットの一覧`unitRoster`を常に返す。
 - `initialState`は両陣営の1番目の編成のユニットだけを含む。2番目以降の編成のユニットは`FORMATION_DEPLOYED`イベントの状態差分`addedUnits`で盤面へ加わる。したがって表示用Rosterは`unitRoster`から作る（§10.1）。
 - 再登場ユニットの基礎値補正（R-TWR-02）はサーバーが自動で適用する。UIはリクエストに何も足さず、応答の`unitRoster[].reappearance`を表示にだけ使う。
-- 統計実行（一括評価）にあたるAPIは無い。総力戦は単発の実行だけを扱う。
+- 統計実行にあたるUIは無い。総力戦の画面は単発の実行だけを扱う（大量試行API `POST /api/v1/total-war-evaluations` は分析ツール向け）。
 
 ## 3. UI入力モデル
 
@@ -533,13 +537,13 @@ M10（`TEX-011`）で次を追加する。違反コードは `UNIT_POOL_MISMATCH
 
 Issue #539 で次を追加する。違反コードは `RUN_COUNT_OUT_OF_RANGE`（error）とする。
 
-| Path                | 規則                                   | UIメッセージ                                 |
-| ------------------- | -------------------------------------- | -------------------------------------------- |
-| `/runsPerCandidate` | integer 1～2,000（統計実行のときだけ） | 実行回数は1～2,000の整数で入力してください。 |
+| Path        | 規則                                   | UIメッセージ                                 |
+| ----------- | -------------------------------------- | -------------------------------------------- |
+| `/runCount` | integer 1～2,000（統計実行のときだけ） | 実行回数は1～2,000の整数で入力してください。 |
 
-- `path`は評価API（`TacticalExerciseEvaluationRequest`）の`runsPerCandidate`へ合わせる。統計実行のリクエストが載る先と同じ`path`にしておけば、サーバーの422も同じ入力欄へ対応づけられる。
+- `path`は画面側で決めたものである。評価APIに対応する項目は無い（実行回数はチャンクの`runIndices`へ展開される）ため、サーバーの試行計画への422（`/cases`、`/cases/0/runIndices/...`）を同じ`path`へ寄せて同じ入力欄へ対応づける（§2.6）。
 - 単一実行（`SINGLE`）では検証しない。実行回数は統計実行のときだけ送信へ効くため、統計実行を一度も選んでいない利用者が入力途中の値で実行できなくなるのを避ける。
-- シードは検証しない。任意文字列で、空は「サーバー生成に任せる」を表す。
+- シードは検証しない。任意文字列で、空は「UIが実行開始時に生成する」を表す（§2.6）。
 
 M11（`ENH-001`）で次を追加する。
 

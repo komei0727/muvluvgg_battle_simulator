@@ -9,12 +9,12 @@ import type {
   ExecutionApiResult,
   TacticalExerciseEvaluationApiResult,
   TacticalExerciseEvaluationRequest,
-  TacticalExerciseEvaluationResponse,
   TacticalExerciseRequest,
   TacticalExerciseResponse,
 } from "../shared/api/api-contract.js";
 
 import { BattleSimulatorPage } from "./BattleSimulatorPage.js";
+import { evaluationResponseFor } from "../test/evaluation-response.js";
 
 type EvaluateImpl = (
   request: TacticalExerciseEvaluationRequest,
@@ -617,31 +617,6 @@ describe("BattleSimulatorPage — 戦術演習の実行モード (UI-CT-084/110)
 // 結果件数を出す。他モードへ影響しないことの検証（ロックの範囲・422の枠表示）は
 // モード横断の関心事のため`BattleSimulatorPage.exercise.test.tsx`に残す（REF-059）。
 describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
-  function evaluationResponse(
-    runs: number,
-    catalogRevision = "rev-1",
-    seed = "abc#0",
-  ): TacticalExerciseEvaluationResponse {
-    const indices = Array.from({ length: runs }, (_value, index) => index);
-    return {
-      schemaVersion: 1,
-      catalogRevision,
-      seed,
-      runsPerCandidate: runs,
-      candidates: [
-        {
-          completedRuns: runs,
-          scores: indices.map(() => 1000),
-          breakCounts: indices.map(() => 1),
-          completedTurns: indices.map(() => 5),
-          completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
-          allyUnitDamageTotals: indices.map(() => [500]),
-          allyUnitBreakCounts: indices.map(() => [1]),
-        },
-      ],
-    };
-  }
-
   async function startStatisticsRun(
     user: UserEvent,
     evaluateTacticalExerciseImpl: EvaluateImpl,
@@ -666,8 +641,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
 
   it("runs the requested runs as sequential chunks and reports how many were aggregated", async () => {
     const user = userEvent.setup();
-    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
-      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate, "rev-1", seed) }),
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({ ok: true, response: evaluationResponseFor(request) }),
     );
 
     await startStatisticsRun(user, evaluateImpl, "301");
@@ -675,8 +650,12 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     await waitFor(() => {
       expect(screen.getByText(/301試行を集計しました/)).toBeInTheDocument();
     });
-    expect(evaluateImpl.mock.calls.map(([request]) => request.runsPerCandidate)).toEqual([300, 1]);
-    expect(evaluateImpl.mock.calls.map(([request]) => request.seed)).toEqual(["abc#0", "abc#300"]);
+    const runIndices = evaluateImpl.mock.calls.map(([request]) => request.cases[0]?.runIndices);
+    expect(runIndices.map((indices) => [indices?.[0], indices?.length])).toEqual([
+      [0, 300],
+      [300, 1],
+    ]);
+    expect(evaluateImpl.mock.calls.map(([request]) => request.seed)).toEqual(["abc", "abc"]);
   });
 
   it("shows the progress and a cancel control while the run is in flight", async () => {
@@ -710,10 +689,10 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
   it("keeps the chunks already completed when the run is cancelled", async () => {
     const user = userEvent.setup();
     let call = 0;
-    const evaluateImpl = vi.fn<EvaluateImpl>((_request, options) => {
+    const evaluateImpl = vi.fn<EvaluateImpl>((request, options) => {
       call += 1;
       if (call === 1) {
-        return Promise.resolve({ ok: true, response: evaluationResponse(300, "rev-1", "abc#0") });
+        return Promise.resolve({ ok: true, response: evaluationResponseFor(request) });
       }
       return new Promise((resolve) => {
         options.signal.addEventListener("abort", () => {
@@ -757,8 +736,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
     );
   });
 
-  // `EVALUATION_MAX_TOTAL_RUNS`を300未満へ絞った配備では全チャンクが422になる。サーバーは
-  // `/runsPerCandidate`をJSON Pointerで返すので、送信前検証と同じ実行回数入力へ出す。
+  // `TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`を300未満へ絞った配備では全チャンクが422に
+  // なる。サーバーは`/cases`をJSON Pointerで返すので、送信前検証と同じ実行回数入力へ出す。
   it("shows a 422 on the run count input, not only as a message", async () => {
     const user = userEvent.setup();
     const evaluateImpl = vi.fn<EvaluateImpl>(() =>
@@ -772,8 +751,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
           message: "invalid",
           violations: [
             {
-              path: "/runsPerCandidate",
-              message: "candidates x runsPerCandidate must not exceed 100 total runs, got 300",
+              path: "/cases",
+              message: "the summed runIndices of all cases must not exceed 100 total runs, got 300",
             },
           ],
         },
@@ -792,8 +771,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
   // 実行後は編成を編集できる。結果はそのまま残るため、いまの編成の結果に見えてしまう。
   it("marks a finished result as stale once the formation changes", async () => {
     const user = userEvent.setup();
-    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
-      Promise.resolve({ ok: true, response: evaluationResponse(runsPerCandidate, "rev-1", seed) }),
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({ ok: true, response: evaluationResponseFor(request) }),
     );
 
     await startStatisticsRun(user, evaluateImpl, "2");
@@ -810,8 +789,8 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
 
   it("runs the single-run endpoint, not the evaluation endpoint, in the single mode", async () => {
     const user = userEvent.setup();
-    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
-      Promise.resolve({ ok: true, response: evaluationResponse(1) }),
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({ ok: true, response: evaluationResponseFor(request) }),
     );
     const simulateTacticalExerciseImpl = vi.fn(() =>
       Promise.resolve({ ok: true as const, response: exerciseResponse() }),
@@ -840,34 +819,20 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
 // UI-CT-091: Issue #542。統計実行の結果は演習サマリ（Panel 02）とキャラ別統計
 // （Panel 03）を差し替える。単一実行の表示は現行のままにする。
 describe("BattleSimulatorPage — 統計可視化パネル (UI-CT-091)", () => {
-  function statisticsResponse(
-    runs: number,
-    seed: string,
-    catalogRevision = "rev-1",
-  ): TacticalExerciseEvaluationResponse {
-    const indices = Array.from({ length: runs }, (_value, index) => index);
-    return {
-      schemaVersion: 1,
-      catalogRevision,
-      seed,
-      runsPerCandidate: runs,
-      candidates: [
-        {
-          completedRuns: runs,
-          scores: indices.map((index) => 1000 + index * 10),
-          breakCounts: indices.map((index) => index % 3),
-          completedTurns: indices.map(() => 5),
-          completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
-          allyUnitDamageTotals: indices.map((index) => [400 + index]),
-          allyUnitBreakCounts: indices.map((index) => [index % 3]),
-        },
-      ],
-    };
+  function statisticsResponse(request: TacticalExerciseEvaluationRequest) {
+    return evaluationResponseFor(request, {
+      run: (runIndex) => ({
+        totalScore: 1000 + runIndex * 10,
+        breakCount: runIndex % 3,
+        allyDamage: [400 + runIndex],
+        allyBreaks: [runIndex % 3],
+      }),
+    });
   }
 
   async function runStatistics(user: UserEvent, runCount = "40") {
-    const evaluateImpl = vi.fn<EvaluateImpl>(({ runsPerCandidate, seed }) =>
-      Promise.resolve({ ok: true, response: statisticsResponse(runsPerCandidate, seed) }),
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({ ok: true, response: statisticsResponse(request) }),
     );
     render(
       <BattleSimulatorPage
@@ -932,7 +897,7 @@ describe("BattleSimulatorPage — 統計可視化パネル (UI-CT-091)", () => {
       if (call === 1) {
         return Promise.resolve({
           ok: true,
-          response: statisticsResponse(request.runsPerCandidate, request.seed),
+          response: statisticsResponse(request),
         });
       }
       return new Promise((resolve) => {

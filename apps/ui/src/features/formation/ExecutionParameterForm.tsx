@@ -109,8 +109,9 @@ function ExerciseStatisticsFields({
   const seedHintId = useId();
 
   const { value, onRunCountChange, onSeedChange } = execution;
-  // 送信前検証も評価APIの422も同じ`/runsPerCandidate`を指す（`exercise-draft-validation.ts`）。
-  const runCountMessages = messagesForPath(violations, "/runsPerCandidate");
+  // 送信前検証も評価APIの試行計画への422も同じ`/runCount`を指す（`exercise-draft-validation.ts`の
+  // `RUN_COUNT_VIOLATION_PATH`）。
+  const runCountMessages = messagesForPath(violations, "/runCount");
 
   return (
     <div className={styles["statisticsParameters"]}>

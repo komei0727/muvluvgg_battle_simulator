@@ -5,57 +5,52 @@ import {
   mergeEvaluationChunks,
   planEvaluationChunks,
 } from "./evaluation-chunk-plan.js";
-import type { EvaluationChunkResult } from "./evaluation-chunk-plan.js";
-import type { TacticalExerciseCandidateEvaluationResponse } from "../../shared/api/api-contract.js";
+import type { EvaluationChunkPlan, EvaluationChunkResult } from "./evaluation-chunk-plan.js";
+import type { TacticalExerciseEvaluationRequest } from "../../shared/api/api-contract.js";
+import {
+  evaluationResponseFor,
+  type EvaluationResponseOptions,
+} from "../../test/evaluation-response.js";
 
-// UI-UT-EVL-001: 1,000試行は300×3＋100へ割れ、各チャンクは通し試行番号を埋めた
-// 別seed（`<seed>#<runOffset>`）を持つ。
+// UI-UT-EVL-001: 1,000試行は300×3＋100へ割れ、各チャンクは全体の通し試行番号の連続区間を
+// 持つ。seedはチャンクで変えない（乱数列は`(seed, runIndex)`だけで決まる）。
 describe("planEvaluationChunks", () => {
-  it("splits the requested runs into chunk-size batches with a run-offset seed each", () => {
-    const chunks = planEvaluationChunks({ totalRuns: 1000, baseSeed: "abc" });
+  it("splits the requested runs into chunk-size batches of contiguous global run indices", () => {
+    const chunks = planEvaluationChunks({ totalRuns: 1000, chunkSize: 300 });
 
-    expect(chunks).toEqual([
-      { index: 0, seed: "abc#0", runs: 300, runOffset: 0 },
-      { index: 1, seed: "abc#300", runs: 300, runOffset: 300 },
-      { index: 2, seed: "abc#600", runs: 300, runOffset: 600 },
-      { index: 3, seed: "abc#900", runs: 100, runOffset: 900 },
+    expect(chunks.map((chunk) => chunk.runIndices.length)).toEqual([300, 300, 300, 100]);
+    expect(chunks.map((chunk) => [chunk.runIndices[0], chunk.runIndices.at(-1)])).toEqual([
+      [0, 299],
+      [300, 599],
+      [600, 899],
+      [900, 999],
     ]);
+    expect(chunks.map((chunk) => chunk.index)).toEqual([0, 1, 2, 3]);
   });
 
   it("uses the evaluation request limit as the default chunk size", () => {
-    expect(EVALUATION_CHUNK_SIZE).toBe(300);
-  });
-
-  it("produces a single full chunk when the total equals the chunk size", () => {
-    expect(planEvaluationChunks({ totalRuns: 300, baseSeed: "s" })).toEqual([
-      { index: 0, seed: "s#0", runs: 300, runOffset: 0 },
+    expect(planEvaluationChunks({ totalRuns: 301 }).map((c) => c.runIndices.length)).toEqual([
+      EVALUATION_CHUNK_SIZE,
+      1,
     ]);
   });
 
-  it("produces a single one-run chunk for the smallest run count", () => {
-    expect(planEvaluationChunks({ totalRuns: 1, baseSeed: "s" })).toEqual([
-      { index: 0, seed: "s#0", runs: 1, runOffset: 0 },
-    ]);
+  it("covers the same run indices whatever the chunk size", () => {
+    const flatten = (chunkSize: number) =>
+      planEvaluationChunks({ totalRuns: 250, chunkSize }).flatMap((c) => c.runIndices);
+
+    expect(flatten(7)).toEqual(flatten(300));
+    expect(flatten(300)).toEqual(Array.from({ length: 250 }, (_value, index) => index));
   });
 
   it("rejects a non-positive total or chunk size", () => {
-    expect(() => planEvaluationChunks({ totalRuns: 0, baseSeed: "s" })).toThrow(RangeError);
-    expect(() => planEvaluationChunks({ totalRuns: 10, baseSeed: "s", chunkSize: 0 })).toThrow(
-      RangeError,
-    );
-  });
-
-  // 同じ（seed, チャンクサイズ, 実行回数）なら送信seedもチャンク境界も同じになる。
-  it("plans the same chunks for the same seed, chunk size and total", () => {
-    const first = planEvaluationChunks({ totalRuns: 700, baseSeed: "seed-1" });
-    const second = planEvaluationChunks({ totalRuns: 700, baseSeed: "seed-1" });
-
-    expect(second).toEqual(first);
+    expect(() => planEvaluationChunks({ totalRuns: 0 })).toThrow(RangeError);
+    expect(() => planEvaluationChunks({ totalRuns: 1.5 })).toThrow(RangeError);
+    expect(() => planEvaluationChunks({ totalRuns: 10, chunkSize: 0 })).toThrow(RangeError);
   });
 });
 
-// UI-UT-EVL-002: seed未入力のときだけ自動生成する。生成値は実行の再現キーになるため
-// 応答の`seed`ではなくこの値を表示へ残す。
+// UI-UT-EVL-002: seed未入力のときだけ自動生成する。生成値は実行の再現キーになる。
 describe("generateEvaluationSeed", () => {
   it("generates a non-empty seed that differs between runs", () => {
     const first = generateEvaluationSeed();
@@ -67,167 +62,160 @@ describe("generateEvaluationSeed", () => {
   });
 });
 
-function candidate(
-  overrides: Partial<TacticalExerciseCandidateEvaluationResponse> = {},
-): TacticalExerciseCandidateEvaluationResponse {
-  return {
-    completedRuns: 2,
-    scores: [10, 20],
-    breakCounts: [1, 2],
-    completedTurns: [5, 5],
-    completionReasons: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"],
-    allyUnitDamageTotals: [
-      [6, 4],
-      [12, 8],
+function requestFor(plan: EvaluationChunkPlan, allyUnits = ["UNIT_A", "UNIT_B"]) {
+  const formation = (ids: readonly string[]) => ({
+    units: ids.map((unitDefinitionId) => ({
+      unitDefinitionId,
+      position: { column: 0 as const, row: "FRONT" as const },
+    })),
+    memoryDefinitionIds: [],
+  });
+  const request: TacticalExerciseEvaluationRequest = {
+    seed: "s",
+    cases: [
+      {
+        caseId: "exercise",
+        allyFormation: formation(allyUnits),
+        enemyFormation: formation(["UNIT_ENEMY"]),
+        runIndices: plan.runIndices,
+      },
     ],
-    allyUnitBreakCounts: [
-      [1, 0],
-      [1, 1],
-    ],
-    ...overrides,
   };
+  return request;
 }
 
 function chunkResult(
-  index: number,
-  runs: number,
-  candidateOverrides: Partial<TacticalExerciseCandidateEvaluationResponse> = {},
-  catalogRevision = "rev-1",
+  plan: EvaluationChunkPlan,
+  options: EvaluationResponseOptions = {},
+  allyUnits?: readonly string[],
 ): EvaluationChunkResult {
   return {
-    plan: { index, seed: `s#${(index * runs).toString()}`, runs, runOffset: index * runs },
-    candidate: candidate(candidateOverrides),
-    catalogRevision,
+    plan,
+    response: evaluationResponseFor(requestFor(plan, allyUnits as string[]), options),
   };
 }
 
-// UI-UT-EVL-003: チャンクは送信順に連結する。統計は`completedRuns`ではなく配列長から
-// 出るため、部分結果はそのまま短い標本として積む。
+const [CHUNK_0, CHUNK_1] = planEvaluationChunks({ totalRuns: 4, chunkSize: 2 }) as [
+  EvaluationChunkPlan,
+  EvaluationChunkPlan,
+];
+
+// UI-UT-EVL-003: チャンクの試行レコードを送信順・試行番号順に1つの標本へ投影する。
 describe("mergeEvaluationChunks", () => {
-  it("concatenates the per-run arrays of every chunk in send order", () => {
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), chunkResult(1, 2)]);
-
-    expect(merged.ok).toBe(true);
-    if (!merged.ok) {
-      return;
-    }
-    expect(merged.aggregate.sentRuns).toBe(4);
-    expect(merged.aggregate.completedRuns).toBe(4);
-    expect(merged.aggregate.catalogRevision).toBe("rev-1");
-    expect(merged.aggregate.sample.scores).toEqual([10, 20, 10, 20]);
-    expect(merged.aggregate.sample.allyUnitDamageTotals).toEqual([
-      [6, 4],
-      [12, 8],
-      [6, 4],
-      [12, 8],
+  it("projects every run record of every chunk into the per-run arrays in send order", () => {
+    const merged = mergeEvaluationChunks([
+      chunkResult(CHUNK_0, {
+        run: (runIndex) => ({ allyDamage: [runIndex, 10 * runIndex], allyBreaks: [1, 0] }),
+      }),
+      chunkResult(CHUNK_1, {
+        run: (runIndex) => ({
+          allyDamage: [runIndex, 10 * runIndex],
+          allyBreaks: [0, 2],
+          breakCount: 3,
+        }),
+      }),
     ]);
-  });
-
-  // UI-UT-CSV-001: CSVの`chunk_index`/`chunk_seed`/`run_index_in_chunk`は連結後の
-  // 標本からは復元できない（部分結果があるとチャンク境界が試行数で割り切れない）ため、
-  // 連結と同じ場所で試行ごとに残す。
-  it("records the chunk each run came from in send order", () => {
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), chunkResult(1, 2)]);
 
     expect(merged.ok).toBe(true);
-    if (!merged.ok) {
-      return;
-    }
-    // 実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）である。
-    expect(merged.aggregate.chunkSize).toBe(2);
-    expect(merged.aggregate.runs).toEqual([
-      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 0 },
-      { chunkIndex: 0, chunkSeed: "s#0", runIndexInChunk: 1 },
-      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 0 },
-      { chunkIndex: 1, chunkSeed: "s#2", runIndexInChunk: 1 },
-    ]);
-  });
-
-  it("keeps a partial chunk as a shorter sample without padding it", () => {
-    const partial = chunkResult(1, 2, {
-      completedRuns: 1,
-      scores: [30],
-      breakCounts: [0],
-      completedTurns: [5],
-      completionReasons: ["TURN_LIMIT_REACHED"],
-      allyUnitDamageTotals: [[7, 3]],
-      allyUnitBreakCounts: [[0, 0]],
-    });
-
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), partial]);
-
-    expect(merged.ok).toBe(true);
-    if (!merged.ok) {
-      return;
-    }
-    expect(merged.aggregate.sentRuns).toBe(4);
-    expect(merged.aggregate.completedRuns).toBe(3);
-    expect(merged.aggregate.sample.scores).toEqual([10, 20, 30]);
-  });
-
-  // 中断は完了済みチャンクまでで確定する。ここが数えるのは送ったチャンクの合計だけで、
-  // 送らなかったチャンクは入らない（利用者が入力した実行回数はこの値ではない）。
-  it("aggregates only the chunks that completed before a cancellation", () => {
-    const merged = mergeEvaluationChunks([chunkResult(0, 2)]);
-
-    expect(merged.ok).toBe(true);
-    if (!merged.ok) {
-      return;
-    }
-    expect(merged.aggregate.sentRuns).toBe(2);
-    expect(merged.aggregate.completedRuns).toBe(2);
-  });
-
-  it("reports a catalogRevision that changed between chunks instead of mixing them", () => {
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), chunkResult(1, 2, {}, "rev-2")]);
-
-    expect(merged).toEqual({
-      ok: false,
-      reason: "CATALOG_REVISION_CHANGED",
-      catalogRevision: "rev-1",
-      chunkCatalogRevision: "rev-2",
-    });
-  });
-
-  // 1レスポンス内の列数一致は`response-validator.ts`が見ている。チャンクをまたいだ
-  // 一致は誰も見ていないため、崩れると統計の描画時に初めて落ちる。
-  it("reports a per-unit column count that changed between chunks", () => {
-    const widened = chunkResult(1, 2, {
+    if (!merged.ok) return;
+    expect(merged.aggregate.sample).toEqual({
+      scores: [1000, 1001, 1002, 1003],
+      breakCounts: [1, 1, 3, 3],
+      completedTurns: [5, 5, 5, 5],
+      completionReasons: Array(4).fill("TURN_LIMIT_REACHED"),
       allyUnitDamageTotals: [
-        [1, 2, 3],
-        [4, 5, 6],
+        [0, 0],
+        [1, 10],
+        [2, 20],
+        [3, 30],
       ],
       allyUnitBreakCounts: [
-        [0, 0, 0],
-        [0, 0, 0],
+        [1, 0],
+        [1, 0],
+        [0, 2],
+        [0, 2],
       ],
     });
+    expect(merged.aggregate).toMatchObject({
+      sentRuns: 4,
+      completedRuns: 4,
+      catalogRevision: "rev-1",
+      engineRevision: "engine-1",
+      seedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+      chunkSize: 2,
+      incompleteRunIndices: [],
+    });
+  });
 
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), widened]);
+  // UI-UT-CSV-001: CSVの`run_index`／`chunk_index`は連結後の標本からは復元できない
+  // （部分結果があると位置と番号がずれる）ため、試行ごとに出所を残す。
+  it("records the global run index and the chunk of each run", () => {
+    const merged = mergeEvaluationChunks([chunkResult(CHUNK_0), chunkResult(CHUNK_1)]);
+
+    expect(merged.ok ? merged.aggregate.runs : []).toEqual([
+      { runIndex: 0, chunkIndex: 0 },
+      { runIndex: 1, chunkIndex: 0 },
+      { runIndex: 2, chunkIndex: 1 },
+      { runIndex: 3, chunkIndex: 1 },
+    ]);
+  });
+
+  it("keeps a partial chunk as a shorter sample and lists its incomplete run indices without renumbering", () => {
+    const merged = mergeEvaluationChunks([
+      chunkResult(CHUNK_0, { completed: 1 }),
+      chunkResult(CHUNK_1),
+    ]);
+
+    expect(merged.ok).toBe(true);
+    if (!merged.ok) return;
+    expect(merged.aggregate.completedRuns).toBe(3);
+    expect(merged.aggregate.sentRuns).toBe(4);
+    expect(merged.aggregate.incompleteRunIndices).toEqual([1]);
+    expect(merged.aggregate.runs.map((run) => run.runIndex)).toEqual([0, 2, 3]);
+  });
+
+  it("aggregates only the chunks that completed before a cancellation", () => {
+    const merged = mergeEvaluationChunks([chunkResult(CHUNK_0)]);
+
+    expect(merged.ok ? [merged.aggregate.sentRuns, merged.aggregate.completedRuns] : []).toEqual([
+      2, 2,
+    ]);
+  });
+
+  it.each([
+    ["catalogRevision", { catalogRevision: "rev-2" }, "rev-2"],
+    ["engineRevision", { engineRevision: "engine-2" }, "engine-2"],
+    ["seedDerivationVersion", { seedDerivationVersion: "V2" }, "V2"],
+  ] as const)(
+    "reports a %s that changed between chunks instead of mixing them",
+    (field, options, actual) => {
+      const merged = mergeEvaluationChunks([chunkResult(CHUNK_0), chunkResult(CHUNK_1, options)]);
+
+      expect(merged).toMatchObject({ ok: false, reason: "RUN_CONDITIONS_CHANGED", field, actual });
+    },
+  );
+
+  it("reports an ally slot count that changed between chunks", () => {
+    const merged = mergeEvaluationChunks([
+      chunkResult(CHUNK_0),
+      chunkResult(CHUNK_1, {}, ["UNIT_A"]),
+    ]);
 
     expect(merged).toEqual({
       ok: false,
       reason: "UNIT_COLUMN_COUNT_CHANGED",
       unitCount: 2,
-      chunkUnitCount: 3,
+      chunkUnitCount: 1,
     });
   });
 
   it("accepts chunks that completed no run alongside chunks that did", () => {
-    const empty = chunkResult(1, 2, {
-      completedRuns: 0,
-      scores: [],
-      breakCounts: [],
-      completedTurns: [],
-      completionReasons: [],
-      allyUnitDamageTotals: [],
-      allyUnitBreakCounts: [],
-    });
+    const merged = mergeEvaluationChunks([
+      chunkResult(CHUNK_0, { completed: 0 }),
+      chunkResult(CHUNK_1),
+    ]);
 
-    const merged = mergeEvaluationChunks([chunkResult(0, 2), empty]);
-
-    expect(merged.ok).toBe(true);
-    expect(merged.ok ? merged.aggregate.completedRuns : undefined).toBe(2);
+    expect(merged.ok ? merged.aggregate.incompleteRunIndices : undefined).toEqual([0, 1]);
   });
 
   it("rejects an empty chunk list", () => {

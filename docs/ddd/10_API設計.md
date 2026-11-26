@@ -79,27 +79,39 @@ POST /api/v1/tactical-exercises
 
 既存の `POST /api/v1/battle-simulations` の契約は変更しない（Q-TEX-08）。規定ターン数は5で固定であり、リクエストで指定できない。
 
-### 戦術演習の編成候補を一括評価する
+### 戦術演習を大量試行する
 
 ```http
 POST /api/v1/tactical-exercise-evaluations
 ```
 
-共通の敵1体に対する味方編成候補K件を、それぞれn回の演習で評価し（UC-04、Q-TEX-16）、試行ごとの生値を返す。統計量はサーバーで算出しない。
+ケースごとに味方編成・演習敵1体・試行番号を指定し、明示したseedと試行番号に対応する演習の観測結果を返す（UC-04、Q-TEX-16）。統計量はサーバーで算出しない。トップレベルの構造・試行の同一性・部分結果・実行環境の照合は「通常戦闘を大量試行する」と共通で（Issue #891）、演習固有の点は次のとおりである。
 
-| 項目                   | 値                                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。提供可否は別途配備ごとに切り替える（Q-TEX-19）。 |
-| リクエストContent-Type | `application/json`                                                                           |
-| レスポンスContent-Type | `application/json; charset=utf-8`                                                            |
-| 成功ステータス         | `200 OK`                                                                                     |
-| 永続化                 | しない                                                                                       |
-| 冪等性                 | `seed` を明示した同一リクエストは同一結果を返す（Q-TEX-17）                                  |
-| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED`          |
+- 規定ターン数は5で固定（R-TEX-01 #4）であり、`turnLimit` も `options.logLevel` も持たない。
+- 敵編成はケースごとに持ち、演習の敵編成規則（敵ちょうど1体・敵メモリーなし、R-TEX-01 #3）と編成プール（R-TEX-11）を単発の演習と同じく検証する。
+- 観測値は演習のスコア・ブレイク回数・演習終了理由（`TURN_LIMIT_REACHED`／`ALLY_DEFEATED`）であり、通常戦闘の勝敗や総力戦の `DRAW` へ読み替えない。
 
-ローカルの分析ツール（スコア期待値の統計・最適編成探索）向けの実行系である。無効な配備でもルート登録自体は行うため、公開されるOpenAPI文書の形は配備設定によらず同じである。
+| 項目                   | 値                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。提供可否は別途配備ごとに切り替える（Q-TEX-19）。         |
+| リクエストContent-Type | `application/json`                                                                                   |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                                    |
+| 成功ステータス         | `200 OK`（期限到達時の部分結果を含む）                                                               |
+| 永続化                 | しない                                                                                               |
+| 冪等性                 | 同じ対戦入力・seed・試行番号・`catalogRevision`・`engineRevision`・`seedDerivationVersion`で同一結果 |
+| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED`                  |
 
-期限（`SIMULATION_TIMEOUT_MS`）はリクエスト全体に掛かり、超過した場合はエラーではなく**部分結果**を返す（Q-TEX-18）。候補ごとの `completedRuns` が要求した `runsPerCandidate` より小さいことで不足を判別できる。
+ローカルの分析ツール（スコア期待値の統計・最適編成探索）と統計実行UI向けの実行系である。無効な配備でもルート登録自体は行うため、公開されるOpenAPI文書の形は配備設定によらず同じである。
+
+期限（`SIMULATION_TIMEOUT_MS`）はリクエスト全体に掛かり、超過した場合はエラーではなく**部分結果**を返す（Q-TEX-18）。完了しなかった試行は番号で `incompleteRunIndices` に並び、スコア0の結果としては返らない。
+
+#### 旧契約からの移行（Issue #891）
+
+Issue #891 以前のこのパスは、共有の敵1体に対する味方編成候補を `runsPerCandidate` 回ずつ評価し、6つの並行配列で返す契約だった（`seed` 省略時はサーバーが生成、試行番号は要求ごとに0から振り直し）。この契約は**同じパスのまま置き換え、旧契約は提供しない**。
+
+- 置き換えであり、v1のまま破壊的に変えた。本番Cloud Runはこのパスを `EVALUATION_ENDPOINT_ENABLED=false`（`404 ENDPOINT_DISABLED`）で閉じたままで（`#543`）、旧契約を呼ぶ公開利用者もPythonの分析ツールもいなかったためである。UIの統計実行は同じPRで新契約へ移行した。別バージョンのパスを並べると、旧契約の結果を新契約の識別情報（`engineRevision`・`seedDerivationVersion`）と並べて保存できてしまう。
+- 互換性検査（`API-OPENAPI-022`／`037`）の基準 `openapi/v1-baseline.json` は、検査を緩めずに同じPRで再生成した。差分はこのパスに限られる。
+- 旧契約のUIは、チャンクごとに `<seed>#<runOffset>` を送って試行の重複を避けていた。新契約は全チャンクが同じ `seed` を送り、全体の通し試行番号を `runIndices` に載せる。このため**同じseed文字列でも旧契約とは別の試行集合**になる。旧契約で得たseed・CSV（`chunk_seed`・`run_index_in_chunk` 列を持つ）を新契約のseed・試行番号と同一視してはならない。旧データは当時のコードとCatalogでしか再現できず、新契約の結果と比べる場合は新契約で再評価する。
 
 ### 通常戦闘を大量試行する
 
@@ -572,24 +584,20 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 
 ### TacticalExerciseEvaluationRequest
 
-`POST /api/v1/tactical-exercise-evaluations` のリクエスト本文。
+`POST /api/v1/tactical-exercise-evaluations` のリクエスト本文。トップレベルは `BattleEvaluationRequest` と同じで、`cases` が `TacticalExerciseEvaluationCaseRequest[]`（上限は `TACTICAL_EXERCISE_EVALUATION_MAX_CASES`／`TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`）になる。
 
-| プロパティ         | 型                                   | 必須 | 制約                                                                                     |
-| ------------------ | ------------------------------------ | ---- | ---------------------------------------------------------------------------------------- |
-| `enemyFormation`   | `FormationRequest`                   | 必須 | `units` はちょうど1件、`memoryDefinitionIds` は空配列（R-TEX-01 #3）。全候補で共有する。 |
-| `candidates`       | `TacticalExerciseCandidateRequest[]` | 必須 | 1件以上 `EVALUATION_MAX_CANDIDATES` 件以下。応答は同じ順で返る。                         |
-| `runsPerCandidate` | `integer`                            | 必須 | 1以上。`candidates` 件数との積が `EVALUATION_MAX_TOTAL_RUNS` 以下。                      |
-| `seed`             | `string`                             | 任意 | 省略時はサーバーが生成し、応答へ載せる。空白のみは拒否する。                             |
+### TacticalExerciseEvaluationCaseRequest
 
-### TacticalExerciseCandidateRequest
+| プロパティ       | 型                 | 必須 | 制約                                                                                     |
+| ---------------- | ------------------ | ---- | ---------------------------------------------------------------------------------------- |
+| `caseId`         | `string`           | 必須 | `BattleEvaluationCaseRequest` と同じ。                                                   |
+| `allyFormation`  | `FormationRequest` | 必須 | `TacticalExerciseRequest` の `allyFormation` と同じ制約。                                |
+| `enemyFormation` | `FormationRequest` | 必須 | `units` はちょうど1件、`memoryDefinitionIds` は空配列（R-TEX-01 #3）。ケースごとに指定。 |
+| `runIndices`     | `integer[]`        | 必須 | `BattleEvaluationCaseRequest` と同じ。                                                   |
 
-| プロパティ      | 型                 | 必須 | 制約                                                      |
-| --------------- | ------------------ | ---- | --------------------------------------------------------- |
-| `allyFormation` | `FormationRequest` | 必須 | `TacticalExerciseRequest` の `allyFormation` と同じ制約。 |
+`turnLimit`・`options`（`logLevel`）は持たず、指定は構造違反（`400`）になる。
 
-`options`（`logLevel`）は持たない — 返すのは試行ごとの数値だけで、イベント列・状態遷移は返さない。
-
-候補数・総試行数の上限は設定（`EVALUATION_*` 環境変数）で変わるため、JSON Schemaでは範囲を固定せずアプリケーション検証の `422`（`INVALID_COMMAND`）として返す。候補の編成違反は `candidates[i].allyFormation...` として候補indexを含むパスで返し、共有の敵編成の違反は候補数によらず1回だけ返す。
+ケース数・総試行数の上限は設定（`TACTICAL_EXERCISE_EVALUATION_*` 環境変数）で変わるため、JSON Schemaでは範囲を固定せずアプリケーション検証の `422`（`INVALID_COMMAND`）として返す。形・値・参照は全ケースについて実行前に検証し、1ケースでも違反があれば1試行も実行しない。違反は `cases[i].allyFormation...`／`cases[i].enemyFormation...` としてケースindexを含むパスで返す。
 
 ### BattleEvaluationRequest
 
@@ -888,63 +896,9 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `endTurn`              | integer  | この組み合わせが終わったターン（どちらかの全滅、または戦闘終了）。                |
 | `defeatedSides`        | string[] | この組み合わせで全滅した陣営（`ALLY`／`ENEMY`）。決着せず戦闘が終わった場合は空。 |
 
-### TacticalExerciseEvaluationResponse
+### BattleEvaluationResponse／TotalWarEvaluationResponse／TacticalExerciseEvaluationResponse
 
-`POST /api/v1/tactical-exercise-evaluations` の成功レスポンス。
-
-```json
-{
-  "schemaVersion": 1,
-  "catalogRevision": "2026-06-28.1",
-  "seed": "abc123",
-  "runsPerCandidate": 30,
-  "candidates": [
-    {
-      "completedRuns": 30,
-      "scores": [1234567, 1198200],
-      "breakCounts": [3, 3],
-      "completedTurns": [5, 5],
-      "completionReasons": ["TURN_LIMIT_REACHED", "TURN_LIMIT_REACHED"],
-      "allyUnitDamageTotals": [
-        [521000, 388000, 190400],
-        [498200, 402100, 175300]
-      ],
-      "allyUnitBreakCounts": [
-        [2, 1, 0],
-        [2, 1, 0]
-      ]
-    }
-  ]
-}
-```
-
-| プロパティ         | 型                                              | 値                                                                  |
-| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------- |
-| `schemaVersion`    | integer                                         | 他のレスポンスと同じスキーマ版。                                    |
-| `catalogRevision`  | string                                          | 評価に使ったCatalogのrevision。                                     |
-| `seed`             | string                                          | 実際に使われたseed。省略時の生成分もここに載る（Q-TEX-17）。        |
-| `runsPerCandidate` | integer                                         | 要求された試行数。実際の完了数は候補ごとの `completedRuns` を見る。 |
-| `candidates`       | `TacticalExerciseCandidateEvaluationResponse[]` | リクエストの候補と同じ順・同じ件数。                                |
-
-### TacticalExerciseCandidateEvaluationResponse
-
-| プロパティ             | 型          | 値                                                                               |
-| ---------------------- | ----------- | -------------------------------------------------------------------------------- |
-| `completedRuns`        | integer     | 期限内に完了した試行数。期限到達時は `runsPerCandidate` より小さい（Q-TEX-18）。 |
-| `scores`               | integer[]   | 試行ごとの `totalScore`（R-TEX-02）。単発の演習が返す値と同一。                  |
-| `breakCounts`          | integer[]   | 試行ごとのブレイク回数。                                                         |
-| `completedTurns`       | integer[]   | 試行ごとの完了ターン。                                                           |
-| `completionReasons`    | string[]    | 試行ごとの `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。                         |
-| `allyUnitDamageTotals` | integer[][] | 試行ごと・味方ユニットごとの与ダメージ合計。                                     |
-| `allyUnitBreakCounts`  | integer[][] | 試行ごと・味方ユニットごとの、そのユニットが起こしたブレイク回数。               |
-
-統計量（平均・分散など）は含めない（Q-TEX-16）。6つの配列は同じ試行を同じ添字で指し、いずれも外側の長さが `completedRuns` に一致する。`allyUnit*` の内側はリクエストの `candidates[i].allyFormation.units` と同じ長さ・同じ順（編成順）である。ブレイク履歴（`breaks`）・イベント列・状態遷移・ユニット別集計（`unitSummaries`）は返さない。
-
-`allyUnitDamageTotals` は単発の演習（`POST /api/v1/tactical-exercises`）が同じseedで返す `unitSummaries` の味方側 `damageDealt` と一致する（同じ投影をそのまま使う）。`allyUnitBreakCounts` は `UnitBroken` の発生源を参加枠へ帰属させたもので、数えるのは**味方の枠が起こしたブレイクだけ**である。したがって各行の和は同じ添字の `breakCounts` 以下であり、差は「発生源が味方の枠でないブレイク」の件数になる。これには発生源ユニットを持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こしたブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る — 残差を一律に「メモリー由来」として読んではならない。
-
-### BattleEvaluationResponse／TotalWarEvaluationResponse
-
-大量試行APIの成功レスポンス。
+大量試行APIの成功レスポンス。共通ヘッダーと `EvaluationCaseResponse` は3形式で同じで、試行レコード（`runs[]` の要素）だけが形式ごとに異なる。
 
 ```json
 {
@@ -1006,6 +960,69 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 | `incompleteRunIndices` | integer[] | 期限までに完了しなかった試行番号。完了0件でも全番号を列挙し、穴を詰めて採番し直さない。 |
 
 通常戦闘の試行（`BattleEvaluationRunResponse`）は `runIndex`・`outcome`（`ALLY_WIN`／`ALLY_LOSE`、引き分けは導入しない）・`completionReason`・`completedTurn`・`units` を持つ。総力戦の試行（`TotalWarEvaluationRunResponse`）は、これに `outcome` の `DRAW`・`stages`（`TotalWarStageResponse[]`）・`defeatedFormationCounts` を加える。
+
+### TacticalExerciseEvaluationRunResponse
+
+戦術演習の試行1回分のレコード。
+
+```json
+{
+  "runIndex": 42,
+  "totalScore": 1234567,
+  "breakCount": 3,
+  "completionReason": "TURN_LIMIT_REACHED",
+  "completedTurn": 5,
+  "units": [
+    {
+      "side": "ALLY",
+      "unitIndex": 0,
+      "unitDefinitionId": "UNIT_A",
+      "damageDealt": 521000,
+      "...": "..."
+    },
+    {
+      "side": "ALLY",
+      "unitIndex": 1,
+      "unitDefinitionId": "UNIT_A",
+      "damageDealt": 388000,
+      "...": "..."
+    },
+    {
+      "side": "ENEMY",
+      "unitIndex": 0,
+      "unitDefinitionId": "UNIT_ENEMY_TEX",
+      "damageDealt": 0,
+      "...": "..."
+    }
+  ],
+  "allyUnitBreaks": [
+    { "unitIndex": 0, "unitDefinitionId": "UNIT_A", "breakCount": 2 },
+    { "unitIndex": 1, "unitDefinitionId": "UNIT_A", "breakCount": 0 }
+  ]
+}
+```
+
+| プロパティ         | 型                               | 値                                                                      |
+| ------------------ | -------------------------------- | ----------------------------------------------------------------------- |
+| `runIndex`         | integer                          | リクエストの試行番号。                                                  |
+| `totalScore`       | integer                          | `totalScore`（R-TEX-02）。単発の演習が同じ乱数源で返す値と同一。        |
+| `breakCount`       | integer                          | ブレイク回数。                                                          |
+| `completionReason` | string                           | `TURN_LIMIT_REACHED` または `ALLY_DEFEATED`。                           |
+| `completedTurn`    | integer                          | 完了ターン。                                                            |
+| `units`            | `EvaluationUnitRecordResponse[]` | 両陣営の参加枠ごとの集計（通常戦闘と同じ投影）。                        |
+| `allyUnitBreaks`   | `AllyUnitBreakCountResponse[]`   | 味方の参加枠ごとの、その枠が起こしたブレイク回数。味方の`units`と同数。 |
+
+統計量・ブレイク履歴（`breaks`）・イベント列・状態遷移は含めない（Q-TEX-16）。
+
+### AllyUnitBreakCountResponse
+
+| プロパティ         | 型      | 値                                                       |
+| ------------------ | ------- | -------------------------------------------------------- |
+| `unitIndex`        | integer | 味方編成の `units` 配列での添字（0始まり）。             |
+| `unitDefinitionId` | string  | その枠の定義ID。同じ定義を複数枠へ置いても枠で区別する。 |
+| `breakCount`       | integer | その枠が起こしたブレイク回数。                           |
+
+`UnitBroken` の発生源を参加枠へ帰属させたもので、数えるのは**味方の枠が起こしたブレイクだけ**である。したがって和は同じ試行の `breakCount` 以下であり、差は「発生源が味方の枠でないブレイク」の件数になる。これには発生源ユニットを持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こしたブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る — 残差を一律に「メモリー由来」として読んではならない。
 
 ### EvaluationUnitRecordResponse
 
@@ -1676,6 +1693,8 @@ reconstructedFinalState = apply(
 /api/v1/...
 /api/v2/...
 ```
+
+例外は、どの配備でも一度も公開されていないエンドポイントの契約を置き換える場合だけである。`POST /api/v1/tactical-exercise-evaluations` はIssue #891 で `/api/v1` のまま新契約へ置き換えた。本番を含むすべての配備で `EVALUATION_ENDPOINT_ENABLED=false`（`404 ENDPOINT_DISABLED`）の既定で閉じており、旧契約の公開利用者がいなかったためである（上記「旧契約からの移行」）。互換性検査は緩めず、基準の `openapi/v1-baseline.json` を同じPRで再生成し、その差分をレビュー対象にした。本番で一度でも開いた後のエンドポイントには、この例外を適用しない。
 
 ### schemaVersion
 

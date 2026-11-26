@@ -523,37 +523,6 @@ export interface FormationStatPreviewResponseBody {
 }
 
 /**
- * `10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」。統計量ではなく
- * 試行ごとの生値を返す——どの統計を採るかは利用側が決める。
- * 6つの配列は同じ試行を同じ添字で指し、いずれも長さが`completedRuns`に一致する。
- */
-export interface TacticalExerciseCandidateEvaluationResponseBody {
-  readonly completedRuns: number;
-  readonly scores: readonly number[];
-  readonly breakCounts: readonly number[];
-  readonly completedTurns: readonly number[];
-  readonly completionReasons: readonly string[];
-  /** 試行ごと・味方ユニットごとの与ダメージ合計。内側はリクエストの編成順。 */
-  readonly allyUnitDamageTotals: readonly (readonly number[])[];
-  /**
-   * 試行ごと・味方ユニットごとの、そのユニットの攻撃で発生したブレイク回数。内側は
-   * リクエストの編成順。数えるのは味方ユニットが起こしたブレイクだけであり、内側の和は
-   * 同じ添字の`breakCounts`以下になる。
-   */
-  readonly allyUnitBreakCounts: readonly (readonly number[])[];
-}
-
-/** `10_API設計.md`「TacticalExerciseEvaluationResponse」。 */
-export interface TacticalExerciseEvaluationResponseBody {
-  readonly schemaVersion: number;
-  readonly catalogRevision: string;
-  /** 実際に使われたseed。省略された場合の生成分もここに載る。 */
-  readonly seed: string;
-  readonly runsPerCandidate: number;
-  readonly candidates: readonly TacticalExerciseCandidateEvaluationResponseBody[];
-}
-
-/**
  * `10_API設計.md`「EvaluationUnitRecordResponse」。1試行のユニット1枠分の集計。枠は
  * `side`・`formationNumber`（総力戦のみ）・`unitIndex`で元リクエストの参加枠を指す。
  */
@@ -592,6 +561,24 @@ export interface TotalWarEvaluationRunResponseBody {
   readonly units: readonly EvaluationUnitRecordResponseBody[];
 }
 
+/** `10_API設計.md`「AllyUnitBreakCountResponse」。味方の参加枠1つ分のブレイク回数。 */
+export interface AllyUnitBreakCountResponseBody {
+  readonly unitIndex: number;
+  readonly unitDefinitionId: string;
+  readonly breakCount: number;
+}
+
+/** `10_API設計.md`「TacticalExerciseEvaluationRunResponse」。 */
+export interface TacticalExerciseEvaluationRunResponseBody {
+  readonly runIndex: number;
+  readonly totalScore: number;
+  readonly breakCount: number;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly units: readonly EvaluationUnitRecordResponseBody[];
+  readonly allyUnitBreaks: readonly AllyUnitBreakCountResponseBody[];
+}
+
 /** `10_API設計.md`「EvaluationCaseResponse」。 */
 export interface EvaluationCaseResponseBody<Run> {
   readonly caseId: string;
@@ -619,4 +606,9 @@ export interface BattleEvaluationResponseBody extends EvaluationResponseHeaderBo
 /** `10_API設計.md`「TotalWarEvaluationResponse」。 */
 export interface TotalWarEvaluationResponseBody extends EvaluationResponseHeaderBody {
   readonly cases: readonly EvaluationCaseResponseBody<TotalWarEvaluationRunResponseBody>[];
+}
+
+/** `10_API設計.md`「TacticalExerciseEvaluationResponse」。 */
+export interface TacticalExerciseEvaluationResponseBody extends EvaluationResponseHeaderBody {
+  readonly cases: readonly EvaluationCaseResponseBody<TacticalExerciseEvaluationRunResponseBody>[];
 }

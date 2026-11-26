@@ -12197,56 +12197,15 @@ export interface paths {
       requestBody: {
         content: {
           "application/json": {
-            enemyFormation: {
-              units: {
-                unitDefinitionId: string;
-                position: {
-                  /** @enum {integer} */
-                  column: 0 | 1 | 2;
-                  /** @enum {string} */
-                  row: "FRONT" | "REAR";
-                };
-                enhancement?: {
-                  level?: number;
-                  rank?: number;
-                  /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
-                  gears?: {
-                    /** @enum {string} */
-                    stat:
-                      | "MAXIMUM_HP"
-                      | "ATTACK"
-                      | "DEFENSE"
-                      | "ACTION_SPEED"
-                      | "CRITICAL_RATE"
-                      | "CRITICAL_DAMAGE_BONUS"
-                      | "AFFINITY_BONUS";
-                    /** @enum {string} */
-                    tier: "II" | "III";
-                    /** @enum {string} */
-                    grade: "D" | "C" | "B" | "A" | "S";
-                  }[];
-                };
-              }[];
-              memoryDefinitionIds: string[];
-              enhancement?: {
-                academyLevels?: {
-                  unitTypes?: {
-                    PHYSICAL?: number;
-                    ENERGY?: number;
-                    AGILE?: number;
-                  };
-                  attributes?: {
-                    AGGRESSIVE?: number;
-                    SHY?: number;
-                    CUTE?: number;
-                    SMART?: number;
-                    COMICAL?: number;
-                    CLEVER?: number;
-                  };
-                };
-              };
-            };
-            candidates: {
+            /** @description Required. Together with each runIndex it fully determines the random stream; the server never generates one. */
+            seed: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedCatalogRevision) before any run if the server catalogRevision differs. */
+            expectedCatalogRevision?: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedEngineRevision) before any run if the server engineRevision differs. */
+            expectedEngineRevision?: string;
+            cases: {
+              /** @description Identifies the case in the response. Must be unique within the request. */
+              caseId: string;
               allyFormation: {
                 units: {
                   unitDefinitionId: string;
@@ -12296,10 +12255,59 @@ export interface paths {
                   };
                 };
               };
+              /** @description Exactly one EXERCISE_ENEMY unit and no memories (R-TEX-01 #3); violations return 422 INVALID_COMMAND. */
+              enemyFormation: {
+                units: {
+                  unitDefinitionId: string;
+                  position: {
+                    /** @enum {integer} */
+                    column: 0 | 1 | 2;
+                    /** @enum {string} */
+                    row: "FRONT" | "REAR";
+                  };
+                  enhancement?: {
+                    level?: number;
+                    rank?: number;
+                    /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
+                    gears?: {
+                      /** @enum {string} */
+                      stat:
+                        | "MAXIMUM_HP"
+                        | "ATTACK"
+                        | "DEFENSE"
+                        | "ACTION_SPEED"
+                        | "CRITICAL_RATE"
+                        | "CRITICAL_DAMAGE_BONUS"
+                        | "AFFINITY_BONUS";
+                      /** @enum {string} */
+                      tier: "II" | "III";
+                      /** @enum {string} */
+                      grade: "D" | "C" | "B" | "A" | "S";
+                    }[];
+                  };
+                }[];
+                memoryDefinitionIds: string[];
+                enhancement?: {
+                  academyLevels?: {
+                    unitTypes?: {
+                      PHYSICAL?: number;
+                      ENERGY?: number;
+                      AGILE?: number;
+                    };
+                    attributes?: {
+                      AGGRESSIVE?: number;
+                      SHY?: number;
+                      CUTE?: number;
+                      SMART?: number;
+                      COMICAL?: number;
+                      CLEVER?: number;
+                    };
+                  };
+                };
+              };
+              /** @description Run numbers to execute for this case. Each run index alone (with the seed) selects the random stream, so the same index reproduces the same run and gaps such as [0, 1, 42] are allowed. */
+              runIndices: number[];
             }[];
-            runsPerCandidate: number;
-            /** @description Reproduces a previous evaluation. Omit to let the server generate one; the response always echoes the seed actually used. */
-            seed?: string;
           };
         };
       };
@@ -12320,21 +12328,48 @@ export interface paths {
           content: {
             "application/json": {
               schemaVersion: number;
-              catalogRevision: string;
               seed: string;
-              runsPerCandidate: number;
-              /** @description One entry per request candidate, in request order. */
-              candidates: {
-                /** @description Number of runs that finished before the request deadline. Lower than runsPerCandidate when the deadline was reached. */
-                completedRuns: number;
-                scores: number[];
-                breakCounts: number[];
-                completedTurns: number[];
-                completionReasons: ("ALLY_DEFEATED" | "TURN_LIMIT_REACHED")[];
-                /** @description Damage each ally unit dealt, per run. One row per completed run, one column per requested allyFormation unit, in formation order. */
-                allyUnitDamageTotals: number[][];
-                /** @description Breaks caused by each ally unit, per run. Only breaks whose source is an ally unit are counted, so each row sums to at most the same index of breakCounts; the difference covers both breaks with no source unit (Memory-derived continuous damage) and breaks the enemy caused itself. */
-                allyUnitBreakCounts: number[][];
+              seedDerivationVersion: string;
+              catalogRevision: string;
+              /** @description Identifies the battle implementation that produced the runs, fixed at server start. Results are reproducible only for the same seed, runIndex, catalogRevision, engineRevision and seedDerivationVersion. */
+              engineRevision: string;
+              requestedRuns: number;
+              completedRuns: number;
+              /** @description True when the request deadline was reached before every requested run completed. Runs that did not complete are listed per case in incompleteRunIndices and are never reported as results. */
+              partial: boolean;
+              cases: {
+                caseId: string;
+                runs: {
+                  runIndex: number;
+                  totalScore: number;
+                  breakCount: number;
+                  /** @enum {string} */
+                  completionReason: "ALLY_DEFEATED" | "TURN_LIMIT_REACHED";
+                  completedTurn: number;
+                  units: {
+                    /** @enum {string} */
+                    side: "ALLY" | "ENEMY";
+                    formationNumber?: number;
+                    unitIndex: number;
+                    unitDefinitionId: string;
+                    damageDealt: number;
+                    damageTaken: number;
+                    healingDone: number;
+                    finalHp: number;
+                    maximumHp: number;
+                    /** @enum {string} */
+                    combatStatus: "ACTIVE" | "DEFEATED";
+                    deployed?: boolean;
+                    reappearance?: boolean;
+                  }[];
+                  /** @description Breaks caused by each ally slot, one entry per requested allyFormation unit (unitIndex). Only breaks whose source is an ally slot are counted, so the entries sum to at most breakCount; the difference covers both breaks with no source unit (Memory-derived continuous damage) and breaks the enemy caused itself. */
+                  allyUnitBreaks: {
+                    unitIndex: number;
+                    unitDefinitionId: string;
+                    breakCount: number;
+                  }[];
+                }[];
+                incompleteRunIndices: number[];
               }[];
             };
           };

@@ -1,6 +1,6 @@
 // 統計の定義の正本は `tools/common/src/mlgg_lab_common/statistics/descriptive.py` であり、この
 // module はその移植である。サーバーは統計量を返さない（`10_API設計.md`
-// 「TacticalExerciseCandidateEvaluationResponse」、Q-TEX-16）ため、統計実行の集計は
+// 「TacticalExerciseEvaluationResponse」、Q-TEX-16）ため、統計実行の集計は
 // すべてここを通る。Python実装との数値一致は `__fixtures__/python-parity.ts` が押さえる。
 
 /** 平均の信頼区間の水準。`descriptive.py` と同じく正規近似で出す。 */

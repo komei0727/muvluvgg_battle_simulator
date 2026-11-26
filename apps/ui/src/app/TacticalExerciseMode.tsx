@@ -207,10 +207,7 @@ export function TacticalExerciseMode({
       : [];
 
   const currentEvaluationBuild = isStatisticsRun
-    ? buildTacticalExerciseEvaluationRequest(effectiveDraft, {
-        runsPerCandidate: 1,
-        seed: "-",
-      })
+    ? buildTacticalExerciseEvaluationRequest(effectiveDraft, { seed: "-", runIndices: [] })
     : { ok: false as const };
   const statisticsAggregate =
     statisticsRun.state.status === "succeeded" || statisticsRun.state.status === "cancelled"

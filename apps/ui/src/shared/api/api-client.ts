@@ -329,10 +329,9 @@ export async function simulateTacticalExercise(
   return postExecution(TACTICAL_EXERCISE_PATH, request, options, validateTacticalExerciseResponse);
 }
 
-// docs/ui-design/03_API・データ連携設計.md §2.6: 統計実行の一括評価POST。戦闘POSTと
-// 同じ cache/credentials/待機上限の方針で、自動retryもしない —— 期限到達の部分結果
-// （Q-TEX-18）を再送しても同じseedで同じところまでしか進まない。分割送信と部分結果の
-// 集約は呼び出し側（`use-exercise-statistics-run.ts`）の責務。
+// docs/ui-design/03_API・データ連携設計.md §2.6: 統計実行の大量試行POST。戦闘POSTと
+// 同じ cache/credentials/待機上限の方針で、自動retryもしない。分割送信・部分結果の
+// 集約・未完了番号の扱いは呼び出し側（`use-exercise-statistics-run.ts`）の責務。
 export async function evaluateTacticalExercise(
   request: TacticalExerciseEvaluationRequest,
   options: SimulateOptions,

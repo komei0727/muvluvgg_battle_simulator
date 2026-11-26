@@ -204,62 +204,59 @@ describe("buildTacticalExerciseRequest", () => {
   });
 });
 
-// UI-UT-REQ-014: 一括評価リクエストは単一実行と同じ編成部分を使い、`options`を持たず、
-// 候補を常に1件だけ載せる（`10_API設計.md`「TacticalExerciseEvaluationRequest」）。
+// UI-UT-REQ-014: 大量試行リクエストは単一実行と同じ編成部分を使い、`options`を持たず、
+// ケースを常に1件だけ載せる（`10_API設計.md`「TacticalExerciseEvaluationRequest」）。
 describe("buildTacticalExerciseEvaluationRequest", () => {
-  it("wraps the ally formation in a single candidate and shares the enemy formation", () => {
+  it("wraps both formations in a single case with the given seed and run indices", () => {
     const single = buildTacticalExerciseRequest(exerciseDraft());
     const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
-      runsPerCandidate: 300,
-      seed: "abc#0",
+      seed: "abc",
+      runIndices: [300, 301],
     });
 
     expect(result.ok).toBe(true);
     if (!result.ok || !single.ok) return;
-    expect(Object.keys(result.request).toSorted()).toEqual([
-      "candidates",
-      "enemyFormation",
-      "runsPerCandidate",
-      "seed",
+    expect(Object.keys(result.request).toSorted()).toEqual(["cases", "seed"]);
+    expect(result.request.seed).toBe("abc");
+    expect(result.request.cases).toEqual([
+      {
+        caseId: "exercise",
+        allyFormation: single.request.allyFormation,
+        enemyFormation: single.request.enemyFormation,
+        runIndices: [300, 301],
+      },
     ]);
-    expect(result.request.candidates).toEqual([{ allyFormation: single.request.allyFormation }]);
-    expect(result.request.enemyFormation).toEqual(single.request.enemyFormation);
-    expect(result.request.runsPerCandidate).toBe(300);
-    expect(result.request.seed).toBe("abc#0");
   });
 
-  // 送信内容が同じでも`options.logLevel`が載ると`additionalProperties: false`で422になる。
+  // `options.logLevel`・`turnLimit`が載ると`additionalProperties: false`で400になる。
   it("sends neither options nor turnLimit", () => {
     const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
-      runsPerCandidate: 1,
-      seed: "s#0",
+      seed: "s",
+      runIndices: [0],
     });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.request).not.toHaveProperty("options");
-    expect(result.request).not.toHaveProperty("turnLimit");
+    expect(result.request.cases[0]).not.toHaveProperty("turnLimit");
   });
 
   it("keeps the enemy-exactly-one and no-enemy-memory constraints of the single run", () => {
     const twoEnemies = withUnit(exerciseDraft(), "enemy", "FRONT", 1, "UNIT_ENEMY_2");
     const enemyMemory = withMemory(exerciseDraft(), "enemy", 0, "MEM_X");
+    const options = { seed: "s", runIndices: [0] };
 
-    expect(
-      buildTacticalExerciseEvaluationRequest(twoEnemies, { runsPerCandidate: 1, seed: "s" }).ok,
-    ).toBe(false);
-    expect(
-      buildTacticalExerciseEvaluationRequest(enemyMemory, { runsPerCandidate: 1, seed: "s" }).ok,
-    ).toBe(false);
+    expect(buildTacticalExerciseEvaluationRequest(twoEnemies, options).ok).toBe(false);
+    expect(buildTacticalExerciseEvaluationRequest(enemyMemory, options).ok).toBe(false);
   });
 
-  // 422のJSON Pointerは候補indexを含む（`candidates/0/allyFormation/...`）。slot対応表は
+  // 422のJSON Pointerはケースindexを含む（`/cases/0/allyFormation/...`）。slot対応表は
   // 単一実行と同じものを返し、違反の対応づけを共通の経路で扱えるようにする。
   it("returns the same slot key mapping as the single run", () => {
     const single = buildTacticalExerciseRequest(exerciseDraft());
     const result = buildTacticalExerciseEvaluationRequest(exerciseDraft(), {
-      runsPerCandidate: 1,
       seed: "s",
+      runIndices: [0],
     });
 
     expect(result.ok).toBe(true);
@@ -269,16 +266,20 @@ describe("buildTacticalExerciseEvaluationRequest", () => {
   });
 });
 
-// UI-UT-REQ-015: 実行時の編成と現在の編成を突き合わせる署名。実行回数とシードは結果表示に
-// 出ているため含めず、画面から読み取れない編成の変化だけを見る。
+// UI-UT-REQ-015: 実行時の編成と現在の編成を突き合わせる署名。試行番号とシードは含めず、
+// 画面から読み取れない編成の変化だけを見る。
 describe("evaluationFormationSignature", () => {
-  function signatureOf(draft: BattleDraft, runsPerCandidate = 1, seed = "-"): string | undefined {
-    const build = buildTacticalExerciseEvaluationRequest(draft, { runsPerCandidate, seed });
+  function signatureOf(
+    draft: BattleDraft,
+    runIndices: readonly number[] = [0],
+    seed = "-",
+  ): string | undefined {
+    const build = buildTacticalExerciseEvaluationRequest(draft, { seed, runIndices });
     return build.ok ? evaluationFormationSignature(build.request) : undefined;
   }
 
-  it("is stable for the same formation and ignores the run count and seed", () => {
-    expect(signatureOf(exerciseDraft(), 300, "abc#0")).toBe(signatureOf(exerciseDraft(), 1, "-"));
+  it("is stable for the same formation and ignores the run indices and seed", () => {
+    expect(signatureOf(exerciseDraft(), [300, 301], "abc")).toBe(signatureOf(exerciseDraft()));
   });
 
   it("changes when the formation changes", () => {

@@ -6,7 +6,6 @@ import { Mulberry32SeededRandomSourceProvider } from "../random/seeded-random-so
 import { SystemClock } from "../time/system-clock.js";
 import { loadCatalogFromDirectory } from "../catalog/runtime/catalog-file-loader.js";
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
-import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
 import type { EvaluationRequestLimits } from "../../application/simulation/evaluation-command.js";
 
 /**
@@ -41,8 +40,8 @@ interface SimulationWorkerData {
   readonly catalogDir: string;
   /** `11_インフラストラクチャ設計.md`「SimulationExecutionGuard」の上限。未指定はコード既定値。 */
   readonly executionLimits?: SimulationExecutionLimits;
-  /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。未指定はコード既定値。 */
-  readonly evaluationLimits?: EvaluationLimits;
+  /** 戦術演習の大量試行の要求量上限（`TACTICAL_EXERCISE_EVALUATION_*`環境変数）。未指定はコード既定値。 */
+  readonly tacticalExerciseEvaluationLimits?: EvaluationRequestLimits;
   /** 起動時に確定させた戦闘実装の識別情報。未指定のWorkerは大量試行を実行しない。 */
   readonly engineRevision?: string;
   readonly battleEvaluationLimits?: EvaluationRequestLimits;
@@ -52,7 +51,7 @@ interface SimulationWorkerData {
 const {
   catalogDir,
   executionLimits,
-  evaluationLimits,
+  tacticalExerciseEvaluationLimits,
   engineRevision,
   battleEvaluationLimits,
   totalWarEvaluationLimits,
@@ -64,7 +63,7 @@ export default createSimulationTaskRunner(catalog, {
   randomSourceFactory: new SystemRandomSourceFactory(),
   clock: new SystemClock(),
   seededRandomSourceProvider: new Mulberry32SeededRandomSourceProvider(),
-  ...(evaluationLimits !== undefined ? { evaluationLimits } : {}),
+  ...(tacticalExerciseEvaluationLimits !== undefined ? { tacticalExerciseEvaluationLimits } : {}),
   ...(executionLimits !== undefined ? { executionLimits } : {}),
   ...(engineRevision !== undefined ? { engineRevision } : {}),
   ...(battleEvaluationLimits !== undefined ? { battleEvaluationLimits } : {}),

@@ -19,7 +19,7 @@ import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/c
  * `POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations`の縦切りEnd-to-End。
  *
  * 新しいタスク・結果の構造化クローン、`workerData`で配る識別情報と形式別の上限、Pool経路の
- * モード判別は実スレッド境界でしか壊れないため、この層で確かめる。演習の一括評価と同じく
+ * モード判別は実スレッド境界でしか壊れないため、この層で確かめる。演習の大量試行と同じく
  * `buildServer`・`SimulationWorkerPool`をコンパイル済み`dist/`から揃えてimportする。
  */
 const apiPackageRoot = fileURLToPath(new URL("../../../", import.meta.url));

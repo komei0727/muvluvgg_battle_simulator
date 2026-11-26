@@ -1,9 +1,6 @@
 import { resolveDocsEnabled } from "./docs-enabled.js";
 import type { ApiAccessKey } from "../presentation/http/protocol/access-key/access-key.js";
-import {
-  DEFAULT_EVALUATION_LIMITS,
-  type EvaluationLimits,
-} from "../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import { DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS } from "../application/simulation/evaluate-tactical-exercises-command.js";
 import { DEFAULT_BATTLE_EVALUATION_LIMITS } from "../application/simulation/evaluate-battles-command.js";
 import { DEFAULT_TOTAL_WAR_EVALUATION_LIMITS } from "../application/simulation/evaluate-total-wars-command.js";
 import type { EvaluationRequestLimits } from "../application/simulation/evaluation-command.js";
@@ -62,11 +59,12 @@ export interface ApplicationConfig {
   readonly workerMinThreads: number | undefined;
   readonly workerMaxThreads: number | undefined;
   /**
-   * `POST /api/v1/tactical-exercise-evaluations`を提供するか。既定は無効——
-   * ローカルの分析ツール向けの実行系であり、明示的に許可した環境だけで開く。
+   * 大量試行API（`POST /api/v1/{tactical-exercise,battle,total-war}-evaluations`）を提供するか。
+   * 既定は無効——ローカルの分析ツール向けの実行系であり、明示的に許可した環境だけで開く。
    */
   readonly evaluationEndpointEnabled: boolean;
-  readonly evaluationLimits: EvaluationLimits;
+  /** `POST /api/v1/tactical-exercise-evaluations`の要求量上限。 */
+  readonly tacticalExerciseEvaluationLimits: EvaluationRequestLimits;
   /** `POST /api/v1/battle-evaluations`の要求量上限。総力戦とは別に設定する。 */
   readonly battleEvaluationLimits: EvaluationRequestLimits;
   /** `POST /api/v1/total-war-evaluations`の要求量上限。 */
@@ -306,7 +304,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
   );
   // 既定値は50秒（本番Cloud Runは`deploy/cloud-run/service.json`で明示的に
   // 30000を上書きするため、この既定値の変更は本番へ影響しない）。オルガ＆ナージャ
-  // 追加後、subAttributeを持つ編成の一括評価300試行が旧既定の30秒だと打ち切られる
+  // 追加後、subAttributeを持つ編成の演習評価300試行が旧既定の30秒だと打ち切られる
   // ことを実測したため引き上げた。
   const simulationTimeoutMs = parsePositiveInteger(
     env["SIMULATION_TIMEOUT_MS"],
@@ -406,27 +404,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     false,
     violations,
   );
-  const evaluationLimits: EvaluationLimits = {
-    maxCandidates: parsePositiveInteger(
-      env["EVALUATION_MAX_CANDIDATES"],
-      {
-        envVar: "EVALUATION_MAX_CANDIDATES",
-        defaultValue: DEFAULT_EVALUATION_LIMITS.maxCandidates,
-        min: 1,
-      },
-      violations,
-    ),
-    maxTotalRuns: parsePositiveInteger(
-      env["EVALUATION_MAX_TOTAL_RUNS"],
-      {
-        envVar: "EVALUATION_MAX_TOTAL_RUNS",
-        defaultValue: DEFAULT_EVALUATION_LIMITS.maxTotalRuns,
-        min: 1,
-      },
-      violations,
-    ),
-  };
-
   const evaluationRequestLimits = (
     prefix: string,
     defaults: EvaluationRequestLimits,
@@ -442,6 +419,20 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
       violations,
     ),
   });
+  const tacticalExerciseEvaluationLimits = evaluationRequestLimits(
+    "TACTICAL_EXERCISE_EVALUATION",
+    DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
+  );
+  // 旧契約の上限名。値を黙って無視すると、設定したつもりの上限が効かない配備になる。
+  const retiredEvaluationEnvVars = {
+    EVALUATION_MAX_CANDIDATES: "TACTICAL_EXERCISE_EVALUATION_MAX_CASES",
+    EVALUATION_MAX_TOTAL_RUNS: "TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS",
+  } as const;
+  for (const [retired, replacement] of Object.entries(retiredEvaluationEnvVars)) {
+    if (env[retired] !== undefined) {
+      violations.push(`${retired} is no longer supported; set ${replacement} instead`);
+    }
+  }
   const battleEvaluationLimits = evaluationRequestLimits(
     "BATTLE_EVALUATION",
     DEFAULT_BATTLE_EVALUATION_LIMITS,
@@ -477,7 +468,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     workerMinThreads,
     workerMaxThreads,
     evaluationEndpointEnabled,
-    evaluationLimits,
+    tacticalExerciseEvaluationLimits,
     battleEvaluationLimits,
     totalWarEvaluationLimits,
     engineRevision,

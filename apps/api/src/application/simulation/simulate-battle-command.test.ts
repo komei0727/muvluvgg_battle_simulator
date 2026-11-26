@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { validateCommandShape, type SimulateBattleCommand } from "./simulate-battle-command.js";
 import { validateTacticalExerciseCommandShape } from "./simulate-tactical-exercise-command.js";
 import {
-  DEFAULT_EVALUATION_LIMITS,
-  validateEvaluateTacticalExerciseCandidatesCommandShape,
-} from "./evaluate-tactical-exercise-candidates-command.js";
+  DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
+  validateEvaluateTacticalExercisesCommandShape,
+} from "./evaluate-tactical-exercises-command.js";
 import { validatePreviewFormationStatsCommandShape } from "./preview-formation-stats-command.js";
 import {
   createMemoryDefinitionId,
@@ -561,13 +561,19 @@ describe("同一ステータス上限は強化指定を受け取る全エンド�
       enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
       logLevel: "DETAILED",
     });
-    const evaluation = validateEvaluateTacticalExerciseCandidatesCommandShape(
+    const evaluation = validateEvaluateTacticalExercisesCommandShape(
       {
-        enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
-        candidates: [{ allyFormation: overLimitFormation }],
-        runsPerCandidate: 1,
+        seed: "seed",
+        cases: [
+          {
+            caseId: "c",
+            allyFormation: overLimitFormation,
+            enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+            runIndices: [0],
+          },
+        ],
       },
-      DEFAULT_EVALUATION_LIMITS,
+      DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
     );
     const preview = validatePreviewFormationStatsCommandShape({
       allyFormation: overLimitFormation,
@@ -582,9 +588,9 @@ describe("同一ステータス上限は強化指定を受け取る全エンド�
       path: "allyFormation.slots[0].enhancement.gears.ATTACK",
       reason: REASON,
     });
-    // 一括評価だけは候補ごとの編成なのでprefixが変わる。ステータス名の載る末尾は同じ。
+    // 大量試行だけはケースごとの編成なのでprefixが変わる。ステータス名の載る末尾は同じ。
     expect(evaluation).toContainEqual({
-      path: "candidates[0].allyFormation.slots[0].enhancement.gears.ATTACK",
+      path: "cases[0].allyFormation.slots[0].enhancement.gears.ATTACK",
       reason: REASON,
     });
     expect(preview).toContainEqual({
@@ -615,13 +621,19 @@ describe("rankの値域は強化指定を受け取る全エンドポイントで
       enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
       logLevel: "DETAILED",
     });
-    const evaluation = validateEvaluateTacticalExerciseCandidatesCommandShape(
+    const evaluation = validateEvaluateTacticalExercisesCommandShape(
       {
-        enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
-        candidates: [{ allyFormation: outOfRangeFormation }],
-        runsPerCandidate: 1,
+        seed: "seed",
+        cases: [
+          {
+            caseId: "c",
+            allyFormation: outOfRangeFormation,
+            enemyFormation: { slots: [slot(1)], memoryDefinitionIds: [] },
+            runIndices: [0],
+          },
+        ],
       },
-      DEFAULT_EVALUATION_LIMITS,
+      DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
     );
     const preview = validatePreviewFormationStatsCommandShape({
       allyFormation: outOfRangeFormation,
@@ -637,7 +649,7 @@ describe("rankの値域は強化指定を受け取る全エンドポイントで
       reason: REASON,
     });
     expect(evaluation).toContainEqual({
-      path: "candidates[0].allyFormation.slots[0].enhancement.rank",
+      path: "cases[0].allyFormation.slots[0].enhancement.rank",
       reason: REASON,
     });
     expect(preview).toContainEqual({

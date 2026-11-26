@@ -49,9 +49,13 @@ export interface ScoreDistributionBin extends HistogramBin {
 
 export interface ScoreStatisticsReport {
   readonly seed: string;
-  /** 実行を再現する鍵は（seed, チャンクサイズ, 実行回数）の3つである。 */
+  /** 1リクエストの最大試行数。試行番号の割り当ては変えないため再現条件ではない。 */
   readonly chunkSize: number;
   readonly catalogRevision: string;
+  readonly engineRevision: string;
+  readonly seedDerivationVersion: string;
+  /** 送ったが期限までに完了しなかった試行番号（昇順）。 */
+  readonly incompleteRunIndices: readonly number[];
   /** 利用者が入力した実行回数。中断で送らなかった分もここには含まれる。 */
   readonly requestedRuns: number;
   /** 実際に送信したチャンクの試行数の合計。中断すると要求より小さくなる。 */
@@ -179,6 +183,9 @@ export function buildScoreStatisticsReport(
     seed,
     chunkSize: aggregate.chunkSize,
     catalogRevision: aggregate.catalogRevision,
+    engineRevision: aggregate.engineRevision,
+    seedDerivationVersion: aggregate.seedDerivationVersion,
+    incompleteRunIndices: aggregate.incompleteRunIndices,
     requestedRuns,
     sentRuns: aggregate.sentRuns,
     completedRuns: sample.scores.length,

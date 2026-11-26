@@ -13,12 +13,11 @@ function aggregate(runs = 40): EvaluationAggregate {
     sentRuns: runs,
     completedRuns: runs,
     catalogRevision: "rev-1",
+    engineRevision: "engine-1",
+    seedDerivationVersion: "V1",
+    incompleteRunIndices: [],
     chunkSize: 300,
-    runs: indices.map((index) => ({
-      chunkIndex: 0,
-      chunkSeed: "seed#0",
-      runIndexInChunk: index,
-    })),
+    runs: indices.map((index) => ({ runIndex: index, chunkIndex: 0 })),
     sample: {
       scores: indices.map((index) => 1000 + index * 100),
       // 1体目は20回台のブレイクを取り、2体目は0〜2回に留まる。1試行あたりの総ブレイクは

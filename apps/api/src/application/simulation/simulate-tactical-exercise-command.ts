@@ -46,7 +46,7 @@ export function validateTacticalExerciseCommandShape(
 }
 
 /**
- * R-TEX-01 #3（敵ちょうど1体・敵メモリーなし）の検証。単発の演習と一括評価の双方が
+ * R-TEX-01 #3（敵ちょうど1体・敵メモリーなし）の検証。単発の演習と大量試行の双方が
  * 同じ敵編成規則を受理するため、規則の実体はここ1か所に置く。
  */
 export function validateExerciseEnemyFormationShape(

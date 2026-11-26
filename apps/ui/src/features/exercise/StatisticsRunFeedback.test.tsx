@@ -12,12 +12,11 @@ function aggregate(completedRuns: number): EvaluationAggregate {
     sentRuns: completedRuns,
     completedRuns,
     catalogRevision: "rev-1",
+    engineRevision: "engine-1",
+    seedDerivationVersion: "V1",
+    incompleteRunIndices: [],
     chunkSize: 300,
-    runs: indices.map((index) => ({
-      chunkIndex: 0,
-      chunkSeed: "seed#0",
-      runIndexInChunk: index,
-    })),
+    runs: indices.map((index) => ({ runIndex: index, chunkIndex: 0 })),
     sample: {
       scores: indices.map(() => 1000),
       breakCounts: indices.map(() => 1),
@@ -178,7 +177,7 @@ describe("StatisticsRunFeedback", () => {
           status: 422,
           code: "INVALID_COMMAND",
           message: "invalid",
-          violations: [{ path: "/runsPerCandidate", message: "300 runs exceed the limit" }],
+          violations: [{ path: "/cases", message: "300 runs exceed the limit" }],
         },
       },
     });
@@ -186,7 +185,7 @@ describe("StatisticsRunFeedback", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("入力内容を確認してください。");
     expect(alert).toHaveTextContent("invalid");
-    expect(alert).toHaveTextContent("/runsPerCandidate");
+    expect(alert).toHaveTextContent("/cases");
     expect(alert).toHaveTextContent("300 runs exceed the limit");
   });
 

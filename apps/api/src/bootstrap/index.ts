@@ -59,7 +59,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     workerMinThreads,
     workerMaxThreads,
     evaluationEndpointEnabled,
-    evaluationLimits,
+    tacticalExerciseEvaluationLimits,
     battleEvaluationLimits,
     totalWarEvaluationLimits,
     engineRevision: configuredEngineRevision,
@@ -103,7 +103,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
     maxQueue: workerMaxQueue,
     shutdownGraceMs,
     executionLimits,
-    evaluationLimits,
+    tacticalExerciseEvaluationLimits,
     engineRevision,
     battleEvaluationLimits,
     totalWarEvaluationLimits,
@@ -132,9 +132,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
     exerciseUseCase: pool,
     // 総力戦（UC-05）も同じWorker Poolで実行する（Workerのタスク種別`TOTAL_WAR`）。
     totalWarUseCase: pool,
-    // 一括評価（UC-04）はローカルの分析ツール向けであり、明示的に許可した配備だけで
-    // 開く。無効な配備でもルートは登録され、404を返す（公開文書の形を保つため）。
-    // 通常戦闘・総力戦の大量試行も同じ設定で開く。
+    // 大量試行API（戦術演習UC-04・通常戦闘・総力戦）はローカルの分析ツール向けであり、
+    // 明示的に許可した配備だけで開く。無効な配備でもルートは登録され、404を返す
+    // （公開文書の形を保つため）。
     ...(evaluationEndpointEnabled
       ? {
           evaluationUseCase: pool,

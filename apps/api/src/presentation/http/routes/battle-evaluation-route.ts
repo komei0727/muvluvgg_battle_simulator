@@ -25,7 +25,7 @@ export interface EvaluateBattlesUseCasePort {
 /**
  * 単発のシミュレーションPOSTと同じ実行境界を通るため返り得るステータスも同じで、これに
  * 404が加わる — この操作を提供しない配備が存在する（`EVALUATION_ENDPOINT_ENABLED`）。
- * 期限到達は部分結果の`200`で返すが、演習の一括評価と同じく既存のエラー分類の集合は
+ * 期限到達は部分結果の`200`で返すが、単発の実行と同じく既存のエラー分類の集合は
  * 変えずに宣言する。
  */
 export const EVALUATION_ERROR_RESPONSES = {
