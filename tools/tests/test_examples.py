@@ -9,6 +9,7 @@ import pytest
 from battle_lab.evaluation import plan_battle_evaluation
 from battle_lab.inputs import load_battle_match_file
 from battle_lab.inputs import validate_against_catalog as validate_battle
+from exercise_lab.evaluation import plan_exercise_evaluation
 from exercise_lab.inputs.exercise import load_formation_config
 from exercise_lab.inputs.exercise import validate_against_catalog as validate_exercise
 from mlgg_lab_common.inputs.catalog import Catalog
@@ -69,6 +70,8 @@ def test_the_evaluation_examples_plan_without_personal_files(monkeypatch):
     monkeypatch.chdir("/")
     battle = plan_battle_evaluation(TOOLS / "battle-lab/configs/evaluation.example.yaml")
     total_war = plan_total_war_evaluation(TOOLS / "total-war-lab/configs/evaluation.example.yaml")
+    exercise = plan_exercise_evaluation(TOOLS / "exercise-lab/configs/evaluation.example.yaml")
 
     assert battle.planned_runs == 103
     assert total_war.planned_runs == 50
+    assert exercise.planned_runs == 103

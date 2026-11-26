@@ -6,6 +6,7 @@ import pytest
 
 from mlgg_lab_common.api.contracts import (
     BATTLE_CONTRACT,
+    TACTICAL_EXERCISE_CONTRACT,
     TOTAL_WAR_CONTRACT,
     EvaluationRequest,
     ExpectedSlot,
@@ -15,7 +16,12 @@ from mlgg_lab_common.api.contracts import (
     contract_for,
     validate_response,
 )
-from mlgg_lab_common.testing import battle_run, evaluation_response, total_war_run
+from mlgg_lab_common.testing import (
+    battle_run,
+    evaluation_response,
+    exercise_run,
+    total_war_run,
+)
 
 SLOTS = (
     ExpectedSlot("ALLY", None, 0, "UNIT_A"),
@@ -189,7 +195,82 @@ def test_request_body_keeps_case_order_and_run_indices_as_given():
     }
 
 
-def test_tactical_exercise_has_no_contract_until_the_api_is_redesigned():
-    with pytest.raises(UnsupportedFormatError, match="再設計"):
-        contract_for("TACTICAL_EXERCISE")
+def test_every_format_has_a_contract_and_unknown_formats_are_refused():
     assert contract_for("BATTLE") is BATTLE_CONTRACT
+    assert contract_for("TOTAL_WAR") is TOTAL_WAR_CONTRACT
+    assert contract_for("TACTICAL_EXERCISE") is TACTICAL_EXERCISE_CONTRACT
+    with pytest.raises(UnsupportedFormatError, match="未知"):
+        contract_for("PVP")
+
+
+# 戦術演習: 敵1体の参加枠と、味方枠ごとのブレイク（`allyUnitBreaks`）を持つ試行。
+EX_SLOTS = (
+    ExpectedSlot("ALLY", None, 0, "UNIT_A"),
+    ExpectedSlot("ALLY", None, 1, "UNIT_A"),
+    ExpectedSlot("ENEMY", None, 0, "UNIT_TEX"),
+)
+
+
+def exercise_request(*cases: tuple[str, tuple[int, ...]]) -> EvaluationRequest:
+    return EvaluationRequest(
+        contract=TACTICAL_EXERCISE_CONTRACT,
+        seed="s",
+        cases=tuple(RequestCase(cid, {}, runs, EX_SLOTS) for cid, runs in cases),
+    )
+
+
+def test_exercise_runs_are_validated_with_scores_and_ally_slot_breaks():
+    request = exercise_request(("a", (0, 42)))
+    body = evaluation_response(
+        [
+            {
+                "caseId": "a",
+                "runs": runs_of(EX_SLOTS, 42, 0, factory=exercise_run),
+                "incompleteRunIndices": [],
+            }
+        ]
+    )
+
+    validated = validate_response(request, body)
+
+    assert sorted(r.run_index for r in validated.completed) == [0, 42]
+    observation = next(r for r in validated.completed if r.run_index == 42).observation
+    assert {"totalScore", "breakCount", "allyUnitBreaks"} <= observation.keys()
+    assert validated.environment.contract_id == TACTICAL_EXERCISE_CONTRACT.contract_id
+
+
+def test_exercise_runs_reject_a_battle_outcome_and_mismatched_ally_breaks():
+    request = exercise_request(("a", (0, 1, 2)))
+    wrong_reason = exercise_run(0, EX_SLOTS)
+    wrong_reason["completionReason"] = "ENEMY_DEFEATED"
+    missing_slot = exercise_run(1, EX_SLOTS)
+    missing_slot["allyUnitBreaks"] = missing_slot["allyUnitBreaks"][:1]
+    wrong_unit = exercise_run(2, EX_SLOTS)
+    wrong_unit["allyUnitBreaks"][1]["unitDefinitionId"] = "UNIT_OTHER"
+    body = evaluation_response(
+        [
+            {
+                "caseId": "a",
+                "runs": [wrong_reason, missing_slot, wrong_unit],
+                "incompleteRunIndices": [],
+            }
+        ]
+    )
+
+    with pytest.raises(ResponseContractError) as caught:
+        validate_response(request, body)
+
+    text = "\n".join(caught.value.problems)
+    assert "runs[0]" in text
+    assert "runIndex=1: 味方枠 1 のブレイクが無い" in text
+    assert "runIndex=2: 味方枠 1 のブレイクのユニットが UNIT_OTHER" in text
+
+
+def test_exercise_ally_breaks_may_not_exceed_the_break_count():
+    request = exercise_request(("a", (0,)))
+    run = exercise_run(0, EX_SLOTS)
+    run["breakCount"] = 0
+    body = evaluation_response([{"caseId": "a", "runs": [run], "incompleteRunIndices": []}])
+
+    with pytest.raises(ResponseContractError, match="breakCount"):
+        validate_response(request, body)

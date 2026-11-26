@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from mlgg_lab_common.api.contracts import UnsupportedFormatError
 from mlgg_lab_common.evaluation.config import (
     CaseSource,
     InputOptions,
@@ -118,14 +117,14 @@ def test_format_must_match_what_the_lab_expects(tmp_path):
         load_evaluation_config(write_config(tmp_path), expected_format="TOTAL_WAR")
 
 
-def test_tactical_exercise_configs_are_not_evaluable_yet(tmp_path):
+def test_an_unknown_format_is_refused(tmp_path):
     path = write_config(tmp_path)
     path.write_text(
-        path.read_text(encoding="utf-8").replace("format: BATTLE", "format: TACTICAL_EXERCISE"),
+        path.read_text(encoding="utf-8").replace("format: BATTLE", "format: PVP"),
         encoding="utf-8",
     )
 
-    with pytest.raises(UnsupportedFormatError, match="再設計"):
+    with pytest.raises(ConfigError, match="format"):
         load_evaluation_config(path)
 
 

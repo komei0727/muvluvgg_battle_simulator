@@ -17,7 +17,8 @@ def test_the_bundled_formation_example_is_loadable():
     assert config.enemy.unit_definition_id.endswith("_TEX")
 
 
-def test_only_the_formation_example_is_bundled():
+def test_only_the_formation_and_evaluation_examples_are_bundled():
     assert sorted(path.name for path in CONFIGS.glob("*.example.yaml")) == [
-        "formation.example.yaml"
+        "evaluation.example.yaml",
+        "formation.example.yaml",
     ]

@@ -32,6 +32,7 @@ from mlgg_lab_common.inputs.draft import DraftError, StoredDraft, formation_of, 
 from mlgg_lab_common.inputs.player_data import PlayerData
 from mlgg_lab_common.inputs.player_data import apply_player_data as apply_player_data_to_formation
 from mlgg_lab_common.inputs.resolution import load_player_data_input, raise_if_invalid
+from mlgg_lab_common.inputs.sources import load_formation_entry
 from mlgg_lab_common.inputs.yaml_io import (
     FlowMapping,
     dump_yaml,
@@ -85,6 +86,36 @@ def load_formation_config(path: Path) -> FormationConfig:
         raise ConfigError(f"{path}: {error}") from error
     validate_formation(config.ally, f"{path}: ally")
     return config
+
+
+_MATCH_FILE_KEYS = frozenset({"ally", "enemy"})
+
+
+def load_exercise_match_file(
+    path: Path, *, formations_dir: Path | None = None
+) -> tuple[FormationConfig, list[InputSource]]:
+    """評価設定が参照する演習の対戦入力（YAML）を読む。
+
+    形は編成定義YAML（`ally` + `enemy`）と同じで、`ally` に編成ライブラリの参照
+    （`{ library: <id> }`、`formations_dir` から展開）も書ける。ライブラリは import-draft が
+    書き出す味方編成だけのファイルなので、演習の敵はここで組み合わせる。
+    """
+    raw = load_yaml_mapping(path)
+    unknown = sorted(set(raw) - _MATCH_FILE_KEYS)
+    if unknown:
+        # 規定ターン数（R-TEX-01 #4）のような演習に無い指定を、黙って捨てない。
+        raise ConfigError(f"{path}: 未知のキーがある: {', '.join(unknown)}")
+    if "ally" not in raw or "enemy" not in raw:
+        raise ConfigError(f"{path}: ally と enemy の両方を書く")
+    sources = [InputSource(role="MATCH_FILE", path=str(path))]
+    loaded = load_formation_entry(raw["ally"], f"{path}: ally", formations_dir=formations_dir)
+    if loaded.source is not None:
+        sources.append(loaded.source.model_copy(update={"applies_to": "ally"}))
+    try:
+        config = FormationConfig.model_validate({"ally": loaded.formation, "enemy": raw["enemy"]})
+    except ValidationError as error:
+        raise ConfigError(f"{path}: {error}") from error
+    return config, sources
 
 
 def dump_formation_config(config: FormationConfig) -> str:
@@ -214,8 +245,8 @@ def _reject_unusable(draft: StoredDraft, path: Path) -> None:
 def build_exercise_request(config: FormationConfig) -> dict[str, Any]:
     """`TacticalExerciseRequest` の対戦条件部分（`options` を除く）。
 
-    評価API（`TacticalExerciseEvaluationRequest`）は同じ2編成を候補・共有の敵として
-    持つため、組み替えは呼び出し側が行う。
+    評価API（`TacticalExerciseEvaluationCaseRequest`）もケースごとに同じ2編成を持つので、
+    そのまま評価のケースへ載る。
     """
     return {
         "allyFormation": build_formation_request(config.ally),
@@ -249,6 +280,9 @@ class ResolvedExerciseInput(ResolvedInput):
     def to_request(self) -> dict[str, Any]:
         return build_exercise_request(self.match)
 
+    def participant_slots(self) -> list[ParticipantSlot]:
+        return exercise_participant_slots(self.match)
+
 
 def resolve_exercise_input(
     config_path: Path,
@@ -273,12 +307,15 @@ def resolve_exercise_input(
 def resolve_exercise_config(
     config: FormationConfig,
     *,
-    origin: InputSource,
+    origin: InputSource | list[InputSource],
     player_data_path: Path | None = None,
     catalog: Catalog | None = None,
 ) -> ResolvedExerciseInput:
-    """読み込み済みの演習入力（YAML・ドラフトのどちらから作ったものでもよい）を解決する。"""
-    sources = [origin]
+    """読み込み済みの演習入力（YAML・ドラフトのどちらから作ったものでもよい）を解決する。
+
+    `origin` は入力の由来。編成ライブラリから展開した対戦入力は、ライブラリも並べて渡す。
+    """
+    sources = list(origin) if isinstance(origin, list) else [origin]
     warnings: list[str] = []
     if player_data_path is not None:
         player_data = load_player_data_input(player_data_path)

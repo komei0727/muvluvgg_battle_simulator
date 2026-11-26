@@ -162,6 +162,27 @@ def total_war_run(
     return run
 
 
+def exercise_run(
+    run_index: int, slots: Any, *, score: int | None = None, damage: int | None = None
+) -> dict[str, Any]:
+    """演習1回分の試行。味方枠ごとのブレイクは1回ずつで、総ブレイクはそれより1多い
+    （味方の枠に帰属しないブレイクがある状態を既定にする）。"""
+    dealt = run_index * 10 + 1 if damage is None else damage
+    allies = [s for s in slots if s.side == "ALLY"]
+    return {
+        "runIndex": run_index,
+        "totalScore": dealt * 3 if score is None else score,
+        "breakCount": len(allies) + 1,
+        "completionReason": "TURN_LIMIT_REACHED",
+        "completedTurn": 5,
+        "units": [unit_record(s, damage=dealt) for s in slots],
+        "allyUnitBreaks": [
+            {"unitIndex": s.unit_index, "unitDefinitionId": s.unit_definition_id, "breakCount": 1}
+            for s in allies
+        ],
+    }
+
+
 def evaluation_response(cases: list[dict[str, Any]], **header: Any) -> dict[str, Any]:
     """ヘッダーの件数（`requestedRuns` 等）はケースから数える。"""
     completed = sum(len(case["runs"]) for case in cases)
@@ -355,6 +376,8 @@ class FakeEvaluationServer:
         if (case["caseId"], run_index) in self._flipped:
             damage += 1
         slots = _slots_of_request(match)
+        if path.endswith("tactical-exercise-evaluations"):
+            return exercise_run(run_index, slots, damage=damage)
         if path.endswith("total-war-evaluations"):
             outcome = ("ALLY_WIN", "ALLY_LOSE", "DRAW")[digest[4] % 3]
             return total_war_run(run_index, slots, outcome=outcome, damage=damage)

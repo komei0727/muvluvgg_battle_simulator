@@ -139,7 +139,8 @@ uv run python -m mlgg_lab_common.inputs.migration --apply    # 写して、移�
 
 ## 評価の実行（共通基盤）
 
-評価API（`POST /api/v1/battle-evaluations`・`/total-war-evaluations`）の分割実行・保存・再開は
+評価API（`POST /api/v1/tactical-exercise-evaluations`・`/battle-evaluations`・`/total-war-evaluations`）の
+分割実行・保存・再開は
 `mlgg_lab_common` の共通基盤が持ち、各ラボは「評価設定のケース1件 → 解決済み入力」だけを持つ。
 
 ```text
@@ -191,15 +192,17 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 
 ### 評価設定
 
+[`exercise-lab/configs/evaluation.example.yaml`](exercise-lab/configs/evaluation.example.yaml)・
 [`battle-lab/configs/evaluation.example.yaml`](battle-lab/configs/evaluation.example.yaml)・
 [`total-war-lab/configs/evaluation.example.yaml`](total-war-lab/configs/evaluation.example.yaml) を写して使う。
+計画は各ラボの `plan_exercise_evaluation` / `plan_battle_evaluation` / `plan_total_war_evaluation` で作る。
 キーの一覧は `mlgg_lab_common/evaluation/config.py` の先頭にある。
 
 - パスは**設定ファイルの位置を基準**に解決する（絶対パスも可）。実行ディレクトリに依らない。
 - ケースは `match:`（対戦入力YAML）か `draft:`（UIドラフト）のどちらか、試行は `runs:`（件数、`runStart` で開始番号）
   か `runIndices:`（番号の列、不連続でよい）のどちらかを書く。
 - `api.maxCasesPerRequest` / `maxRunsPerRequest` は配備の上限以下にする。省略時は形式ごとのAPI既定値
-  （通常戦闘 64 / 300、総力戦 32 / 120）。全形式に同じ値を仮定しない。
+  （戦術演習 32 / 300、通常戦闘 64 / 300、総力戦 32 / 120）。全形式に同じ値を仮定しない。
 - `budget.maxSubmittedRuns` は再送込みの送信試行数の上限で、必須。
 - `api.baseUrl` / `timeoutSeconds` はクライアントへ渡して初めて効く。`plan.settings.http_client()` で作る
   （`EvaluationHttpClient` を直接作ると既定の120秒になり、長い要求が応答喪失・再送として予算を消費する）。
@@ -265,11 +268,29 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 
 ### 戦術演習
 
-戦術演習の評価API（`/api/v1/tactical-exercise-evaluations`）は Issue #891 で、通常戦闘・総力戦と
-同じ試行番号・`caseId`・`engineRevision` を持つ契約へ置き換わった（`docs/ddd/10_API設計.md`
-「戦術演習を大量試行する」）。Python側の接続はまだで、評価設定に `format: TACTICAL_EXERCISE` を
-書くと `UnsupportedFormatError` で止まる。接続するときは `api/contracts.py` に演習の契約（試行の型）を
-足し、`exercise-lab` に解決手順を足す（#887）。旧API向けの互換アダプターは作らない。
+戦術演習の評価API（`/api/v1/tactical-exercise-evaluations`、`docs/ddd/10_API設計.md`「戦術演習を
+大量試行する」）も同じ基盤で評価する。形式固有の点は次のとおり。
+
+- 対戦入力（`match:`）は演習の編成定義YAML（`ally` + `enemy`）。`ally` は編成ライブラリの参照
+  `{ library: <id> }`（`inputs.formationsDir` から展開）でもよく、import-draft で作った味方編成へ
+  演習の敵1体を組み合わせられる。`draft:` はUIの演習ドラフト（`mlgg:last-draft:exercise`）。
+  規定ターン数は5固定（R-TEX-01 #4）なので `turnLimit` は書けない。
+
+  ```yaml
+  # 例: configs/vs-nanae.yaml
+  ally: { library: kotoha-anis }
+  enemy:
+    unitDefinitionId: UNIT_NANAE_SOVEREIGN_TEX
+    position: { column: 1, row: FRONT }
+  ```
+
+- 手持ちデータは味方にだけ当てる（`inputs.playerDataSides` は既定の `[ALLY]` のまま）。演習の敵は
+  強化を持たない。
+- 試行の観測値はスコア（`totalScore`）・ブレイク回数・演習の終了理由（`TURN_LIMIT_REACHED`／
+  `ALLY_DEFEATED`）・参加枠ごとの集計・味方枠ごとのブレイク（`allyUnitBreaks`）。勝敗には読み替えない。
+  味方枠のブレイクの和と `breakCount` の差は、メモリー由来と敵の自傷の両方を含む。
+- 旧契約（`runsPerCandidate`・`<seed>#<runOffset>`）向けの互換アダプターは持たない。旧UI・旧CLIの
+  seed・CSVは新契約の試行番号と同じ試行ではない。
 
 ## 開発
 
@@ -286,7 +307,7 @@ bash scripts/check-isolated-installs.sh        # パッケージ単独のイン�
 
 実APIのテスト（`tests/test_live_evaluation_api.py`）は `MLGG_LAB_LIVE_API_URL` が無ければskipする。
 `apps/api/` で `EVALUATION_ENDPOINT_ENABLED=true PORT=3917 mise exec -- pnpm exec tsx src/main.ts` として
-起動したサーバーを相手に、通常戦闘・総力戦の複数ケース・複数試行を「要求を大きく」「細かく分けてケース順を逆に」
+起動したサーバーを相手に、戦術演習・通常戦闘・総力戦の複数ケース・複数試行を「要求を大きく」「細かく分けてケース順を逆に」
 「同条件で再実行」の3通りで実行し、意味上の観測値が一致することを確かめる。
 
 テストは各パッケージの `tests/` と、workspace横断の `tests/`（境界・公開サンプル）にある。

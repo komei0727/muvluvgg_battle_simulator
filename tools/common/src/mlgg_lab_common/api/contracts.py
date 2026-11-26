@@ -1,6 +1,7 @@
 """評価API（seed付き大量試行）の要求・応答の契約と、応答の検証。
 
-`docs/ddd/10_API設計.md`「通常戦闘を大量試行する」「総力戦を大量試行する」の写しである。
+`docs/ddd/10_API設計.md`「戦術演習を大量試行する」「通常戦闘を大量試行する」「総力戦を大量試行する」
+の写しである。
 共通の部分（ヘッダー・ケース・試行番号の対応）と、形式ごとの試行の型（`FormatContract`）を
 分けて持つ。戦闘の中身は再実装せず、APIが返した試行をそのまま観測値として扱う。
 
@@ -12,9 +13,8 @@
 - 試行のユニット集計は、要求した参加枠 `(side, formationNumber, unitIndex)` とちょうど
   対応しなければならない（同じユニットを複数枠へ置けるため、定義IDでは突き合わせない）。
 
-戦術演習の評価APIは、試行番号を指定できる形への再設計が済んでいない。旧API向けの
-seed変換・互換アダプターは作らない方針なので、ここでは契約を持たず、要求されたら
-`UnsupportedFormatError` で止める。
+戦術演習の評価APIは Issue #891 で通常戦闘・総力戦と同じ契約へ置き換わった。旧契約
+（`runsPerCandidate`・並行配列）向けのseed変換・互換アダプターは持たない。
 """
 
 from __future__ import annotations
@@ -79,6 +79,25 @@ class BattleRun(_Response):
     completion_reason: CompletionReason = Field(alias="completionReason")
     completed_turn: StrictInt = Field(alias="completedTurn", ge=1)
     units: list[UnitRecord]
+
+
+class AllyUnitBreak(_Response):
+    unit_index: StrictInt = Field(alias="unitIndex", ge=0)
+    unit_definition_id: str = Field(alias="unitDefinitionId")
+    break_count: StrictInt = Field(alias="breakCount", ge=0)
+
+
+class ExerciseRun(_Response):
+    run_index: StrictInt = Field(alias="runIndex", ge=0, le=MAX_RUN_INDEX)
+    total_score: StrictInt = Field(alias="totalScore", ge=0)
+    break_count: StrictInt = Field(alias="breakCount", ge=0)
+    # 演習の終了理由。通常戦闘の勝敗・総力戦のDRAWへ読み替えない。
+    completion_reason: Literal["TURN_LIMIT_REACHED", "ALLY_DEFEATED"] = Field(
+        alias="completionReason"
+    )
+    completed_turn: StrictInt = Field(alias="completedTurn", ge=1)
+    units: list[UnitRecord]
+    ally_unit_breaks: list[AllyUnitBreak] = Field(alias="allyUnitBreaks")
 
 
 class TotalWarStage(_Response):
@@ -165,6 +184,16 @@ BATTLE_CONTRACT = FormatContract(
     default_max_runs_per_request=300,
 )
 
+TACTICAL_EXERCISE_CONTRACT = FormatContract(
+    format="TACTICAL_EXERCISE",
+    path="/api/v1/tactical-exercise-evaluations",
+    contract_id="tactical-exercise-evaluations/v1/schemaVersion=1",
+    run_model=ExerciseRun,
+    numbered_slots=False,
+    default_max_cases_per_request=32,
+    default_max_runs_per_request=300,
+)
+
 TOTAL_WAR_CONTRACT = FormatContract(
     format="TOTAL_WAR",
     path="/api/v1/total-war-evaluations",
@@ -178,15 +207,11 @@ TOTAL_WAR_CONTRACT = FormatContract(
 _CONTRACTS: dict[str, FormatContract] = {
     BATTLE_CONTRACT.format: BATTLE_CONTRACT,
     TOTAL_WAR_CONTRACT.format: TOTAL_WAR_CONTRACT,
+    TACTICAL_EXERCISE_CONTRACT.format: TACTICAL_EXERCISE_CONTRACT,
 }
 
 
 def contract_for(evaluation_format: str) -> FormatContract:
-    if evaluation_format == "TACTICAL_EXERCISE":
-        raise UnsupportedFormatError(
-            "戦術演習の評価APIは試行番号を指定できる形への再設計が済んでいないため、"
-            "共通の実行基盤から評価できない（旧APIへの互換アダプターは作らない）"
-        )
     contract = _CONTRACTS.get(evaluation_format)
     if contract is None:
         raise UnsupportedFormatError(f"未知の評価形式: {evaluation_format!r}")
@@ -368,6 +393,11 @@ def _validate_case(
             f"{where}.runIndex={run_index}: {problem}"
             for problem in _slot_problems(contract, case.expected_slots, run.units)  # type: ignore[attr-defined]
         )
+        if isinstance(run, ExerciseRun):
+            problems.extend(
+                f"{where}.runIndex={run_index}: {problem}"
+                for problem in _ally_break_problems(case.expected_slots, run)
+            )
         completed.append(CompletedRun(case.case_id, run_index, raw))
     problems.extend(
         f"{where}: runIndex {index} が完了に{count}回ある"
@@ -420,4 +450,34 @@ def _slot_problems(
         f"参加枠 {key} の集計が{count}件ある" for key, count in seen.items() if count > 1
     )
     problems.extend(f"参加枠 {key} の集計が無い" for key in expected_by_key if key not in seen)
+    return problems
+
+
+def _ally_break_problems(expected: Sequence[ExpectedSlot], run: ExerciseRun) -> list[str]:
+    """味方枠ごとのブレイクは味方の参加枠とちょうど対応し、和は総ブレイク数以下になる。
+
+    差（味方の枠に帰属しないブレイク）はメモリー由来と敵の自傷の両方を含むので、
+    0でないことは不正ではない。
+    """
+    problems: list[str] = []
+    allies = {slot.unit_index: slot for slot in expected if slot.side == "ALLY"}
+    seen: Counter[int] = Counter(entry.unit_index for entry in run.ally_unit_breaks)
+    for entry in run.ally_unit_breaks:
+        slot = allies.get(entry.unit_index)
+        if slot is None:
+            problems.append(f"要求に無い味方枠 {entry.unit_index} のブレイクがある")
+        elif entry.unit_definition_id != slot.unit_definition_id:
+            problems.append(
+                f"味方枠 {entry.unit_index} のブレイクのユニットが {entry.unit_definition_id}"
+                f"（要求は {slot.unit_definition_id}）"
+            )
+    problems.extend(
+        f"味方枠 {index} のブレイクが{count}件ある" for index, count in seen.items() if count > 1
+    )
+    problems.extend(f"味方枠 {index} のブレイクが無い" for index in allies if index not in seen)
+    attributed = sum(entry.break_count for entry in run.ally_unit_breaks)
+    if attributed > run.break_count:
+        problems.append(
+            f"味方枠のブレイクの和 {attributed} が breakCount={run.break_count} を超える"
+        )
     return problems
