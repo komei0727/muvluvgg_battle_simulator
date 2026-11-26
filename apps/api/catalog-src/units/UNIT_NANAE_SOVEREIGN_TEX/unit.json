@@ -1,7 +1,7 @@
 {
   "unitDefinitionId": "UNIT_NANAE_SOVEREIGN_TEX",
   "category": "EXERCISE_ENEMY",
-  "exerciseActive": true,
+  "exerciseActive": false,
   "attribute": "SHY",
   "unitType": "PHYSICAL",
   "role": "TANK",

@@ -178,6 +178,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_RAMI_SKYWING",
         // Issue #870: 新キャラクター（#867 エンジン拡張依存）
         "UNIT_RATOROWA_ICEWITCH",
+        // 戦術演習敵ユニット追加: 【＃激カワ吸血鬼配信者♪】フルート・メルヴィル
+        "UNIT_FLUTE_VAMPIRE_TEX",
       ].sort(),
     );
   });
