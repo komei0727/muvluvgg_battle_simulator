@@ -102,6 +102,10 @@ def test_plan_from_config_passes_resolved_paths_to_the_format_resolver(tmp_path)
         (("match: matches/a.yaml", "match: a.yaml\n    draft: b.json"), "どちらか一方"),
         (("seed: study-1", "seed: study-1\nextra: 1"), "extra"),
         (("format: BATTLE", "format: CHESS"), "format"),
+        # 接続先は計画を保存する前に検証する（保存後は計画で固定され、resume でも直せない）。
+        (('baseUrl: "http://api.test"', 'baseUrl: "http://localhost:abc"'), "baseUrl"),
+        (('baseUrl: "http://api.test"', 'baseUrl: "localhost:3000"'), "baseUrl"),
+        (('baseUrl: "http://api.test"', 'baseUrl: "ftp://api.test"'), "baseUrl"),
     ],
 )
 def test_invalid_configs_are_rejected(tmp_path, replace, message):

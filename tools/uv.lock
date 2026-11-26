@@ -75,13 +75,13 @@ name = "battle-lab"
 version = "0.1.0"
 source = { editable = "battle-lab" }
 dependencies = [
-    { name = "mlgg-lab-common" },
+    { name = "mlgg-lab-common", extra = ["cli"] },
     { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "mlgg-lab-common", editable = "common" },
+    { name = "mlgg-lab-common", extras = ["cli"], editable = "common" },
     { name = "pydantic", specifier = ">=2.9" },
 ]
 
@@ -108,7 +108,7 @@ name = "exercise-lab"
 version = "0.1.0"
 source = { editable = "exercise-lab" }
 dependencies = [
-    { name = "mlgg-lab-common", extra = ["statistics"] },
+    { name = "mlgg-lab-common", extra = ["cli", "statistics"] },
     { name = "pydantic" },
     { name = "rich" },
     { name = "typer" },
@@ -116,7 +116,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mlgg-lab-common", extras = ["statistics"], editable = "common" },
+    { name = "mlgg-lab-common", extras = ["statistics", "cli"], editable = "common" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "rich", specifier = ">=13.9" },
     { name = "typer", specifier = ">=0.15" },
@@ -236,6 +236,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+cli = [
+    { name = "rich" },
+    { name = "typer" },
+]
 statistics = [
     { name = "numpy" },
 ]
@@ -246,8 +250,10 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'statistics'", specifier = ">=2.1" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rich", marker = "extra == 'cli'", specifier = ">=13.9" },
+    { name = "typer", marker = "extra == 'cli'", specifier = ">=0.15" },
 ]
-provides-extras = ["statistics"]
+provides-extras = ["statistics", "cli"]
 
 [[package]]
 name = "numpy"
@@ -675,13 +681,13 @@ name = "total-war-lab"
 version = "0.1.0"
 source = { editable = "total-war-lab" }
 dependencies = [
-    { name = "mlgg-lab-common" },
+    { name = "mlgg-lab-common", extra = ["cli"] },
     { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "mlgg-lab-common", editable = "common" },
+    { name = "mlgg-lab-common", extras = ["cli"], editable = "common" },
     { name = "pydantic", specifier = ">=2.9" },
 ]
 

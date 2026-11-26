@@ -29,9 +29,10 @@ cd exercise-lab   # 以降の相対パス（configs/・local_storage/）はこ�
 
 個人の入力は `tools/data/inputs/`（ドラフト・編成YAML・育成JSON）にまとめて置ける（従来の
 `local_storage/`・`configs/formations/` もそのまま使える）。配置・移行の手順は [`../README.md`](../README.md)
-「データの置き場所」にある。評価API（seed・試行番号指定の大量試行）での評価は、共通の評価実行基盤へ
-`exercise_lab.evaluation.plan_exercise_evaluation` で計画を作って渡す（同「評価の実行」「戦術演習」、
-サンプルは [`configs/evaluation.example.yaml`](configs/evaluation.example.yaml)）。
+「データの置き場所」にある。評価API（seed・試行番号指定の大量試行）での評価は `exercise-lab evaluate`
+で実行し、`status` / `resume` / `summarize` / `export` で確かめる（同「評価コマンド」「戦術演習」、
+サンプルは [`configs/evaluation.example.yaml`](configs/evaluation.example.yaml)、集計の定義は
+[`src/exercise_lab/analysis.py`](src/exercise_lab/analysis.py)）。
 
 コマンド名は `lab` から `exercise-lab` に変わった（workspace の他のラボとの衝突を避けるため）。
 サブコマンド・オプションは変わらない。個人ファイル（`configs/*.yaml`・`configs/formations/`・
@@ -61,6 +62,14 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 | `exercise-lab memories`     | Catalog のメモリーを検索してIDを引く                  |
 | `exercise-lab formations`   | 編成ライブラリ（`configs/formations/`）のIDを一覧する |
 | `exercise-lab schema`       | エディタ補完用の JSON Schema を Catalog から生成する  |
+| `exercise-lab evaluate`     | 評価設定から計画を保存し、演習の評価APIで実行する     |
+| `exercise-lab resume`       | 保存済みの評価実行の続きを実行する                    |
+| `exercise-lab status`       | 評価実行の進捗・予算・停止理由を表示する              |
+| `exercise-lab summarize`    | 保存結果のスコア等をケース別に要約する                |
+| `exercise-lab export`       | 保存結果を JSONL / CSV / JSON へ書き出す              |
+
+評価コマンドのオプション・終了コード・出力形式は [`../README.md`](../README.md)「評価コマンド」にある。
+`summarize` のスコア要約は観測結果の確認用で、日次ベスト等の目的関数（`exercise_lab.statistics`）は使わない。
 
 ### UIのドラフトを取り込む（`exercise-lab import-draft`）
 

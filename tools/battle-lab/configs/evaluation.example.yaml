@@ -18,6 +18,9 @@ api:
 #     formationsDir: ../../data/inputs/formations
 #     playerData: ../../data/inputs/player-data/player-data.json
 #     playerDataSides: [ALLY]
+# 評価実行の保存先（<evaluationsDir>/<evaluation-id>/evaluation.sqlite3）。tools/data/ は gitignore 済み。
+output:
+  evaluationsDir: ../../data/evaluations
 cases:
   - caseId: example
     match: match.example.yaml

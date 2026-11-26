@@ -4,9 +4,12 @@ version = "0.1.0"
 description = "Normal battle lab: match inputs (both formations and turn limit) and format-specific validation"
 requires-python = ">=3.12"
 dependencies = [
-    "mlgg-lab-common",
+    "mlgg-lab-common[cli]",
     "pydantic>=2.9",
 ]
+
+[project.scripts]
+battle-lab = "battle_lab.cli:app"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,7 +1,12 @@
-"""`exercise-lab` コマンド。育成情報・編成情報・Catalogの取り込みを補助する。
+"""`exercise-lab` コマンド。育成情報・編成情報・Catalogの取り込みを補助し、戦術演習を評価する。
 
     uv run exercise-lab import-draft local_storage/draft.json --out configs/formation.yaml
     uv run exercise-lab units --grep 純夏
+    uv run exercise-lab evaluate exercise-lab/configs/evaluation.example.yaml
+    uv run exercise-lab summarize data/evaluations/<evaluation-id>
+
+評価コマンド（evaluate / resume / status / summarize / export）の通信・保存・再開・表示は
+`mlgg_lab_common.cli` の共通部が持つ。
 
 Catalogを引くコマンドの相手はローカルのdevサーバー（`apps/api/` で `mise run dev`）を
 既定にする。
@@ -18,6 +23,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mlgg_lab_common.cli import LabCommands, register_evaluation_commands
 from mlgg_lab_common.inputs.catalog import (
     DEFAULT_BASE_URL,
     Catalog,
@@ -45,6 +51,8 @@ from mlgg_lab_common.inputs.player_data import (
 from mlgg_lab_common.inputs.schema import build_formation_library_json_schema
 from mlgg_lab_common.models import ConfigError
 
+from .analysis import ANALYZER
+from .evaluation import FORMAT, plan_exercise_evaluation
 from .inputs.exercise import dump_formation_config, load_exercise_draft
 from .inputs.schema import build_formation_json_schema
 
@@ -53,7 +61,10 @@ FORMATION_SCHEMA_JSON = "formation.schema.json"
 # 既存の編成ライブラリのファイルがこの名前を `yaml-language-server` の行で指している。
 FORMATION_LIBRARY_SCHEMA_JSON = "formation-seed.schema.json"
 
-app = typer.Typer(add_completion=False, help="育成情報・編成情報・Catalogを取り込むローカルツール")
+app = typer.Typer(
+    add_completion=False,
+    help="育成情報・編成情報・Catalogの取り込みと、戦術演習の評価・集計・出力",
+)
 console = Console()
 error_console = Console(stderr=True)
 
@@ -373,6 +384,12 @@ def _units_yaml(found: Sequence[CatalogUnit]) -> str:
 def _abort(message: str) -> NoReturn:
     error_console.print(f"[red]error[/]: {message}")
     raise typer.Exit(code=1)
+
+
+LAB = LabCommands(
+    name="exercise-lab", format=FORMAT, planner=plan_exercise_evaluation, analyzer=ANALYZER
+)
+register_evaluation_commands(app, LAB)
 
 
 if __name__ == "__main__":

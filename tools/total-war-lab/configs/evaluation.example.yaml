@@ -12,6 +12,9 @@ api:
   # 省略するとAPIの既定値（32 / 120）を使う。通常戦闘とは別の値である。
   maxCasesPerRequest: 32
   maxRunsPerRequest: 120
+# 評価実行の保存先（<evaluationsDir>/<evaluation-id>/evaluation.sqlite3）。tools/data/ は gitignore 済み。
+output:
+  evaluationsDir: ../../data/evaluations
 cases:
   - caseId: example
     match: match.example.yaml

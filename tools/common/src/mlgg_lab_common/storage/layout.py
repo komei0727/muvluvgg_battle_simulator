@@ -3,6 +3,7 @@
     <evaluations-dir>/<evaluation-id>/
       manifest.json         # 実行概要（確認用）
       evaluation.sqlite3    # 計画・入力・要求履歴・結果の正本
+      evaluation.sqlite3.lock  # 実行中だけ保持する排他ロック（`run_evaluation` が取る）
 
 `manifest.json` は人が中身を確かめるための写しで、再開には使わない。消えても・古くても
 再開はDBだけで成立する（状態を二重に持たない）。

@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
+import httpx
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, field_validator
 
 from ..api.client import DEFAULT_TIMEOUT_SECONDS, EvaluationHttpClient
 from ..api.contracts import ExpectedSlot, FormatContract
@@ -38,6 +39,20 @@ class ExecutionSettings(_Settings):
     # 実行環境を初回から固定したいときに指定する。省略すると最初の応答で確定する。
     expected_catalog_revision: str | None = Field(default=None, alias="expectedCatalogRevision")
     expected_engine_revision: str | None = Field(default=None, alias="expectedEngineRevision")
+
+    @field_validator("base_url")
+    @classmethod
+    def _base_url_is_an_http_origin(cls, value: str) -> str:
+        # 接続先は計画に保存されて resume でも変えられないので、保存前に確かめる。
+        # 送信時（HTTPクライアントの生成時）に初めて壊れていると分かっても直せない。
+        try:
+            url = httpx.URL(value)
+            url.port  # noqa: B018 - 不正なポートはここで InvalidURL になる
+        except (httpx.InvalidURL, TypeError) as error:
+            raise ValueError(f"baseUrl {value!r} はURLとして読めない: {error}") from error
+        if url.scheme not in ("http", "https") or not url.host:
+            raise ValueError(f"baseUrl {value!r} は http(s)://<ホスト>[:<ポート>] で書く")
+        return value
 
     def http_client(self, *, access_key: str | None = None) -> EvaluationHttpClient:
         """この設定の接続先・タイムアウトで評価APIのクライアントを作る。

@@ -7,6 +7,7 @@ workspaceは全パッケージを1つのvenvへ入れるので、宣言してい
 - 各パッケージの実行時のimportは、標準ライブラリ・自分自身・宣言した依存だけ
 - `mlgg_lab_common` はどのラボにも依存しない。ラボ同士も依存しない
 - 統計用の `numpy` は `mlgg_lab_common.statistics` だけが使い、追加依存 `statistics` で宣言する
+- コマンド用の `typer` / `rich` は `mlgg_lab_common.cli` だけが使い、追加依存 `cli` で宣言する
 
 宣言どおりに単独でインストールできることは `scripts/check-isolated-installs.sh` が確かめる。
 """
@@ -32,6 +33,8 @@ LABS = ("exercise-lab", "battle-lab", "total-war-lab")
 # トップレベルのimport名がdistribution名と違うもの。
 IMPORT_TO_DISTRIBUTION = {"yaml": "pyyaml"}
 STATISTICS_EXTRA_MODULES = ("mlgg_lab_common.statistics",)
+# 追加依存ごとの、それを使ってよいモジュール。
+EXTRA_MODULES = {"statistics": STATISTICS_EXTRA_MODULES, "cli": ("mlgg_lab_common.cli",)}
 
 
 def distribution_of(name: str) -> str:
@@ -81,12 +84,12 @@ def source_imports(dist: str) -> dict[str, set[str]]:
 def test_every_runtime_import_is_a_declared_dependency(dist):
     _, own = PACKAGES[dist]
     base = declared(dist)
-    statistics = declared_extra(dist, "statistics")
     undeclared = []
     for module, names in source_imports(dist).items():
         allowed = set(base)
-        if module.startswith(STATISTICS_EXTRA_MODULES):
-            allowed |= statistics
+        for extra, modules in EXTRA_MODULES.items():
+            if module.startswith(modules):
+                allowed |= declared_extra(dist, extra)
         undeclared.extend(
             f"{module}: {name}"
             for name in names
@@ -100,6 +103,16 @@ def test_numpy_is_only_an_extra_of_the_common_package():
     assert declared_extra("mlgg-lab-common", "statistics") == {"numpy"}
     users = [m for m, names in source_imports("mlgg-lab-common").items() if "numpy" in names]
     assert users and all(m.startswith(STATISTICS_EXTRA_MODULES) for m in users)
+
+
+def test_command_libraries_are_only_an_extra_of_the_common_package():
+    """集計・出力（`reporting`）はPythonから使えるよう、コマンド用ライブラリに依存させない。"""
+    assert not {"typer", "rich"} & declared("mlgg-lab-common")
+    assert declared_extra("mlgg-lab-common", "cli") == {"typer", "rich"}
+    users = [
+        m for m, names in source_imports("mlgg-lab-common").items() if {"typer", "rich"} & names
+    ]
+    assert users and all(m.startswith("mlgg_lab_common.cli") for m in users)
 
 
 def test_the_common_package_depends_on_no_lab():
