@@ -9,7 +9,7 @@ import type { EvaluationChunkResult } from "./evaluation-chunk-plan.js";
 import type { TacticalExerciseCandidateEvaluationResponse } from "../../shared/api/api-contract.js";
 
 // UI-UT-EVL-001: 1,000試行は300×3＋100へ割れ、各チャンクは通し試行番号を埋めた
-// 別seedを持つ（`runner.py:plan_chunks`）。
+// 別seed（`<seed>#<runOffset>`）を持つ。
 describe("planEvaluationChunks", () => {
   it("splits the requested runs into chunk-size batches with a run-offset seed each", () => {
     const chunks = planEvaluationChunks({ totalRuns: 1000, baseSeed: "abc" });

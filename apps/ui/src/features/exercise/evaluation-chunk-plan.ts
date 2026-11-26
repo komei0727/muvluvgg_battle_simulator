@@ -1,6 +1,6 @@
 // 統計実行を評価APIの1リクエスト上限へ収まるチャンクへ割り、応答を1つの標本へ積む
-// 純関数。分割規約の正本は `tools/exercise-lab/src/exercise_lab/runner.py` であり、
-// 同じseed・同じ編成・同じ実行回数なら exercise-lab とUIが同じ数値を出す。
+// 純関数。分割規約の正本はこの module と `docs/ui-design/03_API・データ連携設計.md` §2.6
+// であり、同じseed・同じ編成・同じ実行回数・同じチャンクサイズなら同じ数値を出す。
 //
 // サーバーは1リクエストの中で `runIndex` を0から振り直して乱数列を決める
 // （`apps/api/src/infrastructure/random/seeded-random-source.ts`）。したがって同じseedの
@@ -76,7 +76,7 @@ export interface EvaluationChunkResult {
 }
 
 /**
- * 1試行がどのチャンクの何試行目だったか。`runs.csv`（`tools/exercise-lab`）の
+ * 1試行がどのチャンクの何試行目だったか。生データCSV（`statistics-export.ts`）の
  * `chunk_index`／`chunk_seed`／`run_index_in_chunk`にあたる。連結後の標本からは
  * 復元できない —— 期限到達の部分結果があるとチャンクの境界が要求試行数と揃わない。
  */

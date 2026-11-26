@@ -7,8 +7,9 @@ import json
 
 import pytest
 
-from exercise_lab.models import build_evaluation_request, load_formation_config
-from exercise_lab.player_data import PlayerDataError, apply_player_data, load_player_data
+from exercise_lab.inputs.exercise import apply_player_data, load_formation_config
+from exercise_lab.inputs.models import build_ally_formation
+from exercise_lab.inputs.player_data import PlayerDataError, load_player_data
 
 PLAYER_DATA = {
     "schemaVersion": 1,
@@ -61,9 +62,7 @@ def test_stored_level_and_gears_are_applied_to_the_matching_unit(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[0]["enhancement"] == {
         "level": 240,
         "gears": [
@@ -79,9 +78,7 @@ def test_stored_academy_levels_enable_side_enhancement(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    formation = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]
+    formation = build_ally_formation(applied.ally)
     assert formation["enhancement"]["academyLevels"]["unitTypes"]["ENERGY"] == 55
     assert formation["enhancement"]["academyLevels"]["attributes"]["CLEVER"] == 35
 
@@ -93,9 +90,7 @@ def test_unit_absent_from_player_data_is_warned_and_left_at_defaults(tmp_path):
     applied, warnings = apply_player_data(config, data)
 
     assert any("UNIT_MISSING" in warning for warning in warnings)
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert "enhancement" not in units[1]
 
 
@@ -109,9 +104,7 @@ def test_stored_rank_is_applied_to_the_matching_unit(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[0]["enhancement"]["rank"] == 3
 
 
@@ -122,9 +115,7 @@ def test_export_without_the_rank_field_defaults_to_five(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     # rank 5 は省略時の既定と同値なので `enhancement` へは出ない。
     assert "rank" not in units[0]["enhancement"]
 
@@ -195,9 +186,7 @@ def test_stored_module_is_applied_and_the_ratio_is_converted_from_percent_to_the
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[0]["enhancement"]["module"] == {
         "hp": {"fixed": 5000, "ratio": 0.1},
         "defense": {"ratio": -0.05},
@@ -245,9 +234,7 @@ def test_stored_module_with_every_field_blank_is_omitted(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert "module" not in units[0]["enhancement"]
 
 
@@ -258,9 +245,7 @@ def test_export_without_the_module_field_defaults_to_no_override(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert "module" not in units[0]["enhancement"]
 
 
@@ -285,9 +270,7 @@ def test_yaml_module_wins_over_the_stored_module(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[0]["enhancement"]["module"] == {"hp": {"fixed": 1}}
 
 
@@ -310,10 +293,31 @@ def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[0]["enhancement"]["rank"] == 1
+
+
+def test_an_explicit_zero_is_kept_and_not_treated_as_unspecified(tmp_path):
+    """`0` は「書かなかった」ではない。手持ちの値で上書きせず、そのまま送る。"""
+    yaml_text = CONFIG_YAML.replace(
+        "      position: { column: 0, row: FRONT }",
+        "      position: { column: 0, row: FRONT }\n"
+        "      rank: 0\n"
+        "      module: { hp: { fixed: 0, ratio: 0 } }",
+        1,
+    ).replace("ally:\n", "ally:\n  academyLevels: {}\n", 1)
+    config = load_formation_config(write(tmp_path, "formation.yaml", yaml_text))
+    stored = {**PLAYER_DATA["units"]["UNIT_A"], "rank": 3}
+    stored["module"] = {"hp": {"fixed": 900, "ratio": 20}}
+    data = load_player_data(
+        write_json(tmp_path, {**PLAYER_DATA, "units": {**PLAYER_DATA["units"], "UNIT_A": stored}})
+    )
+
+    applied, _ = apply_player_data(config, data)
+
+    enhancement = build_ally_formation(applied.ally)["units"][0]["enhancement"]
+    assert enhancement["rank"] == 0
+    assert enhancement["module"] == {"hp": {"fixed": 0, "ratio": 0}}
 
 
 def test_yaml_values_win_over_stored_values(tmp_path):
@@ -331,9 +335,7 @@ def test_yaml_values_win_over_stored_values(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    formation = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]
+    formation = build_ally_formation(applied.ally)
     assert formation["units"][0]["enhancement"] == {"level": 1, "gears": []}
     assert formation["enhancement"]["academyLevels"]["unitTypes"] == {
         "PHYSICAL": 3,
@@ -363,9 +365,7 @@ def test_unit_absent_from_player_data_is_still_linked(tmp_path):
 
     applied, warnings = apply_player_data(config, data)
 
-    units = build_evaluation_request(applied, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(applied.ally)["units"]
     assert units[1]["enhancement"] == {"level": 260, "gears": []}
     # ギアが無いことは依然として実際の欠落なので、警告自体は残す。
     assert any("UNIT_MISSING" in warning and "レベル260" in warning for warning in warnings)
@@ -448,9 +448,7 @@ def linked(player_data, *, level: int, enabled: bool = True):
 
 
 def level_of(config) -> int:
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
     return units[0]["enhancement"]["level"]
 
 
@@ -459,6 +457,57 @@ def test_unknown_schema_version_is_rejected(tmp_path):
 
     with pytest.raises(PlayerDataError, match="schemaVersion"):
         load_player_data(path)
+
+
+def test_unknown_keys_in_the_player_data_are_rejected(tmp_path):
+    """未知キーは読み飛ばさず落とす。UIが新項目を書き始めたら、ここを先に対応させる
+    （`docs/ui-design/01_UI要求・画面設計.md` の互換方針）。"""
+    path = write_json(tmp_path, {**PLAYER_DATA, "futureField": 1})
+
+    with pytest.raises(PlayerDataError, match="futureField"):
+        load_player_data(path)
+
+
+def test_a_player_data_file_that_is_not_json_is_an_explained_error(tmp_path):
+    path = write(tmp_path, "player-data.json", "{not json")
+
+    with pytest.raises(PlayerDataError, match="JSON"):
+        load_player_data(path)
+
+
+def test_two_slots_of_the_same_unit_are_resolved_independently(tmp_path):
+    """手持ちデータの記録はIDで引くが、編成の枠はIDで同一視しない。
+
+    片方の枠へ明示したレベルはその枠だけのもので、もう片方は手持ちの値で埋まる。
+    """
+    config = load_formation_config(
+        write(
+            tmp_path,
+            "formation.yaml",
+            """
+ally:
+  academyLevels: {}
+  units:
+    - unitDefinitionId: UNIT_A
+      position: { column: 0, row: FRONT }
+      level: 300
+    - unitDefinitionId: UNIT_A
+      position: { column: 1, row: FRONT }
+enemy:
+  unitDefinitionId: UNIT_ENEMY
+  position: { column: 1, row: FRONT }
+""",
+        )
+    )
+    data = load_player_data(write_json(tmp_path, PLAYER_DATA))
+
+    applied, _ = apply_player_data(config, data)
+
+    units = build_ally_formation(applied.ally)["units"]
+    assert [unit["position"]["column"] for unit in units] == [0, 1]
+    assert [unit["enhancement"]["level"] for unit in units] == [300, 240]
+    # ギアは未指定の両枠へ手持ちから入る。
+    assert units[0]["enhancement"]["gears"] == units[1]["enhancement"]["gears"]
 
 
 def write(tmp_path, name: str, text: str):

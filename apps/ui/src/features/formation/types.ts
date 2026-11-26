@@ -109,8 +109,7 @@ export const DEFAULT_UNIT_LEVEL = 200;
 /** 既定は`LR+5`（内部値5）。手持ちがLR+5に届いていない運用は明示的に選び直す。 */
 export const DEFAULT_UNIT_RANK = 5;
 /**
- * 統計実行の既定試行数。`tools/exercise-lab`の`lab stats --runs`の既定と揃える
- * （同じ編成をUIとローカル探索の双方で回したとき、既定のまま比べられる）。
+ * 統計実行の既定試行数。
  */
 export const DEFAULT_EXERCISE_RUN_COUNT = 100;
 export const MIN_EXERCISE_RUN_COUNT = 1;

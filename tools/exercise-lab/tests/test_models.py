@@ -1,16 +1,13 @@
-"""編成YAML→一括評価リクエストJSONの変換。
+"""編成YAML→`FormationRequest` JSONの変換。
 
-送信JSONは `docs/ddd/10_API設計.md`「FormationRequest」「TacticalExerciseEvaluationRequest」
-の写しであり、キーの有無まで含めて一致させる（`additionalProperties: false` のため）。
+送信JSONは `docs/ddd/10_API設計.md`「FormationRequest」の写しであり、キーの有無まで
+含めて一致させる（`additionalProperties: false` のため）。
 """
 
 import pytest
 
-from exercise_lab.models import (
-    ConfigError,
-    build_evaluation_request,
-    load_formation_config,
-)
+from exercise_lab.inputs.exercise import build_enemy_formation, load_formation_config
+from exercise_lab.inputs.models import ConfigError, build_ally_formation
 
 MINIMAL_YAML = """
 ally:
@@ -31,9 +28,7 @@ enemy:
 def test_units_and_memories_keep_yaml_order(tmp_path):
     config = load_formation_config(write(tmp_path, MINIMAL_YAML))
 
-    request = build_evaluation_request(config, runs_per_candidate=3, seed="abc123")
-
-    ally = request["candidates"][0]["allyFormation"]
+    ally = build_ally_formation(config.ally)
     assert [unit["unitDefinitionId"] for unit in ally["units"]] == ["UNIT_B", "UNIT_A"]
     assert ally["memoryDefinitionIds"] == ["MEMORY_Z", "MEMORY_A"]
 
@@ -41,28 +36,16 @@ def test_units_and_memories_keep_yaml_order(tmp_path):
 def test_request_without_enhancement_omits_enhancement_keys(tmp_path):
     config = load_formation_config(write(tmp_path, MINIMAL_YAML))
 
-    request = build_evaluation_request(config, runs_per_candidate=3, seed="abc123")
-
-    assert request == {
-        "enemyFormation": {
-            "units": [
-                {"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "FRONT"}}
-            ],
-            "memoryDefinitionIds": [],
-        },
-        "candidates": [
-            {
-                "allyFormation": {
-                    "units": [
-                        {"unitDefinitionId": "UNIT_B", "position": {"column": 2, "row": "REAR"}},
-                        {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
-                    ],
-                    "memoryDefinitionIds": ["MEMORY_Z", "MEMORY_A"],
-                }
-            }
+    assert build_enemy_formation(config.enemy) == {
+        "units": [{"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "FRONT"}}],
+        "memoryDefinitionIds": [],
+    }
+    assert build_ally_formation(config.ally) == {
+        "units": [
+            {"unitDefinitionId": "UNIT_B", "position": {"column": 2, "row": "REAR"}},
+            {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
         ],
-        "runsPerCandidate": 3,
-        "seed": "abc123",
+        "memoryDefinitionIds": ["MEMORY_Z", "MEMORY_A"],
     }
 
 
@@ -146,9 +129,7 @@ enemy:
 def test_academy_levels_emit_all_nine_keys_defaulting_to_one(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
 
-    request = build_evaluation_request(config, runs_per_candidate=1, seed="s")
-
-    assert request["candidates"][0]["allyFormation"]["enhancement"] == {
+    assert build_ally_formation(config.ally)["enhancement"] == {
         "academyLevels": {
             "unitTypes": {"PHYSICAL": 60, "ENERGY": 1, "AGILE": 1},
             "attributes": {
@@ -166,9 +147,7 @@ def test_academy_levels_emit_all_nine_keys_defaulting_to_one(tmp_path):
 def test_unit_enhancement_keeps_gear_order_and_omits_default_units(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
 
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
 
     assert units[0]["enhancement"] == {
         "level": 240,
@@ -184,7 +163,7 @@ def test_unit_enhancement_keeps_gear_order_and_omits_default_units(tmp_path):
 def test_enemy_never_carries_enhancement(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
 
-    enemy = build_evaluation_request(config, runs_per_candidate=1, seed="s")["enemyFormation"]
+    enemy = build_enemy_formation(config.enemy)
 
     assert "enhancement" not in enemy
     assert "enhancement" not in enemy["units"][0]
@@ -200,9 +179,7 @@ def test_unknown_academy_level_key_is_rejected(tmp_path):
 def test_unit_rank_is_sent_when_it_differs_from_the_default(tmp_path):
     config = load_formation_config(write(tmp_path, RANKED_YAML))
 
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
 
     assert units[0]["enhancement"] == {"level": 200, "rank": 3, "gears": []}
 
@@ -210,9 +187,7 @@ def test_unit_rank_is_sent_when_it_differs_from_the_default(tmp_path):
 def test_unit_rank_equal_to_the_default_is_omitted(tmp_path):
     config = load_formation_config(write(tmp_path, RANKED_YAML))
 
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
 
     # rank 5（LR+5）はlevel 200・ギア0件と同じく省略時の既定と同値なので、
     # `enhancement` 自体を出さない。
@@ -232,9 +207,7 @@ def test_unit_rank_without_academy_levels_is_rejected(tmp_path):
 def test_unit_module_is_sent_when_present_and_only_the_written_fields_appear(tmp_path):
     config = load_formation_config(write(tmp_path, MODULE_YAML))
 
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
 
     assert units[0]["enhancement"]["module"] == {
         "hp": {"fixed": 5000, "ratio": 0.1},
@@ -263,9 +236,7 @@ enemy:
 """
     config = load_formation_config(write(tmp_path, yaml_text))
 
-    units = build_evaluation_request(config, runs_per_candidate=1, seed="s")["candidates"][0][
-        "allyFormation"
-    ]["units"]
+    units = build_ally_formation(config.ally)["units"]
 
     assert units[0]["enhancement"] == {
         "level": 200,

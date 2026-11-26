@@ -7,8 +7,8 @@ import pytest
 import respx
 from typer.testing import CliRunner
 
-from exercise_lab.api import CATALOG_PATH, Catalog, search_memories, search_units
 from exercise_lab.cli import app
+from exercise_lab.inputs.catalog import CATALOG_PATH, Catalog, search_memories, search_units
 
 BASE_URL = "http://localhost:3000"
 

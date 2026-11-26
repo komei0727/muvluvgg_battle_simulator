@@ -4,8 +4,8 @@
 1回のカタログ取得で先に検出する。
 """
 
-from exercise_lab.api import Catalog, validate_against_catalog
-from exercise_lab.models import load_formation_config
+from exercise_lab.inputs.catalog import Catalog
+from exercise_lab.inputs.exercise import load_formation_config, validate_against_catalog
 
 CATALOG = Catalog.model_validate(
     {

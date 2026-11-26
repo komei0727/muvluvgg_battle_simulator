@@ -1,12 +1,12 @@
-// 統計の定義の正本は `tools/exercise-lab/src/exercise_lab/stats.py` であり、この
+// 統計の定義の正本は `tools/exercise-lab/src/exercise_lab/reference_stats/descriptive.py` であり、この
 // module はその移植である。サーバーは統計量を返さない（`10_API設計.md`
 // 「TacticalExerciseCandidateEvaluationResponse」、Q-TEX-16）ため、統計実行の集計は
 // すべてここを通る。Python実装との数値一致は `__fixtures__/python-parity.ts` が押さえる。
 
-/** 平均の信頼区間の水準。`stats.py` と同じく正規近似で出す。 */
+/** 平均の信頼区間の水準。`descriptive.py` と同じく正規近似で出す。 */
 export const CONFIDENCE_LEVEL = 0.95;
 
-/** 標準正規分布の97.5%点。`stats.py:NORMAL_QUANTILE_95` と同じ定数。 */
+/** 標準正規分布の97.5%点。`descriptive.py:NORMAL_QUANTILE_95` と同じ定数。 */
 export const NORMAL_QUANTILE_95 = 1.959963984540054;
 
 export const ALLY_DEFEATED = "ALLY_DEFEATED";
@@ -63,7 +63,7 @@ export interface HistogramBin {
 
 /**
  * 昇順に並べた標本の線形補間分位点。`numpy.percentile` の既定（`method="linear"`）
- * と同じ位置づけで、`fitness.best_quantile` もこの補間を使う。
+ * と同じ位置づけで、`daily_best.best_quantile` もこの補間を使う。
  */
 export function quantileOfSorted(ordered: readonly number[], probability: number): number {
   const last = ordered.at(-1);
@@ -156,7 +156,7 @@ export function summarizeBreakCounts(breakCounts: readonly number[]): BreakCount
 
 /**
  * 試行数からビン数を決める（Sturges）。試行数だけで決まるので、同じ入力なら同じ図に
- * なる（`stats.py:_histogram_bins`）。
+ * なる（`descriptive.py:histogram_bin_count`）。
  */
 export function histogramBinCount(runs: number): number {
   if (runs <= 0) {

@@ -6,7 +6,7 @@
 // 置き場が二重化し、書き写しの取りこぼしでズレる。
 //
 // 解決点をこのファイル1つに閉じ、リクエスト生成・送信前検証・表示が同じ規則を
-// 共有する。同じ規則を`tools/exercise-lab`の`resolved_level`（`player_data.py`）が
+// 共有する。同じ規則を`tools/exercise-lab`の`resolved_level`（`inputs/player_data.py`）が
 // 写しており、片方だけ変えるとUIとlabが別のレベルで同じ編成を評価する。
 import { DEFAULT_UNIT_LEVEL } from "./types.js";
 import type {

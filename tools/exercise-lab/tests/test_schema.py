@@ -8,9 +8,10 @@ import jsonschema
 import pytest
 import yaml
 
-from exercise_lab.api import Catalog
-from exercise_lab.models import ConfigError, load_formation_config
-from exercise_lab.schema import build_formation_json_schema
+from exercise_lab.inputs.catalog import Catalog
+from exercise_lab.inputs.exercise import load_formation_config
+from exercise_lab.inputs.models import ConfigError
+from exercise_lab.inputs.schema import build_formation_json_schema
 
 CATALOG = Catalog.model_validate(
     {
@@ -204,7 +205,7 @@ def test_duplicate_ally_positions_are_a_documented_gap(schema):
     """Schemaで表現できない制約はここに列挙し、差異を明示的に固定する。
 
     「配置が重複しないこと」は要素の一部（`position`）についての一意性で、
-    JSON Schema の `uniqueItems` では表せない。エディタ上は通り、`lab stats` の
+    JSON Schema の `uniqueItems` では表せない。エディタ上は通り、ローダーの
     `ConfigError` で落ちる——この非対称を黙って持たず、テストで見えるようにする。
     """
     value = document()
@@ -219,8 +220,6 @@ def test_duplicate_ally_positions_are_a_documented_gap(schema):
     from pathlib import Path
 
     import yaml as pyyaml
-
-    from exercise_lab.models import ConfigError, load_formation_config
 
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "formation.yaml"
