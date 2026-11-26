@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 
 from battle_lab.evaluation import plan_battle_evaluation
-from mlgg_lab_common.api.client import EvaluationHttpClient
 from mlgg_lab_common.evaluation.runner import StopReason, run_evaluation
 from mlgg_lab_common.storage.layout import create_evaluation
 from total_war_lab.evaluation import plan_total_war_evaluation
@@ -40,7 +39,7 @@ def write_config(directory: Path, fmt: str, lab: str, *, cases: list[str], **api
 
 def observe(plan, directory: Path):
     _, repo = create_evaluation(directory, plan)
-    with repo, EvaluationHttpClient(plan.settings.base_url) as client:
+    with repo, plan.settings.http_client() as client:
         report = run_evaluation(repo, client)
         assert report.stop_reason is StopReason.COMPLETED, report.detail
         fingerprints = {c.case_id: c.match_fingerprint for c in plan.cases}
@@ -108,8 +107,9 @@ def test_an_unexpected_engine_revision_stops_before_any_run(tmp_path):
         ),
         encoding="utf-8",
     )
-    _, repo = create_evaluation(tmp_path / "evaluations", plan_battle_evaluation(path))
-    with repo, EvaluationHttpClient(LIVE_URL or "") as client:
+    plan = plan_battle_evaluation(path)
+    _, repo = create_evaluation(tmp_path / "evaluations", plan)
+    with repo, plan.settings.http_client() as client:
         report = run_evaluation(repo, client)
 
         assert report.stop_reason is StopReason.ENVIRONMENT_MISMATCH

@@ -99,3 +99,14 @@ def test_http_failures_are_classified_by_status_and_code(status, body, kind, ret
     assert failure.retryable is retryable
     if body:
         assert failure.code == body["error"]["code"]
+
+
+def test_client_built_from_settings_uses_the_configured_timeout_and_base_url():
+    from mlgg_lab_common.evaluation.models import ExecutionSettings
+
+    settings = ExecutionSettings(baseUrl="http://lab.test/", timeoutSeconds=0.25)
+
+    with settings.http_client(access_key="k") as client:
+        assert client.timeout_seconds == 0.25
+        assert client.base_url == "http://lab.test"
+        assert client.access_key_configured

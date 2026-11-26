@@ -233,6 +233,39 @@ def test_configured_revisions_are_sent_from_the_first_request(tmp_path):
     assert "expectedCatalogRevision" not in server.requests[0]
 
 
+@pytest.mark.parametrize(
+    ("settings", "server_env"),
+    [
+        ({"expectedEngineRevision": "required-engine"}, {"engine_revision": "wrong-engine"}),
+        ({"expectedCatalogRevision": "required-catalog"}, {"catalog_revision": "wrong-catalog"}),
+    ],
+)
+def test_a_first_response_from_an_unexpected_environment_is_not_saved(
+    tmp_path, settings, server_env
+):
+    # 実APIなら422で止まるが、200で返ってきても応答側で照合して受理しない。
+    server = FakeEvaluationServer(**server_env)
+    with make_repo(tmp_path, **settings) as repo:
+        report = run_evaluation(repo, server, sleep=no_sleep)
+
+        assert report.stop_reason is StopReason.ENVIRONMENT_MISMATCH
+        assert len(server.requests) == 1
+        assert repo.results() == []
+        assert repo.environment() is None
+        assert repo.attempts()[0].failure_kind == "ENVIRONMENT_MISMATCH"
+
+
+def test_matching_configured_revisions_establish_the_environment(tmp_path):
+    server = FakeEvaluationServer()
+    with make_repo(
+        tmp_path, expectedEngineRevision="eng-1", expectedCatalogRevision="cat-1"
+    ) as repo:
+        report = run_evaluation(repo, server, sleep=no_sleep)
+
+        assert report.stop_reason is StopReason.COMPLETED
+        assert repo.environment().engine_revision == "eng-1"
+
+
 def test_stored_result_differing_from_a_resent_trial_stops_with_a_conflict(tmp_path):
     cases = [CaseSpec("a", A, [0])]
     with make_repo(tmp_path, cases) as repo:

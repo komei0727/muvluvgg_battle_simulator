@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 
-from ..api.client import DEFAULT_TIMEOUT_SECONDS
+from ..api.client import DEFAULT_TIMEOUT_SECONDS, EvaluationHttpClient
 from ..api.contracts import ExpectedSlot, FormatContract
 
 # 計画（`EvaluationPlan`）の保存形式。DBの保存形式（`storage.migrations`）とは別に数える。
@@ -38,6 +38,15 @@ class ExecutionSettings(_Settings):
     # 実行環境を初回から固定したいときに指定する。省略すると最初の応答で確定する。
     expected_catalog_revision: str | None = Field(default=None, alias="expectedCatalogRevision")
     expected_engine_revision: str | None = Field(default=None, alias="expectedEngineRevision")
+
+    def http_client(self, *, access_key: str | None = None) -> EvaluationHttpClient:
+        """この設定の接続先・タイムアウトで評価APIのクライアントを作る。
+
+        アクセスキーは秘密値なので計画・DBへ保存せず、実行のたびに渡す。
+        """
+        return EvaluationHttpClient(
+            self.base_url, timeout_seconds=self.timeout_seconds, access_key=access_key
+        )
 
     def resolved_for(self, contract: FormatContract) -> ExecutionSettings:
         return self.model_copy(

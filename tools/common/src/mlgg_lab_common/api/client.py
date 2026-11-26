@@ -84,11 +84,14 @@ class EvaluationHttpClient(EvaluationTransport):
         access_key: str | None = None,
         clock: Callable[[], str] = _now,
     ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+        self.access_key_configured = bool(access_key)
         headers = {"Accept": "application/json"}
         if access_key:
             headers["Authorization"] = f"Bearer {access_key}"
         self._client = httpx.Client(
-            base_url=base_url.rstrip("/"), timeout=timeout_seconds, headers=headers
+            base_url=self.base_url, timeout=timeout_seconds, headers=headers
         )
         self._clock = clock
 

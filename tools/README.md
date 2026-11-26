@@ -172,19 +172,20 @@ uv run python -m mlgg_lab_common.inputs.migration --apply    # 写して、移�
 from pathlib import Path
 
 from battle_lab.evaluation import plan_battle_evaluation
-from mlgg_lab_common.api.client import EvaluationHttpClient
 from mlgg_lab_common.evaluation.runner import run_evaluation
 from mlgg_lab_common.storage.layout import create_evaluation, open_evaluation, write_manifest
 
 plan = plan_battle_evaluation(Path("battle-lab/configs/evaluation.example.yaml"))
 directory, repo = create_evaluation(Path("data/evaluations"), plan)
-with repo, EvaluationHttpClient(plan.settings.base_url, access_key=None) as client:
+# 接続先・タイムアウトは計画の設定（api.baseUrl / timeoutSeconds）から作る。
+# アクセスキーは保存しないので、要る配備では毎回 access_key= で渡す。
+with repo, plan.settings.http_client(access_key=None) as client:
     report = run_evaluation(repo, client)  # 途中で止まっても状態はDBに残る
     write_manifest(directory, repo)
 print(report.stop_reason, report.counters)
 
 # 再開: 同じDBを開いてもう一度呼ぶだけ。元のYAML・JSONは読み直さない。
-with open_evaluation(directory) as repo, EvaluationHttpClient(plan.settings.base_url) as client:
+with open_evaluation(directory) as repo, repo.load_plan().settings.http_client() as client:
     run_evaluation(repo, client)
 ```
 
@@ -200,6 +201,8 @@ with open_evaluation(directory) as repo, EvaluationHttpClient(plan.settings.base
 - `api.maxCasesPerRequest` / `maxRunsPerRequest` は配備の上限以下にする。省略時は形式ごとのAPI既定値
   （通常戦闘 64 / 300、総力戦 32 / 120）。全形式に同じ値を仮定しない。
 - `budget.maxSubmittedRuns` は再送込みの送信試行数の上限で、必須。
+- `api.baseUrl` / `timeoutSeconds` はクライアントへ渡して初めて効く。`plan.settings.http_client()` で作る
+  （`EvaluationHttpClient` を直接作ると既定の120秒になり、長い要求が応答喪失・再送として予算を消費する）。
 
 ### 不変条件
 
@@ -236,8 +239,8 @@ with open_evaluation(directory) as repo, EvaluationHttpClient(plan.settings.base
   結果は1試行1件のまま（サーバーでの実行が1回になる保証はしない）。
 - **予算**: 計画試行数・送信試行数（再送・未完了分を含む）・完了した固有試行数を分けて数える。送信前に要求を
   DBへ保存して予算を確保するので、送信直後に中断しても上限を超えない。
-- **実行環境**: `api.expectedCatalogRevision` / `expectedEngineRevision` を書けば初回から固定する。書かなければ
-  最初の成功応答で確定し、以降の要求へ期待revisionとして付ける（違う配備なら実行前に422で止まる）。
+- **実行環境**: `api.expectedCatalogRevision` / `expectedEngineRevision` を書けば初回から固定する（要求に
+  付けるだけでなく、初回の応答もこの値と照合し、違えば結果を保存せず止まる）。書かなければ最初の成功応答で確定し、以降の要求へ期待revisionとして付ける（違う配備なら実行前に422で止まる）。
   `seedDerivationVersion`・契約は応答で照合する。devサーバーを再起動して `engineRevision` が変われば
   （未コミットの変更や `unresolved+boot.*`）止まるので、新しい評価実行を作り直す。
 

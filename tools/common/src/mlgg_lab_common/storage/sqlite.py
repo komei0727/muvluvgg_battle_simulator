@@ -349,6 +349,29 @@ class SqliteEvaluationRepository:
     ) -> None:
         established = self.environment()
         if established is None:
+            # 初回は保存済みの環境が無いので、設定で固定した期待revisionと照合する。APIは
+            # 期待revisionの不一致を422で拒むが、200で返った応答もここで受理しない。
+            settings = self.load_plan().settings
+            differences = [
+                f"{name}: 期待 {expected!r} → 応答 {actual!r}"
+                for name, expected, actual in (
+                    (
+                        "catalogRevision",
+                        settings.expected_catalog_revision,
+                        environment.catalog_revision,
+                    ),
+                    (
+                        "engineRevision",
+                        settings.expected_engine_revision,
+                        environment.engine_revision,
+                    ),
+                )
+                if expected is not None and expected != actual
+            ]
+            if differences:
+                raise EnvironmentMismatchError(
+                    "設定した期待revisionと実行環境が違う: " + "; ".join(differences)
+                )
             db.execute(
                 "UPDATE evaluations SET catalog_revision = ?, engine_revision = ?,"
                 " seed_derivation_version = ?, environment_contract_id = ?,"
