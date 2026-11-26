@@ -4,7 +4,7 @@
 開発コマンドは [`../README.md`](../README.md) にある。
 
 対戦入力の基盤と、評価設定から試行計画を作る口（`evaluation`）を持つ。評価APIの分割実行・保存・再開は
-共通基盤（`mlgg_lab_common`）が持つ。利用者向けのコマンドと探索は後続の段階で足す。
+共通基盤（`mlgg_lab_common`）が持つ。総力戦の集計（`analysis`）と評価コマンド（`total-war-lab`）を持つ。探索は後続の段階で足す。
 
 ## 対戦入力
 
@@ -61,3 +61,19 @@ Path("resolved.json").write_text(dump_resolved_total_war_input(resolved), encodi
 [`configs/evaluation.example.yaml`](configs/evaluation.example.yaml) を写して使う。ケースごとに対戦入力ファイル
 （`match:`）かUIドラフト（`draft:`）と試行番号を書き、`plan_total_war_evaluation(path)` で解決済み入力・送信内容・参加枠を
 確定した計画にする。実行・保存・再開の手順と不変条件は [`../README.md`](../README.md)「評価の実行（共通基盤）」にある。
+
+## 評価コマンド
+
+```bash
+cd tools
+uv run total-war-lab evaluate total-war-lab/configs/evaluation.example.yaml --evaluation-id example
+uv run total-war-lab status data/evaluations/example
+uv run total-war-lab resume data/evaluations/example      # 止まった評価の続き
+uv run total-war-lab summarize data/evaluations/example   # ケース別の記述統計（APIへ接続しない）
+uv run total-war-lab export data/evaluations/example      # trials.jsonl / trials.csv / summary.json / cases.json
+```
+
+集計の定義は [`src/total_war_lab/analysis.py`](src/total_war_lab/analysis.py)、オプション・終了コード・出力形式は
+[`../README.md`](../README.md)「評価コマンド」にある。
+
+総力戦は勝ち抜き戦全体を1試行として集計し、引き分け（`DRAW`）を勝敗へ換算しない。編成対戦（`stages`）の比率も分母は試行数である。

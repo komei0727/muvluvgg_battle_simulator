@@ -62,6 +62,22 @@ _STOP_ON_FAILURE = {
 
 
 @dataclass(frozen=True)
+class RequestProgress:
+    """要求1回を終えた時点の状況。実行中の表示に使う（保存はしない）。"""
+
+    # この実行で送った要求の数。
+    requests: int
+    counters: Counters
+    # この要求で新たに保存した結果の数。失敗した要求では0。
+    new_results: int
+    # 失敗した要求なら分類（`FailureKind` か `RESPONSE_INVALID` 等）と内容。
+    failure: str | None = None
+
+
+ProgressCallback = Callable[[RequestProgress], None]
+
+
+@dataclass(frozen=True)
 class RunReport:
     stop_reason: StopReason
     detail: str | None
@@ -76,6 +92,7 @@ def run_evaluation(
     *,
     sleep: Callable[[float], None] = time.sleep,
     max_requests: int | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> RunReport:
     plan = repository.load_plan()
     settings = plan.settings
@@ -88,6 +105,10 @@ def run_evaluation(
     def stop(reason: StopReason, detail: str | None = None) -> RunReport:
         repository.finish_session(session, reason.value, detail)
         return RunReport(reason, detail, repository.counters(), requests)
+
+    def notify(new_results: int, failure: str | None = None) -> None:
+        if on_progress is not None:
+            on_progress(RequestProgress(requests, repository.counters(), new_results, failure))
 
     while True:
         pending = repository.pending_trials()
@@ -115,6 +136,7 @@ def run_evaluation(
             repository.record_failure(
                 attempt, exchange, failure.kind.value, failure.code, failure.message
             )
+            notify(0, f"{failure.kind.value}: {failure.message}")
             if not failure.retryable:
                 return stop(_STOP_ON_FAILURE[failure.kind], failure.message)
             retries += 1
@@ -131,13 +153,17 @@ def run_evaluation(
             validated = validate_response(request, json.loads(exchange.body or ""))
         except (ValueError, ResponseContractError) as error:
             repository.record_failure(attempt, exchange, "RESPONSE_INVALID", None, str(error))
+            notify(0, f"RESPONSE_INVALID: {error}")
             return stop(StopReason.RESPONSE_INVALID, str(error))
         try:
             outcome = repository.record_success(attempt, exchange, validated)
         except EnvironmentMismatchError as error:
+            notify(0, f"ENVIRONMENT_MISMATCH: {error}")
             return stop(StopReason.ENVIRONMENT_MISMATCH, str(error))
         except ResultConflictError as error:
+            notify(0, f"RESULT_CONFLICT: {error}")
             return stop(StopReason.RESULT_CONFLICT, str(error))
+        notify(outcome.new_results)
 
         if outcome.new_results == 0:
             no_progress += 1

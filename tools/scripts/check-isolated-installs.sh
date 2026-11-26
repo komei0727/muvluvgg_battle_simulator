@@ -38,24 +38,34 @@ check common "$TOOLS/common" -- '
 import importlib.util
 import mlgg_lab_common.inputs.catalog, mlgg_lab_common.inputs.resolution, mlgg_lab_common.inputs.schema
 import mlgg_lab_common.inputs.sources, mlgg_lab_common.models, mlgg_lab_common.testing
+import mlgg_lab_common.reporting, mlgg_lab_common.statistics.summary
 assert importlib.util.find_spec("numpy") is None, "numpy は statistics 追加依存だけが持ち込む"
+for unexpected in ("typer", "rich"):
+    assert importlib.util.find_spec(unexpected) is None, f"{unexpected} は cli 追加依存だけが持ち込む"
 '
 check common-statistics "$TOOLS/common[statistics]" -- '
 import mlgg_lab_common.statistics.descriptive
 '
+check common-cli "$TOOLS/common[cli]" -- '
+import importlib.util
+import mlgg_lab_common.cli
+assert importlib.util.find_spec("numpy") is None, "cli は numpy を持ち込まない"
+'
 check exercise-lab "$TOOLS/common" "$TOOLS/exercise-lab" -- '
-import exercise_lab.cli, exercise_lab.inputs.exercise, exercise_lab.inputs.schema
+import exercise_lab.cli, exercise_lab.analysis, exercise_lab.inputs.exercise, exercise_lab.inputs.schema
 import exercise_lab.statistics.daily_best, mlgg_lab_common.statistics.descriptive
 '
 check battle-lab "$TOOLS/common" "$TOOLS/battle-lab" -- '
 import importlib.util
-import battle_lab.inputs
-for unexpected in ("numpy", "typer", "rich", "exercise_lab", "total_war_lab"):
+import battle_lab.inputs, battle_lab.analysis, battle_lab.cli
+# 評価コマンドで typer / rich（cli 追加依存）は入るが、numpy（statistics）は持ち込まない。
+for unexpected in ("numpy", "exercise_lab", "total_war_lab"):
     assert importlib.util.find_spec(unexpected) is None, unexpected
 '
 check total-war-lab "$TOOLS/common" "$TOOLS/total-war-lab" -- '
 import importlib.util
-import total_war_lab.inputs
-for unexpected in ("numpy", "typer", "rich", "exercise_lab", "battle_lab"):
+import total_war_lab.inputs, total_war_lab.analysis, total_war_lab.cli
+# 評価コマンドで typer / rich（cli 追加依存）は入るが、numpy（statistics）は持ち込まない。
+for unexpected in ("numpy", "exercise_lab", "battle_lab"):
     assert importlib.util.find_spec(unexpected) is None, unexpected
 '

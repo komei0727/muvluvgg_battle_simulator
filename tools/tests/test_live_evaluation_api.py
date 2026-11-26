@@ -8,15 +8,21 @@
 対戦条件と試行番号で突き合わせた意味上の観測値が一致することを見る（原応答の時刻等は比べない）。
 """
 
+import json
 import os
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from battle_lab.cli import app as battle_app
 from battle_lab.evaluation import plan_battle_evaluation
+from exercise_lab.cli import app as exercise_app
 from exercise_lab.evaluation import plan_exercise_evaluation
+from mlgg_lab_common.cli import EXIT_INCOMPLETE, EXIT_OK
 from mlgg_lab_common.evaluation.runner import StopReason, run_evaluation
 from mlgg_lab_common.storage.layout import create_evaluation
+from total_war_lab.cli import app as total_war_app
 from total_war_lab.evaluation import plan_total_war_evaluation
 
 LIVE_URL = os.environ.get("MLGG_LAB_LIVE_API_URL")
@@ -126,3 +132,59 @@ def test_an_unexpected_engine_revision_stops_before_any_run(tmp_path):
         assert report.stop_reason is StopReason.ENVIRONMENT_MISMATCH
         assert repo.results() == []
         assert repo.attempts()[0].http_status == 422
+
+
+@pytest.mark.parametrize(
+    ("fmt", "lab", "app"),
+    [
+        ("BATTLE", "battle-lab", battle_app),
+        ("TOTAL_WAR", "total-war-lab", total_war_app),
+        ("TACTICAL_EXERCISE", "exercise-lab", exercise_app),
+    ],
+)
+def test_cli_evaluate_interrupt_resume_summarize_export(tmp_path, fmt, lab, app):
+    """利用者の操作どおりに、要求1回で止めて → status → resume → summarize → export を通す。"""
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    config = write_config(
+        configs,
+        fmt,
+        lab,
+        cases=[
+            "  - { caseId: a, match: MATCH, runs: 3 }\n",
+            "  - { caseId: b, match: MATCH, runIndices: [5, 9] }\n",
+        ],
+        maxCasesPerRequest=1,
+        maxRunsPerRequest=2,
+    )
+    runner = CliRunner()
+    evaluation = tmp_path / "evaluations/live"
+
+    def run(*args: object):
+        return runner.invoke(app, [str(a) for a in args], catch_exceptions=False)
+
+    first = run(
+        "evaluate",
+        config,
+        "--evaluations-dir",
+        evaluation.parent,
+        "--evaluation-id",
+        "live",
+        "--max-requests",
+        "1",
+    )
+    assert first.exit_code == EXIT_INCOMPLETE, first.output
+    status = json.loads(run("status", evaluation, "--json").output)
+    assert status["counters"]["completedTrials"] == 2
+    assert status["lastSession"]["stopReason"] == "REQUEST_LIMIT_REACHED"
+
+    resumed = run("resume", evaluation)
+    assert resumed.exit_code == EXIT_OK, resumed.output
+    summary = json.loads(run("summarize", evaluation, "--json").output)
+    assert [c["sampleSize"] for c in summary["cases"]] == [3, 2]
+    assert all(c["statistics"] is not None for c in summary["cases"])
+    assert summary["environment"]["engineRevision"]
+
+    assert run("export", evaluation).exit_code == EXIT_OK
+    lines = (evaluation / "exports/trials.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 5

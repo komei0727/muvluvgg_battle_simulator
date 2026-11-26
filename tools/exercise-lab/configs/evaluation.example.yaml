@@ -18,6 +18,9 @@ api:
 # 演習の敵は強化を持たないので、playerDataSides は [ALLY] のまま（既定）。
 #   inputs:
 #     playerData: ../../data/inputs/player-data/player-data.json
+# 評価実行の保存先（<evaluationsDir>/<evaluation-id>/evaluation.sqlite3）。tools/data/ は gitignore 済み。
+output:
+  evaluationsDir: ../../data/evaluations
 cases:
   - caseId: example
     match: formation.example.yaml

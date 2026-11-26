@@ -4,9 +4,12 @@ version = "0.1.0"
 description = "Total war lab: match inputs (ordered formation lists) and format-specific validation"
 requires-python = ">=3.12"
 dependencies = [
-    "mlgg-lab-common",
+    "mlgg-lab-common[cli]",
     "pydantic>=2.9",
 ]
+
+[project.scripts]
+total-war-lab = "total_war_lab.cli:app"
 
 [build-system]
 requires = ["hatchling"]

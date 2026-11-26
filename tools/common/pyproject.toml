@@ -13,6 +13,9 @@ dependencies = [
 # 記述統計（mlgg_lab_common.statistics）だけが使う。入力の取り込みだけを使うラボへ
 # 数値計算ライブラリを持ち込まないよう、実行時依存から分けておく。
 statistics = ["numpy>=2.1"]
+# 各ラボの評価コマンドの共通部（mlgg_lab_common.cli）だけが使う。Pythonから集計・出力
+# （mlgg_lab_common.reporting）だけを使うなら要らない。
+cli = ["rich>=13.9", "typer>=0.15"]
 
 [build-system]
 requires = ["hatchling"]

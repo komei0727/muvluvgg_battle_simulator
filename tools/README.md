@@ -6,9 +6,9 @@
 | パッケージ                         | import名          | 役割                                                                                                                 |
 | ---------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
 | [`common/`](common/)               | `mlgg_lab_common` | 陣営に依らない編成・育成モデル、手持ちデータ・ドラフト・編成ライブラリ・Catalog、記述統計、評価APIの実行・保存・再開 |
-| [`exercise-lab/`](exercise-lab/)   | `exercise_lab`    | 戦術演習の入力・演習固有統計・入力補助CLI（`exercise-lab`）                                                          |
-| [`battle-lab/`](battle-lab/)       | `battle_lab`      | 通常戦闘の対戦入力（両陣営の編成・規定ターン数）と形式固有の検証                                                     |
-| [`total-war-lab/`](total-war-lab/) | `total_war_lab`   | 総力戦の対戦入力（両陣営の編成列・出撃順）と形式固有の検証                                                           |
+| [`exercise-lab/`](exercise-lab/)   | `exercise_lab`    | 戦術演習の入力・演習固有統計・入力補助と評価のCLI（`exercise-lab`）                                                  |
+| [`battle-lab/`](battle-lab/)       | `battle_lab`      | 通常戦闘の対戦入力（両陣営の編成・規定ターン数）・形式固有の検証・集計と評価のCLI（`battle-lab`）                    |
+| [`total-war-lab/`](total-war-lab/) | `total_war_lab`   | 総力戦の対戦入力（両陣営の編成列・出撃順）・形式固有の検証・集計と評価のCLI（`total-war-lab`）                       |
 
 戦闘処理・ステータス計算・育成計算・最終的な編成合法性の判定はAPI（`apps/api/`）の責務であり、
 ここでは再実装しない。ラボが持つのは入力の読み込み・育成情報の適用・事前検証と、APIの
@@ -41,8 +41,10 @@ total-war-lab ─┘
 - 各パッケージは自分がimportするライブラリをすべて実行時依存に書く。workspace の venv には
   全パッケージの依存が入っているので、宣言漏れはテストが通っても気づけない。
 - 統計用の `numpy` は common の追加依存 `statistics`（`mlgg-lab-common[statistics]`）に分けてある。
-  入力だけを使うラボ（通常戦闘・総力戦）へは持ち込まない。学習・探索の重いライブラリは置かない。
-- CLIのコマンド名はラボ名を接頭辞にする（`exercise-lab`）。workspace は1つの venv へ全ラボの
+  UI統計の参照実装を使わないラボ（通常戦闘・総力戦）へは持ち込まない。学習・探索の重いライブラリは置かない。
+- コマンド用の `typer` / `rich` は common の追加依存 `cli`（`mlgg-lab-common[cli]`）に分けてある。
+  `mlgg_lab_common.cli` だけが使い、集計・出力（`reporting`）はこれらに依存しない。
+- CLIのコマンド名はラボ名を接頭辞にする（`exercise-lab` / `battle-lab` / `total-war-lab`）。workspace は1つの venv へ全ラボの
   コマンドを入れるため、共通名だと後から入ったラボのコマンドが黙って上書きする。
 
 境界は2段で確かめる。
@@ -166,12 +168,164 @@ uv run python -m mlgg_lab_common.inputs.migration --apply    # 写して、移�
 | `storage.migrations`  | DB保存形式のバージョンと移行                                       |
 | `storage.layout`      | 評価実行のディレクトリと `manifest.json`                           |
 
-利用者向けのコマンド（`evaluate` / `resume` / `summarize` / `export`）は後続の段階で各ラボへ足す。
-今は次のように呼ぶ（devサーバーは `EVALUATION_ENDPOINT_ENABLED=true` で起動する）。
+| `reporting.snapshot` | 評価実行のDBの読み出し（APIへ接続しない） |
+| `reporting.status` | 計画・送信・完了・未完了・予算・停止理由 |
+| `reporting.summary` | ケース別の記述統計（形式固有の集計は各ラボの `analysis.py`） |
+| `reporting.export` | JSONL / CSV / JSON の出力 |
+| `statistics.summary` | 要約統計・件数と比率・分布（標準ライブラリだけ） |
+| `cli` | 各ラボの評価コマンドの共通部（追加依存 `cli`: typer・rich） |
+
+## 評価コマンド
+
+各ラボの入口（`exercise-lab` / `battle-lab` / `total-war-lab`）に同じコマンドがある。devサーバーは
+`apps/api/` で `EVALUATION_ENDPOINT_ENABLED=true mise run dev` のように評価APIを有効にして起動する。
+
+| コマンド                                     | 役割                                                          | APIへの接続 |
+| -------------------------------------------- | ------------------------------------------------------------- | ----------- |
+| `evaluate <評価設定>`                        | 入力を解決し、計画をDBへ保存して実行する                      | する        |
+| `resume <評価実行>`                          | 保存済み計画の結果の無い試行を実行する                        | する        |
+| `status <評価実行> [--json]`                 | 計画・送信・完了・未完了の件数、予算、失敗の内訳、停止理由    | しない      |
+| `summarize <評価実行> [--case ID]… [--json]` | ケース別の記述統計                                            | しない      |
+| `export <評価実行> [--out DIR]`              | `trials.jsonl` / `trials.csv` / `summary.json` / `cases.json` | しない      |
+
+`<評価実行>` は `data/evaluations/<evaluation-id>`（DBファイルそのものを渡してもよい）。他の形式の評価実行は
+開かない（`battle-lab` で総力戦のDBを開くと入力エラー）。
+
+| オプション              | コマンド              | 内容                                                                         |
+| ----------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `--evaluations-dir DIR` | `evaluate`            | 保存先。省略時は評価設定の `output.evaluationsDir`（どちらも無ければエラー） |
+| `--evaluation-id ID`    | `evaluate`            | 評価実行のID。省略時は日時から作る。既にあるIDはエラー（上書きしない）       |
+| `--plan-only`           | `evaluate`            | 計画を保存するだけで送らない（後で `resume`）                                |
+| `--max-requests N`      | `evaluate` / `resume` | この実行で送る要求の数の上限（送信予算とは別）                               |
+| `--access-key KEY`      | `evaluate` / `resume` | アクセスキー。環境変数 `MLGG_LAB_ACCESS_KEY` でも渡せる。保存しない          |
+
+実行中は要求ごとに「新規完了」「完了した固有試行数/計画試行数」「送信試行数（再送・未完了分を含む）」を
+1行ずつ出し、終わると停止理由を出す。`resume` は保存済みの計画（対戦条件・seed・試行番号・接続先・
+要求上限・予算）をそのまま使い、評価設定・編成YAML・育成JSONを読み直さない。接続先や予算を変えたい
+ときは評価設定を直して新しい評価実行を作る（段階2の契約で、再開時に変えられるのは要求数の上限と
+アクセスキーだけ）。
+
+### 終了コード
+
+| コード | 意味                                                                                               |
+| ------ | -------------------------------------------------------------------------------------------------- |
+| 0      | 成功。`evaluate` / `resume` はすべての試行が完了した                                               |
+| 1      | 入力・設定・保存先の問題（評価設定の誤り、入力ファイルが無い、評価実行が無い、形式が違う等）       |
+| 2      | コマンドの使い方の誤り                                                                             |
+| 3      | 送信予算（`BUDGET_EXHAUSTED`）・要求数の上限（`REQUEST_LIMIT_REACHED`）で止まった。`resume` で続く |
+| 4      | 通信・実行・応答・実行環境の問題で止まった（その他の停止理由。`status` で内容を確かめる）          |
+| 130    | Ctrl-C で中断した。保存済みの結果は残り、`resume` で続く                                           |
+
+戦闘結果としての敗北・引き分け・低スコアはエラーではなく、終了コードに影響しない。逆に通信失敗・
+実行エラー・未完了は観測結果にならず、`status` の「失敗の内訳」と未完了件数にだけ現れる。
+
+### 操作の流れ（入力準備 → 実行 → 中断/再開 → 集計 → 出力）
+
+```bash
+cd tools
+# 1. 入力を用意する（「入力の運用」）。演習ドラフトの味方を編成ライブラリにして match YAML から
+#    { library: my-team } で参照する。通常戦闘・総力戦のドラフトは評価設定の draft: でそのまま読める。
+exercise-lab import-draft data/inputs/drafts/my-team.json --library -o data/inputs/formations/my-team.yaml
+cp ~/Downloads/player-data.json data/inputs/player-data/player-data.json   # UIの育成JSONをそのまま
+
+# 2. 評価設定を書く（サンプルを写す。configs/*.yaml はサンプル以外 gitignore 済み）。
+cp battle-lab/configs/evaluation.example.yaml battle-lab/configs/my-study.yaml
+
+# 3. 実行する。止まったら（予算・Ctrl-C・通信断）status で理由を見て resume する。
+uv run battle-lab evaluate battle-lab/configs/my-study.yaml --evaluation-id my-study
+uv run battle-lab status data/evaluations/my-study
+uv run battle-lab resume data/evaluations/my-study
+
+# 4. 集計・出力する（APIへ接続しない。何度でも作り直せる）。
+uv run battle-lab summarize data/evaluations/my-study
+uv run battle-lab export data/evaluations/my-study       # → data/evaluations/my-study/exports/
+```
+
+総力戦は `total-war-lab`、戦術演習は `exercise-lab` で同じ手順になる。
+
+### 記述統計（`summarize`）
+
+保存済みの完了結果だけから計算する。新しい試行・API呼び出しは発生しない。
+
+- **ケース別**に出す。異なる相手・条件のケースを合算しない。各ケースに対戦条件（送信順のユニットID・
+  メモリー数）・標本数（完了した固有試行数）・計画数・未完了数を添え、全体に実行環境
+  （catalog / engine / seedDerivation）と最後の停止理由を添える。
+- 未完了・通信失敗・実行エラーは標本に入れない（敗北・スコア0にしない）。完了0件のケースは「集計対象なし」
+  （JSONでは `statistics: null`）と表示し、平均・比率を0で埋めない。
+- 比率の分母はそのケースの完了した固有試行数。
+
+| 形式     | 表示                                                                                                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 共通     | 終了理由（`completionReason`）ごとの件数・比率                                                                                                                                        |
+| 戦術演習 | スコアの要約、ブレイク回数の要約と回数ごとの分布                                                                                                                                      |
+| 通常戦闘 | 勝敗（`ALLY_WIN` / `ALLY_LOSE`）の件数・比率、完了ターンの要約と分布                                                                                                                  |
+| 総力戦   | 勝敗・引き分け（`DRAW` は独立した結果）の件数・比率、撃破した/された編成数の分布、編成対戦の数の分布、編成対戦（味方×敵の編成番号）が現れた試行数、参加枠ごとの出撃試行数、完了ターン |
+
+要約は「平均・中央値・標準偏差・最小・最大・p05・p25・p75・p95・件数」。分位点は線形補間
+（`numpy.percentile` の既定と同じ。UIの統計表示と同じ定義）、標準偏差は不偏（n−1）で標本1件なら無し。
+総力戦は勝ち抜き戦全体を1試行とし、編成対戦（`stages`）を独立した試行として数えない（編成対戦の比率も
+分母は試行数）。定義は `mlgg_lab_common/statistics/summary.py` と各ラボの `analysis.py` にあり、
+`summary.json` の `definitions` にも載る。集計の定義を変えたら `FormatAnalyzer.statistics_version` を上げる。
+
+勝率・平均スコアは観測結果の要約であり、ここから順位づけ・候補の採否・追加試行は導かない（目的関数・
+探索は後続の段階で設計する）。
+
+### エクスポート（`export`）
+
+SQLiteが正本で、出力は同じDBから何度でも同じバイト列で作り直せる派生物（生成時刻を持たない）。
+既定の出力先は `<評価実行>/exports/`。出力形式の版は `EXPORT_FORMAT_VERSION`（現在1）。
+
+| ファイル       | 内容                                                                                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trials.jsonl` | 完了した試行1件につき1行。`observation` はAPIの試行オブジェクトそのもの（ユニット集計・総力戦の `stages`・`defeatedFormationCounts`・`deployed` / `reappearance`、演習の `allyUnitBreaks` 等を含む） |
+| `trials.csv`   | 同じ試行の主要項目の表                                                                                                                                                                               |
+| `summary.json` | `summarize --json` と同じ記述統計、出所（評価実行ID・保存形式・実行環境）、各ファイルの説明と列定義                                                                                                  |
+| `cases.json`   | ケースごとの送信した対戦条件（`matchRequest`）・解決済み入力（`input`）・試行番号・完了/未完了の番号                                                                                                 |
+
+`trials.jsonl` の各行のキー: `exportFormatVersion`・`evaluationId`・`format`・`contractId`・`caseId`・
+`runIndex`・`matchFingerprint`・`trialKey`・`seed`・`catalogRevision`・`engineRevision`・
+`seedDerivationVersion`・`observation`。
+
+`trials.csv` の列（左から）:
+
+| 列                                                                                | 形式     | 内容                                                |
+| --------------------------------------------------------------------------------- | -------- | --------------------------------------------------- |
+| `evaluation_id`・`case_id`・`run_index`                                           | 共通     | 元の評価実行・ケース・試行番号                      |
+| `match_fingerprint`・`trial_key`・`seed`                                          | 共通     | 対戦条件（`cases.json` と対応）・試行の識別         |
+| `catalog_revision`・`engine_revision`・`seed_derivation_version`                  | 共通     | 実行環境                                            |
+| `completion_reason`・`completed_turn`                                             | 共通     | 終了理由・完了ターン                                |
+| `total_score`・`break_count`                                                      | 戦術演習 | スコア・ブレイク回数                                |
+| `outcome`                                                                         | 通常戦闘 | 勝敗                                                |
+| `outcome`・`enemy_defeated_formations`・`ally_defeated_formations`・`stage_count` | 総力戦   | 勝敗・引き分け、撃破した/された編成数、編成対戦の数 |
+
+形式・試行に存在しない値は空欄にし、0や敗北へ変換しない。ユニット単位の集計・編成対戦の履歴など
+1行に収まらない詳細は `trials.jsonl` だけが持つ。完了0件・部分完了のときも `trials.*` は完了分だけを
+持ち（0件ならCSVは見出し行だけ）、対象件数と未完了の番号は `summary.json` / `cases.json` で分かる。
+
+### Pythonから使う
+
+集計・出力はCLIを経由せずに使える（`mlgg_lab_common.reporting` は typer・rich に依存しない）。
 
 ```python
 from pathlib import Path
 
+from battle_lab.analysis import ANALYZER
+from mlgg_lab_common.reporting import (
+    evaluation_status,
+    export_evaluation,
+    read_evaluation,
+    summarize_evaluation,
+)
+
+snapshot = read_evaluation(Path("data/evaluations/my-study"))  # DBを読むだけ
+status = evaluation_status(snapshot)
+summary = summarize_evaluation(snapshot, ANALYZER, case_ids=["mirror"])
+export_evaluation(snapshot, ANALYZER, Path("data/evaluations/my-study/exports"))
+```
+
+実行・再開もPythonから呼べる（CLIはこれを包んでいる）。
+
+```python
 from battle_lab.evaluation import plan_battle_evaluation
 from mlgg_lab_common.evaluation.runner import run_evaluation
 from mlgg_lab_common.storage.layout import create_evaluation, open_evaluation, write_manifest
@@ -181,9 +335,8 @@ directory, repo = create_evaluation(Path("data/evaluations"), plan)
 # 接続先・タイムアウトは計画の設定（api.baseUrl / timeoutSeconds）から作る。
 # アクセスキーは保存しないので、要る配備では毎回 access_key= で渡す。
 with repo, plan.settings.http_client(access_key=None) as client:
-    report = run_evaluation(repo, client)  # 途中で止まっても状態はDBに残る
+    report = run_evaluation(repo, client, on_progress=print)  # 途中で止まっても状態はDBに残る
     write_manifest(directory, repo)
-print(report.stop_reason, report.counters)
 
 # 再開: 同じDBを開いてもう一度呼ぶだけ。元のYAML・JSONは読み直さない。
 with open_evaluation(directory) as repo, repo.load_plan().settings.http_client() as client:
@@ -195,8 +348,9 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 [`exercise-lab/configs/evaluation.example.yaml`](exercise-lab/configs/evaluation.example.yaml)・
 [`battle-lab/configs/evaluation.example.yaml`](battle-lab/configs/evaluation.example.yaml)・
 [`total-war-lab/configs/evaluation.example.yaml`](total-war-lab/configs/evaluation.example.yaml) を写して使う。
-計画は各ラボの `plan_exercise_evaluation` / `plan_battle_evaluation` / `plan_total_war_evaluation` で作る。
-キーの一覧は `mlgg_lab_common/evaluation/config.py` の先頭にある。
+`evaluate` が読む（Pythonからは各ラボの `plan_exercise_evaluation` / `plan_battle_evaluation` /
+`plan_total_war_evaluation`）。キーの一覧は `mlgg_lab_common/evaluation/config.py` の先頭にある。
+サンプルは保存先を `output.evaluationsDir: ../../data/evaluations`（= `tools/data/evaluations/`）にしてある。
 
 - パスは**設定ファイルの位置を基準**に解決する（絶対パスも可）。実行ディレクトリに依らない。
 - ケースは `match:`（対戦入力YAML）か `draft:`（UIドラフト）のどちらか、試行は `runs:`（件数、`runStart` で開始番号）

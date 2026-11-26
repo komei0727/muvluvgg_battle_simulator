@@ -323,3 +323,20 @@ def test_total_war_runs_are_evaluated_and_saved_as_whole_battles(tmp_path):
         ]
     assert server.requests[0]["cases"][0]["allyFormations"] == tw.to_request()["allyFormations"]
     assert match_fingerprint("TOTAL_WAR", tw.to_request()) == plan.cases[0].match_fingerprint
+
+
+def test_progress_is_reported_after_every_request_with_separate_counters(tmp_path):
+    seen = []
+    server = FakeEvaluationServer(complete_limit=4, script=["lost"])
+    with make_repo(tmp_path, maxRunsPerRequest=5) as repo:
+        report = run_evaluation(repo, server, sleep=no_sleep, on_progress=seen.append)
+
+    assert report.stop_reason is StopReason.COMPLETED
+    assert [p.requests for p in seen] == list(range(1, report.requests + 1))
+    assert seen[0].failure is not None and seen[0].failure.startswith("TRANSPORT")
+    assert seen[0].new_results == 0
+    # 計画・送信・完了を混ぜない。送信は再送・未完了分を含む。
+    assert seen[1].counters.planned_runs == 7
+    assert seen[1].counters.submitted_runs == 10
+    assert seen[1].counters.completed_trials == seen[1].new_results == 4
+    assert seen[-1].counters.completed_trials == 7
