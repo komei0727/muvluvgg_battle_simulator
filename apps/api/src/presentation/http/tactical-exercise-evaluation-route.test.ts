@@ -2,18 +2,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import {
   buildServer,
-  type EvaluateTacticalExerciseCandidatesUseCasePort,
+  type EvaluateTacticalExercisesUseCasePort,
   type SimulateBattleUseCasePort,
 } from "./build-server.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
-import { toEvaluateTacticalExerciseCandidatesCommand } from "../../application/simulation/evaluate-tactical-exercise-candidates-mapper.js";
-import { EvaluateTacticalExerciseCandidatesUseCase } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
-import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
+import type { TacticalExerciseEvaluationResponseBody } from "../../application/contracts/response.js";
+import { toEvaluateTacticalExercisesCommand } from "../../application/simulation/evaluate-tactical-exercises-mapper.js";
+import { EvaluateTacticalExercisesUseCase } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
 import { createSkillDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { Mulberry32SeededRandomSourceProvider } from "../../infrastructure/random/seeded-random-source.js";
 import { ManualClock } from "../../testing/clock/manual-clock.js";
 import { FixedBattleIdGenerator } from "../../testing/id/fixed-battle-id-generator.js";
-import { CatalogBuilder } from "../../testing/scenario/catalog-builder.js";
+import { CatalogBuilder, type TestBattleCatalog } from "../../testing/scenario/catalog-builder.js";
 import {
   attackSkill,
   damageEffectAction,
@@ -33,62 +33,67 @@ const UNUSED_BATTLE_USE_CASE: SimulateBattleUseCasePort = {
   },
 };
 
-function requestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    enemyFormation: {
-      units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
-      memoryDefinitionIds: [],
-    },
-    candidates: [
-      {
-        allyFormation: {
-          units: [{ unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } }],
-          memoryDefinitionIds: [],
-        },
-      },
-    ],
-    runsPerCandidate: 2,
-    seed: "api-test",
-    ...overrides,
-  };
-}
-
-/** 実ユースケースを合成Catalogの上で動かすport（HTTP契約を実結果で検証するため）。 */
-function realUseCase(): EvaluateTacticalExerciseCandidatesUseCasePort {
-  const catalog = new CatalogBuilder()
+function catalog(): TestBattleCatalog {
+  return new CatalogBuilder()
     .withUnit(
       unitDefinition("UNIT_ALLY", {
-        baseStats: { maximumAp: 1 },
+        baseStats: { attack: 50, criticalRate: 0.5, maximumAp: 1 },
         activeSkillDefinitionIds: [createSkillDefinitionId("SKL_ATTACK")],
       }),
       unitDefinition("UNIT_ENEMY", {
         category: "EXERCISE_ENEMY",
         exerciseActive: true,
-        baseStats: { maximumHp: 1000, defense: 0 },
+        baseStats: { maximumHp: 400, defense: 0 },
       }),
     )
     .withSkill(attackSkill("SKL_ATTACK", "ACT_ATTACK"))
     .withEffectAction(damageEffectAction("ACT_ATTACK"))
     .build();
+}
 
-  const useCase = new EvaluateTacticalExerciseCandidatesUseCase({
-    battleCatalog: catalog,
+const ALLY = {
+  units: [
+    { unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } },
+    { unitDefinitionId: "UNIT_ALLY", position: { column: 1, row: "FRONT" } },
+  ],
+  memoryDefinitionIds: [],
+};
+const ENEMY = {
+  units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
+  memoryDefinitionIds: [],
+};
+
+function exerciseCase(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    caseId: "case-a",
+    allyFormation: ALLY,
+    enemyFormation: ENEMY,
+    runIndices: [0, 7],
+    ...overrides,
+  };
+}
+
+function requestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { seed: "api-test", cases: [exerciseCase()], ...overrides };
+}
+
+/** 実ユースケースを合成Catalogの上で動かすport（HTTP契約を実結果で検証するため）。 */
+function realUseCase(
+  testCatalog: TestBattleCatalog = catalog(),
+): EvaluateTacticalExercisesUseCasePort {
+  const useCase = new EvaluateTacticalExercisesUseCase({
+    battleCatalog: testCatalog,
     battleIdGenerator: new FixedBattleIdGenerator(
       Array.from({ length: 100 }, (_, index) => `B_API_${index}`),
     ),
     clock: new ManualClock(0),
     seededRandomSourceProvider: new Mulberry32SeededRandomSourceProvider(),
-    limits: { maxCandidates: 4, maxTotalRuns: 20 },
+    runtimeInfo: { engineRevision: "engine-api" },
+    limits: { maxCases: 4, maxTotalRuns: 6 },
   });
-
   return {
     executeTacticalExerciseEvaluation: (request, context) =>
-      Promise.resolve(
-        useCase.execute(
-          toEvaluateTacticalExerciseCandidatesCommand(request, "generated-seed"),
-          context,
-        ),
-      ),
+      Promise.resolve(useCase.execute(toEvaluateTacticalExercisesCommand(request), context)),
   };
 }
 
@@ -100,7 +105,7 @@ afterEach(async () => {
 });
 
 async function serverWith(
-  evaluationUseCase?: EvaluateTacticalExerciseCandidatesUseCasePort,
+  evaluationUseCase?: EvaluateTacticalExercisesUseCasePort,
 ): Promise<FastifyInstance> {
   app = await buildServer(UNUSED_BATTLE_USE_CASE, {
     ...(evaluationUseCase !== undefined ? { evaluationUseCase } : {}),
@@ -108,90 +113,126 @@ async function serverWith(
   return app;
 }
 
+function violationPaths(body: string): string[] {
+  return (JSON.parse(body) as { error: { violations: { path: string }[] } }).error.violations.map(
+    (violation) => violation.path,
+  );
+}
+
 describe("POST /api/v1/tactical-exercise-evaluations", () => {
-  it("API-EVAL-001: returns raw per-run values for every candidate in request order", async () => {
-    const server = await serverWith(realUseCase());
+  it("API-TEXEVAL-001: returns one self-contained record per completed run keyed by caseId and runIndex with the reproduction conditions", async () => {
+    const testCatalog = catalog();
+    const server = await serverWith(realUseCase(testCatalog));
 
     const response = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json<EvaluateTacticalExerciseCandidatesResult>();
-    expect(body.seed).toBe("api-test");
-    expect(body.runsPerCandidate).toBe(2);
-    expect(body.candidates).toHaveLength(1);
-    expect(body.candidates[0]?.scores).toHaveLength(2);
-    expect(body.candidates[0]?.completedRuns).toBe(2);
+    const body = response.json<TacticalExerciseEvaluationResponseBody>();
+    expect(body).toMatchObject({
+      schemaVersion: 1,
+      seed: "api-test",
+      seedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+      catalogRevision: testCatalog.catalogRevision,
+      engineRevision: "engine-api",
+      requestedRuns: 2,
+      completedRuns: 2,
+      partial: false,
+    });
+    const caseOutcome = body.cases[0]!;
+    expect(caseOutcome.caseId).toBe("case-a");
+    expect(caseOutcome.incompleteRunIndices).toEqual([]);
+    expect(caseOutcome.runs.map((run) => run.runIndex)).toEqual([0, 7]);
+    const run = caseOutcome.runs[0]!;
+    expect(Object.keys(run).sort()).toEqual([
+      "allyUnitBreaks",
+      "breakCount",
+      "completedTurn",
+      "completionReason",
+      "runIndex",
+      "totalScore",
+      "units",
+    ]);
+    expect(run.units.map((unit) => [unit.side, unit.unitIndex])).toEqual([
+      ["ALLY", 0],
+      ["ALLY", 1],
+      ["ENEMY", 0],
+    ]);
+    expect(run.allyUnitBreaks.map((entry) => entry.unitIndex)).toEqual([0, 1]);
   });
 
-  it("API-EVAL-008: the response carries the per-run ally-unit damage totals and break counts", async () => {
-    const server = await serverWith(realUseCase());
-
-    const response = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
-
-    expect(response.statusCode).toBe(200);
-    const candidate = response.json<EvaluateTacticalExerciseCandidatesResult>().candidates[0]!;
-    expect(candidate.allyUnitDamageTotals).toHaveLength(2);
-    expect(candidate.allyUnitBreakCounts).toHaveLength(2);
-    for (const damageTotals of candidate.allyUnitDamageTotals) {
-      expect(damageTotals).toHaveLength(1);
-      expect(damageTotals[0]).toBeGreaterThan(0);
-    }
-    for (const breakCounts of candidate.allyUnitBreakCounts) {
-      expect(breakCounts).toHaveLength(1);
-    }
-  });
-
-  it("API-EVAL-002: the same seed replays the same scores across requests", async () => {
+  it("API-TEXEVAL-002: the same request replays the same observations", async () => {
     const server = await serverWith(realUseCase());
 
     const first = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
     const second = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
 
-    // ステータスと中身の有無を見ないと、両方がエラー応答でも「同じ本文」で通ってしまう。
+    // ステータスを見ないと、両方がエラー応答でも「同じ本文」で通ってしまう。
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
-    expect(
-      first.json<EvaluateTacticalExerciseCandidatesResult>().candidates[0]?.scores,
-    ).toHaveLength(2);
     expect(second.json()).toEqual(first.json());
   });
 
-  it("API-EVAL-003: an omitted seed is generated server-side and echoed so the run can be replayed", async () => {
+  it("API-TEXEVAL-003: a missing seed, the retired candidate fields and a turnLimit are malformed requests", async () => {
     const server = await serverWith(realUseCase());
     const { seed: _omitted, ...withoutSeed } = requestBody();
 
-    const response = await server.inject({ method: "POST", url: PATH, payload: withoutSeed });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json<{ seed: string }>().seed).toBe("generated-seed");
+    for (const payload of [
+      withoutSeed,
+      requestBody({ runsPerCandidate: 2 }),
+      { seed: "s", enemyFormation: ENEMY, candidates: [{ allyFormation: ALLY }] },
+      requestBody({ cases: [exerciseCase({ turnLimit: 5 })] }),
+    ]) {
+      const response = await server.inject({ method: "POST", url: PATH, payload });
+      expect(response.statusCode).toBe(400);
+    }
   });
 
-  it("API-EVAL-004: exceeding the configured total-run budget is a 422 rather than a truncated run", async () => {
+  it("API-TEXEVAL-004: duplicate case ids, run indices, an exceeded run budget and an exercise-rule violation are 422 with their paths", async () => {
     const server = await serverWith(realUseCase());
 
     const response = await server.inject({
       method: "POST",
       url: PATH,
-      payload: requestBody({ runsPerCandidate: 999 }),
+      payload: requestBody({
+        cases: [
+          exerciseCase({ runIndices: [0, 0] }),
+          exerciseCase({
+            runIndices: [1, 2, 3, 4, 5],
+            enemyFormation: {
+              ...ENEMY,
+              units: [
+                ...ENEMY.units,
+                { unitDefinitionId: "UNIT_ENEMY", position: { column: 1, row: "FRONT" } },
+              ],
+            },
+          }),
+        ],
+      }),
     });
 
     expect(response.statusCode).toBe(422);
-    expect(response.json<{ error: { code: string } }>().error.code).toBe("INVALID_COMMAND");
+    expect(violationPaths(response.body)).toEqual([
+      "/cases/0/runIndices/1",
+      "/cases/1/caseId",
+      "/cases",
+      "/cases/1/enemyFormation/units",
+    ]);
   });
 
-  it("API-EVAL-005: an unknown top-level property is rejected as a malformed request", async () => {
+  it("API-TEXEVAL-005: a mismatched expected engine revision is a 422 on expectedEngineRevision", async () => {
     const server = await serverWith(realUseCase());
 
     const response = await server.inject({
       method: "POST",
       url: PATH,
-      payload: requestBody({ unexpected: true }),
+      payload: requestBody({ expectedEngineRevision: "other" }),
     });
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(422);
+    expect(violationPaths(response.body)).toEqual(["/expectedEngineRevision"]);
   });
 
-  it("API-EVAL-006: a server without the evaluation endpoint enabled answers 404 instead of running it", async () => {
+  it("API-TEXEVAL-006: a server without the evaluation endpoint enabled answers 404 instead of running it", async () => {
     const server = await serverWith();
 
     const response = await server.inject({ method: "POST", url: PATH, payload: requestBody() });
@@ -200,12 +241,12 @@ describe("POST /api/v1/tactical-exercise-evaluations", () => {
     expect(response.json<{ error: { code: string } }>().error.code).toBe("ENDPOINT_DISABLED");
   });
 
-  it("API-EVAL-007: an application error from the use case keeps its documented status mapping", async () => {
+  it("API-TEXEVAL-007: an application error from the use case keeps its documented status mapping", async () => {
     const server = await serverWith({
       executeTacticalExerciseEvaluation: () =>
         Promise.reject(
           new ApplicationError("DEFINITION_NOT_FOUND", [
-            { path: "candidates[0].allyFormation.slots[0].unitDefinitionId", reason: "unknown" },
+            { path: "cases[0].allyFormation.slots[0].unitDefinitionId", reason: "unknown" },
           ]),
         ),
     });

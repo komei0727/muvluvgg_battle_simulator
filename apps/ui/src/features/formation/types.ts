@@ -114,7 +114,7 @@ export const DEFAULT_UNIT_RANK = 5;
 export const DEFAULT_EXERCISE_RUN_COUNT = 100;
 export const MIN_EXERCISE_RUN_COUNT = 1;
 /**
- * UI-AC-041: 統計実行が許す総試行数の上限。1リクエストの上限（`EVALUATION_MAX_TOTAL_RUNS`）
+ * UI-AC-041: 統計実行が許す総試行数の上限。1リクエストの上限（`TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`）
  * ではなく画面が受け付ける総数であり、これを超える分の分割送信は統計実行基盤が担う。
  * 上限を置くのは、桁を打ち間違えた実行が延々とブラウザを占有するのを防ぐため。
  */

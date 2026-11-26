@@ -1,26 +1,32 @@
 import type { ExerciseBreak } from "./simulation-result-assembler.js";
-import type { UnitBattleSummary } from "../observation/unit-battle-summary-projector.js";
+import type { UnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import type { BattleUnitId } from "../../domain/shared/ids.js";
+import type { Side } from "../../domain/shared/side.js";
 
-/** 演習1試行から取り出す、味方の参加枠ごとの生値。編成順（ロースター順）に並ぶ。 */
-export interface AllyUnitRunMetrics {
-  readonly damageTotals: readonly number[];
-  readonly breakCounts: readonly number[];
+/** 味方の参加枠1つ分のブレイク回数。枠はリクエストの`allyFormation.units`の添字で指す。 */
+export interface AllyUnitBreakCount {
+  readonly unitIndex: number;
+  readonly unitDefinitionId: UnitDefinitionId;
+  readonly breakCount: number;
+}
+
+/** 単発の演習結果のロースターのうち、この投影が読む部分だけ。 */
+export interface AllyUnitBreaksRosterEntry {
+  readonly battleUnitId: BattleUnitId;
+  readonly unitDefinitionId: UnitDefinitionId;
+  readonly side: Side;
 }
 
 /** `SimulateTacticalExerciseResult`のうち、この投影が読む部分だけ。 */
-export interface AllyUnitRunMetricsInput {
-  readonly unitSummaries: readonly UnitBattleSummary[];
+export interface AllyUnitBreaksInput {
+  readonly unitRoster: readonly AllyUnitBreaksRosterEntry[];
   readonly breaks: readonly ExerciseBreak[];
 }
 
 /**
- * 一括評価（`10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」）が試行ごとに
- * 返す、味方ユニット別の与ダメージ合計とブレイク回数を取り出す。
- *
- * 与ダメージは単発の演習が返す`unitSummaries`をそのまま使う。集計セマンティクス
- * （どこまでを与ダメージへ数えるか）を再実装せず、両エンドポイントの数値が食い違わない
- * ことを構成で保証するためである。
+ * 演習1試行のブレイクを、それを起こした味方の参加枠ごとに数える。ロースターは陣営ごとに
+ * 配置順（リクエストの`units`の順）に並ぶため、味方の何番目かがそのまま`unitIndex`になる
+ * — 対応の正しさは同じ試行の`projectEvaluationUnits`が定義IDと数で確かめている。
  *
  * ブレイクは参加枠（`BattleUnitId`）で帰属させる。R-FRM-03により同じ`UnitDefinitionId`を
  * 同一陣営へ複数指定できるため、定義IDでは枠を特定できない。数えるのは味方の枠が起こした
@@ -28,7 +34,7 @@ export interface AllyUnitRunMetricsInput {
  * 敵の枠自身が起こしたブレイク（混乱による自傷など、R-CFS-01）もどの枠へも数えない
  * — 利用側は`breakCount`との残差としてまとめて把握する。
  */
-export function projectAllyUnitRunMetrics(run: AllyUnitRunMetricsInput): AllyUnitRunMetrics {
+export function projectAllyUnitBreaks(run: AllyUnitBreaksInput): AllyUnitBreakCount[] {
   const breaksByUnitId = new Map<BattleUnitId, number>();
   for (const exerciseBreak of run.breaks) {
     const sourceUnitId = exerciseBreak.sourceUnitId;
@@ -39,9 +45,11 @@ export function projectAllyUnitRunMetrics(run: AllyUnitRunMetricsInput): AllyUni
   }
 
   // 敵の枠が起こしたブレイクは、味方の枠を引いた時点で落ちる。
-  const allySummaries = run.unitSummaries.filter((summary) => summary.side === "ALLY");
-  return {
-    damageTotals: allySummaries.map((summary) => summary.damageDealt),
-    breakCounts: allySummaries.map((summary) => breaksByUnitId.get(summary.battleUnitId) ?? 0),
-  };
+  return run.unitRoster
+    .filter((entry) => entry.side === "ALLY")
+    .map((entry, unitIndex) => ({
+      unitIndex,
+      unitDefinitionId: entry.unitDefinitionId,
+      breakCount: breaksByUnitId.get(entry.battleUnitId) ?? 0,
+    }));
 }

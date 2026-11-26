@@ -75,20 +75,24 @@ export function buildTacticalExerciseRequest(
   };
 }
 
+/** 統計実行が送る唯一のケース。応答の`caseId`との突き合わせにも使う。 */
+export const STATISTICS_EVALUATION_CASE_ID = "exercise";
+
 export interface TacticalExerciseEvaluationRequestOptions {
-  readonly runsPerCandidate: number;
   readonly seed: string;
+  /** 全体の通し試行番号。チャンクごとに区間を差し替える。 */
+  readonly runIndices: readonly number[];
 }
 
 /**
- * 一括評価の本文を組み立てる。編成部分・敵の制約は単一実行（`buildTacticalExerciseRequest`）
+ * 大量試行の本文を組み立てる。編成部分・敵の制約は単一実行（`buildTacticalExerciseRequest`）
  * と完全に同じものを使う —— 統計実行と単一実行で編成の解釈が分かれると、単一実行で
- * ログを確かめてから統計を取る使い方が成立しない。候補は常に1件で、複数編成の比較は
+ * ログを確かめてから統計を取る使い方が成立しない。ケースは常に1件で、複数編成の比較は
  * この画面の役目ではない。
  */
 export function buildTacticalExerciseEvaluationRequest(
   draft: BattleDraft,
-  { runsPerCandidate, seed }: TacticalExerciseEvaluationRequestOptions,
+  { seed, runIndices }: TacticalExerciseEvaluationRequestOptions,
 ): RequestBuildResult<TacticalExerciseEvaluationRequest> {
   const single = buildTacticalExerciseRequest(draft);
   if (!single.ok) {
@@ -99,25 +103,22 @@ export function buildTacticalExerciseEvaluationRequest(
   return {
     ...single,
     request: {
-      enemyFormation,
-      candidates: [{ allyFormation }],
-      runsPerCandidate,
       seed,
+      cases: [{ caseId: STATISTICS_EVALUATION_CASE_ID, allyFormation, enemyFormation, runIndices }],
     },
   };
 }
 
 /**
- * 送信した編成部分のJSON表現。実行回数とシードは含めない —— この2つは結果表示に
- * 出ているため、画面から読み取れない編成の変化だけを比べる。
+ * 送信した編成部分のJSON表現。試行番号とシードは含めない —— シードは結果表示に
+ * 出ており、試行番号は実行回数から決まるため、画面から読み取れない編成の変化だけを比べる。
  *
  * `buildFormation`が同じdraftから同じキー順・同じ並びのリクエストを組み立てるので、
  * 文字列比較がそのまま構造比較になる（`selectIsResultDirty`と同じ考え）。実行時と
  * 現在のdraftで別々に組み立てると、片方にキーを足したときに常時不一致になる。
  */
 export function evaluationFormationSignature(request: TacticalExerciseEvaluationRequest): string {
-  return JSON.stringify({
-    enemyFormation: request.enemyFormation,
-    candidates: request.candidates,
-  });
+  return JSON.stringify(
+    request.cases.map(({ allyFormation, enemyFormation }) => ({ allyFormation, enemyFormation })),
+  );
 }

@@ -41,7 +41,7 @@ import {
 import {
   registerTacticalExerciseEvaluationRoute,
   TACTICAL_EXERCISE_EVALUATIONS_PATH,
-  type EvaluateTacticalExerciseCandidatesUseCasePort,
+  type EvaluateTacticalExercisesUseCasePort,
 } from "./routes/tactical-exercise-evaluation-route.js";
 import {
   tacticalExerciseEvaluationRequestDocSchema,
@@ -95,7 +95,7 @@ import { registerAccessKeyGuard, type ApiAccessKey } from "./protocol/access-key
 export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simulation-route.js";
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
 export type { SimulateTacticalExerciseUseCasePort } from "./routes/tactical-exercise-route.js";
-export type { EvaluateTacticalExerciseCandidatesUseCasePort } from "./routes/tactical-exercise-evaluation-route.js";
+export type { EvaluateTacticalExercisesUseCasePort } from "./routes/tactical-exercise-evaluation-route.js";
 export type { EvaluateBattlesUseCasePort } from "./routes/battle-evaluation-route.js";
 export type { EvaluateTotalWarsUseCasePort } from "./routes/total-war-evaluation-route.js";
 export type { SimulateTotalWarUseCasePort } from "./routes/total-war-route.js";
@@ -157,20 +157,10 @@ const NO_TOTAL_WAR: SimulateTotalWarUseCasePort = {
 };
 
 /**
- * 一括評価を提供しない配備（`EVALUATION_ENDPOINT_ENABLED`が既定のfalse）の既定実装。
+ * 大量試行APIを提供しない配備（`EVALUATION_ENDPOINT_ENABLED`が既定のfalse）の既定実装。
  * ルート登録自体は常に行い、公開されるOpenAPI文書の形が配備設定で変わらないように
  * する——実装の有無ではなく設定で閉じているだけなので、404で返す。
  */
-const NO_EVALUATION: EvaluateTacticalExerciseCandidatesUseCasePort = {
-  executeTacticalExerciseEvaluation: () =>
-    Promise.reject(
-      new ApplicationError("ENDPOINT_DISABLED", [
-        { reason: "tactical exercise evaluation is not enabled on this server" },
-      ]),
-    ),
-};
-
-/** 大量試行APIも`EVALUATION_ENDPOINT_ENABLED`に従い、無効な配備では`NO_EVALUATION`と同じく404を返す。 */
 function evaluationDisabled(name: string): Promise<never> {
   return Promise.reject(
     new ApplicationError("ENDPOINT_DISABLED", [
@@ -178,6 +168,10 @@ function evaluationDisabled(name: string): Promise<never> {
     ]),
   );
 }
+
+const NO_EVALUATION: EvaluateTacticalExercisesUseCasePort = {
+  executeTacticalExerciseEvaluation: () => evaluationDisabled("tactical exercise evaluation"),
+};
 
 const NO_BATTLE_EVALUATION: EvaluateBattlesUseCasePort = {
   executeBattleEvaluation: () => evaluationDisabled("battle evaluation"),
@@ -290,7 +284,7 @@ export interface BuildServerOptions {
    */
   readonly totalWarUseCase?: SimulateTotalWarUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
-  readonly evaluationUseCase?: EvaluateTacticalExerciseCandidatesUseCasePort;
+  readonly evaluationUseCase?: EvaluateTacticalExercisesUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
   readonly battleEvaluationUseCase?: EvaluateBattlesUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
@@ -527,32 +521,17 @@ export async function buildServer(
           url,
         };
       }
-      if (url === TACTICAL_EXERCISE_EVALUATIONS_PATH) {
-        // 演習POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ差し込む。
-        return {
-          schema: {
-            ...schema,
-            ...(schema.body !== undefined
-              ? { body: tacticalExerciseEvaluationRequestDocSchema }
-              : {}),
-            ...(schema.response !== undefined
-              ? {
-                  response: withResponseDoc({
-                    ...schema.response,
-                    200: tacticalExerciseEvaluationResponseDocSchema,
-                  }),
-                }
-              : {}),
-          },
-          url,
-        };
-      }
       const evaluationDocSchemas =
         url === BATTLE_EVALUATIONS_PATH
           ? { body: battleEvaluationRequestDocSchema, ok: battleEvaluationResponseDocSchema }
           : url === TOTAL_WAR_EVALUATIONS_PATH
             ? { body: totalWarEvaluationRequestDocSchema, ok: totalWarEvaluationResponseDocSchema }
-            : undefined;
+            : url === TACTICAL_EXERCISE_EVALUATIONS_PATH
+              ? {
+                  body: tacticalExerciseEvaluationRequestDocSchema,
+                  ok: tacticalExerciseEvaluationResponseDocSchema,
+                }
+              : undefined;
       if (evaluationDocSchemas !== undefined) {
         // 演習POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ差し込む。
         return {

@@ -39,7 +39,7 @@ export interface AllyUnitBreakStatistics {
   readonly units: readonly AllyUnitBreakSummary[];
   /**
    * 味方の枠が起こしたのではないブレイクの平均回数。`10_API設計.md`
-   * 「TacticalExerciseCandidateEvaluationResponse」のとおり、ここには発生源ユニットを
+   * 「TacticalExerciseEvaluationRunResponse」の`allyUnitBreaks`のとおり、ここには発生源ユニットを
    * 持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こした
    * ブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る。起源を一つに断定できない。
    */

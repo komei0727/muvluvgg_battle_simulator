@@ -13,7 +13,7 @@ import type {
 } from "../../application/contracts/request.js";
 import type { EvaluateBattlesResult } from "../../application/simulation/evaluate-battles-use-case.js";
 import type { EvaluateTotalWarsResult } from "../../application/simulation/evaluate-total-wars-use-case.js";
-import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
+import type { EvaluateTacticalExercisesResult } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
 import type {
   SimulateBattleResult,
   SimulateTacticalExerciseResult,
@@ -57,8 +57,8 @@ export interface WorkerTacticalExerciseTask extends WorkerSimulationTaskBase {
  * revision検査は両モードで同じ機構を共有する（`09_アプリケーション設計.md`「実行境界」）。
  */
 /**
- * 候補×試行の二重ループは1タスクの内側で回す。`WORKER_MAX_QUEUE`は本番で1であり、
- * 試行ごとにタスクを投入するとキュー溢れ（503）になるためである。
+ * 戦術演習の大量試行。ケース×試行のループは1タスクの内側で回す。`WORKER_MAX_QUEUE`は
+ * 本番で1であり、試行ごとにタスクを投入するとキュー溢れ（503）になるためである。
  */
 export interface WorkerTacticalExerciseEvaluationTask extends WorkerSimulationTaskBase {
   readonly mode: "TACTICAL_EXERCISE_EVALUATION";
@@ -73,7 +73,7 @@ export interface WorkerTotalWarTask extends WorkerSimulationTaskBase {
 
 /**
  * 大量試行は1リクエストを1タスクで処理し、ケース×試行のループをタスクの内側で回す
- * （演習の一括評価と同じ理由: `WORKER_MAX_QUEUE`は本番で1である）。
+ * （演習の大量試行と同じ理由: `WORKER_MAX_QUEUE`は本番で1である）。
  */
 export interface WorkerBattleEvaluationTask extends WorkerSimulationTaskBase {
   readonly mode: "BATTLE_EVALUATION";
@@ -120,7 +120,7 @@ export type WorkerSimulationResult =
   | {
       readonly ok: true;
       readonly mode: "TACTICAL_EXERCISE_EVALUATION";
-      readonly result: EvaluateTacticalExerciseCandidatesResult;
+      readonly result: EvaluateTacticalExercisesResult;
     }
   | { readonly ok: true; readonly mode: "TOTAL_WAR"; readonly result: SimulateTotalWarResult }
   | {

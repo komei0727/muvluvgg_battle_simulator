@@ -340,10 +340,10 @@ describe("ExecutionParameterForm — 戦術演習の実行モード (UI-CT-083/0
     expect(onSeedChange).toHaveBeenLastCalledWith("abc123");
   });
 
-  it("UI-CT-111: marks the run count invalid and shows the message for a /runsPerCandidate violation", () => {
+  it("UI-CT-111: marks the run count invalid and shows the message for a /runCount violation", () => {
     renderExercise({ mode: "STATISTICS", runCount: 5000, seed: "" }, {}, [
       {
-        path: "/runsPerCandidate",
+        path: "/runCount",
         code: "RUN_COUNT_OUT_OF_RANGE",
         message: "実行回数は1～2,000の整数で入力してください。",
         severity: "error",

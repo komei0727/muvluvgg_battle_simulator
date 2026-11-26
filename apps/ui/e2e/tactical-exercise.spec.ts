@@ -214,7 +214,7 @@ test("separates the exercise enemy pool from the playable pool", async ({ page }
 });
 
 // UI-E2E-015: UI-AC-041。統計実行を選ぶと実行回数・シードが現れ、指定回数が
-// 300試行ずつのチャンクへ割れて逐次送られる。単一実行へ戻せば単発実行に戻る。
+// 300試行ずつのチャンク（同じseed・通し試行番号の区間）へ割れて逐次送られる。単一実行へ戻せば単発実行に戻る。
 test("runs the statistics mode as sequential 300-run chunks and returns to the single run", async ({
   page,
 }) => {
@@ -242,9 +242,10 @@ test("runs the statistics mode as sequential 300-run chunks and returns to the s
 
   await expect(page.getByText("統計実行が完了しました。")).toBeVisible();
   await expect(page.getByText(/400試行を集計しました/)).toBeVisible();
+  // seedは全チャンク共通で、チャンクの区別は全体の通し試行番号の区間が担う。
   expect(requests).toEqual([
-    { seed: "e2e-seed#0", runsPerCandidate: 300 },
-    { seed: "e2e-seed#300", runsPerCandidate: 100 },
+    { seed: "e2e-seed", runIndices: [0, 300] },
+    { seed: "e2e-seed", runIndices: [300, 100] },
   ]);
 
   await page.getByLabel("実行モード").selectOption("SINGLE");

@@ -26,7 +26,7 @@ import {
 /**
  * 検証対象は`routes/battle-evaluation-route.ts`・`routes/total-war-evaluation-route.ts`だが、
  * protocol header・エラー変換は`buildServer`が組み立てた実サーバーを通さないと観測できない
- * ため、演習の一括評価と同じくここへ置く。
+ * ため、演習の大量試行と同じくここへ置く。
  */
 const BATTLE_PATH = "/api/v1/battle-evaluations";
 const TOTAL_WAR_PATH = "/api/v1/total-war-evaluations";

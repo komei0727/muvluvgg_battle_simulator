@@ -268,15 +268,21 @@ describe("createSimulationTaskRunner", () => {
     }
   });
 
-  it("UT-TASKRUNNER-010 (Q-TEX-16): dispatches a TACTICAL_EXERCISE_EVALUATION task to the evaluation use case and returns raw per-run values tagged with the same mode", () => {
+  it("UT-TASKRUNNER-010 (Q-TEX-16): dispatches a TACTICAL_EXERCISE_EVALUATION task with the injected engine revision and returns run records tagged with the same mode", () => {
     const catalog = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR);
     const runner = createSimulationTaskRunner(catalog, {
       battleIdGenerator: new FixedBattleIdGenerator(
         Array.from({ length: 20 }, (_, index) => `B_EVAL_${index}`),
       ),
-      randomSourceFactory: new SequenceRandomSourceFactory(Array(500).fill(0.5) as number[]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
       clock: new ManualClock(Date.now()),
+      engineRevision: "engine-fixed",
     });
+    const enemyFormation = {
+      units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+      memoryDefinitionIds: [],
+    };
+    const { allyFormation } = minimalRequest();
 
     const outcome = runner({
       mode: "TACTICAL_EXERCISE_EVALUATION",
@@ -284,70 +290,73 @@ describe("createSimulationTaskRunner", () => {
       deadlineEpochMs: Date.now() + 30_000,
       expectedCatalogRevision: catalog.catalogRevision,
       request: {
-        enemyFormation: {
-          units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
-          memoryDefinitionIds: [],
-        },
-        candidates: [
-          { allyFormation: minimalRequest().allyFormation },
-          { allyFormation: minimalRequest().allyFormation },
-        ],
-        runsPerCandidate: 2,
         seed: "task-runner",
+        cases: [
+          { caseId: "a", allyFormation, enemyFormation, runIndices: [4, 9] },
+          { caseId: "b", allyFormation, enemyFormation, runIndices: [9] },
+        ],
       },
     });
 
-    expect(outcome.ok).toBe(true);
-    if (outcome.ok && outcome.mode === "TACTICAL_EXERCISE_EVALUATION") {
-      expect(outcome.result.seed).toBe("task-runner");
-      expect(outcome.result.candidates).toHaveLength(2);
-      expect(outcome.result.candidates[0]?.scores).toHaveLength(2);
-      // 共通乱数法: 同一編成の2候補は同じrunIndexで同じ乱数列を引くため一致する。
-      expect(outcome.result.candidates[1]?.scores).toEqual(outcome.result.candidates[0]?.scores);
-    } else {
-      expect.fail("expected an ok TACTICAL_EXERCISE_EVALUATION outcome");
+    if (!outcome.ok || outcome.mode !== "TACTICAL_EXERCISE_EVALUATION") {
+      expect.fail(
+        `expected an ok TACTICAL_EXERCISE_EVALUATION outcome, got ${JSON.stringify(outcome)}`,
+      );
     }
+    expect(outcome.result).toMatchObject({
+      seed: "task-runner",
+      engineRevision: "engine-fixed",
+      seedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+      catalogRevision: catalog.catalogRevision,
+      completedRuns: 3,
+    });
+    const [caseA, caseB] = outcome.result.cases;
+    expect(caseA!.runs.map((run) => run.runIndex)).toEqual([4, 9]);
+    // 共通乱数法: 同一編成の別ケースは同じrunIndexで同じ乱数列を引くため一致する。
+    expect(caseB!.runs[0]!.result).toEqual(caseA!.runs[1]!.result);
   });
 
-  it("UT-TASKRUNNER-011 (Q-TEX-17): an omitted seed is generated per task, so two runs of the same request differ but each response can replay itself", () => {
+  it("UT-TASKRUNNER-011 (Q-TEX-17): applies the tactical exercise limits, and a worker without an engine revision refuses the task", () => {
     const catalog = loadCatalogFromDirectory(EXERCISE_CATALOG_DIR);
-    const runner = createSimulationTaskRunner(catalog, {
-      battleIdGenerator: new FixedBattleIdGenerator(
-        Array.from({ length: 20 }, (_, index) => `B_EVAL_SEED_${index}`),
-      ),
-      randomSourceFactory: new SequenceRandomSourceFactory(Array(500).fill(0.5) as number[]),
+    const dependencies = {
+      battleIdGenerator: new FixedBattleIdGenerator([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
       clock: new ManualClock(Date.now()),
-    });
+    };
     const task: WorkerSimulationTask = {
       mode: "TACTICAL_EXERCISE_EVALUATION",
       requestId: "req-evaluation-2",
       deadlineEpochMs: Date.now() + 30_000,
       expectedCatalogRevision: catalog.catalogRevision,
       request: {
-        enemyFormation: {
-          units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
-          memoryDefinitionIds: [],
-        },
-        candidates: [{ allyFormation: minimalRequest().allyFormation }],
-        runsPerCandidate: 1,
+        seed: "task-runner",
+        cases: [
+          {
+            caseId: "a",
+            allyFormation: minimalRequest().allyFormation,
+            enemyFormation: {
+              units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+              memoryDefinitionIds: [],
+            },
+            runIndices: [0, 1],
+          },
+        ],
       },
     };
 
-    const first = runner(task);
-    const second = runner(task);
-
-    expect(first.ok && second.ok).toBe(true);
-    if (
-      first.ok &&
-      second.ok &&
-      first.mode === "TACTICAL_EXERCISE_EVALUATION" &&
-      second.mode === "TACTICAL_EXERCISE_EVALUATION"
-    ) {
-      expect(first.result.seed).not.toBe(second.result.seed);
-      expect(first.result.seed).not.toBe("");
-    } else {
-      expect.fail("expected two ok TACTICAL_EXERCISE_EVALUATION outcomes");
-    }
+    const limited = createSimulationTaskRunner(catalog, {
+      ...dependencies,
+      engineRevision: "engine-fixed",
+      tacticalExerciseEvaluationLimits: { maxCases: 1, maxTotalRuns: 1 },
+    });
+    expect(limited(task)).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_COMMAND", violations: [expect.objectContaining({ path: "cases" })] },
+    });
+    expect(createSimulationTaskRunner(catalog, dependencies)(task)).toMatchObject({
+      ok: false,
+      error: { code: "INTERNAL_INVARIANT_VIOLATION" },
+    });
   });
 
   it("UT-TASKRUNNER-012 (09_アプリケーション設計.md「実行境界」): dispatches a TOTAL_WAR task to the total war use case and returns the total war result tagged with the same mode", () => {

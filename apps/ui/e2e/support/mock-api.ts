@@ -89,19 +89,26 @@ export async function mockTotalWar(page: Page, response: MockResponse): Promise<
 
 export interface EvaluationRequestRecord {
   readonly seed: string;
-  readonly runsPerCandidate: number;
+  /** 送られた通し試行番号の区間。`[先頭, 件数]`で記録する。 */
+  readonly runIndices: readonly [number, number];
 }
 
-interface EvaluationRequestBody extends EvaluationRequestRecord {
-  readonly candidates: readonly {
-    readonly allyFormation: { readonly units: readonly unknown[] };
+interface EvaluationRequestBody {
+  readonly seed: string;
+  readonly cases: readonly {
+    readonly caseId: string;
+    readonly allyFormation: {
+      readonly units: readonly { readonly unitDefinitionId: string }[];
+    };
+    readonly runIndices: readonly number[];
   }[];
 }
 
 /**
- * 一括評価POST（`POST /api/v1/tactical-exercise-evaluations`）をmockし、届いた
+ * 大量試行POST（`POST /api/v1/tactical-exercise-evaluations`）をmockし、届いた
  * チャンクを記録する。統計実行は分割送信そのものが仕様なので、E2Eでも「何回・
- * どのseedで送ったか」を見る必要がある。
+ * どの試行番号を送ったか」を見る必要がある。観測値は試行番号だけから決める ——
+ * 実サーバーと同じく、チャンクの切り方で同じ試行番号の値が変わらないようにする。
  */
 export async function mockTacticalExerciseEvaluation(
   page: Page,
@@ -109,17 +116,32 @@ export async function mockTacticalExerciseEvaluation(
 ): Promise<void> {
   await page.route(TACTICAL_EXERCISE_EVALUATION_URL, async (route) => {
     const body = route.request().postDataJSON() as EvaluationRequestBody;
-    records.push({ seed: body.seed, runsPerCandidate: body.runsPerCandidate });
-    const runs = body.runsPerCandidate;
-    const indices = Array.from({ length: runs }, (_value, index) => index);
-    // 列数はリクエストの味方編成から決める。固定長で返すと、2体編成のE2Eが
-    // 「応答の列が編成より少ない」契約違反の経路を通ってしまう。
-    const unitCount = Math.max(1, body.candidates[0]?.allyFormation.units.length ?? 1);
-    const unitIndices = Array.from({ length: unitCount }, (_value, index) => index);
+    const caseBody = body.cases[0];
+    const runIndices = caseBody?.runIndices ?? [];
+    records.push({ seed: body.seed, runIndices: [runIndices[0] ?? -1, runIndices.length] });
+    // 枠数はリクエストの味方編成から決める。固定長で返すと、2体編成のE2Eが
+    // 「応答の枠が編成より少ない」契約違反の経路を通ってしまう。
+    const allyIds = caseBody?.allyFormation.units.map((unit) => unit.unitDefinitionId) ?? [];
     // 1体目は1試行あたり18〜22回ブレイクし、以降の枠は0〜2回に留まる。実際の演習の
     // 桁（総ブレイク20〜30）と、枠ごとの偏りの両方を再現する。
     const unitBreaks = (runIndex: number, unitIndex: number): number =>
       unitIndex === 0 ? 18 + (runIndex % 5) : (runIndex + unitIndex) % 3;
+    const unitRecord = (
+      side: "ALLY" | "ENEMY",
+      unitIndex: number,
+      unitDefinitionId: string,
+      damageDealt: number,
+    ) => ({
+      side,
+      unitIndex,
+      unitDefinitionId,
+      damageDealt,
+      damageTaken: 0,
+      healingDone: 0,
+      finalHp: 100,
+      maximumHp: 100,
+      combatStatus: "ACTIVE",
+    });
 
     await route.fulfill({
       status: 200,
@@ -127,28 +149,42 @@ export async function mockTacticalExerciseEvaluation(
       headers: { "Access-Control-Expose-Headers": EXPOSED_HEADERS },
       body: JSON.stringify({
         schemaVersion: 1,
+        seed: body.seed,
+        seedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
         // 実サーバーと同じく、評価もCatalog GETと同じrevisionで返す。ずらすと
         // 「実行中にCatalogが切り替わった」扱いになり結果を出さない。
         catalogRevision: CATALOG_REVISION,
-        seed: body.seed,
-        runsPerCandidate: runs,
-        candidates: [
+        engineRevision: "e2e-engine",
+        requestedRuns: runIndices.length,
+        completedRuns: runIndices.length,
+        partial: false,
+        cases: [
           {
-            completedRuns: runs,
-            scores: indices.map((index) => 1000 + index),
-            breakCounts: indices.map((index) =>
+            caseId: caseBody?.caseId ?? "exercise",
+            runs: runIndices.map((runIndex) => ({
+              runIndex,
+              totalScore: 1000 + runIndex,
               // 味方の枠が起こした分に、発生源ユニットを持たないブレイク（R-MEM-04）
               // を2回足す。脚注の残差が0にならないようにする。
-              unitIndices.reduce((total, unitIndex) => total + unitBreaks(index, unitIndex), 2),
-            ),
-            completedTurns: indices.map(() => 5),
-            completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
-            allyUnitDamageTotals: indices.map((index) =>
-              unitIndices.map((unitIndex) => 500 + index - unitIndex * 120),
-            ),
-            allyUnitBreakCounts: indices.map((index) =>
-              unitIndices.map((unitIndex) => unitBreaks(index, unitIndex)),
-            ),
+              breakCount: allyIds.reduce(
+                (total, _id, unitIndex) => total + unitBreaks(runIndex, unitIndex),
+                2,
+              ),
+              completionReason: "TURN_LIMIT_REACHED",
+              completedTurn: 5,
+              units: [
+                ...allyIds.map((id, unitIndex) =>
+                  unitRecord("ALLY", unitIndex, id, 500 + runIndex - unitIndex * 120),
+                ),
+                unitRecord("ENEMY", 0, "UNIT_ENEMY", 0),
+              ],
+              allyUnitBreaks: allyIds.map((unitDefinitionId, unitIndex) => ({
+                unitIndex,
+                unitDefinitionId,
+                breakCount: unitBreaks(runIndex, unitIndex),
+              })),
+            })),
+            incompleteRunIndices: [],
           },
         ],
       }),

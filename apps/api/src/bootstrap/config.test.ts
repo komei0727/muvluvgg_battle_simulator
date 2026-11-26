@@ -262,23 +262,38 @@ describe("loadConfig — evaluation endpoint", () => {
     expect(() => loadConfig(envWith({ EVALUATION_ENDPOINT_ENABLED: "yes" }))).toThrow(ConfigError);
   });
 
-  it("CFG-040: evaluation limits fall back to the measured defaults", () => {
-    expect(loadConfig(envWith({})).evaluationLimits).toEqual({
-      maxCandidates: 32,
+  it("CFG-040: tactical exercise evaluation limits fall back to the measured defaults", () => {
+    expect(loadConfig(envWith({})).tacticalExerciseEvaluationLimits).toEqual({
+      maxCases: 32,
       maxTotalRuns: 300,
     });
   });
 
-  it("CFG-041: evaluation limits accept overrides", () => {
+  it("CFG-041: tactical exercise evaluation limits accept overrides", () => {
     expect(
-      loadConfig(envWith({ EVALUATION_MAX_CANDIDATES: "4", EVALUATION_MAX_TOTAL_RUNS: "40" }))
-        .evaluationLimits,
-    ).toEqual({ maxCandidates: 4, maxTotalRuns: 40 });
+      loadConfig(
+        envWith({
+          TACTICAL_EXERCISE_EVALUATION_MAX_CASES: "4",
+          TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS: "40",
+        }),
+      ).tacticalExerciseEvaluationLimits,
+    ).toEqual({ maxCases: 4, maxTotalRuns: 40 });
   });
 
-  it("CFG-042: a zero evaluation limit throws instead of producing an endpoint that can never run", () => {
-    expect(() => loadConfig(envWith({ EVALUATION_MAX_TOTAL_RUNS: "0" }))).toThrow(ConfigError);
+  it("CFG-042: a zero tactical exercise evaluation limit throws instead of producing an endpoint that can never run", () => {
+    expect(() => loadConfig(envWith({ TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS: "0" }))).toThrow(
+      ConfigError,
+    );
   });
+
+  it.each(["EVALUATION_MAX_CANDIDATES", "EVALUATION_MAX_TOTAL_RUNS"])(
+    "CFG-051: the retired %s throws and names its replacement instead of being silently ignored",
+    (envVar) => {
+      expect(() => loadConfig(envWith({ [envVar]: "10" }))).toThrow(
+        /TACTICAL_EXERCISE_EVALUATION_MAX_(CASES|TOTAL_RUNS)/,
+      );
+    },
+  );
 
   const KEY_A = "a".repeat(32);
   const KEY_B = "b".repeat(44);

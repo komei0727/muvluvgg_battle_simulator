@@ -1,18 +1,21 @@
 // 統計実行の結果を持ち出す2つの形。この module が公開出力の契約の正本である。
-// 生データCSVは先頭8列の名前と並びを固定する —— 後段の分析スクリプトが列位置を前提に
-// 読めるようにするためで、旧 `tools/exercise-lab` の `runs.csv` と同じ並びにしてある
-// （既存の分析資産を読み替えずに使えるよう、並びを変えない）。ユニット別の列は後ろへ足す。
+// 生データCSVは先頭7列の名前と並びを固定する —— 後段の分析スクリプトが列位置を前提に
+// 読めるようにするためである。ユニット別の列は後ろへ足す。
+//
+// `run_index`は評価APIの通し試行番号であり、`seed`・`catalogRevision`・`engineRevision`・
+// `seedDerivationVersion`と組で試行を再現する。旧契約（`<seed>#<runOffset>`をチャンクごとに
+// 送っていた頃）のCSVは`chunk_seed`・`run_index_in_chunk`列を持ち、同じseed文字列でも別の
+// 乱数列の試行である。列名の違いで新旧を見分け、両者を同じ試行として突き合わせない。
 
 import type { ScoreStatisticsReport, UnitStatisticsReport } from "./statistics-report.js";
 import type { AllyUnitLabel } from "./statistics-report.js";
 import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
 
-/** 生データCSVの先頭8列。並びを変えない（後段が列位置を前提に読む）。 */
+/** 生データCSVの先頭7列。並びを変えない（後段が列位置を前提に読む）。 */
 const BASE_RUN_COLUMNS = [
   "run_index",
+  "seed",
   "chunk_index",
-  "chunk_seed",
-  "run_index_in_chunk",
   "score",
   "break_count",
   "completed_turn",
@@ -30,7 +33,8 @@ function csvField(value: string | number): string {
 
 /**
  * 試行ごとの生値のCSV。行数は実際に完了した試行数であり、要求数まで空行を足さない
- * —— 埋めると後段が「0点で終わった試行」と「走らなかった試行」を区別できない。
+ * —— 埋めると後段が「0点で終わった試行」と「走らなかった試行」を区別できない。期限までに
+ * 終わらなかった試行番号は詰めずに抜けたままにする（統計サマリJSONの`incompleteRunIndices`）。
  *
  * ユニット別の列は編成順の1始まりで、`unit_<n>_damage` が先に全列、続いて
  * `unit_<n>_break_count` が全列並ぶ。定義IDを列名に使わないのは、同じ定義を複数の枠へ
@@ -39,6 +43,7 @@ function csvField(value: string | number): string {
 export function buildRunsCsv(
   aggregate: EvaluationAggregate,
   labels: readonly AllyUnitLabel[],
+  seed: string,
 ): string {
   const { sample } = aggregate;
   const unitCount = sample.allyUnitDamageTotals[0]?.length ?? labels.length;
@@ -49,19 +54,18 @@ export function buildRunsCsv(
     ...unitColumns.map((column) => `unit_${column.toString()}_break_count`),
   ].join(",");
 
-  const rows = sample.scores.map((score, runIndex) => {
-    const provenance = aggregate.runs[runIndex];
-    const damage = sample.allyUnitDamageTotals[runIndex] ?? [];
-    const breaks = sample.allyUnitBreakCounts[runIndex] ?? [];
+  const rows = sample.scores.map((score, position) => {
+    const provenance = aggregate.runs[position];
+    const damage = sample.allyUnitDamageTotals[position] ?? [];
+    const breaks = sample.allyUnitBreakCounts[position] ?? [];
     return [
-      runIndex,
+      provenance?.runIndex ?? position,
+      seed,
       provenance?.chunkIndex ?? 0,
-      provenance?.chunkSeed ?? "",
-      provenance?.runIndexInChunk ?? runIndex,
       score,
-      sample.breakCounts[runIndex] ?? 0,
-      sample.completedTurns[runIndex] ?? 0,
-      sample.completionReasons[runIndex] ?? "",
+      sample.breakCounts[position] ?? 0,
+      sample.completedTurns[position] ?? 0,
+      sample.completionReasons[position] ?? "",
       ...unitColumns.map((_column, index) => damage[index] ?? 0),
       ...unitColumns.map((_column, index) => breaks[index] ?? 0),
     ]
@@ -73,9 +77,9 @@ export function buildRunsCsv(
 }
 
 /**
- * 統計サマリのJSON。再現条件（seed・チャンクサイズ・試行数）とスコア統計のキーを先に置き、
- * 日次ベスト指標とユニット別統計を足す。先頭のキーは旧 `tools/exercise-lab` の
- * `summary.json` と同じ名前・同じ形で、既存の分析資産をそのまま読めるよう変えない。
+ * 統計サマリのJSON。再現条件（seed・実行環境の識別情報・試行数）とスコア統計のキーを先に
+ * 置き、日次ベスト指標とユニット別統計を足す。`engineRevision`・`seedDerivationVersion`を
+ * 持つことが新契約（通し試行番号）の実行であることの印であり、旧契約のサマリは持たない。
  * 同じ実行から常に同じ文字列が出るよう、集計順に依存する値を入れない。
  */
 export function buildStatisticsSummaryJson(
@@ -87,11 +91,15 @@ export function buildStatisticsSummaryJson(
       seed: score.seed,
       chunkSize: score.chunkSize,
       catalogRevision: score.catalogRevision,
+      engineRevision: score.engineRevision,
+      seedDerivationVersion: score.seedDerivationVersion,
       requestedRuns: score.requestedRuns,
       // 中断すると要求より小さくなる。要求・送信・完了は別物なので3つとも残す。
       sentRuns: score.sentRuns,
       completedRuns: score.completedRuns,
       partial: score.partial,
+      // 送ったが期限までに完了しなかった試行番号。同じseedでこの番号だけを送り直せば補える。
+      incompleteRunIndices: score.incompleteRunIndices,
       score: score.score,
       defeatRate: score.completionReasons.defeatRate,
       completionReasons: score.completionReasons.breakdown,

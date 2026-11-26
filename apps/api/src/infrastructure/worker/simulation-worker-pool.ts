@@ -18,8 +18,7 @@ import type {
 import type { EvaluateBattlesResult } from "../../application/simulation/evaluate-battles-use-case.js";
 import type { EvaluateTotalWarsResult } from "../../application/simulation/evaluate-total-wars-use-case.js";
 import type { EvaluationRequestLimits } from "../../application/simulation/evaluation-command.js";
-import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
-import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
+import type { EvaluateTacticalExercisesResult } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../application/simulation/simulation-execution-context.js";
 import type {
@@ -41,8 +40,8 @@ export interface SimulationWorkerPoolOptions {
    * 省略時はWorker側が`DEFAULT_SIMULATION_EXECUTION_LIMITS`を使う。
    */
   readonly executionLimits?: SimulationExecutionLimits;
-  /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。`workerData`としてWorkerへ配る。省略時はWorker側の既定値。 */
-  readonly evaluationLimits?: EvaluationLimits;
+  /** 戦術演習の大量試行の要求量上限（`TACTICAL_EXERCISE_EVALUATION_*`環境変数）。`workerData`としてWorkerへ配る。省略時はWorker側の既定値。 */
+  readonly tacticalExerciseEvaluationLimits?: EvaluationRequestLimits;
   /**
    * 大量試行の応答が載せる戦闘実装の識別情報（起動時に一度だけ確定させた値）。
    * `workerData`としてWorkerへ配る。省略時のWorkerは大量試行を実行しない。
@@ -180,8 +179,8 @@ export class SimulationWorkerPool {
       filename: (options.workerFileUrl ?? resolveDefaultWorkerFileUrl()).href,
       workerData: {
         catalogDir: options.catalogDir,
-        ...(options.evaluationLimits !== undefined
-          ? { evaluationLimits: options.evaluationLimits }
+        ...(options.tacticalExerciseEvaluationLimits !== undefined
+          ? { tacticalExerciseEvaluationLimits: options.tacticalExerciseEvaluationLimits }
           : {}),
         ...(options.executionLimits !== undefined
           ? { executionLimits: options.executionLimits }
@@ -327,14 +326,14 @@ export class SimulationWorkerPool {
   }
 
   /**
-   * `09_アプリケーション設計.md`「実行境界」: 編成候補の一括評価（UC-04）。候補×試行の
-   * 二重ループはWorker側の1タスク内で回る——`WORKER_MAX_QUEUE`が本番で1のため、
+   * `09_アプリケーション設計.md`「実行境界」: 戦術演習の大量試行（UC-04）。ケース×試行の
+   * ループはWorker側の1タスク内で回る——`WORKER_MAX_QUEUE`が本番で1のため、
    * 試行ごとにタスクを投入するとキュー溢れ（503）になる。
    */
   async executeTacticalExerciseEvaluation(
     request: TacticalExerciseEvaluationRequestBody,
     context: SimulationExecutionContext,
-  ): Promise<EvaluateTacticalExerciseCandidatesResult> {
+  ): Promise<EvaluateTacticalExercisesResult> {
     const outcome = await this.runTask(
       {
         mode: "TACTICAL_EXERCISE_EVALUATION",

@@ -575,7 +575,7 @@ describe("BattleSimulatorPage — 統計実行 (UI-CT-086)", () => {
           message: "unknown unit",
           violations: [
             {
-              path: "/candidates/0/allyFormation/units/0/unitDefinitionId",
+              path: "/cases/0/allyFormation/units/0/unitDefinitionId",
               message: "定義が見つかりません",
             },
           ],

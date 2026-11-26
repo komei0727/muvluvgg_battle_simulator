@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_EVALUATION_LIMITS } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
-import { EvaluateTacticalExerciseCandidatesUseCase } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
+import { DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS } from "../../application/simulation/evaluate-tactical-exercises-command.js";
+import { EvaluateTacticalExercisesUseCase } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
 import { createUnitDefinitionId } from "../../domain/catalog/definitions/catalog-ids.js";
 import { loadCatalogFromDirectory } from "../../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { UuidBattleIdGenerator } from "../../infrastructure/identity/uuid-battle-id-generator.js";
@@ -13,9 +13,9 @@ import {
 } from "../../testing/scenario/run-production-battle.js";
 
 /**
- * 一括評価の baseline（`12_テスト戦略.md`「負荷・耐久テスト」）。
+ * 戦術演習の大量試行の baseline（`12_テスト戦略.md`「負荷・耐久テスト」）。
  *
- * `EVALUATION_MAX_TOTAL_RUNS`の既定値は「`SIMULATION_TIMEOUT_MS`の7割に収まる試行数」
+ * `TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`の既定値は「`SIMULATION_TIMEOUT_MS`の7割に収まる試行数」
  * として実測から決めた。基準は本番Cloud Runが明示する30秒（`deploy/cloud-run/service.json`）
  * であり、`SIMULATION_TIMEOUT_MS`のコード既定値（ローカル開発専用、現在50秒）ではない
  * ——このテストは意図的に本番値を固定して使う。その前提が崩れれば上限が実態と合わなく
@@ -32,10 +32,10 @@ const CATALOG_DIR = fileURLToPath(new URL("../../../catalog", import.meta.url));
 const SIMULATION_TIMEOUT_MS = 30_000;
 const DEADLINE_BUDGET_RATIO = 0.7;
 const PARTY_SIZE = 5;
-const CANDIDATE_COUNT = 4;
+const CASE_COUNT = 4;
 
 describe("tactical exercise evaluation load baseline", () => {
-  it("LOAD-EVAL-001: a request at EVALUATION_MAX_TOTAL_RUNS completes every run inside the deadline budget the limit was derived from — for the slowest exercise enemy, not an arbitrary one", () => {
+  it("LOAD-TEXEVAL-001: a request at TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS completes every run inside the deadline budget the limit was derived from — for the slowest exercise enemy, not an arbitrary one", () => {
     const catalog = loadCatalogFromDirectory(CATALOG_DIR);
     const allyParty = allProductionUnitIds(CATALOG_DIR).slice(0, PARTY_SIZE);
     const enemyIds = allExerciseEnemyProductionUnitIds(CATALOG_DIR);
@@ -53,45 +53,52 @@ describe("tactical exercise evaluation load baseline", () => {
       memoryDefinitionIds: [],
     };
 
-    const runsPerCandidate = Math.floor(DEFAULT_EVALUATION_LIMITS.maxTotalRuns / CANDIDATE_COUNT);
-    const requestedRuns = CANDIDATE_COUNT * runsPerCandidate;
-    const useCase = new EvaluateTacticalExerciseCandidatesUseCase({
+    const runsPerCase = Math.floor(
+      DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS.maxTotalRuns / CASE_COUNT,
+    );
+    const requestedRuns = CASE_COUNT * runsPerCase;
+    const useCase = new EvaluateTacticalExercisesUseCase({
       battleCatalog: catalog,
       battleIdGenerator: new UuidBattleIdGenerator(),
       clock: new SystemClock(),
       seededRandomSourceProvider: new Mulberry32SeededRandomSourceProvider(),
-      limits: DEFAULT_EVALUATION_LIMITS,
+      runtimeInfo: { engineRevision: "load-texeval-001" },
+      limits: DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
     });
 
     const measurements = enemyIds.map((enemyUnitDefinitionId) => {
       const startedAt = Date.now();
       const result = useCase.execute(
         {
-          enemyFormation: {
-            slots: [
-              {
-                unitDefinitionId: createUnitDefinitionId(enemyUnitDefinitionId),
-                position: { column: 0, row: "FRONT" },
-              },
-            ],
-            memoryDefinitionIds: [],
-          },
-          candidates: Array.from({ length: CANDIDATE_COUNT }, () => ({ allyFormation })),
-          runsPerCandidate,
-          seed: `load-eval-001-${enemyUnitDefinitionId}`,
+          seed: `load-texeval-001-${enemyUnitDefinitionId}`,
+          cases: Array.from({ length: CASE_COUNT }, (_, caseIndex) => ({
+            caseId: `case-${caseIndex}`,
+            allyFormation,
+            enemyFormation: {
+              slots: [
+                {
+                  unitDefinitionId: createUnitDefinitionId(enemyUnitDefinitionId),
+                  position: { column: 0, row: "FRONT" as const },
+                },
+              ],
+              memoryDefinitionIds: [],
+            },
+            // ケースごとに別の番号を割り、同じ乱数列の繰り返しで速く見えないようにする。
+            runIndices: Array.from(
+              { length: runsPerCase },
+              (_, runIndex) => caseIndex * runsPerCase + runIndex,
+            ),
+          })),
         },
         {
-          requestId: "load-eval-001",
+          requestId: "load-texeval-001",
           // 期限は判定に使う予算より広く取る。予算超過を「部分結果になった」ではなく
           // 「所要時間が予算を超えた」として観測するため（部分結果だと超過幅が分からない）。
           deadlineEpochMs: startedAt + SIMULATION_TIMEOUT_MS * 4,
         },
       );
       const elapsedMs = Date.now() - startedAt;
-      const completedRuns = result.candidates.reduce(
-        (total, candidate) => total + candidate.completedRuns,
-        0,
-      );
+      const { completedRuns } = result;
       return { enemyUnitDefinitionId, elapsedMs, completedRuns };
     });
 
@@ -102,9 +109,9 @@ describe("tactical exercise evaluation load baseline", () => {
 
     console.log(
       JSON.stringify({
-        baseline: "LOAD-EVAL-001",
-        candidateCount: CANDIDATE_COUNT,
-        runsPerCandidate,
+        baseline: "LOAD-TEXEVAL-001",
+        caseCount: CASE_COUNT,
+        runsPerCase,
         requestedRuns,
         budgetMs,
         slowestEnemyUnitDefinitionId: slowest.enemyUnitDefinitionId,

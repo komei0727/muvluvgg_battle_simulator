@@ -6,12 +6,9 @@ import {
 } from "./worker-contract.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
-import { toEvaluateTacticalExerciseCandidatesCommand } from "../../application/simulation/evaluate-tactical-exercise-candidates-mapper.js";
-import { EvaluateTacticalExerciseCandidatesUseCase } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
-import {
-  DEFAULT_EVALUATION_LIMITS,
-  type EvaluationLimits,
-} from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import { toEvaluateTacticalExercisesCommand } from "../../application/simulation/evaluate-tactical-exercises-mapper.js";
+import { EvaluateTacticalExercisesUseCase } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
+import { DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS } from "../../application/simulation/evaluate-tactical-exercises-command.js";
 import { DEFAULT_BATTLE_EVALUATION_LIMITS } from "../../application/simulation/evaluate-battles-command.js";
 import { toEvaluateBattlesCommand } from "../../application/simulation/evaluate-battles-mapper.js";
 import { EvaluateBattlesUseCase } from "../../application/simulation/evaluate-battles-use-case.js";
@@ -42,10 +39,10 @@ export interface SimulationTaskRunnerDependencies {
    * `DEFAULT_SIMULATION_EXECUTION_LIMITS`。
    */
   readonly executionLimits?: SimulationExecutionLimits;
-  /** 一括評価が使う、seedと試行番号から決まる乱数源。省略時は一括評価を実行できない。 */
+  /** 大量試行が使う、seedと試行番号から決まる乱数源。省略時は`Mulberry32SeededRandomSourceProvider`。 */
   readonly seededRandomSourceProvider?: SeededRandomSourceProvider;
-  /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。省略時は{@link DEFAULT_EVALUATION_LIMITS}。 */
-  readonly evaluationLimits?: EvaluationLimits;
+  /** 戦術演習の大量試行の要求量上限。省略時は{@link DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS}。 */
+  readonly tacticalExerciseEvaluationLimits?: EvaluationRequestLimits;
   /**
    * 大量試行の応答が載せる戦闘実装の識別情報。起動時に確定させて注入する。省略時は
    * 大量試行を実行しない — 未知の値を固定文字列で返すと、別の実装の結果を同じ条件の
@@ -86,17 +83,6 @@ export function createSimulationTaskRunner(
   const totalWarUseCase = new SimulateTotalWarUseCase(useCaseDependencies);
   const seededRandomSourceProvider =
     dependencies.seededRandomSourceProvider ?? new Mulberry32SeededRandomSourceProvider();
-  const evaluationUseCase = new EvaluateTacticalExerciseCandidatesUseCase({
-    battleCatalog: catalog,
-    battleIdGenerator: dependencies.battleIdGenerator,
-    clock: dependencies.clock,
-    seededRandomSourceProvider,
-    limits: dependencies.evaluationLimits ?? DEFAULT_EVALUATION_LIMITS,
-    ...(dependencies.executionLimits !== undefined
-      ? { executionLimits: dependencies.executionLimits }
-      : {}),
-  });
-
   const seededEvaluationDependencies = (engineRevision: string) => ({
     battleCatalog: catalog,
     battleIdGenerator: dependencies.battleIdGenerator,
@@ -122,6 +108,15 @@ export function createSimulationTaskRunner(
           ...seededEvaluationDependencies(engineRevision),
           limits: dependencies.totalWarEvaluationLimits ?? DEFAULT_TOTAL_WAR_EVALUATION_LIMITS,
         });
+  const tacticalExerciseEvaluationUseCase =
+    engineRevision === undefined
+      ? undefined
+      : new EvaluateTacticalExercisesUseCase({
+          ...seededEvaluationDependencies(engineRevision),
+          limits:
+            dependencies.tacticalExerciseEvaluationLimits ??
+            DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
+        });
 
   return function runSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
     if (task.expectedCatalogRevision !== catalog.catalogRevision) {
@@ -144,11 +139,29 @@ export function createSimulationTaskRunner(
       // `09_アプリケーション設計.md`「実行境界」: モード判別子でユースケースを
       // 振り分ける。Catalogリビジョン検査・期限・容量制御は上で共有済み。
       const context = { requestId: task.requestId, deadlineEpochMs: task.deadlineEpochMs };
-      if (task.mode === "BATTLE_EVALUATION" || task.mode === "TOTAL_WAR_EVALUATION") {
-        if (battleEvaluationUseCase === undefined || totalWarEvaluationUseCase === undefined) {
+      if (
+        task.mode === "BATTLE_EVALUATION" ||
+        task.mode === "TOTAL_WAR_EVALUATION" ||
+        task.mode === "TACTICAL_EXERCISE_EVALUATION"
+      ) {
+        if (
+          battleEvaluationUseCase === undefined ||
+          totalWarEvaluationUseCase === undefined ||
+          tacticalExerciseEvaluationUseCase === undefined
+        ) {
           throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
             { reason: "this worker has no engineRevision configured for seeded evaluations" },
           ]);
+        }
+        if (task.mode === "TACTICAL_EXERCISE_EVALUATION") {
+          return {
+            ok: true,
+            mode: "TACTICAL_EXERCISE_EVALUATION",
+            result: tacticalExerciseEvaluationUseCase.execute(
+              toEvaluateTacticalExercisesCommand(task.request),
+              context,
+            ),
+          };
         }
         if (task.mode === "BATTLE_EVALUATION") {
           return {
@@ -165,18 +178,6 @@ export function createSimulationTaskRunner(
           mode: "TOTAL_WAR_EVALUATION",
           result: totalWarEvaluationUseCase.execute(
             toEvaluateTotalWarsCommand(task.request),
-            context,
-          ),
-        };
-      }
-      if (task.mode === "TACTICAL_EXERCISE_EVALUATION") {
-        return {
-          ok: true,
-          mode: "TACTICAL_EXERCISE_EVALUATION",
-          // seedの生成はここで行う。省略されたリクエストは実行のたびに別の乱数列に
-          // なるのが正しく、応答が返すseedで同じ結果を再現できる。
-          result: evaluationUseCase.execute(
-            toEvaluateTacticalExerciseCandidatesCommand(task.request, randomUUID()),
             context,
           ),
         };

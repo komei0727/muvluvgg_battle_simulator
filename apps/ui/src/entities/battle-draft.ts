@@ -31,8 +31,8 @@ export type ExerciseExecutionMode = "SINGLE" | "STATISTICS";
 /**
  * 統計実行のパラメータ。`runCount`と`seed`は`STATISTICS`のときだけ送信へ効くが、
  * モードを往復しても入力し直さなくて済むよう`SINGLE`の間も保持する。
- * `seed`の空文字は「サーバー生成に任せる」を表す（`TacticalExerciseEvaluationRequest`
- * の`seed`は任意項目）。
+ * `seed`の空文字は「実行開始時にUIが生成する」を表す（評価APIは`seed`を必須とし、
+ * サーバーは生成しない）。
  */
 export interface ExerciseExecutionInput {
   readonly mode: ExerciseExecutionMode;

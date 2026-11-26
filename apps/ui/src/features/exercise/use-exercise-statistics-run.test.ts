@@ -13,9 +13,12 @@ import type { BattleDraft, Side, UiColumn, UiRow } from "../../entities/battle-d
 import type {
   TacticalExerciseEvaluationApiResult,
   TacticalExerciseEvaluationRequest,
-  TacticalExerciseEvaluationResponse,
 } from "../../shared/api/api-contract.js";
 import { createInitialDraft, slotKeyOf } from "../formation/types.js";
+import {
+  evaluationResponseFor,
+  type EvaluationResponseOptions,
+} from "../../test/evaluation-response.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
 
 function withUnit(
@@ -40,44 +43,24 @@ function exerciseDraft(): BattleDraft {
   return draft;
 }
 
-function evaluationResponse(
-  runs: number,
-  overrides: Partial<TacticalExerciseEvaluationResponse> = {},
-): TacticalExerciseEvaluationResponse {
-  const indices = Array.from({ length: runs }, (_value, index) => index);
-  return {
-    schemaVersion: 1,
-    catalogRevision: "rev-1",
-    seed: "seed#0",
-    runsPerCandidate: runs,
-    candidates: [
-      {
-        completedRuns: runs,
-        scores: indices.map((index) => 1000 + index),
-        breakCounts: indices.map(() => 1),
-        completedTurns: indices.map(() => 5),
-        completionReasons: indices.map(() => "TURN_LIMIT_REACHED"),
-        allyUnitDamageTotals: indices.map(() => [500]),
-        allyUnitBreakCounts: indices.map(() => [1]),
-      },
-    ],
-    ...overrides,
-  };
-}
-
 type EvaluateImpl = (
   request: TacticalExerciseEvaluationRequest,
   options: SimulateOptions,
 ) => Promise<TacticalExerciseEvaluationApiResult>;
 
-// 応答は送ったチャンクseedをそのまま返す（`10_API設計.md`「実際に使われたseed」）。
-function okResults(...responses: readonly TacticalExerciseEvaluationResponse[]): EvaluateImpl {
+// 応答は要求のseed・試行番号をそのまま返す（`10_API設計.md`「実際に使ったseed」）。
+// 呼び出しごとに部分結果・実行条件を変えられる。最後の指定は以降の呼び出しにも使う。
+function okResults(...perCall: readonly EvaluationResponseOptions[]): EvaluateImpl {
   let call = 0;
   return (request) => {
-    const response = (responses[call] ?? responses.at(-1)) as TacticalExerciseEvaluationResponse;
+    const options = perCall[call] ?? perCall.at(-1) ?? {};
     call += 1;
-    return Promise.resolve({ ok: true, response: { ...response, seed: request.seed } });
+    return Promise.resolve({ ok: true, response: evaluationResponseFor(request, options) });
   };
+}
+
+function runIndicesOf(request: TacticalExerciseEvaluationRequest | undefined): readonly number[] {
+  return request?.cases[0]?.runIndices ?? [];
 }
 
 function startInput(overrides: { runCount?: number; seed?: string } = {}) {
@@ -86,7 +69,7 @@ function startInput(overrides: { runCount?: number; seed?: string } = {}) {
 
 // UI-UT-EVL-004: 指定回数をチャンクへ割り、1リクエストずつ直列に送る。
 describe("useExerciseStatisticsRun — sequential chunks", () => {
-  it("sends one chunk at a time with the run-offset seed and never overlaps requests", async () => {
+  it("sends one chunk at a time with the same seed and contiguous global run indices, never overlapping requests", async () => {
     let inFlight = 0;
     let maxInFlight = 0;
     const evaluateImpl = vi.fn<EvaluateImpl>(async (request) => {
@@ -94,7 +77,7 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
       maxInFlight = Math.max(maxInFlight, inFlight);
       await Promise.resolve();
       inFlight -= 1;
-      return { ok: true, response: evaluationResponse(2, { seed: request.seed }) };
+      return { ok: true, response: evaluationResponseFor(request) };
     });
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
@@ -108,16 +91,16 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
       expect(result.current.state.status).not.toBe("running");
     });
     expect(maxInFlight).toBe(1);
-    expect(evaluateImpl.mock.calls.map(([request]) => request.seed)).toEqual([
-      "abc#0",
-      "abc#2",
-      "abc#4",
+    expect(evaluateImpl.mock.calls.map(([request]) => request.seed)).toEqual(["abc", "abc", "abc"]);
+    expect(evaluateImpl.mock.calls.map(([request]) => runIndicesOf(request))).toEqual([
+      [0, 1],
+      [2, 3],
+      [4],
     ]);
-    expect(evaluateImpl.mock.calls.map(([request]) => request.runsPerCandidate)).toEqual([2, 2, 1]);
   });
 
   it("forwards the configured timeout to every chunk request", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", {
         evaluateImpl,
@@ -137,7 +120,7 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
   });
 
   it("generates a seed when none was entered and keeps it for the whole run", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -150,16 +133,16 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
       expect(result.current.state.status).toBe("succeeded");
     });
     const seeds = evaluateImpl.mock.calls.map(([request]) => request.seed);
-    const [generated] = seeds[0]?.split("#") ?? [];
-    expect(generated).not.toBe("");
-    expect(seeds).toEqual([`${generated ?? ""}#0`, `${generated ?? ""}#2`]);
+    const generated = seeds[0];
+    expect(generated).toMatch(/^[0-9a-f]+$/);
+    expect(seeds).toEqual([generated, generated]);
     expect(
       result.current.state.status === "succeeded" ? result.current.state.seed : undefined,
     ).toBe(generated);
   });
 
   it("reports progress per chunk and aggregates every run into one sample", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -184,7 +167,7 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
       chunkCount: 2,
     });
     expect(state.status === "succeeded" ? state.aggregate.sample.scores : undefined).toEqual([
-      1000, 1001, 1000, 1001,
+      1000, 1001, 1002, 1003,
     ]);
   });
 
@@ -197,7 +180,7 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
         sink.push(request);
         return Promise.resolve({
           ok: true,
-          response: evaluationResponse(2, { seed: request.seed }),
+          response: evaluationResponseFor(request),
         });
       };
     };
@@ -231,15 +214,41 @@ describe("useExerciseStatisticsRun — sequential chunks", () => {
   });
 });
 
-// UI-UT-EVL-005: 部分結果は再送しない。中断は完了済みチャンクまでで確定する。
-describe("useExerciseStatisticsRun — partial results and cancellation", () => {
-  it("keeps a short chunk as a partial result without resending it", async () => {
+// UI-UT-EVL-008: 試行の観測値は通し試行番号だけで決まる。チャンクサイズを変えても同じ
+// 試行番号へ同じ観測値が対応し、標本・出所が変わらない（旧`<seed>#<runOffset>`規約では
+// チャンクサイズを変えると別の試行集合になっていた）。
+describe("useExerciseStatisticsRun — chunk size independence", () => {
+  async function aggregateWith(chunkSize: number): Promise<EvaluationAggregate | undefined> {
     const evaluateImpl = vi.fn<EvaluateImpl>(
-      okResults(
-        evaluationResponse(1, { runsPerCandidate: 2 }),
-        evaluationResponse(2, { runsPerCandidate: 2 }),
-      ),
+      okResults({ run: (runIndex) => ({ totalScore: 5000 + ((runIndex * 37) % 101) }) }),
     );
+    const { result } = renderHook(() =>
+      useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize }),
+    );
+    act(() => {
+      result.current.start(startInput({ runCount: 7, seed: "same" }));
+    });
+    await waitFor(() => {
+      expect(result.current.state.status).toBe("succeeded");
+    });
+    return selectStatisticsAggregate(result.current.state);
+  }
+
+  it("aggregates the same sample for the same run indices whatever the chunk size", async () => {
+    const small = await aggregateWith(2);
+    const large = await aggregateWith(300);
+
+    expect(small?.sample).toEqual(large?.sample);
+    expect(small?.runs.map((run) => run.runIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(large?.runs.map((run) => run.runIndex)).toEqual(small?.runs.map((run) => run.runIndex));
+  });
+});
+
+// UI-UT-EVL-005: 部分結果は再送しない。未完了の試行番号は集約に残す。中断は完了済み
+// チャンクまでで確定する。
+describe("useExerciseStatisticsRun — partial results and cancellation", () => {
+  it("keeps a short chunk as a partial result, lists its unfinished run indices and does not resend them", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults({ completed: 1 }, {}));
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -252,10 +261,19 @@ describe("useExerciseStatisticsRun — partial results and cancellation", () => 
       expect(result.current.state.status).toBe("succeeded");
     });
     expect(evaluateImpl).toHaveBeenCalledTimes(2);
+    expect(evaluateImpl.mock.calls.map(([request]) => runIndicesOf(request))).toEqual([
+      [0, 1],
+      [2, 3],
+    ]);
     expect(result.current.state).toMatchObject({
       status: "succeeded",
       progress: { requestedRuns: 4, completedRuns: 3 },
+      aggregate: { incompleteRunIndices: [1] },
     });
+    const { state } = result.current;
+    expect(state.status === "succeeded" ? state.aggregate.runs.map((r) => r.runIndex) : []).toEqual(
+      [0, 2, 3],
+    );
   });
 
   it("finishes with the chunks already completed when the run is cancelled", async () => {
@@ -264,7 +282,7 @@ describe("useExerciseStatisticsRun — partial results and cancellation", () => 
       if (evaluateImpl.mock.calls.length === 1) {
         return Promise.resolve({
           ok: true,
-          response: evaluationResponse(2, { seed: request.seed }),
+          response: evaluationResponseFor(request),
         });
       }
       return new Promise((resolve) => {
@@ -333,12 +351,7 @@ describe("useExerciseStatisticsRun — partial results and cancellation", () => 
   });
 
   it("fails with no result when every chunk completed zero runs", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(
-      okResults(
-        evaluationResponse(0, { runsPerCandidate: 2 }),
-        evaluationResponse(0, { runsPerCandidate: 2 }),
-      ),
-    );
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults({ completed: 0 }));
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -471,10 +484,8 @@ describe("useExerciseStatisticsRun — failures", () => {
     ).toContain("30");
   });
 
-  it("stops the run when catalogRevision changes between chunks", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(
-      okResults(evaluationResponse(2), evaluationResponse(2, { catalogRevision: "rev-2" })),
-    );
+  it("stops the run when the engine revision changes between chunks", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults({}, { engineRevision: "engine-2" }));
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -487,7 +498,12 @@ describe("useExerciseStatisticsRun — failures", () => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(result.current.state).toMatchObject({
-      error: { kind: "CATALOG_REVISION_CHANGED", catalogRevision: "rev-1" },
+      error: {
+        kind: "RUN_CONDITIONS_CHANGED",
+        field: "engineRevision",
+        expected: "engine-1",
+        actual: "engine-2",
+      },
     });
     expect(evaluateImpl).toHaveBeenCalledTimes(2);
   });
@@ -530,11 +546,11 @@ describe("useExerciseStatisticsRun — failures", () => {
     });
   });
 
-  // `EVALUATION_MAX_TOTAL_RUNS`を300未満へ絞った配備では全チャンクが422になる。
-  // サーバーは`/runsPerCandidate`をJSON Pointerで返すため、violationsを捨てると
+  // `TACTICAL_EXERCISE_EVALUATION_MAX_TOTAL_RUNS`を300未満へ絞った配備では全チャンクが422になる。
+  // サーバーは試行計画への違反を`/cases`などのJSON Pointerで返すため、violationsを捨てると
   // 実行回数入力へ結びつけられなくなる。
   it("keeps the server violations of a 422 so the run count input can show them", async () => {
-    const violations = [{ path: "/runsPerCandidate", message: "300 runs exceed the limit" }];
+    const violations = [{ path: "/cases", message: "300 runs exceed the limit" }];
     const evaluateImpl = vi.fn<EvaluateImpl>(() =>
       Promise.resolve({
         ok: false,
@@ -574,11 +590,15 @@ describe("useExerciseStatisticsRun — failures", () => {
     ]);
   });
 
-  it("fails as a contract mismatch when the response carries no candidate", async () => {
+  // 応答検証は要求を知らない。別の番号の試行が返ると通し試行番号と観測値の対応が崩れる。
+  it("fails as a contract mismatch when the response does not report exactly the requested run indices", async () => {
     const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
       Promise.resolve({
         ok: true,
-        response: { ...evaluationResponse(2, { seed: request.seed }), candidates: [] },
+        response: evaluationResponseFor({
+          ...request,
+          cases: request.cases.map((c) => ({ ...c, runIndices: [7, 8] })),
+        }),
       }),
     );
     const { result } = renderHook(() =>
@@ -600,7 +620,7 @@ describe("useExerciseStatisticsRun — failures", () => {
   // ユニット別集計の列は編成順であり、列に名前を付けられるのは送信時の編成だけである。
   // 実行後に編成を編集できるため、現在のdraftから引くと別のユニット名が列へ付く。
   it("keeps the ally unit definition ids of the submitted formation in formation order", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -618,12 +638,14 @@ describe("useExerciseStatisticsRun — failures", () => {
     ).toEqual(["UNIT_ALLY"]);
   });
 
-  // 応答の`seed`は、送ったチャンクseedがそのまま使われたかを判定できる唯一の材料である
-  // （`10_API設計.md`「実際に使われたseed」）。食い違いを見逃すと、全チャンクが同じ試行を
-  // 繰り返していても数値が揃って見えるだけで気づけない。
-  it("stops the run when the response does not echo the chunk seed", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(() =>
-      Promise.resolve({ ok: true, response: evaluationResponse(2, { seed: "other-seed" }) }),
+  // 応答の`seed`は実際に使われたseedである（`10_API設計.md`）。食い違いを見逃すと、別の
+  // 乱数列で回った試行を同じ試行番号として集計してしまう。
+  it("stops the run when the response does not echo the run seed", async () => {
+    const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
+      Promise.resolve({
+        ok: true,
+        response: evaluationResponseFor({ ...request, seed: "other-seed" }),
+      }),
     );
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
@@ -637,7 +659,7 @@ describe("useExerciseStatisticsRun — failures", () => {
       expect(result.current.state.status).toBe("failed");
     });
     expect(result.current.state).toMatchObject({
-      error: { kind: "SEED_NOT_ECHOED", requestedSeed: "s#0", respondedSeed: "other-seed" },
+      error: { kind: "SEED_NOT_ECHOED", requestedSeed: "s", respondedSeed: "other-seed" },
     });
     expect(evaluateImpl).toHaveBeenCalledOnce();
   });
@@ -646,29 +668,20 @@ describe("useExerciseStatisticsRun — failures", () => {
     const evaluateImpl = vi.fn<EvaluateImpl>((request) =>
       Promise.resolve({
         ok: true,
-        response:
-          request.seed === "s#0"
-            ? evaluationResponse(2, { seed: request.seed })
+        response: evaluationResponseFor(
+          request.cases[0]?.runIndices[0] === 0
+            ? request
             : {
-                ...evaluationResponse(2, { seed: request.seed }),
-                candidates: [
-                  {
-                    completedRuns: 2,
-                    scores: [1, 2],
-                    breakCounts: [0, 0],
-                    completedTurns: [5, 5],
-                    completionReasons: ["TURN_LIMIT_REACHED", "TURN_LIMIT_REACHED"],
-                    allyUnitDamageTotals: [
-                      [1, 2],
-                      [1, 2],
-                    ],
-                    allyUnitBreakCounts: [
-                      [0, 0],
-                      [0, 0],
-                    ],
+                ...request,
+                cases: request.cases.map((c) => ({
+                  ...c,
+                  allyFormation: {
+                    ...c.allyFormation,
+                    units: [...c.allyFormation.units, ...c.allyFormation.units],
                   },
-                ],
+                })),
               },
+        ),
       }),
     );
     const { result } = renderHook(() =>
@@ -687,7 +700,7 @@ describe("useExerciseStatisticsRun — failures", () => {
   });
 
   it("fails without sending anything when the draft cannot be turned into a request", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(2)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 2 }),
     );
@@ -772,7 +785,7 @@ describe("useExerciseStatisticsRun — failures", () => {
           resolveStale = resolve;
         });
       }
-      return Promise.resolve({ ok: true, response: evaluationResponse(4, { seed: request.seed }) });
+      return Promise.resolve({ ok: true, response: evaluationResponseFor(request) });
     });
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 4 }),
@@ -798,7 +811,10 @@ describe("useExerciseStatisticsRun — failures", () => {
     expect(result.current.state).toMatchObject({ runId: freshRunId });
 
     act(() => {
-      resolveStale?.({ ok: true, response: evaluationResponse(4, { seed: "stale#0" }) });
+      resolveStale?.({
+        ok: true,
+        response: evaluationResponseFor({ ...evaluateImpl.mock.calls[0]![0] }),
+      });
     });
 
     // 古い実行の遅延応答は無視され、新しい実行が確定したsucceeded stateのままである。
@@ -813,14 +829,23 @@ describe("describeStatisticsRunError", () => {
     );
   });
 
-  it("describes a Catalog revision change mid-run", () => {
+  it("describes a Catalog or engine revision change mid-run", () => {
     expect(
       describeStatisticsRunError({
-        kind: "CATALOG_REVISION_CHANGED",
-        catalogRevision: "rev-1",
-        chunkCatalogRevision: "rev-2",
+        kind: "RUN_CONDITIONS_CHANGED",
+        field: "catalogRevision",
+        expected: "rev-1",
+        actual: "rev-2",
       }).guidance,
     ).toBe("実行中にCatalogがrev-1からrev-2へ切り替わりました。同じ条件で実行し直してください。");
+    expect(
+      describeStatisticsRunError({
+        kind: "RUN_CONDITIONS_CHANGED",
+        field: "engineRevision",
+        expected: "a",
+        actual: "b",
+      }).guidance,
+    ).toBe("実行中に戦闘エンジンがaからbへ切り替わりました。同じ条件で実行し直してください。");
   });
 
   it("describes a per-unit column count change mid-run", () => {
@@ -837,11 +862,11 @@ describe("describeStatisticsRunError", () => {
     expect(
       describeStatisticsRunError({
         kind: "SEED_NOT_ECHOED",
-        requestedSeed: "seed#0",
-        respondedSeed: "seed#1",
+        requestedSeed: "seed-a",
+        respondedSeed: "seed-b",
       }).guidance,
     ).toBe(
-      "サーバーが要求したseed（seed#0）ではなくseed#1で実行しました。試行が重複している可能性があるため結果を集計できません。",
+      "サーバーが要求したseed（seed-a）ではなくseed-bで実行しました。試行番号と乱数列が対応しないため結果を集計できません。",
     );
   });
 
@@ -874,7 +899,7 @@ describe("selectStatisticsAggregate", () => {
   });
 
   it("returns the same aggregate for a succeeded and a cancelled run, and none for a failed one", async () => {
-    const evaluateImpl = vi.fn<EvaluateImpl>(okResults(evaluationResponse(4)));
+    const evaluateImpl = vi.fn<EvaluateImpl>(okResults());
     const { result } = renderHook(() =>
       useExerciseStatisticsRun("https://api.example.com", { evaluateImpl, chunkSize: 4 }),
     );

@@ -365,19 +365,19 @@ export interface TotalWarResponse extends BattleLogResponse {
 
 export type TotalWarApiResult = ExecutionApiResult<TotalWarResponse>;
 
-// docs/ddd/10_API設計.md「TacticalExerciseCandidateEvaluationResponse」。統計量は
-// 返らない（Q-TEX-16）ため、UIは試行ごとの生値だけを受け取って自分で集計する。
-// 6つの配列は同じ試行を同じ添字で指し、外側の長さは`completedRuns`に一致する。
-// `allyUnit*`の内側はリクエストの`candidates[i].allyFormation.units`と同じ長さ・同じ順。
+// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」。統計量は返らない（Q-TEX-16）
+// ため、UIは試行ごとのレコードだけを受け取って自分で集計する。各試行は`runIndex`で
+// 要求の通し試行番号を指し、期限までに終わらなかった番号は`incompleteRunIndices`に並ぶ。
 type GeneratedEvaluationResponse = DeepReadonly<
   paths["/api/v1/tactical-exercise-evaluations"]["post"]["responses"][200]["content"]["application/json"]
 >;
 
-export type TacticalExerciseCandidateEvaluationResponse =
-  GeneratedEvaluationResponse["candidates"][number];
-
-// docs/ddd/10_API設計.md「TacticalExerciseEvaluationResponse」。
 export type TacticalExerciseEvaluationResponse = GeneratedEvaluationResponse;
+
+export type TacticalExerciseEvaluationCaseResponse = GeneratedEvaluationResponse["cases"][number];
+
+export type TacticalExerciseEvaluationRunResponse =
+  TacticalExerciseEvaluationCaseResponse["runs"][number];
 
 export type TacticalExerciseEvaluationApiResult =
   ExecutionApiResult<TacticalExerciseEvaluationResponse>;
@@ -506,18 +506,24 @@ export interface TotalWarRequest {
   readonly options: { readonly logLevel: LogLevel };
 }
 
+/** `10_API設計.md`「TacticalExerciseEvaluationCaseRequest」。 */
+export interface TacticalExerciseEvaluationCaseRequest {
+  readonly caseId: string;
+  readonly allyFormation: FormationRequest;
+  readonly enemyFormation: FormationRequest;
+  /** 全体で通しの試行番号。seedとこの番号だけで乱数列が決まる。 */
+  readonly runIndices: readonly number[];
+}
+
 /**
  * `10_API設計.md`「TacticalExerciseEvaluationRequest」。統計実行の1チャンク分の本文。
  * `options`（`logLevel`）を持たない —— 返るのは試行ごとの数値だけで、イベント列も
- * 状態遷移も返らないため、公開レベルという概念自体が無い。
+ * 状態遷移も返らないため、公開レベルという概念自体が無い。`seed`は必須で、全チャンクが
+ * 同じ値を送る（チャンクの区別は`runIndices`が担う）。
  */
 export interface TacticalExerciseEvaluationRequest {
-  readonly enemyFormation: FormationRequest;
-  readonly candidates: readonly { readonly allyFormation: FormationRequest }[];
-  readonly runsPerCandidate: number;
-  /**
-   * 送信seed。省略するとサーバーが生成する（Q-TEX-17）が、統計実行はチャンクごとに
-   * `#<runOffset>`を付けた別seedを送る必要があるため常に指定する。
-   */
   readonly seed: string;
+  readonly cases: readonly TacticalExerciseEvaluationCaseRequest[];
+  readonly expectedCatalogRevision?: string;
+  readonly expectedEngineRevision?: string;
 }

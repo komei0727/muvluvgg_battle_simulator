@@ -265,10 +265,11 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 
 ### 戦術演習
 
-戦術演習の評価API（`/api/v1/tactical-exercise-evaluations`）は、試行番号・`caseId`・`engineRevision` を
-持つ形への再設計が済んでいない。旧API向けの互換アダプターは作らない方針なので、評価設定に
-`format: TACTICAL_EXERCISE` を書くと `UnsupportedFormatError` で止まる。APIの再設計が済んだら、
-`api/contracts.py` に演習の契約（試行の型）を足し、`exercise-lab` に解決手順を足す。
+戦術演習の評価API（`/api/v1/tactical-exercise-evaluations`）は Issue #891 で、通常戦闘・総力戦と
+同じ試行番号・`caseId`・`engineRevision` を持つ契約へ置き換わった（`docs/ddd/10_API設計.md`
+「戦術演習を大量試行する」）。Python側の接続はまだで、評価設定に `format: TACTICAL_EXERCISE` を
+書くと `UnsupportedFormatError` で止まる。接続するときは `api/contracts.py` に演習の契約（試行の型）を
+足し、`exercise-lab` に解決手順を足す（#887）。旧API向けの互換アダプターは作らない。
 
 ## 開発
 

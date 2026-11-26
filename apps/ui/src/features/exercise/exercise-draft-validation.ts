@@ -17,10 +17,15 @@ const EXERCISE_RULES: DraftValidationRules = {
 };
 
 /**
+ * 実行回数の入力欄が拾う違反のpath。評価APIに対応する項目は無い（実行回数はチャンクの
+ * `runIndices`へ展開される）ため画面側で決め、サーバーの試行計画への違反もここへ寄せる
+ * （`evaluation-violation-mapper.ts`）。
+ */
+export const RUN_COUNT_VIOLATION_PATH = "/runCount";
+
+/**
  * 実行回数は統計実行のときだけ送信へ効く。単一実行でも検証すると、統計実行を一度も
- * 選んでいない利用者が入力途中の値で実行できなくなる。pathは評価API
- * （`TacticalExerciseEvaluationRequest`）の`runsPerCandidate`へ合わせ、サーバー違反も
- * 同じ入力欄へ出せるようにする。
+ * 選んでいない利用者が入力途中の値で実行できなくなる。
  */
 function validateExerciseExecution(execution: ExerciseExecutionInput): readonly UiViolation[] {
   if (execution.mode !== "STATISTICS") {
@@ -37,7 +42,7 @@ function validateExerciseExecution(execution: ExerciseExecutionInput): readonly 
   }
   return [
     {
-      path: "/runsPerCandidate",
+      path: RUN_COUNT_VIOLATION_PATH,
       code: "RUN_COUNT_OUT_OF_RANGE",
       message: `実行回数は${MIN_EXERCISE_RUN_COUNT}～${MAX_EXERCISE_RUN_COUNT.toLocaleString("en-US")}の整数で入力してください。`,
       severity: "error",

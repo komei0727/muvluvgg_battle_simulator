@@ -13,12 +13,11 @@ function aggregate(
     sentRuns: runs,
     completedRuns: runs,
     catalogRevision: "rev-1",
+    engineRevision: "engine-1",
+    seedDerivationVersion: "V1",
+    incompleteRunIndices: [],
     chunkSize: 300,
-    runs: indices.map((index) => ({
-      chunkIndex: 0,
-      chunkSeed: "seed#0",
-      runIndexInChunk: index,
-    })),
+    runs: indices.map((index) => ({ runIndex: index, chunkIndex: 0 })),
     sample: {
       scores: indices.map((index) => 1000 + index * 10),
       breakCounts: indices.map((index) => index % 4),

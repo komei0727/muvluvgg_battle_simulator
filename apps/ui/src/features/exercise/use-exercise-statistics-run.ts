@@ -2,6 +2,7 @@ import { useCallback, useReducer } from "react";
 import {
   buildTacticalExerciseEvaluationRequest,
   evaluationFormationSignature,
+  STATISTICS_EVALUATION_CASE_ID,
 } from "./exercise-request-mapper.js";
 import { useAbortableRequest } from "../../shared/async/abortable-request.js";
 import { useAbortOnUnload } from "../../shared/async/abort-on-unload.js";
@@ -10,6 +11,7 @@ import type { BattleDraft } from "../../entities/battle-draft.js";
 import type {
   TacticalExerciseEvaluationApiResult,
   TacticalExerciseEvaluationRequest,
+  TacticalExerciseEvaluationResponse,
   UiApiError,
   ViolationResponseBody,
 } from "../../shared/api/api-contract.js";
@@ -21,8 +23,10 @@ import {
 } from "./evaluation-chunk-plan.js";
 import type {
   EvaluationAggregate,
+  EvaluationChunkPlan,
   EvaluationChunkResult,
   EvaluationMergeResult,
+  EvaluationRunConditionField,
 } from "./evaluation-chunk-plan.js";
 import { evaluateTacticalExercise as defaultEvaluate } from "../../shared/api/api-client.js";
 import type { SimulateOptions } from "../../shared/api/api-client.js";
@@ -33,8 +37,9 @@ import { ERROR_KIND_GUIDANCE } from "../simulation/error-guidance.js";
 // Worker Pool へ `maxScale: 1` で流す（`11_インフラストラクチャ設計.md`）ため、
 // 並列化しても総所要時間は縮まず順番待ちの塊が増えるだけだからである。
 //
-// 自動retryはしない。戦闘は冪等ではなく、期限到達の部分結果（Q-TEX-18）を同じseedで
-// 送り直しても同じところで切れる。
+// 全チャンクが同じseedを送り、チャンクの区別は全体の通し試行番号（`runIndices`）が担う。
+// 自動retryはしない。期限到達の部分結果（Q-TEX-18）は未完了の試行番号を集約へ残すだけで、
+// 再送するかは利用者が決める —— 同じseedでその番号だけを送り直せば同じ試行を補える。
 
 export interface StatisticsRunProgress {
   /** 利用者が指定した総試行数。 */
@@ -53,9 +58,10 @@ export type ExerciseStatisticsRunError =
   | { readonly kind: "ENDPOINT_DISABLED" }
   | { readonly kind: "RATE_LIMITED"; readonly retryAfterSeconds?: number }
   | {
-      readonly kind: "CATALOG_REVISION_CHANGED";
-      readonly catalogRevision: string;
-      readonly chunkCatalogRevision: string;
+      readonly kind: "RUN_CONDITIONS_CHANGED";
+      readonly field: EvaluationRunConditionField;
+      readonly expected: string;
+      readonly actual: string;
     }
   | {
       readonly kind: "UNIT_COLUMN_COUNT_CHANGED";
@@ -275,6 +281,36 @@ function classifyFailure(result: {
   return { kind: "API", error: result.error };
 }
 
+const RUN_CONDITION_LABELS: Readonly<Record<EvaluationRunConditionField, string>> = {
+  catalogRevision: "Catalog",
+  engineRevision: "戦闘エンジン",
+  seedDerivationVersion: "乱数の導出規約",
+};
+
+/**
+ * 応答が要求したケース・試行番号をちょうど1回ずつ報告しているか。応答検証は要求を
+ * 知らないため、番号の集合の一致はここで見る —— 別の番号の試行を混ぜると、通し試行番号と
+ * 観測値の対応（再現の鍵）が崩れる。
+ */
+function runIndexMismatch(
+  response: TacticalExerciseEvaluationResponse,
+  chunk: EvaluationChunkPlan,
+): string | undefined {
+  const caseResponse = response.cases[0];
+  if (caseResponse?.caseId !== STATISTICS_EVALUATION_CASE_ID) {
+    return "Tactical exercise evaluation response does not answer the requested case.";
+  }
+  const reported = [
+    ...caseResponse.runs.map((run) => run.runIndex),
+    ...caseResponse.incompleteRunIndices,
+  ].toSorted((left, right) => left - right);
+  const requested = chunk.runIndices;
+  return reported.length === requested.length &&
+    reported.every((runIndex, position) => runIndex === requested[position])
+    ? undefined
+    : "Tactical exercise evaluation response does not report exactly the requested run indices.";
+}
+
 export interface StatisticsRunErrorView {
   /** 種別ごとの案内。`03_API・データ連携設計.md` §13。 */
   readonly guidance: string;
@@ -297,9 +333,9 @@ export function describeStatisticsRunError(
             ? "実行が制限されました。時間をおいて再実行してください。"
             : `実行が制限されました。約${error.retryAfterSeconds.toString()}秒おいて再実行してください。`,
       };
-    case "CATALOG_REVISION_CHANGED":
+    case "RUN_CONDITIONS_CHANGED":
       return {
-        guidance: `実行中にCatalogが${error.catalogRevision}から${error.chunkCatalogRevision}へ切り替わりました。同じ条件で実行し直してください。`,
+        guidance: `実行中に${RUN_CONDITION_LABELS[error.field]}が${error.expected}から${error.actual}へ切り替わりました。同じ条件で実行し直してください。`,
       };
     case "UNIT_COLUMN_COUNT_CHANGED":
       return {
@@ -307,7 +343,7 @@ export function describeStatisticsRunError(
       };
     case "SEED_NOT_ECHOED":
       return {
-        guidance: `サーバーが要求したseed（${error.requestedSeed}）ではなく${error.respondedSeed}で実行しました。試行が重複している可能性があるため結果を集計できません。`,
+        guidance: `サーバーが要求したseed（${error.requestedSeed}）ではなく${error.respondedSeed}で実行しました。試行番号と乱数列が対応しないため結果を集計できません。`,
       };
     case "NO_COMPLETED_RUNS":
       return { guidance: "1試行も完了しなかったため、統計を出せません。" };
@@ -353,16 +389,12 @@ export function useExerciseStatisticsRun(
 
       const trimmedSeed = input.seed.trim();
       const seed = trimmedSeed === "" ? generateEvaluationSeed() : trimmedSeed;
-      const chunks = planEvaluationChunks({
-        totalRuns: input.runCount,
-        baseSeed: seed,
-        chunkSize,
-      });
-      // 編成部分は全チャンクで同一である。1度だけ組み立てて試行数とseedだけ差し替える
-      // ことで、チャンクごとに違う編成が送られる余地を残さない。
+      const chunks = planEvaluationChunks({ totalRuns: input.runCount, chunkSize });
+      // 編成部分とseedは全チャンクで同一である。1度だけ組み立てて試行番号だけ差し替える
+      // ことで、チャンクごとに違う編成・seedが送られる余地を残さない。
       const build = buildTacticalExerciseEvaluationRequest(input.draft, {
-        runsPerCandidate: chunks[0]?.runs ?? input.runCount,
         seed,
+        runIndices: chunks[0]?.runIndices ?? [],
       });
       const submission: StatisticsRunSubmission = build.ok
         ? {
@@ -372,7 +404,7 @@ export function useExerciseStatisticsRun(
             enemyMemorySlotKeys: build.enemyMemorySlotKeys,
             allyGearSlotIndices: build.allyGearSlotIndices,
             enemyGearSlotIndices: build.enemyGearSlotIndices,
-            allyUnitDefinitionIds: (build.request.candidates[0]?.allyFormation.units ?? []).map(
+            allyUnitDefinitionIds: (build.request.cases[0]?.allyFormation.units ?? []).map(
               (unit) => unit.unitDefinitionId,
             ),
             formationSignature: evaluationFormationSignature(build.request),
@@ -399,11 +431,12 @@ export function useExerciseStatisticsRun(
           type: "runFailed",
           runId,
           error:
-            merged.reason === "CATALOG_REVISION_CHANGED"
+            merged.reason === "RUN_CONDITIONS_CHANGED"
               ? {
-                  kind: "CATALOG_REVISION_CHANGED",
-                  catalogRevision: merged.catalogRevision,
-                  chunkCatalogRevision: merged.chunkCatalogRevision,
+                  kind: "RUN_CONDITIONS_CHANGED",
+                  field: merged.field,
+                  expected: merged.expected,
+                  actual: merged.actual,
                 }
               : {
                   kind: "UNIT_COLUMN_COUNT_CHANGED",
@@ -448,7 +481,13 @@ export function useExerciseStatisticsRun(
           }
           const requestId = generateRequestId();
           const result = await evaluateImpl(
-            { ...request, runsPerCandidate: chunk.runs, seed: chunk.seed },
+            {
+              ...request,
+              cases: request.cases.map((caseRequest) => ({
+                ...caseRequest,
+                runIndices: chunk.runIndices,
+              })),
+            },
             {
               baseUrl,
               signal,
@@ -471,41 +510,33 @@ export function useExerciseStatisticsRun(
             dispatch({ type: "runFailed", runId, error: classifyFailure(result) });
             return;
           }
-          // 応答の`seed`は「実際に使われたseed」（`10_API設計.md`）であり、`#<runOffset>`
-          // 規約が効いているかを判定できる唯一の材料である。食い違いを通すと、全チャンクが
-          // 同じ試行を繰り返していても数値が揃って見えるだけで気づけない。
-          if (result.response.seed !== chunk.seed) {
+          // 応答の`seed`は「実際に使われたseed」（`10_API設計.md`）である。食い違いを通すと、
+          // 別の乱数列で回った試行を同じ試行番号として集計してしまう。
+          if (result.response.seed !== seed) {
             dispatch({
               type: "runFailed",
               runId,
               error: {
                 kind: "SEED_NOT_ECHOED",
-                requestedSeed: chunk.seed,
+                requestedSeed: seed,
                 respondedSeed: result.response.seed,
               },
             });
             return;
           }
-          const candidate = result.response.candidates[0];
-          if (candidate === undefined) {
+          const mismatch = runIndexMismatch(result.response, chunk);
+          if (mismatch !== undefined) {
             dispatch({
               type: "runFailed",
               runId,
               error: {
                 kind: "API",
-                error: {
-                  kind: "RESPONSE_CONTRACT_MISMATCH",
-                  message: "Tactical exercise evaluation response carried no candidate.",
-                },
+                error: { kind: "RESPONSE_CONTRACT_MISMATCH", message: mismatch },
               },
             });
             return;
           }
-          results.push({
-            plan: chunk,
-            candidate,
-            catalogRevision: result.response.catalogRevision,
-          });
+          results.push({ plan: chunk, response: result.response });
           const merged = mergeEvaluationChunks(results);
           if (!merged.ok) {
             failWithMerge(merged);

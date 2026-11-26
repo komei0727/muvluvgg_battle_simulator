@@ -11,41 +11,62 @@ function jsonResponse(status: number, body: unknown, headers: Record<string, str
 }
 
 const validRequest: TacticalExerciseEvaluationRequest = {
-  enemyFormation: {
-    units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
-    memoryDefinitionIds: [],
-  },
-  candidates: [
+  seed: "abc",
+  cases: [
     {
+      caseId: "exercise",
       allyFormation: {
         units: [{ unitDefinitionId: "UNIT_ALLY", position: { column: 0, row: "FRONT" } }],
         memoryDefinitionIds: [],
       },
+      enemyFormation: {
+        units: [{ unitDefinitionId: "UNIT_ENEMY", position: { column: 0, row: "FRONT" } }],
+        memoryDefinitionIds: [],
+      },
+      runIndices: [0, 1],
     },
   ],
-  runsPerCandidate: 2,
-  seed: "abc#0",
 };
+
+function runRecord(runIndex: number, totalScore: number) {
+  return {
+    runIndex,
+    totalScore,
+    breakCount: 1,
+    completionReason: "TURN_LIMIT_REACHED",
+    completedTurn: 5,
+    units: [
+      {
+        side: "ALLY",
+        unitIndex: 0,
+        unitDefinitionId: "UNIT_ALLY",
+        damageDealt: 6,
+        damageTaken: 0,
+        healingDone: 0,
+        finalHp: 10,
+        maximumHp: 10,
+        combatStatus: "ACTIVE",
+      },
+    ],
+    allyUnitBreaks: [{ unitIndex: 0, unitDefinitionId: "UNIT_ALLY", breakCount: 1 }],
+  };
+}
 
 const validResponseBody = {
   schemaVersion: 1,
+  seed: "abc",
+  seedDerivationVersion: "V1",
   catalogRevision: "rev-1",
-  seed: "abc#0",
-  runsPerCandidate: 2,
-  candidates: [
-    {
-      completedRuns: 2,
-      scores: [10, 20],
-      breakCounts: [1, 2],
-      completedTurns: [5, 5],
-      completionReasons: ["TURN_LIMIT_REACHED", "ALLY_DEFEATED"],
-      allyUnitDamageTotals: [[6], [12]],
-      allyUnitBreakCounts: [[1], [1]],
-    },
+  engineRevision: "eng-1",
+  requestedRuns: 2,
+  completedRuns: 2,
+  partial: false,
+  cases: [
+    { caseId: "exercise", runs: [runRecord(0, 10), runRecord(1, 20)], incompleteRunIndices: [] },
   ],
 };
 
-// UI-UT-API-019: 一括評価POSTは戦闘POSTと同じ cache／credentials／待機上限の方針を使う。
+// UI-UT-API-019: 大量試行POSTは戦闘POSTと同じ cache／credentials／待機上限の方針を使う。
 describe("evaluateTacticalExercise", () => {
   let fetchMock: Mock<typeof fetch>;
 
@@ -92,7 +113,7 @@ describe("evaluateTacticalExercise", () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, {
         ...validResponseBody,
-        candidates: [{ ...validResponseBody.candidates[0], scores: [10] }],
+        completedRuns: 1,
       }),
     );
 

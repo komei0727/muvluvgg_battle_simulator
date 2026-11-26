@@ -209,7 +209,7 @@ describe("統計実行の実行回数の検証 (UI-UT-VAL-012)", () => {
       expect(codes(violations)).toContain("RUN_COUNT_OUT_OF_RANGE");
       expect(
         violations.find((violation) => violation.code === "RUN_COUNT_OUT_OF_RANGE")?.path,
-      ).toBe("/runsPerCandidate");
+      ).toBe("/runCount");
       expect(selectCanSubmit(violations)).toBe(false);
     },
   );

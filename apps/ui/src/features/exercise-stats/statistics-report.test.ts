@@ -13,13 +13,12 @@ function aggregate(overrides: Partial<EvaluationAggregate> = {}): EvaluationAggr
   return {
     completedRuns: 4,
     catalogRevision: "rev-1",
+    engineRevision: "engine-1",
+    seedDerivationVersion: "V1",
+    incompleteRunIndices: [],
     chunkSize: 4,
     sentRuns: 4,
-    runs: scores.map((_score, index) => ({
-      chunkIndex: 0,
-      chunkSeed: "seed#0",
-      runIndexInChunk: index,
-    })),
+    runs: scores.map((_score, index) => ({ runIndex: index, chunkIndex: 0 })),
     sample: {
       scores,
       breakCounts: [1, 3, 2, 4],
