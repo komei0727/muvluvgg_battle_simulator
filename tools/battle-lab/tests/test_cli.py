@@ -224,3 +224,35 @@ def test_evaluations_dir_option_overrides_the_config(workspace, tmp_path):
 
     assert result.exit_code == EXIT_OK
     assert (other / "o/evaluation.sqlite3").is_file()
+
+
+def test_an_invalid_base_url_is_an_input_error_before_any_plan_is_saved(workspace):
+    config = workspace / "configs/bad-url.yaml"
+    config.write_text(
+        CONFIG.replace("http://fake.invalid", "http://localhost:abc"), encoding="utf-8"
+    )
+    result = runner.invoke(
+        build_lab_app(LAB, help="test"), ["evaluate", str(config), "--evaluation-id", "u"]
+    )
+
+    assert result.exit_code == EXIT_INPUT_ERROR, result.output
+    assert "baseUrl" in result.output
+    assert not (workspace / "evaluations/u").exists()
+
+
+def test_resume_is_refused_while_another_process_runs_the_same_evaluation(workspace):
+    config = workspace / "configs/evaluation.yaml"
+    invoke(app_with(Offline()), "evaluate", config, "--plan-only", "--evaluation-id", "busy")
+    evaluation = workspace / "evaluations/busy"
+    from mlgg_lab_common.storage.layout import open_evaluation
+
+    with open_evaluation(evaluation) as holder, holder.exclusive_run():
+        status = json.loads(invoke(app_with(Offline()), "status", evaluation, "--json").output)
+        assert status["running"] is True
+        refused = invoke(app_with(Offline()), "resume", evaluation)
+
+    assert refused.exit_code == EXIT_INPUT_ERROR
+    assert "別の実行" in refused.output
+    # 拒否した側は何も送らず、記録も変えない。
+    after = json.loads(invoke(app_with(Offline()), "status", evaluation, "--json").output)
+    assert (after["sessions"], after["running"]) == (0, False)

@@ -27,8 +27,14 @@ def _environment_line(environment: Mapping[str, Any] | None) -> str:
 def _stop_line(last: Mapping[str, Any] | None) -> str:
     if last is None:
         return "最後の停止: まだ実行していない"
+    if last["stopReason"] == "RUNNING":
+        return "状態: RUNNING（別のプロセスが実行中。resume は拒否される）"
     if last["stopReason"] == "INTERRUPTED":
-        return "最後の停止: INTERRUPTED（停止理由を記録する前に実行が終わった）"
+        return (
+            "最後の停止: INTERRUPTED（停止理由を記録する前に実行が終わった。resume で続けられる）"
+        )
+    if last["stopReason"] == "UNKNOWN":
+        return "状態: UNKNOWN（停止理由が無く、実行中かどうかを確かめられない）"
     detail = f"（{last['detail']}）" if last.get("detail") else ""
     return f"最後の停止: {last['stopReason']}{detail}"
 

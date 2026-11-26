@@ -11,7 +11,8 @@
 終了コード:
 
 - 0: 成功（`evaluate` / `resume` はすべての試行が完了した）
-- 1: 入力・設定・保存先の問題（評価設定の誤り、評価実行のディレクトリが無い等）
+- 1: 入力・設定・保存先の問題（評価設定の誤り、評価実行のディレクトリが無い、
+  同じ評価実行を別のプロセスが実行中等）
 - 2: コマンドの使い方の誤り（typer）
 - 3: 予算・要求数の上限で止まった。保存済みの状態は正常で、`resume` で続けられる
 - 4: 通信・実行・応答・実行環境の問題で止まった（`status` で停止理由を確かめる）
@@ -30,13 +31,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, NoReturn, Protocol
 
+import httpx
 import typer
 from rich.console import Console
 
 from ..api.client import EvaluationTransport
 from ..evaluation.config import load_evaluation_config
 from ..evaluation.models import EvaluationPlan, ExecutionSettings
-from ..evaluation.runner import RequestProgress, RunReport, StopReason, run_evaluation
+from ..evaluation.runner import (
+    EvaluationBusyError,
+    RequestProgress,
+    RunReport,
+    StopReason,
+    run_evaluation,
+)
 from ..inputs.draft import DraftError
 from ..inputs.player_data import PlayerDataError
 from ..models.formation import ConfigError
@@ -164,12 +172,17 @@ def register_evaluation_commands(app: typer.Typer, lab: LabCommands) -> None:
         max_requests: int | None,
         access_key: str | None,
     ) -> int:
-        plan = repository.load_plan()
+        try:
+            plan = repository.load_plan()
+            # 接続先は設定の読み込み時に検証済み。検証を足す前に保存された計画の不正な
+            # 接続先も、未処理例外ではなく入力エラーとして止める。
+            transport = lab.transport_factory(plan.settings, access_key)
+        except (*_INPUT_ERRORS, httpx.InvalidURL) as error:
+            abort(f"保存済みの計画で実行できない: {error}")
         console.print(
             f"実行: {plan.evaluation_id}（{plan.contract.format}、計画 {plan.planned_runs} 試行・"
             f"予算 {plan.budget.max_submitted_runs} 試行）→ {plan.settings.base_url}"
         )
-        transport = lab.transport_factory(plan.settings, access_key)
         try:
             report = run_evaluation(
                 repository,
@@ -178,6 +191,8 @@ def register_evaluation_commands(app: typer.Typer, lab: LabCommands) -> None:
                 max_requests=max_requests,
                 on_progress=lambda progress: console.print(_progress_line(progress)),
             )
+        except EvaluationBusyError as error:
+            abort(f"{error}。`{lab.name} status {directory}` で状況を確かめる")
         except KeyboardInterrupt:
             write_manifest(directory, repository)
             errors.print(
@@ -271,7 +286,11 @@ def register_evaluation_commands(app: typer.Typer, lab: LabCommands) -> None:
         except _INPUT_ERRORS as error:
             abort(str(error))
         with repository:
-            check_format(repository.load_plan())
+            try:
+                plan = repository.load_plan()
+            except _INPUT_ERRORS as error:
+                abort(f"保存済みの計画を読めない: {error}")
+            check_format(plan)
             code = run(directory, repository, max_requests, access_key)
         raise typer.Exit(code=code)
 

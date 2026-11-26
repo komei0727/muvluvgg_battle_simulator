@@ -8,8 +8,19 @@ from typing import Any
 from ..evaluation.budget import remaining_runs
 from .snapshot import EvaluationSnapshot
 
-# 停止理由の無い実行（プロセスが落ちた・強制終了した）を表す値。
+# 停止理由がまだ無い実行の状態。停止理由の無さだけで中断と決めず、実行のロックで見分ける。
+# RUNNING: 別の実行がいま実行している。resume すると拒否される（二重に実行しない）。
+# INTERRUPTED: 実行していたプロセスが居ない（落ちた・強制終了した）。resume で続けられる。
+# UNKNOWN: ロックを確かめられなかった。
+RUNNING = "RUNNING"
 INTERRUPTED = "INTERRUPTED"
+UNKNOWN = "UNKNOWN"
+
+
+def _unfinished_state(running: bool | None) -> str:
+    if running is None:
+        return UNKNOWN
+    return RUNNING if running else INTERRUPTED
 
 
 def evaluation_status(snapshot: EvaluationSnapshot) -> dict[str, Any]:
@@ -40,6 +51,7 @@ def evaluation_status(snapshot: EvaluationSnapshot) -> dict[str, Any]:
         "failuresByKind": dict(
             sorted(Counter(a.failure_kind for a in snapshot.attempts if a.failure_kind).items())
         ),
+        "running": snapshot.running,
         "sessions": len(snapshot.sessions),
         "lastSession": None
         if last is None
@@ -47,7 +59,7 @@ def evaluation_status(snapshot: EvaluationSnapshot) -> dict[str, Any]:
             "sessionId": last.session_id,
             "startedAt": last.started_at,
             "finishedAt": last.finished_at,
-            "stopReason": last.stop_reason or INTERRUPTED,
+            "stopReason": last.stop_reason or _unfinished_state(snapshot.running),
             "detail": last.detail,
         },
         "cases": [

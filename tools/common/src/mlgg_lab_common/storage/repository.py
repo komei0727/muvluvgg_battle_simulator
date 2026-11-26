@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -22,6 +23,10 @@ class EnvironmentMismatchError(Exception):
 
 class ResultConflictError(Exception):
     """同じ試行から意味の違う観測値が返った。既存の結果は書き換えない。"""
+
+
+class EvaluationBusyError(Exception):
+    """同じ評価実行を別の実行（別プロセス・別接続）が実行している。"""
 
 
 @dataclass(frozen=True)
@@ -65,6 +70,22 @@ class SessionRecord:
 
 
 class EvaluationRepository(Protocol):
+    def exclusive_run(self) -> AbstractContextManager[None]:
+        """この評価実行を実行している間だけ保持する排他ロック。
+
+        既に別の実行が保持していれば `EvaluationBusyError`。プロセスが落ちればOSが外すので、
+        「停止理由が無い・ロックも無い」実行は中断されたと判定できる。
+        """
+        ...
+
+    def is_running(self) -> bool | None:
+        """いま別の実行が `exclusive_run` を保持しているか。判定できなければ `None`。"""
+        ...
+
+    def read_transaction(self) -> AbstractContextManager[None]:
+        """この中の読み出しを、すべて同じ時点の値にする（途中のコミットを混ぜない）。"""
+        ...
+
     def load_plan(self) -> EvaluationPlan: ...
 
     def environment(self) -> ExecutionEnvironment | None: ...

@@ -29,6 +29,7 @@ from ..api.client import EvaluationTransport, FailureKind, classify_exchange
 from ..api.contracts import EvaluationRequest, RequestCase, ResponseContractError, validate_response
 from ..storage.repository import (
     EnvironmentMismatchError,
+    EvaluationBusyError,
     EvaluationRepository,
     ResultConflictError,
 )
@@ -86,6 +87,9 @@ class RunReport:
     requests: int
 
 
+__all__ = ["EvaluationBusyError", "RequestProgress", "RunReport", "StopReason", "run_evaluation"]
+
+
 def run_evaluation(
     repository: EvaluationRepository,
     transport: EvaluationTransport,
@@ -93,6 +97,22 @@ def run_evaluation(
     sleep: Callable[[float], None] = time.sleep,
     max_requests: int | None = None,
     on_progress: ProgressCallback | None = None,
+) -> RunReport:
+    """実行する。同じ評価実行を別の実行が実行中なら `EvaluationBusyError`（何も送らない）。
+
+    排他は送信中の要求を放棄扱いにする前に取る。後から来た実行が、動いている実行の
+    要求を放棄にして同じ試行を二重に送らないようにするため。
+    """
+    with repository.exclusive_run():
+        return _run(repository, transport, sleep, max_requests, on_progress)
+
+
+def _run(
+    repository: EvaluationRepository,
+    transport: EvaluationTransport,
+    sleep: Callable[[float], None],
+    max_requests: int | None,
+    on_progress: ProgressCallback | None,
 ) -> RunReport:
     plan = repository.load_plan()
     settings = plan.settings

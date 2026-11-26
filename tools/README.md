@@ -96,6 +96,7 @@ tools/
       <evaluation-id>/
         manifest.json                    # 実行概要（確認用の写し）
         evaluation.sqlite3               # 計画・入力・要求履歴・結果の正本
+        evaluation.sqlite3.lock          # 実行中だけ保持する排他ロック（ファイルは残ってよい）
   exercise-lab/configs/                  # 演習の設定・共有サンプル
   battle-lab/configs/                    # 通常戦闘の設定・共有サンプル
   total-war-lab/configs/                 # 総力戦の設定・共有サンプル
@@ -207,14 +208,14 @@ uv run python -m mlgg_lab_common.inputs.migration --apply    # 写して、移�
 
 ### 終了コード
 
-| コード | 意味                                                                                               |
-| ------ | -------------------------------------------------------------------------------------------------- |
-| 0      | 成功。`evaluate` / `resume` はすべての試行が完了した                                               |
-| 1      | 入力・設定・保存先の問題（評価設定の誤り、入力ファイルが無い、評価実行が無い、形式が違う等）       |
-| 2      | コマンドの使い方の誤り                                                                             |
-| 3      | 送信予算（`BUDGET_EXHAUSTED`）・要求数の上限（`REQUEST_LIMIT_REACHED`）で止まった。`resume` で続く |
-| 4      | 通信・実行・応答・実行環境の問題で止まった（その他の停止理由。`status` で内容を確かめる）          |
-| 130    | Ctrl-C で中断した。保存済みの結果は残り、`resume` で続く                                           |
+| コード | 意味                                                                                                                             |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 0      | 成功。`evaluate` / `resume` はすべての試行が完了した                                                                             |
+| 1      | 入力・設定・保存先の問題（評価設定の誤り、入力ファイルが無い、評価実行が無い、形式が違う、同じ評価実行を別のプロセスが実行中等） |
+| 2      | コマンドの使い方の誤り                                                                                                           |
+| 3      | 送信予算（`BUDGET_EXHAUSTED`）・要求数の上限（`REQUEST_LIMIT_REACHED`）で止まった。`resume` で続く                               |
+| 4      | 通信・実行・応答・実行環境の問題で止まった（その他の停止理由。`status` で内容を確かめる）                                        |
+| 130    | Ctrl-C で中断した。保存済みの結果は残り、`resume` で続く                                                                         |
 
 戦闘結果としての敗北・引き分け・低スコアはエラーではなく、終了コードに影響しない。逆に通信失敗・
 実行エラー・未完了は観測結果にならず、`status` の「失敗の内訳」と未完了件数にだけ現れる。
@@ -358,6 +359,8 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 - `api.maxCasesPerRequest` / `maxRunsPerRequest` は配備の上限以下にする。省略時は形式ごとのAPI既定値
   （戦術演習 32 / 300、通常戦闘 64 / 300、総力戦 32 / 120）。全形式に同じ値を仮定しない。
 - `budget.maxSubmittedRuns` は再送込みの送信試行数の上限で、必須。
+- `api.baseUrl` は `http(s)://<ホスト>[:<ポート>]` であることを読み込み時に検証する（計画に保存され、再開時に
+  直せないため）。
 - `api.baseUrl` / `timeoutSeconds` はクライアントへ渡して初めて効く。`plan.settings.http_client()` で作る
   （`EvaluationHttpClient` を直接作ると既定の120秒になり、長い要求が応答喪失・再送として予算を消費する）。
 
@@ -418,7 +421,19 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 （`storage/migrations/__init__.py`）。計画（`PLAN_FORMAT_VERSION`）・解決済み入力（`schemaVersion`）・
 観測値（`contractId`）もそれぞれ版を持つ。`manifest.json` は確認用の写しで、消えても再開できる。
 
-1つのDBへ複数の実行を同時に走らせない（1プロセスから1つずつ書く前提）。
+1つのDBを実行できるのは同時に1つだけ。`run_evaluation` は実行の間 `evaluation.sqlite3.lock` を排他ロック
+（`flock`、POSIXのみ）で保持し、既に別の実行が保持していれば `EvaluationBusyError` で何も送らずに止まる
+（CLIは終了コード1）。ロックはプロセスが落ちればOSが外す。
+
+読み出し（`status` / `summarize` / `export`・`read_evaluation`）は実行中でもよい。読み出し全体を1つの
+読み取りトランザクションで行うので、件数・結果・実行環境は1時点の値で揃う（その間、実行側のコミットは
+待たされる）。最後の実行に停止理由が無いとき、`status` はロックを見て次のどれかを表示する。
+
+| 状態          | 意味                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| `RUNNING`     | 別のプロセスがいま実行している。`resume` は拒否される                 |
+| `INTERRUPTED` | 実行していたプロセスが居ない（落ちた・強制終了した）。`resume` で続く |
+| `UNKNOWN`     | ロックを確かめられなかった                                            |
 
 ### 戦術演習
 

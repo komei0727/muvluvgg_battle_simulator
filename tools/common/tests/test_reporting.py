@@ -7,6 +7,7 @@
 import csv
 import io
 import json
+import sqlite3
 
 import pytest
 
@@ -92,6 +93,8 @@ def test_an_unfinished_session_is_shown_as_interrupted(tmp_path):
         run_evaluation(repo, FakeEvaluationServer(script=["interrupt"]), sleep=no_sleep)
 
     status = evaluation_status(read_evaluation(directory))
+    # 実行していたプロセスが居なくなった（ロックが外れている）ので中断と判定できる。
+    assert status["running"] is False
     assert status["lastSession"]["stopReason"] == "INTERRUPTED"
     assert status["attemptsByStatus"] == {"IN_FLIGHT": 1}
     assert status["counters"]["completedTrials"] == 0
@@ -214,3 +217,91 @@ def test_export_with_no_completed_trials_keeps_counts_and_empty_tables(tmp_path)
 def test_reading_a_missing_evaluation_is_an_error(tmp_path):
     with pytest.raises(FileNotFoundError):
         read_evaluation(tmp_path / "nothing")
+
+
+class WriteBetweenReads:
+    """読み出しの途中（件数を読んだ直後）に、別の接続で評価を進める。
+
+    読み出し全体が1つの読み取りトランザクションなら、別接続のコミットは待たされ
+    （待ち時間0なので失敗し）、写しは1時点の値だけを持つ。
+    """
+
+    def __init__(self, repo, path):
+        self._repo = repo
+        self._path = path
+        self.write_error = None
+
+    def __getattr__(self, name):
+        return getattr(self._repo, name)
+
+    def counters(self):
+        counters = self._repo.counters()
+        from mlgg_lab_common.storage.sqlite import SqliteEvaluationRepository
+
+        other = SqliteEvaluationRepository.open(self._path)
+        other._db.execute("PRAGMA busy_timeout = 0")
+        try:
+            run_evaluation(other, FakeEvaluationServer(), sleep=no_sleep)
+        except sqlite3.OperationalError as error:
+            self.write_error = error
+        finally:
+            other.close()
+        return counters
+
+
+def test_a_snapshot_reads_one_point_in_time_even_while_another_process_writes(tmp_path):
+    directory, repo = make_evaluation(tmp_path)
+    with repo:
+        hooked = WriteBetweenReads(repo, directory / "evaluation.sqlite3")
+        snapshot = load_snapshot(hooked)
+
+    # 読み出しの途中では別接続はコミットできない（待ち時間0なので即座に失敗する）。
+    assert "locked" in str(hooked.write_error)
+    assert snapshot.counters.completed_trials == len(snapshot.results)
+    assert (snapshot.environment is None) == (len(snapshot.results) == 0)
+    summary = summarize_evaluation(snapshot, ANALYZER)
+    assert summary["counters"]["completedTrials"] == sum(c["sampleSize"] for c in summary["cases"])
+
+
+def test_a_running_evaluation_is_shown_as_running_not_interrupted(tmp_path):
+    directory, repo = make_evaluation(tmp_path)
+    seen = []
+    with repo:
+        run_evaluation(
+            repo,
+            FakeEvaluationServer(),
+            sleep=no_sleep,
+            max_requests=1,
+            on_progress=lambda _: seen.append(evaluation_status(read_evaluation(directory))),
+        )
+
+    assert seen and seen[0]["lastSession"]["stopReason"] == "RUNNING"
+    assert seen[0]["running"] is True
+    after = evaluation_status(read_evaluation(directory))
+    assert after["running"] is False
+    assert after["lastSession"]["stopReason"] == "COMPLETED"
+
+
+def test_a_second_run_of_the_same_evaluation_is_refused_while_one_is_running(tmp_path):
+    from mlgg_lab_common.evaluation.runner import EvaluationBusyError
+    from mlgg_lab_common.storage.layout import open_evaluation
+
+    directory, repo = make_evaluation(tmp_path)
+    refused = []
+
+    def try_second_run(_):
+        with open_evaluation(directory) as other:
+            try:
+                run_evaluation(other, FakeEvaluationServer(), sleep=no_sleep)
+            except EvaluationBusyError as error:
+                refused.append(error)
+
+    with repo:
+        report = run_evaluation(
+            repo, FakeEvaluationServer(), sleep=no_sleep, on_progress=try_second_run
+        )
+
+    assert report.stop_reason is StopReason.COMPLETED
+    assert refused
+    # 二重に走らなかった: 送信は計画どおり1回分だけ。
+    assert report.counters.submitted_runs == 6

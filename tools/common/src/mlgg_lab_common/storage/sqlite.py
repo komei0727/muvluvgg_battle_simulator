@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -37,6 +39,7 @@ from .migrations import APPLICATION_ID, MIGRATIONS, STORAGE_FORMAT_VERSION
 from .repository import (
     AttemptRecord,
     EnvironmentMismatchError,
+    EvaluationBusyError,
     ResultConflictError,
     SaveOutcome,
     SessionRecord,
@@ -118,6 +121,58 @@ class SqliteEvaluationRepository:
 
     def close(self) -> None:
         self._db.close()
+
+    # -- 実行の排他・読み出しの一貫性 --------------------------------------------
+
+    @property
+    def lock_path(self) -> Path:
+        return self.path.with_name(self.path.name + ".lock")
+
+    @contextmanager
+    def exclusive_run(self) -> Iterator[None]:
+        # flock はファイル記述ごとのロックなので、同じプロセス内の別の接続とも排他になる。
+        # 保持したプロセスが落ちればOSが外す（ロックファイル自体は残ってよい）。
+        descriptor = os.open(self.lock_path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise EvaluationBusyError(
+                    f"{self.path.parent}: 別の実行がこの評価を実行している（二重に実行しない）"
+                ) from error
+            yield
+        finally:
+            os.close(descriptor)
+
+    def is_running(self) -> bool | None:
+        if not self.lock_path.exists():
+            return False
+        try:
+            descriptor = os.open(self.lock_path, os.O_RDONLY)
+        except OSError:
+            return None
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        except OSError:
+            return None
+        finally:
+            os.close(descriptor)
+        return False
+
+    @contextmanager
+    def read_transaction(self) -> Iterator[None]:
+        # 読み取りトランザクションの間は共有ロックを持つので、他の接続のコミットは
+        # 終わるまで待たされる（読み出しは短いので、実行側の待ち時間の範囲で済む）。
+        if self._db.in_transaction:
+            yield
+            return
+        self._db.execute("BEGIN")
+        try:
+            yield
+        finally:
+            self._db.execute("COMMIT")
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:

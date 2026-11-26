@@ -2,6 +2,9 @@
 
 読み出しはDBだけで完結し、評価APIへ接続しない。元の編成YAML・育成JSONも読まない
 （計画が解決済み入力と送信内容を持つ）。
+
+評価の実行中に別プロセスから読んでも、写しは1時点の値だけを持つ（読み出し全体を
+1つの読み取りトランザクションで行う）。件数・結果・実行環境が食い違わない。
 """
 
 from __future__ import annotations
@@ -32,6 +35,8 @@ class EvaluationSnapshot:
     results: tuple[StoredResult, ...]
     attempts: tuple[AttemptRecord, ...]
     sessions: tuple[SessionRecord, ...]
+    # 読んだ時点で別の実行がこの評価を実行していたか。判定できなければ `None`。
+    running: bool | None = None
     storage_format_version: int = STORAGE_FORMAT_VERSION
 
     def results_of(self, case_id: str) -> list[StoredResult]:
@@ -64,13 +69,25 @@ class EvaluationSnapshot:
 
 
 def load_snapshot(repository: EvaluationRepository) -> EvaluationSnapshot:
+    with repository.read_transaction():
+        plan = repository.load_plan()
+        environment = repository.environment()
+        counters = repository.counters()
+        results = tuple(repository.results())
+        attempts = tuple(repository.attempts())
+        sessions = tuple(repository.sessions())
+        # 実行中かどうかも同じトランザクションの中で見る。実行側は停止理由をコミットしてから
+        # ロックを外すので、読み取り中はその停止を挟めず、「停止理由なし・ロックなし」を
+        # 実行中の評価について見ることはない。
+        running = repository.is_running()
     return EvaluationSnapshot(
-        plan=repository.load_plan(),
-        environment=repository.environment(),
-        counters=repository.counters(),
-        results=tuple(repository.results()),
-        attempts=tuple(repository.attempts()),
-        sessions=tuple(repository.sessions()),
+        plan=plan,
+        environment=environment,
+        counters=counters,
+        results=results,
+        attempts=attempts,
+        sessions=sessions,
+        running=running,
     )
 
 
