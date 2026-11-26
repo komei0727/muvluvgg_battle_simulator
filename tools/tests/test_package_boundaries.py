@@ -131,3 +131,14 @@ def test_lab_command_names_do_not_collide():
     scripts = [name for lab in LABS for name in project(lab).get("scripts", {})]
     assert len(scripts) == len(set(scripts))
     assert all(name.startswith(tuple(LABS)) for name in scripts)
+
+
+def test_every_resolved_input_runs_its_format_specific_validation():
+    """解決時と読み戻し時に同じ独自検証を通すため、各形式は `validate_match` を実装する。"""
+    from battle_lab.inputs import ResolvedBattleInput
+    from exercise_lab.inputs.exercise import ResolvedExerciseInput
+    from mlgg_lab_common.models import ResolvedInput
+    from total_war_lab.inputs import ResolvedTotalWarInput
+
+    for resolved in (ResolvedExerciseInput, ResolvedBattleInput, ResolvedTotalWarInput):
+        assert resolved.validate_match is not ResolvedInput.validate_match, resolved.__name__

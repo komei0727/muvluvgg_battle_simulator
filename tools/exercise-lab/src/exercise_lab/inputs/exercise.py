@@ -243,6 +243,9 @@ class ResolvedExerciseInput(ResolvedInput):
     format: Literal["TACTICAL_EXERCISE"] = "TACTICAL_EXERCISE"
     match: FormationConfig
 
+    def validate_match(self, where: str) -> None:
+        validate_formation(self.match.ally, f"{where}: match.ally")
+
     def to_request(self) -> dict[str, Any]:
         return build_exercise_request(self.match)
 
@@ -300,9 +303,6 @@ def dump_resolved_exercise_input(resolved: ResolvedExerciseInput) -> str:
 
 
 def load_resolved_exercise_input(path: Path) -> ResolvedExerciseInput:
-    resolved = load_resolved_input(
+    return load_resolved_input(
         ResolvedExerciseInput, path.read_text(encoding="utf-8"), where=str(path)
     )
-    # 保存後に手で直された場合も、読み込みと同じ受理条件を通す。
-    validate_formation(resolved.match.ally, f"{path}: match.ally")
-    return resolved

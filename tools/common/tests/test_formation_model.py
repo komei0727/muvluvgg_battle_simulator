@@ -173,3 +173,18 @@ def test_revalidating_a_valid_document_keeps_it_equal():
     document = Document(formation=apply_player_data(formation(), PLAYER_DATA)[0])
 
     assert revalidated(document) == document
+
+
+class Checked(Document):
+    def validate_match(self, where):
+        validate_formation(self.formation, f"{where}: formation")
+
+
+def test_resolution_and_reload_share_the_format_specific_validation():
+    spec = formation(academyLevels={"unitTypes": {"PHYSICA": 80}})
+    document = Checked(formation=spec)
+
+    with pytest.raises(ConfigError, match="PHYSICA"):
+        revalidated(document)
+    with pytest.raises(ConfigError, match=r"saved\.json: formation"):
+        load_resolved_input(Checked, dump_resolved_input(document), where="saved.json")

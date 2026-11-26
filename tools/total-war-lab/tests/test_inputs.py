@@ -270,3 +270,12 @@ def test_player_data_that_breaks_the_model_is_rejected_at_resolution(tmp_path):
 
     with pytest.raises(PlayerDataError, match=r"UNIT_A.*level"):
         resolve_total_war_input(load(tmp_path), player_data_path=player_data)
+
+
+def test_a_resolved_input_that_would_fail_to_reload_is_rejected_at_resolution(tmp_path):
+    """読み戻し時の独自検証（学園レベルのキー等）も解決時に通す。"""
+    typo = {**PLAYER_DATA, "academyLevels": {"unitTypes": {"PHYSICA": 80}, "attributes": {}}}
+    player_data = write(tmp_path, "pd.json", json.dumps(typo))
+
+    with pytest.raises(ConfigError, match="PHYSICA"):
+        resolve_total_war_input(load(tmp_path), player_data_path=player_data)

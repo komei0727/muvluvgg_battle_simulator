@@ -13,7 +13,7 @@ from exercise_lab.inputs.exercise import (
 from mlgg_lab_common.inputs.catalog import Catalog
 from mlgg_lab_common.inputs.player_data import PlayerDataError
 from mlgg_lab_common.inputs.resolution import InputValidationError
-from mlgg_lab_common.models import InputSource, SlotKey
+from mlgg_lab_common.models import ConfigError, InputSource, SlotKey
 from mlgg_lab_common.testing import draft_json
 
 CONFIG_YAML = """
@@ -120,4 +120,23 @@ def test_player_data_that_breaks_the_model_is_rejected_at_resolution(tmp_path):
     )
 
     with pytest.raises(PlayerDataError, match=r"UNIT_A.*level"):
+        resolve_exercise_input(config, player_data_path=player_data)
+
+
+def test_a_resolved_input_that_would_fail_to_reload_is_rejected_at_resolution(tmp_path):
+    """読み戻し時の独自検証（学園レベルのキー等）も解決時に通す。"""
+    config = write(tmp_path, "formation.yaml", CONFIG_YAML)
+    player_data = write(
+        tmp_path,
+        "pd.json",
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "academyLevels": {"unitTypes": {"PHYSICA": 80}, "attributes": {}},
+                "units": {},
+            }
+        ),
+    )
+
+    with pytest.raises(ConfigError, match="PHYSICA"):
         resolve_exercise_input(config, player_data_path=player_data)

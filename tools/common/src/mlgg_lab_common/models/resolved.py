@@ -45,6 +45,14 @@ class ResolvedInput(Spec):
     schema_version: Literal[1] = Field(default=RESOLVED_INPUT_SCHEMA_VERSION, alias="schemaVersion")
     provenance: InputProvenance = Field(default_factory=InputProvenance)
 
+    def validate_match(self, where: str) -> None:
+        """pydanticの宣言で表せない受理条件（配置重複・学園レベルのキー・形式固有の重複など）。
+
+        サブクラスが形式ごとの検証を書く。解決時（`revalidated`）と読み戻し時
+        （`load_resolved_input`）の両方がここを呼ぶので、片方にだけ検証を足して
+        「解決できたのに読み戻せない」入力が生まれることはない。
+        """
+
 
 def dump_resolved_input(document: ResolvedInput) -> str:
     """JSONへ書き出す。
@@ -62,14 +70,17 @@ def revalidated[ResolvedT: ResolvedInput](document: ResolvedT) -> ResolvedT:
 
     既存のモデルインスタンスを渡して組み立てると、内側の値は再検証されない
     （pydanticはインスタンスをそのまま受け取る）。解決時にここを通すことで
-    「解決できたのに読み戻せない」入力を作らない。
+    「解決できたのに読み戻せない」入力を作らない。独自検証（`validate_match`）も
+    読み戻し時と同じものを通す。
     """
     try:
-        return type(document).model_validate(
+        checked = type(document).model_validate(
             document.model_dump(mode="json", by_alias=True, exclude_none=True)
         )
     except ValidationError as error:
         raise ConfigError(f"解決した入力がモデルの制約を満たさない: {error}") from error
+    checked.validate_match("解決した入力")
+    return checked
 
 
 def load_resolved_input[ResolvedT: ResolvedInput](
@@ -86,6 +97,9 @@ def load_resolved_input[ResolvedT: ResolvedInput](
             f"（{RESOLVED_INPUT_SCHEMA_VERSION} だけを読む）"
         )
     try:
-        return model.model_validate(raw)
+        document = model.model_validate(raw)
     except ValidationError as error:
         raise ConfigError(f"{where}: {error}") from error
+    # 保存後に手で直された場合も、解決時と同じ受理条件を通す。
+    document.validate_match(where)
+    return document
