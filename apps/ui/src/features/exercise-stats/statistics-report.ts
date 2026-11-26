@@ -1,6 +1,6 @@
 // 統計実行の結果を表示用の1つの形へまとめる投影。統計量そのものはこの module では
 // 計算せず、`descriptive-statistics` / `daily-best` / `unit-statistics` の結果を並べ
-// 直すだけにする —— 定義の正本は `tools/exercise-lab` であり、表示の都合で式を触ると
+// 直すだけにする —— 定義の正本は `tools/exercise-lab` の参照実装（`reference_stats/`）であり、表示の都合で式を触ると
 // Python実装との一致（`__fixtures__/python-parity.ts`）から外れる。
 import {
   buildScoreHistogram,

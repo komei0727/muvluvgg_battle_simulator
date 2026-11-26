@@ -1,6 +1,6 @@
 // 生成物。手で編集しない。
 // tools/exercise-lab/scripts/export_ui_parity_fixture.py が
-// `exercise_lab.stats` / `exercise_lab.optimize.fitness` から書き出す。
+// `exercise_lab.reference_stats`（descriptive / daily_best）から書き出す。
 //
 //   cd tools/exercise-lab && uv run python scripts/export_ui_parity_fixture.py
 

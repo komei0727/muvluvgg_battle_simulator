@@ -1,6 +1,6 @@
-// キャラ別の集計と、ベストスコア上位N試行の部分集計。exercise-lab はユニット単位の
-// 生値（`allyUnitDamageTotals` / `allyUnitBreakCounts`、Issue #537）を読まないため、
-// この2つの統計はUI側だけが持つ。分位点の定義だけは一般統計と共有する。
+// キャラ別の集計と、ベストスコア上位N試行の部分集計。exercise-lab の参照実装
+// （`reference_stats/`）はユニット単位の生値（`allyUnitDamageTotals` /
+// `allyUnitBreakCounts`、Issue #537）を扱わないため、この2つの統計はUI側だけが持つ。分位点の定義だけは一般統計と共有する。
 
 import { quantileOfSorted } from "./descriptive-statistics.js";
 import type { ExerciseStatisticsSample } from "./types.js";

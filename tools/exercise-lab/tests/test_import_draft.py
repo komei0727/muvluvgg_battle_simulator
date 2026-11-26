@@ -1,12 +1,13 @@
-"""`lab import-draft` の出力。生成したYAMLはそのまま `lab stats` へ渡せなければならない。"""
+"""`lab import-draft` の出力。生成したYAMLはそのまま編成ローダーで読み戻せなければならない。"""
 
 import json
 
 from typer.testing import CliRunner
 
 from exercise_lab.cli import app
-from exercise_lab.models import build_evaluation_request, load_formation_config
-from exercise_lab.optimize.search_config import load_formation_library_entry
+from exercise_lab.inputs.exercise import build_enemy_formation, load_formation_config
+from exercise_lab.inputs.library import load_formation_library_entry
+from exercise_lab.inputs.models import build_ally_formation
 from test_draft import draft_json
 
 runner = CliRunner()
@@ -20,11 +21,10 @@ def test_generated_yaml_round_trips_through_the_config_loader(tmp_path):
 
     assert result.exit_code == 0, result.output
     config = load_formation_config(out)
-    request = build_evaluation_request(config, runs_per_candidate=1, seed="s")
-    ally = request["candidates"][0]["allyFormation"]
+    ally = build_ally_formation(config.ally)
     assert [unit["unitDefinitionId"] for unit in ally["units"]] == ["UNIT_A", "UNIT_C", "UNIT_D"]
     assert ally["memoryDefinitionIds"] == ["MEM_Z", "MEM_A"]
-    assert request["enemyFormation"]["units"][0]["unitDefinitionId"] == "UNIT_ENEMY"
+    assert build_enemy_formation(config.enemy)["units"][0]["unitDefinitionId"] == "UNIT_ENEMY"
 
 
 def test_generated_yaml_is_stable_for_the_same_draft(tmp_path):

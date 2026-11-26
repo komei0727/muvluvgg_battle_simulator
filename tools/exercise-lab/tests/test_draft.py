@@ -8,8 +8,9 @@ import json
 
 import pytest
 
-from exercise_lab.draft import DraftError, load_exercise_draft
-from exercise_lab.models import build_evaluation_request
+from exercise_lab.inputs.draft import DraftError
+from exercise_lab.inputs.exercise import load_exercise_draft
+from exercise_lab.inputs.models import build_ally_formation
 
 
 def slot(side, row, column, unit_definition_id=None, enhancement=None):
@@ -101,13 +102,13 @@ def test_enemy_slot_becomes_the_single_enemy(tmp_path):
 
 
 def test_enhancement_is_not_carried_over(tmp_path):
-    # 育成状態の正本は `--player-data` に一本化する。ドラフト側の強化入力は読まない。
+    # 育成状態の正本は手持ちデータ（`mlgg:player-data`）に一本化する。
+    # ドラフト側の強化入力は読まない。
     config = load_exercise_draft(write(tmp_path, draft_json()))
 
     assert config.ally.academy_levels is None
     assert all(unit.level is None and unit.gears is None for unit in config.ally.units)
-    request = build_evaluation_request(config, runs_per_candidate=1, seed="s")
-    ally = request["candidates"][0]["allyFormation"]
+    ally = build_ally_formation(config.ally)
     assert "enhancement" not in ally
     assert all("enhancement" not in unit for unit in ally["units"])
 
@@ -116,7 +117,7 @@ def test_slots_carrying_unknown_keys_are_still_imported(tmp_path):
     """UI側がdraftへ項目を足しても取り込みは壊れない（レベルリンクの `linkExcluded` など）。
 
     `_slot_of` が `row` / `column` / `unitDefinitionId` だけを射影してから validate する
-    ため、枠に増えたキーは検証前に落ちる。育成状態の正本は `--player-data` 側であり、
+    ため、枠に増えたキーは検証前に落ちる。育成状態の正本は手持ちデータ側であり、
     draftの強化入力は読まない方針（`test_enhancement_is_not_carried_over`）を保つ。
     """
     ally = [
@@ -225,9 +226,10 @@ def test_draft_carrying_enemy_memories_is_rejected(tmp_path):
         load_exercise_draft(write(tmp_path, stored))
 
 
-def test_single_enemy_normal_battle_draft_is_imported_and_left_to_stats(tmp_path):
+def test_single_enemy_normal_battle_draft_is_imported_and_left_to_catalog_validation(tmp_path):
     # 敵1体・敵メモリーなしの通常戦闘ドラフトは、保存形式だけでは演習用と区別できない。
-    # ここでは通し、`lab stats` のCatalog検証（R-TEX-11 #1）が PLAYABLE の敵を弾く。
+    # ここでは通し、Catalogとの突き合わせ（`validate_against_catalog`）が
+    # PLAYABLE の敵を弾く（R-TEX-11 #1）。
     # 「取り込み時に必ず気づける」という保証はしない。
     config = load_exercise_draft(write(tmp_path, draft_json()))
 

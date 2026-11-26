@@ -39,10 +39,10 @@ function aggregate(): EvaluationAggregate {
 
 const labels = resolveAllyUnitLabels(["UNIT_KOTOHA", "UNIT_SHIRANA"]);
 
-// UI-UT-CSV-002: exercise-lab の `runs.csv` を後段の正本として読めるよう、8列の並びを
+// UI-UT-CSV-002: 後段の分析スクリプトが列位置を前提に読めるよう、固定の8列を
 // そのまま先頭に置き、ユニット別の列だけを後ろへ足す。
 describe("buildRunsCsv", () => {
-  it("writes the exercise-lab column order followed by the per-unit columns", () => {
+  it("writes the fixed base column order followed by the per-unit columns", () => {
     const lines = buildRunsCsv(aggregate(), labels).split("\n");
 
     expect(lines[0]).toBe(
@@ -67,8 +67,8 @@ describe("buildRunsCsv", () => {
   });
 });
 
-// UI-UT-CSV-003: 統計サマリJSONはexercise-labの`summary.json`と同じ再現条件・同じ
-// キーを持ち、UIだけが持つ日次ベスト指標とユニット別統計を足す。
+// UI-UT-CSV-003: 統計サマリJSONは再現条件とスコア統計のキーを先に持ち、
+// 日次ベスト指標とユニット別統計を足す。
 describe("buildStatisticsSummaryJson", () => {
   const score = buildScoreStatisticsReport(aggregate(), {
     seed: "my seed,x",

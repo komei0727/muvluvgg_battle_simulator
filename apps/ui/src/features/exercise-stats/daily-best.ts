@@ -1,4 +1,4 @@
-// 日次ベスト指標。正本は `tools/exercise-lab/src/exercise_lab/optimize/fitness.py`。
+// 日次ベスト指標。定義の正本は `tools/exercise-lab/src/exercise_lab/reference_stats/daily_best.py`。
 //
 // スコアアタックは1日k回挑戦でき、その日の成績は最大値で決まる。したがって見るべき値は
 // 平均ではなく E[k回中のベスト] である。平均だと向きが2つ狂う——会心で伸びる上振れ
@@ -7,11 +7,11 @@
 
 import { quantileOfSorted } from "./descriptive-statistics.js";
 
-/** スコアアタックの1日の挑戦回数。`fitness.DEFAULT_BEST_OF` と同じ。 */
+/** スコアアタックの1日の挑戦回数。`daily_best.DEFAULT_BEST_OF` と同じ。 */
 export const DEFAULT_BEST_OF = 5;
 
 /**
- * 指標を数値として読んでよい実効サンプル数の下限。`fitness.MIN_RELIABLE_EFFECTIVE_SAMPLES`
+ * 指標を数値として読んでよい実効サンプル数の下限。`daily_best.MIN_RELIABLE_EFFECTIVE_SAMPLES`
  * と同じ。これを下回る試行数の値は上位数標本への依存が強い。
  */
 export const MIN_RELIABLE_EFFECTIVE_SAMPLES = 10;

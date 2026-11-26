@@ -1,4 +1,4 @@
-"""`lab schema` の出力。編成YAMLと探索設定YAMLの両方のSchemaを書き出す。"""
+"""`lab schema` の出力。演習の編成YAMLと編成ライブラリのSchemaを書き出す。"""
 
 import json
 
@@ -6,8 +6,8 @@ import httpx
 import respx
 from typer.testing import CliRunner
 
-from exercise_lab.api import CATALOG_PATH
 from exercise_lab.cli import app
+from exercise_lab.inputs.catalog import CATALOG_PATH
 
 BASE_URL = "http://localhost:3000"
 
@@ -44,55 +44,31 @@ def mock_catalog():
 
 
 @respx.mock
-def test_all_schemas_are_written(tmp_path):
+def test_the_formation_and_library_schemas_are_written(tmp_path):
     mock_catalog()
     out = tmp_path / ".schema"
 
-    result = runner.invoke(
-        app, ["schema", "--out", str(out), "--formations-dir", str(tmp_path / "formations")]
-    )
+    result = runner.invoke(app, ["schema", "--out", str(out)])
 
     assert result.exit_code == 0, result.output
+    # 編成ライブラリのSchema名は既存の `configs/formations/*.yaml` が指している名前を保つ。
     assert sorted(path.name for path in out.iterdir()) == [
         "formation-seed.schema.json",
         "formation.schema.json",
-        "search.schema.json",
     ]
 
 
 @respx.mock
-def test_the_search_schema_carries_the_formation_library_enum(tmp_path):
-    mock_catalog()
-    out = tmp_path / ".schema"
-    formations_dir = tmp_path / "formations"
-    formations_dir.mkdir()
-    (formations_dir / "seed-a.yaml").write_text(
-        "units:\n"
-        "  - unitDefinitionId: UNIT_A\n"
-        "    position: {column: 0, row: FRONT}\n"
-        "memoryDefinitionIds: []\n",
-        encoding="utf-8",
-    )
-
-    result = runner.invoke(
-        app, ["schema", "--out", str(out), "--formations-dir", str(formations_dir)]
-    )
-
-    assert result.exit_code == 0, result.output
-    schema = json.loads((out / "search.schema.json").read_text(encoding="utf-8"))
-    assert schema["properties"]["knownFormations"]["items"]["enum"] == ["seed-a"]
-
-
-@respx.mock
-def test_the_search_schema_carries_the_pool_enums(tmp_path):
+def test_the_library_schema_carries_the_catalog_enums(tmp_path):
     mock_catalog()
     out = tmp_path / ".schema"
 
     runner.invoke(app, ["schema", "--out", str(out)])
 
-    schema = json.loads((out / "search.schema.json").read_text(encoding="utf-8"))
-    assert schema["properties"]["unitPool"]["items"]["enum"] == ["UNIT_A"]
-    assert schema["properties"]["memoryPool"]["items"]["enum"] == ["MEM_A"]
+    schema = json.loads((out / "formation-seed.schema.json").read_text(encoding="utf-8"))
+    assert schema["$defs"]["AllyUnitSpec"]["properties"]["unitDefinitionId"]["enum"] == ["UNIT_A"]
+    assert schema["properties"]["memoryDefinitionIds"]["items"]["enum"] == ["MEM_A"]
+    assert "enemy" not in schema["properties"]
 
 
 @respx.mock
@@ -103,7 +79,7 @@ def test_the_console_shows_the_directive_line_for_each_schema(tmp_path):
     result = runner.invoke(app, ["schema", "--out", str(out)])
 
     assert "formation.schema.json" in result.output
-    assert "search.schema.json" in result.output
+    assert "formation-seed.schema.json" in result.output
     assert "yaml-language-server" in result.output
 
 
@@ -115,7 +91,7 @@ def test_the_output_directory_is_created(tmp_path):
     result = runner.invoke(app, ["schema", "--out", str(out)])
 
     assert result.exit_code == 0, result.output
-    assert (out / "search.schema.json").exists()
+    assert (out / "formation.schema.json").exists()
 
 
 @respx.mock
@@ -126,13 +102,3 @@ def test_an_unreachable_server_is_reported_without_a_traceback(tmp_path):
 
     assert result.exit_code == 1
     assert "APIへ到達できない" in result.output
-
-
-@respx.mock
-def test_the_console_says_which_commands_read_the_formation_schema(tmp_path):
-    """ギア分析（gear-sensitivity / gear-plan）が読むのも編成定義YAMLである。"""
-    mock_catalog()
-
-    result = runner.invoke(app, ["schema", "--out", str(tmp_path / ".schema")])
-
-    assert "ギア分析" in result.output

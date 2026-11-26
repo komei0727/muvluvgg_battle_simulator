@@ -165,7 +165,7 @@ X-Request-Id: ui-<UUID>
 
 1リクエストの総試行数には上限（`EVALUATION_MAX_TOTAL_RUNS`、既定300）があるため、画面が受け付ける実行回数（1～2,000）を300試行ずつのチャンクへ割り、**同時に1リクエストだけ**を直列に送る。並列化しないのは、サーバーが評価を`maxScale: 1`のWorker Poolへ流すため総所要時間が縮まらないからである。
 
-サーバーは1リクエストの中で試行番号（`runIndex`）を0から振り直して乱数列を決めるため、同じ`seed`のまま分割すると全チャンクがまったく同じ試行を繰り返す。チャンクごとに通し試行番号を埋めた`<seed>#<runOffset>`を送ることでこれを避ける。規約は`tools/exercise-lab/src/exercise_lab/runner.py`（`plan_chunks`）と同一で、**同じseed・同じ編成・同じ実行回数ならexercise-labとUIが同じ数値を出す**。この帰結として、実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）の3つになる。
+サーバーは1リクエストの中で試行番号（`runIndex`）を0から振り直して乱数列を決めるため、同じ`seed`のまま分割すると全チャンクがまったく同じ試行を繰り返す。チャンクごとに通し試行番号を埋めた`<seed>#<runOffset>`を送ることでこれを避ける。規約の正本はこの節と`apps/ui/src/features/exercise/evaluation-chunk-plan.ts`であり、**同じseed・同じ編成・同じチャンクサイズ・同じ実行回数なら同じ数値を出す**。この帰結として、実行を再現する鍵はseed単独ではなく（seed, チャンクサイズ, 実行回数）の3つになる。
 
 シード欄が空のときはUI側で実行seedを生成する。サーバー生成（`Q-TEX-17`）に任せないのは、チャンクごとに別のseedが生成されると分割そのものが再現できなくなるためである。
 
@@ -290,7 +290,7 @@ interface SideEnhancementInput {
  * リンクレベルが1以上の整数でない間（打ち直しのために消した`""`を含む）は
  * リンクを適用せず枠の値へフォールバックする。
  *
- * 同じ規則を`tools/exercise-lab`の`resolved_level`（`player_data.py`）が写している。
+ * 同じ規則を`tools/exercise-lab`の`resolved_level`（`inputs/player_data.py`）が写している。
  * 片方だけ変えると、UIとlabが別のレベルで同じ編成を評価する。
  */
 function resolveSlotLevel(

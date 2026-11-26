@@ -1,16 +1,15 @@
-# 戦術演習の編成定義サンプル。そのまま実行できる。
+# 戦術演習の編成定義サンプル。個人ファイルなしで読み込める
+# （`exercise_lab.inputs.exercise.load_formation_config`）。
 #
-#   uv run lab stats configs/formation.example.yaml --runs 200 --seed abc123 \
-#     --player-data local_storage/player-data.json --out reports/
-#
-# level・rank・gears・academyLevels をあえて書いていないのは、--player-data で
-# 実際の育成状態を載せる前提だからである。--player-data なしで実行すると
-# 全員レベル200・ランク5(LR+5)・ギアなし・強化計算なしの「素の性能」比較になる。
+# level・rank・gears・academyLevels をあえて書いていないのは、手持ちデータ
+# （localStorage `mlgg:player-data`）で実際の育成状態を載せる前提だからである
+# （`exercise_lab.inputs.exercise.apply_player_data`）。手持ちデータを適用しなければ
+# 全員レベル200・ランク5(LR+5)・ギアなし・強化計算なしの「素の性能」になる。
 #
 # ID は `GET /api/v1/battle-simulation-catalog` が返す値をそのまま書く（不透明な文字列で、
-# 前後の空白は除去されない）。`lab stats` は実行前にカタログと突き合わせ、未知IDと
-# 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出する。
-# Catalog からユニットが消えるとこのサンプルも検証で落ちるので、その時は現行IDへ差し替える。
+# 前後の空白は除去されない）。`validate_against_catalog` で未知IDと
+# 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出できる。
+# Catalog からユニットが消えたら現行IDへ差し替える。
 #
 # IDを手で書き写す必要はない。UIで組んだ編成は `lab import-draft` で取り込めるし、
 # `lab units --owned --player-data local_storage/player-data.json` / `lab memories --grep <語>` で引ける。
@@ -47,7 +46,7 @@ ally:
 enemy:
   unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
   position: { column: 1, row: REAR }
-# 強化を YAML 側で固定したい場合（--player-data を使わない場合）は次を足す。
+# 強化を YAML 側で固定したい場合（手持ちデータを使わない場合）は次を足す。
 # ally.academyLevels を書くと強化計算が有効になり、ユニット側の level / rank / gears も
 # 指定できるようになる。省略したキーは学園レベルなら 1、rank なら 5（LR+5）として送る。
 #

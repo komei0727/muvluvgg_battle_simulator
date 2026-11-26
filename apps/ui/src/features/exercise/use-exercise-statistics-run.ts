@@ -34,7 +34,7 @@ import { ERROR_KIND_GUIDANCE } from "../simulation/error-guidance.js";
 // 並列化しても総所要時間は縮まず順番待ちの塊が増えるだけだからである。
 //
 // 自動retryはしない。戦闘は冪等ではなく、期限到達の部分結果（Q-TEX-18）を同じseedで
-// 送り直しても同じところで切れる（`runner.py`と同じ方針）。
+// 送り直しても同じところで切れる。
 
 export interface StatisticsRunProgress {
   /** 利用者が指定した総試行数。 */

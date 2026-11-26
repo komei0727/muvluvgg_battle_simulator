@@ -18,7 +18,7 @@ function findCase(name: string): (typeof PYTHON_PARITY.cases)[number] {
   return found;
 }
 
-// UI-UT-STS-001: 統計の定義の正本は exercise-lab の `stats.py` であり、この移植が
+// UI-UT-STS-001: 統計の定義の正本は exercise-lab の `reference_stats/descriptive.py` であり、この移植が
 // 黙って乖離しないことを、同じ標本に対する期待値の一致で示す。
 describe("summarizeScores (UI-UT-STS-001)", () => {
   it.each(PYTHON_PARITY.cases.map((entry) => entry.name))(
@@ -51,7 +51,7 @@ describe("summarizeScores (UI-UT-STS-001)", () => {
 });
 
 // UI-UT-STS-002: 試行1回では散らばりが定義できない。0を返すと「ばらつきが無い」と
-// いう別の意味になるため`null`で区別する（`stats.py`の`ScoreSummary`と同じ）。
+// いう別の意味になるため`null`で区別する（`descriptive.py`の`ScoreSummary`と同じ）。
 describe("summarizeScores の端点 (UI-UT-STS-002)", () => {
   it("reports no deviation and no interval for a single run", () => {
     const summary = summarizeScores([42_195]);
@@ -125,7 +125,7 @@ describe("summarizeCompletionReasons (UI-UT-STS-004)", () => {
 });
 
 // UI-UT-STS-005: ブレイク回数分布は回数の昇順で返し、表示側の並べ替えに依存させない
-// （`stats.py`の`break_count_distribution`と同じ）。
+// （`descriptive.py`の`break_count_distribution`と同じ）。
 describe("summarizeBreakCounts (UI-UT-STS-005)", () => {
   it("matches the exercise-lab distribution and orders it by break count", () => {
     const summary = summarizeBreakCounts(PYTHON_PARITY.runs.breakCounts);
@@ -151,7 +151,7 @@ describe("summarizeBreakCounts (UI-UT-STS-005)", () => {
 });
 
 // UI-UT-STS-006: ビン数は試行数だけで決まる（Sturges、1〜60へクランプ）。同じ入力
-// なら同じ図になる（`stats.py:_histogram_bins`）。
+// なら同じ図になる（`descriptive.py:histogram_bin_count`）。
 describe("histogramBinCount (UI-UT-STS-006)", () => {
   it.each(PYTHON_PARITY.cases.map((entry) => entry.name))(
     "matches the exercise-lab bin count for the %s sample",

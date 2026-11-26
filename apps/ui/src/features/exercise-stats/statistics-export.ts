@@ -1,14 +1,14 @@
-// 統計実行の結果を持ち出す2つの形。生データCSVは `tools/exercise-lab` の `runs.csv`
-// と同じ列・同じ並びで始める —— 同じ編成をUIとexercise-labのどちらで回しても、後段の
-// 分析スクリプトが列位置を前提に読めるようにするためである。ユニット別の列は
-// exercise-labが持たない（`runner.py`はユニット単位の生値を読まない）ので後ろへ足す。
+// 統計実行の結果を持ち出す2つの形。この module が公開出力の契約の正本である。
+// 生データCSVは先頭8列の名前と並びを固定する —— 後段の分析スクリプトが列位置を前提に
+// 読めるようにするためで、旧 `tools/exercise-lab` の `runs.csv` と同じ並びにしてある
+// （既存の分析資産を読み替えずに使えるよう、並びを変えない）。ユニット別の列は後ろへ足す。
 
 import type { ScoreStatisticsReport, UnitStatisticsReport } from "./statistics-report.js";
 import type { AllyUnitLabel } from "./statistics-report.js";
 import type { EvaluationAggregate } from "../exercise/evaluation-chunk-plan.js";
 
-/** `runs.csv`（`stats.py:RUNS_CSV_COLUMNS`）と同じ8列。並びを変えない。 */
-const EXERCISE_LAB_COLUMNS = [
+/** 生データCSVの先頭8列。並びを変えない（後段が列位置を前提に読む）。 */
+const BASE_RUN_COLUMNS = [
   "run_index",
   "chunk_index",
   "chunk_seed",
@@ -44,7 +44,7 @@ export function buildRunsCsv(
   const unitCount = sample.allyUnitDamageTotals[0]?.length ?? labels.length;
   const unitColumns = Array.from({ length: unitCount }, (_value, index) => index + 1);
   const header = [
-    ...EXERCISE_LAB_COLUMNS,
+    ...BASE_RUN_COLUMNS,
     ...unitColumns.map((column) => `unit_${column.toString()}_damage`),
     ...unitColumns.map((column) => `unit_${column.toString()}_break_count`),
   ].join(",");
@@ -73,8 +73,9 @@ export function buildRunsCsv(
 }
 
 /**
- * 統計サマリのJSON。exercise-labの`summary.json`（`stats.py:build_summary`）と同じ
- * 再現条件・同じキーを先に置き、UIだけが持つ日次ベスト指標とユニット別統計を足す。
+ * 統計サマリのJSON。再現条件（seed・チャンクサイズ・試行数）とスコア統計のキーを先に置き、
+ * 日次ベスト指標とユニット別統計を足す。先頭のキーは旧 `tools/exercise-lab` の
+ * `summary.json` と同じ名前・同じ形で、既存の分析資産をそのまま読めるよう変えない。
  * 同じ実行から常に同じ文字列が出るよう、集計順に依存する値を入れない。
  */
 export function buildStatisticsSummaryJson(
@@ -95,7 +96,7 @@ export function buildStatisticsSummaryJson(
       defeatRate: score.completionReasons.defeatRate,
       completionReasons: score.completionReasons.breakdown,
       // JSONのキーは文字列でなければならないため、回数を文字列化して昇順で並べる
-      // （`build_summary`と同じ形）。
+      // （先頭のキーと同じく、旧`summary.json`と同じ形を保つ）。
       breakCountDistribution: Object.fromEntries(
         score.breaks.distribution.map((share) => [share.breakCount.toString(), share.runs]),
       ),

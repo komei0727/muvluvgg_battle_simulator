@@ -23,7 +23,7 @@ function findCase(name: string): (typeof PYTHON_PARITY.cases)[number] {
 }
 
 // UI-UT-STS-007: スコアアタックは1日k回挑戦してベストで競うため、主役の指標は平均
-// ではなく E[best-of-k]。定義の正本は `optimize/fitness.py:expected_best`。
+// ではなく E[best-of-k]。定義の正本は `reference_stats/daily_best.py:expected_best`。
 describe("expectedBest (UI-UT-STS-007)", () => {
   it.each(CASE_NAMES)("matches the exercise-lab expected daily best for the %s sample", (name) => {
     const fixture = findCase(name);
@@ -36,7 +36,7 @@ describe("expectedBest (UI-UT-STS-007)", () => {
 
   it("falls back to the sample maximum when fewer runs than the daily attempts finished", () => {
     // 復元なしにk個引けない以上この推定量は定義できない。部分結果でも順位付けの
-    // 入力として壊れないよう最大値へ落とす（`fitness.expected_best`と同じ）。
+    // 入力として壊れないよう最大値へ落とす（`daily_best.expected_best`と同じ）。
     expect(expectedBest([41_200, 39_500, 44_100], 5)).toBe(44_100);
   });
 

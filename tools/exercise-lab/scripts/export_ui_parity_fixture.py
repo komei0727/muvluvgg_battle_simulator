@@ -1,7 +1,7 @@
 """UI側の統計ライブラリ（`apps/ui/src/features/exercise-stats/`）が数値一致を検証する
 fixtureを書き出す。
 
-統計の定義の正本は `exercise_lab.stats` と `exercise_lab.optimize.fitness` であり、
+統計の定義の正本は `exercise_lab.reference_stats`（`descriptive` / `daily_best`）であり、
 UIのTS実装はその移植である。両者が黙って乖離しないよう、期待値はここで生成して
 リポジトリへコミットし、TS側のテストが読む。標本はこのファイル内のLCGで作るので、
 Pythonや依存の版が変わっても同じ入力が再現する。
@@ -17,19 +17,18 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from exercise_lab.optimize.fitness import (
+from exercise_lab.reference_stats.daily_best import (
     DEFAULT_BEST_OF,
+    MIN_RELIABLE_EFFECTIVE_SAMPLES,
     best_quantile,
     effective_samples,
     expected_best,
+    is_reliable,
 )
-from exercise_lab.optimize.fitness import (
-    MIN_RELIABLE_EFFECTIVE_SAMPLES as _MIN_RELIABLE,
-)
-from exercise_lab.stats import (
-    _histogram_bins,
+from exercise_lab.reference_stats.descriptive import (
     break_count_distribution,
     defeat_rate,
+    histogram_bin_count,
     summarize_scores,
 )
 
@@ -79,7 +78,7 @@ def daily_best(scores: Sequence[int]) -> dict[str, object]:
             for quantile in GUARD_QUANTILES
         ],
         "effectiveSamples": effective_samples(count, best_of=DEFAULT_BEST_OF),
-        "reliable": effective_samples(count, best_of=DEFAULT_BEST_OF) >= _MIN_RELIABLE,
+        "reliable": is_reliable(count, best_of=DEFAULT_BEST_OF),
     }
 
 
@@ -95,12 +94,12 @@ def case(name: str, scores: Sequence[int]) -> dict[str, object]:
         "name": name,
         "scores": list(scores),
         "summary": {camel(key): value for key, value in summarize_scores(scores).to_dict().items()},
-        "histogramBinCount": _histogram_bins(scores),
+        "histogramBinCount": histogram_bin_count(scores),
         "dailyBest": daily_best(scores),
     }
 
 
-def main() -> None:
+def build_payload() -> dict[str, object]:
     main_scores = build_scores(400)
     # 完了理由とブレイク回数はスコアと同じ添字の試行を指す。敗北はスコアが崩れた
     # 試行へ寄せ、敗北率がスコア分布と無関係な乱数にならないようにする。
@@ -111,8 +110,8 @@ def main() -> None:
         0 if score < 30_000 else min(4, (score - 30_000) // 5_000) for score in main_scores
     ]
 
-    payload = {
-        "minReliableEffectiveSamples": _MIN_RELIABLE,
+    return {
+        "minReliableEffectiveSamples": MIN_RELIABLE_EFFECTIVE_SAMPLES,
         "cases": [
             case("main", main_scores),
             case("belowBestOf", [41_200, 39_500, 44_100]),
@@ -130,11 +129,14 @@ def main() -> None:
         },
     }
 
+
+def main() -> None:
+    payload = build_payload()
     FIXTURE_PATH.parent.mkdir(parents=True, exist_ok=True)
     header = (
         "// 生成物。手で編集しない。\n"
         "// tools/exercise-lab/scripts/export_ui_parity_fixture.py が\n"
-        "// `exercise_lab.stats` / `exercise_lab.optimize.fitness` から書き出す。\n"
+        "// `exercise_lab.reference_stats`（descriptive / daily_best）から書き出す。\n"
         "//\n"
         "//   cd tools/exercise-lab && uv run python scripts/export_ui_parity_fixture.py\n"
         "\n"

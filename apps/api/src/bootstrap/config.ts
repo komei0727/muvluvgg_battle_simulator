@@ -295,7 +295,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
   // 既定値は50秒（本番Cloud Runは`deploy/cloud-run/service.json`で明示的に
   // 30000を上書きするため、この既定値の変更は本番へ影響しない）。オルガ＆ナージャ
   // 追加後、subAttributeを持つ編成の一括評価300試行が旧既定の30秒だと打ち切られる
-  // ことを実測したため引き上げた（tools/exercise-lab/README.md「部分結果」）。
+  // ことを実測したため引き上げた。
   const simulationTimeoutMs = parsePositiveInteger(
     env["SIMULATION_TIMEOUT_MS"],
     { envVar: "SIMULATION_TIMEOUT_MS", defaultValue: 50_000, min: 1 },
