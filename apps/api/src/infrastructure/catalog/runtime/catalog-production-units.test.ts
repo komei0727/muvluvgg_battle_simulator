@@ -696,7 +696,10 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // （サプライズ大作戦！？）を追加した（Issue #876）。既存の定義は変更していない。
     // `2026-11-25.1` は既存Memoryの効果78件を解除不可（`dispellable: false`）へ是正した
     // （R-MEM-05、Issue #693）。Unit・Skillは変更していない。
-    expect(catalog.catalogRevision).toBe("2026-11-25.1");
+    // `2026-11-27.1` は新しい戦術演習敵 `UNIT_FLUTE_VAMPIRE_TEX`（【＃激カワ吸血鬼配信者♪】
+    // フルート・メルヴィル）の新規投入。開催中（`exerciseActive: true`）はこの1件だけにし、
+    // それまで開催中だった4件を false へ戻した。
+    expect(catalog.catalogRevision).toBe("2026-11-27.1");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {

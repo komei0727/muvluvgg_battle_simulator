@@ -2631,6 +2631,107 @@
     "metadata": { "tags": [] }
   },
   {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_DAMAGE_COLUMN",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 1.014 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_DAMAGE_FOLLOWUP",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.468 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_SELF_HEAL",
+    "kind": "HEAL",
+    "payload": {
+      "formula": { "kind": "DAMAGE_DEALT_RATIO", "sourceResult": "SUM_DAMAGE_DEALT", "ratio": 0.6 },
+      "overheal": "DISCARD"
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.858 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_AS1_HP_COST",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "HP",
+      "operation": "ADD",
+      "formula": {
+        "kind": "CURRENT_HP_RATIO",
+        "source": { "kind": "SKILL_SOURCE" },
+        "ratio": -0.0125
+      },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS1_DMG_UP",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.25 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 2 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS2_COUNTER",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "PHYSICAL", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS2_EVASION",
+    "kind": "APPLY_STATUS",
+    "payload": {
+      "status": "HIT_EVASION",
+      "duration": {
+        "dispellable": true,
+        "timeLimit": { "unit": "ACTION", "count": 1 },
+        "consumption": { "kind": "INCOMING_HIT", "maxCount": 1 }
+      },
+      "probability": 1
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS3_DEBUFF",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "INCOMING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": 0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": true,
+        "consumption": { "kind": "NEXT_INCOMING_ATTACK", "maxCount": 1 }
+      }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS1_MAX_AP_UP",
+    "kind": "MODIFY_RESOURCE_CAPACITY",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": 1 },
+      "raiseCurrent": true,
+      "duration": { "dispellable": false, "timeLimit": { "unit": "BATTLE", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
     "effectActionDefinitionId": "ACT_HARRIET_SAGE_EX_HEAL",
     "kind": "HEAL",
     "payload": { "formula": { "kind": "SKILL_POWER", "power": 0.5 }, "overheal": "DISCARD" },

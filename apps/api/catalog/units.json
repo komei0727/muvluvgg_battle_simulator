@@ -589,6 +589,39 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_FLUTE_VAMPIRE_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SMART",
+    "unitType": "AGILE",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 411963,
+      "attack": 17713,
+      "defense": 7230,
+      "criticalRate": 0.18,
+      "actionSpeed": 578,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 7,
+    "activeSkillDefinitionIds": ["SKL_FLUTE_VAMPIRE_TEX_AS1"],
+    "passiveSkillDefinitionIds": [
+      "SKL_FLUTE_VAMPIRE_TEX_PS1",
+      "SKL_FLUTE_VAMPIRE_TEX_PS2",
+      "SKL_FLUTE_VAMPIRE_TEX_PS3"
+    ],
+    "extraSkillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_TREBLE_QUINTET"],
+      "tags": [],
+      "displayName": "【＃激カワ吸血鬼配信者♪】フルート・メルヴィル",
+      "characterName": "フルート・メルヴィル",
+      "characterId": "CHAR_FLUTE_MELVILLE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_HARRIET_SAGE",
     "attribute": "SMART",
     "unitType": "ENERGY",
@@ -647,7 +680,7 @@
   {
     "unitDefinitionId": "UNIT_HIIRO_FREEWOLF_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "AGGRESSIVE",
     "unitType": "AGILE",
     "role": "PHYSICAL_ATTACKER",
@@ -1779,7 +1812,7 @@
   {
     "unitDefinitionId": "UNIT_NANAE_SOVEREIGN_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "SHY",
     "unitType": "PHYSICAL",
     "role": "TANK",
@@ -1840,7 +1873,7 @@
   {
     "unitDefinitionId": "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "SMART",
     "unitType": "PHYSICAL",
     "role": "PHYSICAL_ATTACKER",
@@ -1932,7 +1965,7 @@
   {
     "unitDefinitionId": "UNIT_OLGA_NADYA_BOND_TEX",
     "category": "EXERCISE_ENEMY",
-    "exerciseActive": true,
+    "exerciseActive": false,
     "attribute": "CUTE",
     "subAttribute": "AGGRESSIVE",
     "unitType": "ENERGY",

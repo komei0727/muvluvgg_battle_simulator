@@ -1,0 +1,345 @@
+[
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_EX",
+    "skillType": "EX",
+    "cost": {
+      "resource": "EX_GAUGE",
+      "amount": 7
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_BASE",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["NEAREST"]
+          }
+        },
+        {
+          "targetBindingId": "TGT_COLUMN",
+          "selector": {
+            "kind": "BINDING_DERIVED",
+            "base": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "area": {
+              "kind": "SAME_COLUMN_AS_BASE",
+              "includeBase": true
+            },
+            "side": "ENEMY"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_COLUMN"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_DAMAGE_COLUMN"
+            }
+          ]
+        },
+        {
+          "kind": "BRANCH",
+          "condition": {
+            "kind": "TARGET_STATE",
+            "target": {
+              "kind": "BINDING",
+              "targetBindingId": "TGT_BASE"
+            },
+            "field": "IS_ALIVE",
+            "op": "EQ",
+            "value": true
+          },
+          "thenSteps": [
+            {
+              "kind": "ACTION",
+              "target": {
+                "kind": "BINDING",
+                "targetBindingId": "TGT_BASE"
+              },
+              "actions": [
+                {
+                  "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_DAMAGE_FOLLOWUP"
+                }
+              ]
+            }
+          ],
+          "elseSteps": []
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_EX_SELF_HEAL"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "＃ぽよ・オア・トリート",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_AS1",
+    "skillType": "AS",
+    "cost": {
+      "resource": "AP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["DEFAULT"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_AS1_HP_COST"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_PRIMARY"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_AS1_DAMAGE"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "かぷっとファンサ+",
+      "tags": []
+    }
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_PS1",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS1_MAX_AP_UP"
+            },
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS1_DMG_UP"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "イモータル・ヴァンパイア+",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "RUNTIME_COUNTER",
+          "counter": "SKL_FLUTE_VAMPIRE_TEX_PS1_ACTIVATIONS",
+          "op": "LT",
+          "value": 1
+        }
+      }
+    ],
+    "counterUpdates": [
+      {
+        "kind": "INCREMENT",
+        "counter": "SKL_FLUTE_VAMPIRE_TEX_PS1_ACTIVATIONS",
+        "scope": "SKILL_RUNTIME",
+        "trigger": {
+          "eventType": "PassiveActivated",
+          "category": "FACT",
+          "sourceSelector": "SELF",
+          "targetSelector": "ANY",
+          "condition": {
+            "kind": "EVENT_PAYLOAD",
+            "field": "skillDefinitionId",
+            "op": "EQ",
+            "value": "SKL_FLUTE_VAMPIRE_TEX_PS1"
+          }
+        },
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_PS2",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "TRIGGER_SOURCE"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS2_COUNTER"
+            }
+          ]
+        },
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "SELF"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS2_EVASION"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 3
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "アウェイキング・ヴァンパイア+",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "EVENT_PAYLOAD",
+          "field": "skillType",
+          "op": "EQ",
+          "value": "AS"
+        }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_FLUTE_VAMPIRE_TEX_PS3",
+    "skillType": "PS",
+    "cost": {
+      "resource": "PP",
+      "amount": 1
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_FARTHEST",
+          "selector": {
+            "kind": "SELECT",
+            "side": "ENEMY",
+            "count": 1,
+            "order": ["FARTHEST"]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": {
+            "kind": "BINDING",
+            "targetBindingId": "TGT_FARTHEST"
+          },
+          "actions": [
+            {
+              "effectActionDefinitionId": "ACT_FLUTE_VAMPIRE_TEX_PS3_DEBUFF"
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": {
+      "unit": "ACTION",
+      "count": 0
+    },
+    "traits": {},
+    "metadata": {
+      "displayName": "あなたにマーキング♡+",
+      "tags": []
+    },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": {
+          "kind": "TURN_NUMBER",
+          "op": "GT",
+          "value": 1
+        }
+      }
+    ]
+  }
+]
