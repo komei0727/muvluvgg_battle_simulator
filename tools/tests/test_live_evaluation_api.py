@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from battle_lab.evaluation import plan_battle_evaluation
+from exercise_lab.evaluation import plan_exercise_evaluation
 from mlgg_lab_common.evaluation.runner import StopReason, run_evaluation
 from mlgg_lab_common.storage.layout import create_evaluation
 from total_war_lab.evaluation import plan_total_war_evaluation
@@ -24,8 +25,12 @@ pytestmark = pytest.mark.skipif(LIVE_URL is None, reason="MLGG_LAB_LIVE_API_URL 
 TOOLS = Path(__file__).resolve().parents[1]
 
 
+# 演習の対戦入力は編成定義YAML（味方 + 敵1体）そのもの。
+MATCH_FILES = {"exercise-lab": "formation.example.yaml"}
+
+
 def write_config(directory: Path, fmt: str, lab: str, *, cases: list[str], **api: int) -> Path:
-    match = TOOLS / lab / "configs" / "match.example.yaml"
+    match = TOOLS / lab / "configs" / MATCH_FILES.get(lab, "match.example.yaml")
     api_lines = "".join(f"  {k}: {v}\n" for k, v in api.items())
     path = directory / f"{fmt}-{len(list(directory.iterdir()))}.yaml"
     path.write_text(
@@ -56,6 +61,7 @@ def observe(plan, directory: Path):
     [
         ("BATTLE", "battle-lab", plan_battle_evaluation),
         ("TOTAL_WAR", "total-war-lab", plan_total_war_evaluation),
+        ("TACTICAL_EXERCISE", "exercise-lab", plan_exercise_evaluation),
     ],
 )
 def test_split_order_and_rerun_do_not_change_semantic_results(tmp_path, fmt, lab, planner):
@@ -87,6 +93,11 @@ def test_split_order_and_rerun_do_not_change_semantic_results(tmp_path, fmt, lab
     assert report.counters.completed_trials == 7
     assert split_report.requests > report.requests
     assert environment is not None and environment.engine_revision
+    if fmt == "TACTICAL_EXERCISE":
+        sample = next(iter(first.values()))
+        assert sample["completionReason"] in {"TURN_LIMIT_REACHED", "ALLY_DEFEATED"}
+        assert {"totalScore", "breakCount"} <= sample.keys()
+        assert len(sample["allyUnitBreaks"]) == 5
     if fmt == "TOTAL_WAR":
         sample = next(iter(first.values()))
         assert {"stages", "defeatedFormationCounts"} <= sample.keys()

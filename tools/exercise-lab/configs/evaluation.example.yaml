@@ -1,0 +1,28 @@
+# 戦術演習の評価設定サンプル。個人ファイルなしで計画を作れる
+# （`exercise_lab.evaluation.plan_exercise_evaluation`）。
+#
+# パスはこのファイルの位置を基準に解決する（絶対パスも可）。どのディレクトリから
+# 実行しても同じファイルを指す。対戦入力は演習の編成定義YAML（`match:`）か、
+# UIの演習ドラフト `mlgg:last-draft:exercise` を書き出したJSON（`draft:`）。
+format: TACTICAL_EXERCISE
+seed: example-1
+# 再送込みの送信試行数の上限。部分応答で未完了だった試行の再送も数える。
+budget: { maxSubmittedRuns: 400 }
+api:
+  baseUrl: http://localhost:3000
+  # 配備の TACTICAL_EXERCISE_EVALUATION_MAX_CASES / _MAX_TOTAL_RUNS 以下にする。
+  # 省略するとAPIの既定値（32 / 300）を使う。
+  maxCasesPerRequest: 32
+  maxRunsPerRequest: 300
+# 手持ちデータを当てるなら inputs を書く（tools/data/inputs/ が既定の置き場所）。
+# 演習の敵は強化を持たないので、playerDataSides は [ALLY] のまま（既定）。
+#   inputs:
+#     playerData: ../../data/inputs/player-data/player-data.json
+cases:
+  - caseId: example
+    match: formation.example.yaml
+    runs: 100
+  - caseId: example-spot-check
+    match: formation.example.yaml
+    # 不連続な試行番号も書ける。同じ対戦条件・seed・番号なら同じ結果になる。
+    runIndices: [0, 1, 42]

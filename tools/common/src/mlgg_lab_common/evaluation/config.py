@@ -8,7 +8,7 @@
 どのディレクトリから実行しても同じファイルを指す。
 
 ```yaml
-format: BATTLE                  # BATTLE / TOTAL_WAR（TACTICAL_EXERCISE は評価API再設計待ち）
+format: BATTLE                  # BATTLE / TOTAL_WAR / TACTICAL_EXERCISE
 seed: study-1
 budget: { maxSubmittedRuns: 2000 }   # 再送込みの送信試行数の上限
 api:                            # 省略時はローカルのdevサーバー・形式ごとの既定上限
@@ -129,7 +129,7 @@ def load_evaluation_config(path: Path, *, expected_format: str | None = None) ->
         parsed = _ConfigFile.model_validate(raw)
     except ValidationError as error:
         raise ConfigError(f"{path}: {error}") from error
-    # 形式が評価できるか（演習は再設計待ち）をここで確かめる。
+    # 評価APIの契約を持つ形式かをここで確かめる。
     contract_for(parsed.format)
     if expected_format is not None and parsed.format != expected_format:
         raise ConfigError(
