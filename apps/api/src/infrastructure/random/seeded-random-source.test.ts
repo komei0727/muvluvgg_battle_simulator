@@ -162,3 +162,11 @@ describe("Mulberry32SeededRandomSourceProvider argument range", () => {
     expect(() => provider.forRun("abc123", -1)).toThrow(RangeError);
   });
 });
+
+describe("Mulberry32SeededRandomSourceProvider derivation version", () => {
+  it("UT-SEEDRAND-021: names the seed derivation so results from another derivation are not mixed in", () => {
+    expect(new Mulberry32SeededRandomSourceProvider().derivationVersion).toBe(
+      "MULBERRY32_FNV1A_SPLITMIX32_V1",
+    );
+  });
+});

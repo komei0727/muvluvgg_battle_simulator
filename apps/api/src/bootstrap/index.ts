@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -6,6 +7,12 @@ import type { ReadinessPort } from "../presentation/http/routes/health-routes.js
 import { parseCatalogManifest } from "../infrastructure/catalog/runtime/catalog-manifest.js";
 import { loadBattleCatalogDirectory } from "../infrastructure/catalog/runtime/catalog-file-loader.js";
 import { SimulationWorkerPool } from "../infrastructure/worker/simulation-worker-pool.js";
+import {
+  createFileReader,
+  createGitRunner,
+  defaultEngineSourceDirectory,
+  resolveEngineRevision,
+} from "../infrastructure/runtime/engine-revision.js";
 import { GetBattleSimulationCatalogUseCase } from "../application/catalog/get-battle-simulation-catalog-use-case.js";
 import { PreviewFormationStatsUseCase } from "../application/simulation/preview-formation-stats-use-case.js";
 import { ShutdownState, installShutdownSignalHandlers } from "./shutdown.js";
@@ -53,7 +60,20 @@ export async function bootstrap(): Promise<FastifyInstance> {
     workerMaxThreads,
     evaluationEndpointEnabled,
     evaluationLimits,
+    battleEvaluationLimits,
+    totalWarEvaluationLimits,
+    engineRevision: configuredEngineRevision,
   } = loadConfig(process.env);
+
+  // 大量試行の応答が載せる戦闘実装の識別情報。起動時に一度だけ決め、リクエストごとに
+  // gitを実行しない。Workerへは`workerData`で同じ値を配る。
+  const engineSourceDirectory = defaultEngineSourceDirectory();
+  const engineRevision = resolveEngineRevision({
+    ...(configuredEngineRevision !== undefined ? { configured: configuredEngineRevision } : {}),
+    git: createGitRunner(engineSourceDirectory),
+    readFile: createFileReader(engineSourceDirectory),
+    bootId: randomUUID(),
+  });
 
   const manifestRaw = readFileSync(join(catalogDir, "manifest.json"), "utf8");
   const manifest = parseCatalogManifest(JSON.parse(manifestRaw));
@@ -84,6 +104,9 @@ export async function bootstrap(): Promise<FastifyInstance> {
     shutdownGraceMs,
     executionLimits,
     evaluationLimits,
+    engineRevision,
+    battleEvaluationLimits,
+    totalWarEvaluationLimits,
     // 未設定時はPiscinaの既定（`os.cpus()`由来）を保つため、`undefined`を
     // そのまま渡さずキーごと落とす。
     ...(workerMinThreads !== undefined ? { minThreads: workerMinThreads } : {}),
@@ -111,7 +134,14 @@ export async function bootstrap(): Promise<FastifyInstance> {
     totalWarUseCase: pool,
     // 一括評価（UC-04）はローカルの分析ツール向けであり、明示的に許可した配備だけで
     // 開く。無効な配備でもルートは登録され、404を返す（公開文書の形を保つため）。
-    ...(evaluationEndpointEnabled ? { evaluationUseCase: pool } : {}),
+    // 通常戦闘・総力戦の大量試行も同じ設定で開く。
+    ...(evaluationEndpointEnabled
+      ? {
+          evaluationUseCase: pool,
+          battleEvaluationUseCase: pool,
+          totalWarEvaluationUseCase: pool,
+        }
+      : {}),
     docsEnabled,
     corsAllowedOrigins,
     apiAccessKeys,
@@ -144,6 +174,7 @@ export async function bootstrap(): Promise<FastifyInstance> {
   app.log.info(
     {
       catalogRevision: manifest.catalogRevision,
+      engineRevision,
       workerMaxQueue,
       simulationTimeoutMs,
       accessKeyLabels: apiAccessKeys.map(({ label }) => label),

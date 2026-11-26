@@ -4,11 +4,15 @@ import {
   type Violation,
 } from "../../application/contracts/application-error.js";
 import type {
+  BattleEvaluationRequestBody,
   BattleSimulationRequestBody,
   TacticalExerciseEvaluationRequestBody,
   TacticalExerciseRequestBody,
+  TotalWarEvaluationRequestBody,
   TotalWarRequestBody,
 } from "../../application/contracts/request.js";
+import type { EvaluateBattlesResult } from "../../application/simulation/evaluate-battles-use-case.js";
+import type { EvaluateTotalWarsResult } from "../../application/simulation/evaluate-total-wars-use-case.js";
 import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
 import type {
   SimulateBattleResult,
@@ -25,7 +29,9 @@ export type WorkerSimulationMode =
   | "BATTLE_SIMULATION"
   | "TACTICAL_EXERCISE"
   | "TACTICAL_EXERCISE_EVALUATION"
-  | "TOTAL_WAR";
+  | "TOTAL_WAR"
+  | "BATTLE_EVALUATION"
+  | "TOTAL_WAR_EVALUATION";
 
 interface WorkerSimulationTaskBase {
   readonly requestId: string;
@@ -65,11 +71,28 @@ export interface WorkerTotalWarTask extends WorkerSimulationTaskBase {
   readonly request: TotalWarRequestBody;
 }
 
+/**
+ * 大量試行は1リクエストを1タスクで処理し、ケース×試行のループをタスクの内側で回す
+ * （演習の一括評価と同じ理由: `WORKER_MAX_QUEUE`は本番で1である）。
+ */
+export interface WorkerBattleEvaluationTask extends WorkerSimulationTaskBase {
+  readonly mode: "BATTLE_EVALUATION";
+  readonly request: BattleEvaluationRequestBody;
+}
+
+/** 総力戦の大量試行。1試行は勝ち抜き戦全体である。 */
+export interface WorkerTotalWarEvaluationTask extends WorkerSimulationTaskBase {
+  readonly mode: "TOTAL_WAR_EVALUATION";
+  readonly request: TotalWarEvaluationRequestBody;
+}
+
 export type WorkerSimulationTask =
   | WorkerBattleSimulationTask
   | WorkerTacticalExerciseTask
   | WorkerTacticalExerciseEvaluationTask
-  | WorkerTotalWarTask;
+  | WorkerTotalWarTask
+  | WorkerBattleEvaluationTask
+  | WorkerTotalWarEvaluationTask;
 
 /**
  * `ApplicationError`のplain object表現。`Error`インスタンスをそのまま
@@ -100,6 +123,16 @@ export type WorkerSimulationResult =
       readonly result: EvaluateTacticalExerciseCandidatesResult;
     }
   | { readonly ok: true; readonly mode: "TOTAL_WAR"; readonly result: SimulateTotalWarResult }
+  | {
+      readonly ok: true;
+      readonly mode: "BATTLE_EVALUATION";
+      readonly result: EvaluateBattlesResult;
+    }
+  | {
+      readonly ok: true;
+      readonly mode: "TOTAL_WAR_EVALUATION";
+      readonly result: EvaluateTotalWarsResult;
+    }
   | { readonly ok: false; readonly error: SerializedApplicationError };
 
 export function toSerializedApplicationError(error: ApplicationError): SerializedApplicationError {
