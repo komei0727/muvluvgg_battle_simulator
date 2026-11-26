@@ -512,6 +512,7 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 - 重複の既定は「許さない」（`allowDuplicateUnits` / `allowDuplicateMemories`）。APIはR-FRM-03で同じユニットを
   複数枠へ置けるが、使用可能プールは手持ちの1体ずつを表すことが多いため、許すときは明示する。
 - 資源上限（`resourceLimits`）は実際に送るギア（調整したギアと、調整していないユニットの育成条件のギア）で数える。
+  ギア固定（`FIXED`）でも効く（ギアを変えなくても、ユニット選抜で編成全体の使用量は変わる）。
   ギアの効果は計算しない（ステータス計算はAPIの責務）。
 - 起点の編成から作るとき（`battle_search_problem` / `exercise_search_problem`）は、配置・ユニット順・
   メモリー順だけを写し、育成値は `training` から引く。
@@ -550,7 +551,7 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 | `METHOD_IDLE`        | 配分が要求も終了も返さなかった（同じ状態で呼び続けない）                                 |
 | `BUDGET_EXHAUSTED`   | 探索全体の送信予算が尽きた・要求が残りを超えた（送信しない）                             |
 | `STEP_LIMIT_REACHED` | `run_search(max_steps=...)` に達した                                                     |
-| `INTERRUPTED`        | `should_stop()` が真を返した                                                             |
+| `INTERRUPTED`        | `should_stop()` が真を返した（開いたラウンドの評価を再開する前にも確かめる）             |
 | `EVALUATION_STOPPED` | 評価が完了せずに止まった（`evaluation_stop_reason` に段階2の理由）。ラウンドは開いたまま |
 | `INVALID_REQUEST`    | 未登録・不正な候補、要求済みの試行番号などを要求した（送信しない）                       |
 
@@ -562,6 +563,10 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 - **部分結果**: 評価が続けられないラウンド（入力不正・予算切れ等）は `close_open_round=True` で、その時点の
   完了分の観測と未完了の番号を返して閉じる。未完了・通信失敗・実行エラーは観測にならず、敗北・スコア0へ変換しない。
   未完了の番号は同じ候補では再利用しない。
+- **実行環境**: 探索で最初に確定した実行環境（最も若いラウンドの catalog / engine / seedDerivation）を探索全体の基準にする。
+  後続ラウンドの評価計画へ期待revisionとして引き継ぐので、APIの更新・再起動を挟むと実行前に `ENVIRONMENT_MISMATCH`
+  （`EVALUATION_STOPPED`）で止まる。ラウンドを閉じるときも基準と照合し、違う環境の結果は観測にせず未完了として扱う
+  （同じ候補の標本へ混ぜない）。環境を変えて続けたいときは新しい探索を作る。
 - **不一致**: 保存済みの探索と接続した部品の識別子・版、状態の版が違えば `IncompatibleMethodError`、
   探索DBの保存形式が違えば `SearchStorageError` で、黙って読み込まない。
 

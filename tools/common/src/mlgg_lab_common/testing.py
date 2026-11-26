@@ -312,11 +312,13 @@ class FakeEvaluationServer:
         complete_limit: int | None = None,
         engine_revision: str = "eng-1",
         catalog_revision: str = "cat-1",
+        seed_derivation_version: str = "MULBERRY32_FNV1A_SPLITMIX32_V1",
         script: list[Any] | None = None,
     ) -> None:
         self.complete_limit = complete_limit
         self.engine_revision = engine_revision
         self.catalog_revision = catalog_revision
+        self.seed_derivation_version = seed_derivation_version
         self.script = list(script or [])
         self.requests: list[dict[str, Any]] = []
         self.executed_runs = 0
@@ -372,6 +374,7 @@ class FakeEvaluationServer:
             seed=payload["seed"],
             engineRevision=self.engine_revision,
             catalogRevision=self.catalog_revision,
+            seedDerivationVersion=self.seed_derivation_version,
         )
 
     def _observe(

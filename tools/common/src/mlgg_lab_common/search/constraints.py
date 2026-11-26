@@ -113,11 +113,10 @@ def _gear_problems(problem: SearchProblem, candidate: Candidate) -> list[str]:
             for i, u in enumerate(candidate.units)
             if u.gears is not None
         )
-        return problems
 
     adjustable = None if policy.adjustable_unit_ids is None else set(policy.adjustable_unit_ids)
     for i, unit in enumerate(candidate.units):
-        if unit.gears is None:
+        if policy.mode == "FIXED" or unit.gears is None:
             continue
         where = f"units[{i}]（{unit.unit_definition_id}）"
         if adjustable is not None and unit.unit_definition_id not in adjustable:
@@ -135,6 +134,7 @@ def _gear_problems(problem: SearchProblem, candidate: Candidate) -> list[str]:
                 if allowed is not None and value not in allowed:
                     problems.append(f"{where}.gears[{j}]: {label} {value} は許可されていない")
 
+    # 資源上限はギア固定でも効く。ギアを変えなくても、ユニット選抜で編成全体の使用量は変わる。
     sent = [gear for unit in candidate.units for gear in effective_gears(problem, unit)]
     for limit in policy.resource_limits:
         used = sum(1 for gear in sent if limit.matches(gear))

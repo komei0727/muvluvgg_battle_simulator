@@ -39,8 +39,8 @@ from enum import StrEnum
 from typing import Any
 
 from ..api.client import EvaluationTransport
-from ..api.contracts import MAX_RUN_INDEX
-from ..evaluation.models import Budget
+from ..api.contracts import MAX_RUN_INDEX, ExecutionEnvironment
+from ..evaluation.models import Budget, ExecutionSettings
 from ..evaluation.plan import CaseSpec, create_plan
 from ..evaluation.runner import StopReason, run_evaluation
 from ..experiments.search_store import (
@@ -155,6 +155,7 @@ class _SearchRun:
         self.step = 0
         self._restore_states()
 
+        self._environment: ExecutionEnvironment | None = None
         self.candidates: dict[str, _CandidateState] = {}
         self.start_ids: list[str] = []
         self.rejections: list[Rejection] = []
@@ -276,6 +277,11 @@ class _SearchRun:
 
         open_round = next((r for r in self.rounds if r.status == "OPEN"), None)
         if open_round is not None:
+            # 停止要求があれば、開いたラウンドの評価を続けない（送信・予算消費を進めない）。
+            if should_stop is not None and should_stop():
+                return stop(
+                    SearchStopReason.INTERRUPTED, "外部から中断した（開いたラウンドは未完了のまま）"
+                )
             if close_open_round:
                 with self._open_round_repository(open_round.evaluation_id) as repo:
                     sessions = repo.sessions()
@@ -373,8 +379,37 @@ class _SearchRun:
                     f" {report.stop_reason.value} で止まった: {report.detail}"
                 )
                 return reason, detail, report.stop_reason.value
+            mismatch = self._environment_mismatch(repo)
+            if mismatch:
+                return (
+                    SearchStopReason.EVALUATION_STOPPED,
+                    f"ラウンド {round_number}（{evaluation_id}）の実行環境が探索の実行環境と違う: "
+                    + "; ".join(mismatch),
+                    "ENVIRONMENT_MISMATCH",
+                )
             self._close_round(round_number, evaluation_id, repo, report.stop_reason.value)
         return None
+
+    def _pinned_environment(self) -> ExecutionEnvironment | None:
+        """探索で最初に確定した実行環境（最も若いラウンドの評価実行が確定した環境）。
+
+        ラウンドごとの評価実行は環境を独立に確定するので、ここで探索全体の基準を1つに決め、
+        後続ラウンドの期待revisionと、ラウンドを閉じるときの照合に使う。
+        """
+        if self._environment is None:
+            for stored_round in self.rounds:
+                with self._open_round_repository(stored_round.evaluation_id) as repo:
+                    environment = repo.environment()
+                if environment is not None:
+                    self._environment = environment
+                    break
+        return self._environment
+
+    def _environment_mismatch(self, repo: SqliteEvaluationRepository) -> list[str]:
+        environment, pinned = repo.environment(), self._pinned_environment()
+        if environment is None or pinned is None:
+            return []
+        return pinned.differences(environment)
 
     def _close_round(
         self,
@@ -384,6 +419,10 @@ class _SearchRun:
         evaluation_stop_reason: str,
     ) -> None:
         results = _results_by_case(repo)
+        if self._environment_mismatch(repo):
+            # 違う実行環境の結果は同じ条件の標本として混ぜない。観測にせず未完了として閉じる。
+            results = {}
+            evaluation_stop_reason = "ENVIRONMENT_MISMATCH"
         requests = [r for r in self.store.requests() if r.round_number == round_number]
         outcomes: list[RequestOutcome] = []
         closed: list[ClosedRequest] = []
@@ -463,7 +502,7 @@ class _SearchRun:
             # 探索全体の残りをこのラウンドの送信予算にする。段階2が再送込みで数えて守るので、
             # ラウンドを順に重ねても探索全体の上限を超えない。
             budget=Budget(maxSubmittedRuns=remaining),
-            settings=self.problem.execution.api,
+            settings=self._round_settings(),
             evaluation_id=evaluation_id,
         )
         directory = self.store.evaluations_dir / evaluation_id
@@ -476,6 +515,22 @@ class _SearchRun:
             shutil.rmtree(directory)
         _, repo = create_evaluation(self.store.evaluations_dir, plan)
         repo.close()
+
+    def _round_settings(self) -> ExecutionSettings:
+        """新しいラウンドの実行設定。探索の実行環境が確定していれば期待revisionとして引き継ぐ。
+
+        段階2は期待revisionがあれば初回の応答から照合し、違う環境の結果を保存せずに止まる。
+        """
+        settings = self.problem.execution.api
+        pinned = self._pinned_environment()
+        if pinned is None:
+            return settings
+        return settings.model_copy(
+            update={
+                "expected_catalog_revision": pinned.catalog_revision,
+                "expected_engine_revision": pinned.engine_revision,
+            }
+        )
 
     # -- 提案・要求の検証 ---------------------------------------------------------
 

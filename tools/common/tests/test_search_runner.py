@@ -491,3 +491,75 @@ def test_runs_fill_the_smallest_unrequested_indices_of_the_candidate(tmp_path):
     # 候補ごとに、要求していない最小の番号から埋める（候補をまたいで同じ番号で比べられる）。
     assert [index for _, index in sent_runs(server)] == [1, 4, 0, 2, 3, 0, 1, 5, 6]
     assert method.allocator.views[-1].candidates[S].next_run_index == 7
+
+
+# -- 実行環境・停止要求（レビュー指摘） ---------------------------------------------------
+
+
+def test_the_environment_of_the_first_round_is_required_from_later_rounds(tmp_path):
+    # 1ラウンド目は eng-1、2ラウンド目の前にAPIが更新されて eng-2 になる。
+    server = FakeEvaluationServer(script=["ok", ("engine", "eng-2")])
+    directory, store, method = make_search(tmp_path)
+    with store:
+        report = run(store, method, server)
+
+        assert report.stop_reason is SearchStopReason.EVALUATION_STOPPED
+        assert report.evaluation_stop_reason == "ENVIRONMENT_MISMATCH"
+        assert [r.status for r in store.rounds()] == ["CLOSED", "OPEN"]
+    # 後続ラウンドは最初に確定した環境を期待revisionとして送る（実APIなら実行前に422）。
+    assert "expectedEngineRevision" not in server.requests[0]
+    assert server.requests[1]["expectedEngineRevision"] == "eng-1"
+    assert server.requests[1]["expectedCatalogRevision"] == "cat-1"
+    # 違う環境の観測は候補の標本へ入らない。
+    assert method.allocator.views[-1].candidates[S].estimate["runIndices"] == [0, 1, 2]
+
+    # 再開しても違う環境のまま続けない。部分結果で閉じても観測は増えない。
+    closer = new_method()
+    with open_search(directory) as reopened:
+        report = run(reopened, closer, server, close_open_round=True)
+    assert closer.proposer.feedback[0].outcomes[0].observations == ()
+
+
+def test_a_round_from_a_different_seed_derivation_is_not_merged(tmp_path):
+    server = FakeEvaluationServer()
+    directory, store, method = make_search(tmp_path)
+    with store:
+        run(store, method, server, max_steps=1)
+
+    changed = FakeEvaluationServer(seed_derivation_version="OTHER_DERIVATION_V2")
+    resumed = new_method()
+    with open_search(directory) as reopened:
+        report = run(reopened, resumed, changed)
+
+        assert report.stop_reason is SearchStopReason.EVALUATION_STOPPED
+        assert report.evaluation_stop_reason == "ENVIRONMENT_MISMATCH"
+        assert "seedDerivationVersion" in report.detail
+        assert reopened.rounds()[-1].status == "OPEN"
+    assert resumed.proposer.feedback == []
+
+    with open_search(directory) as reopened:
+        run(reopened, new_method(), changed, close_open_round=True, max_steps=0)
+        closed = reopened.requests()[-1]
+        # 違う環境の結果は観測にせず、未完了として閉じる。
+        assert closed.completed == () and closed.incomplete == (3, 4)
+
+
+def test_a_stop_request_is_honoured_before_resuming_an_open_round(tmp_path):
+    directory, store, method = make_search(tmp_path, maxRunsPerRequest=2)
+    with store, pytest.raises(KeyboardInterrupt):
+        run(store, method, FakeEvaluationServer(script=["ok", "interrupt"]))
+
+    server = FakeEvaluationServer()
+    with open_search(directory) as reopened:
+        report = run(reopened, new_method(), server, should_stop=lambda: True)
+
+        assert report.stop_reason is SearchStopReason.INTERRUPTED
+        assert server.requests == []
+        assert reopened.rounds()[0].status == "OPEN"
+        budget_before = report.budget.used
+
+    resumed = new_method()
+    with open_search(directory) as reopened:
+        report = run(reopened, resumed, FakeEvaluationServer())
+        assert report.stop_reason is SearchStopReason.METHOD_FINISHED
+        assert report.budget.used > budget_before

@@ -363,3 +363,15 @@ def test_training_from_player_data_resolves_every_pool_unit_once():
     assert training.units["UNIT_C"].gears is None
     assert len(warnings) == 1 and "UNIT_C" in warnings[0]
     assert isinstance(training, AllyTraining)
+
+
+def test_resource_limits_apply_to_the_training_gears_in_fixed_mode_too():
+    # ギアを変えなくても、ユニット選抜で編成全体のギア使用量は変わる。
+    p = problem(gear={"mode": "FIXED", "resourceLimits": [{"maxCount": 0}]}, starts=[])
+    assert candidate_problems(p, START) == ["ギア資源の上限を超える（全ギア: 1 個 > 0 個）"]
+    without_geared_unit = ops.replace_unit(START, 0, "UNIT_D")
+    assert candidate_problems(p, without_geared_unit) == []
+    # 起点が上限を超える探索問題は作れない。
+    assert problem_problems(
+        problem(gear={"mode": "FIXED", "resourceLimits": [{"maxCount": 0}]}), ADAPTER
+    ) == ["starts[0]: ギア資源の上限を超える（全ギア: 1 個 > 0 個）"]
