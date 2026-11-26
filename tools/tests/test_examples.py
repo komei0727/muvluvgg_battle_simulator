@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from battle_lab.evaluation import plan_battle_evaluation
 from battle_lab.inputs import load_battle_match_file
 from battle_lab.inputs import validate_against_catalog as validate_battle
 from exercise_lab.inputs.exercise import load_formation_config
 from exercise_lab.inputs.exercise import validate_against_catalog as validate_exercise
 from mlgg_lab_common.inputs.catalog import Catalog
+from total_war_lab.evaluation import plan_total_war_evaluation
 from total_war_lab.inputs import load_total_war_match_file
 from total_war_lab.inputs import validate_against_catalog as validate_total_war
 
@@ -60,3 +62,13 @@ def test_the_total_war_example_is_loadable_and_uses_current_ids(catalog):
 
     assert len(loaded.match.ally_formations) == 2
     assert validate_total_war(loaded.match, catalog) == []
+
+
+def test_the_evaluation_examples_plan_without_personal_files(monkeypatch):
+    # 設定内のパスは設定ファイル基準なので、実行ディレクトリに依らない。
+    monkeypatch.chdir("/")
+    battle = plan_battle_evaluation(TOOLS / "battle-lab/configs/evaluation.example.yaml")
+    total_war = plan_total_war_evaluation(TOOLS / "total-war-lab/configs/evaluation.example.yaml")
+
+    assert battle.planned_runs == 103
+    assert total_war.planned_runs == 50

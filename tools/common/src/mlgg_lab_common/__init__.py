@@ -7,4 +7,7 @@
 - `models`: 陣営に依存しない編成・育成モデル、参加枠、解決済み入力
 - `inputs`: 手持ちデータ・UIドラフト・編成ライブラリ・Catalog
 - `statistics`: 汎用的な記述統計（追加依存 `statistics` が要る）
+- `api`: 評価API（seed付き大量試行）の契約・HTTP通信・応答検証
+- `evaluation`: 試行計画・要求分割・予算・実行と再開
+- `storage`: 評価実行ごとのSQLite（再開状態の正本）と保存先ディレクトリ
 """

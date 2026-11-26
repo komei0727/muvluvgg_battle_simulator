@@ -1,0 +1,18 @@
+# 総力戦の評価設定サンプル。個人ファイルなしで計画を作れる
+# （`total_war_lab.evaluation.plan_total_war_evaluation`）。
+#
+# パスはこのファイルの位置を基準に解決する（絶対パスも可）。1試行は勝ち抜き戦全体
+# （編成交代ごとに分けない）。
+format: TOTAL_WAR
+seed: example-1
+budget: { maxSubmittedRuns: 200 }
+api:
+  baseUrl: http://localhost:3000
+  # 配備の TOTAL_WAR_EVALUATION_MAX_CASES / TOTAL_WAR_EVALUATION_MAX_TOTAL_RUNS 以下にする。
+  # 省略するとAPIの既定値（32 / 120）を使う。通常戦闘とは別の値である。
+  maxCasesPerRequest: 32
+  maxRunsPerRequest: 120
+cases:
+  - caseId: example
+    match: match.example.yaml
+    runs: 50

@@ -16,7 +16,14 @@
 | `inputs.schema`          | 編成ライブラリ用 JSON Schema と、Schemaへ実IDを差し込む部品                          |
 | `inputs.resolution`      | 入力解決の共通手順（手持ちデータの適用・検証エラーの集約）                           |
 | `statistics.descriptive` | 記述統計（UI統計の参照実装。追加依存 `statistics` が要る）                           |
-| `testing`                | テスト用のドラフト生成（UIの保存形式を写す）                                         |
+| `inputs.migration`       | 従来の置き場所から `tools/data/inputs/` への入力データの移行                         |
+| `api.contracts`          | 評価APIの要求・応答の型、形式ごとの契約、応答と要求の対応の検証                      |
+| `api.client`             | 評価APIのHTTP通信と失敗の分類                                                        |
+| `evaluation.*`           | 評価設定・試行計画・識別・要求分割・予算・実行と再開                                 |
+| `storage.*`              | 評価実行ごとのSQLite（再開状態の正本）・保存形式の移行・保存先ディレクトリ           |
+| `testing`                | テスト用のドラフト生成（UIの保存形式を写す）、評価APIの応答・偽物                    |
+
+評価の実行・保存・再開の使い方と不変条件は [`../README.md`](../README.md)「評価の実行（共通基盤）」にある。
 
 手持ちデータの適用規則（明示値の優先・レベルリンク・単位変換など）は
 [`../exercise-lab/README.md`](../exercise-lab/README.md)「手持ちデータ」にまとめてある。
