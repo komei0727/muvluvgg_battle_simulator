@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
+from collections.abc import Callable, Mapping
 from typing import Any, Literal
 
 from pydantic import Field
@@ -22,7 +24,11 @@ from .models import (
     Spec,
     build_formation_request,
     participant_slots,
+    validate_formation,
 )
+from .search.method import Allocation, Proposal, SearchMethod
+from .search.problem import ComponentDescriptor, SearchProblem
+from .search.view import CandidateEntry, RoundFeedback, SearchView
 
 
 def slot(
@@ -306,11 +312,13 @@ class FakeEvaluationServer:
         complete_limit: int | None = None,
         engine_revision: str = "eng-1",
         catalog_revision: str = "cat-1",
+        seed_derivation_version: str = "MULBERRY32_FNV1A_SPLITMIX32_V1",
         script: list[Any] | None = None,
     ) -> None:
         self.complete_limit = complete_limit
         self.engine_revision = engine_revision
         self.catalog_revision = catalog_revision
+        self.seed_derivation_version = seed_derivation_version
         self.script = list(script or [])
         self.requests: list[dict[str, Any]] = []
         self.executed_runs = 0
@@ -366,6 +374,7 @@ class FakeEvaluationServer:
             seed=payload["seed"],
             engineRevision=self.engine_revision,
             catalogRevision=self.catalog_revision,
+            seedDerivationVersion=self.seed_derivation_version,
         )
 
     def _observe(
@@ -399,3 +408,121 @@ def _slots_of_request(match: dict[str, Any]) -> list[ExpectedSlot]:
         for side, key in (("ALLY", "allyFormation"), ("ENEMY", "enemyFormation"))
         for index, unit in enumerate(match[key]["units"])
     ]
+
+
+# ---------------------------------------------------------------------------
+# 探索の接続実装（テスト用）。事前に並べた提案・要求を順に返すだけで、製品の探索手法・
+# 目的関数ではない。共通基盤の実行制御・保存・再開を、手法の中身から切り離して確かめる。
+
+
+class _ScriptedComponent:
+    """`script` の何番目まで返したかだけを状態に持つ部品。受け取ったラウンドの結果を記録する。"""
+
+    state_version = 1
+
+    def __init__(self, component_id: str, script: list[Any]) -> None:
+        self.descriptor = ComponentDescriptor(componentId=component_id, version="test-1")
+        self.script = list(script)
+        self.position = 0
+        self.feedback: list[RoundFeedback] = []
+
+    def dump_state(self) -> Any:
+        return {"position": self.position, "observedRounds": len(self.feedback)}
+
+    def load_state(self, state: Any) -> None:
+        self.position = state["position"]
+
+    def observe(self, feedback: RoundFeedback) -> None:
+        self.feedback.append(feedback)
+
+    def _next(self, default: Any) -> Any:
+        if self.position >= len(self.script):
+            return default
+        item = self.script[self.position]
+        self.position += 1
+        return item
+
+
+class ScriptedProposer(_ScriptedComponent):
+    """ステップごとに `script[i]`（`Proposal` の列）を返す。尽きたら何も提案しない。"""
+
+    def __init__(self, script: list[list[Proposal]]) -> None:
+        super().__init__("test.scripted-proposer", script)
+        self.rng_draws: list[float] = []
+
+    def propose(self, view: SearchView, rng: random.Random) -> list[Proposal]:
+        # 乱数の状態が再開をまたいで続くことを確かめるため、毎回1つ引いて残す。
+        self.rng_draws.append(rng.random())
+        return list(self._next([]))
+
+
+class ScriptedAllocator(_ScriptedComponent):
+    """ステップごとに `script[i]`（`Allocation`、または `SearchView` を受けて返す関数）を返す。
+
+    尽きたら終了する。
+    """
+
+    def __init__(self, script: list[Allocation | Callable[[SearchView], Allocation]]) -> None:
+        super().__init__("test.scripted-allocator", script)
+        self.views: list[SearchView] = []
+
+    def allocate(self, view: SearchView, rng: random.Random) -> Allocation:
+        self.views.append(view)
+        item = self._next(Allocation(finish=True, detail="台本の終わり"))
+        return item(view) if callable(item) else item
+
+
+class ObservedRunsEstimator(_ScriptedComponent):
+    """観測から作る評価情報の見本。標本数と、観測した試行番号・観測値の要約を返す。
+
+    勝率・スコアへの変換はしない（目的関数ではない）。
+    """
+
+    def __init__(self) -> None:
+        super().__init__("test.observed-runs", [])
+        self.calls: list[str] = []
+
+    def estimate(self, entry: CandidateEntry) -> dict[str, Any]:
+        self.calls.append(entry.candidate_id)
+        return {
+            "sampleCount": len(entry.observations),
+            "runIndices": sorted(o.run_index for o in entry.observations),
+            "incompleteRunIndices": sorted(entry.incomplete_run_indices),
+        }
+
+
+def scripted_method(
+    proposals: list[list[Proposal]],
+    allocations: list[Allocation | Callable[[SearchView], Allocation]],
+) -> SearchMethod:
+    return SearchMethod(
+        proposer=ScriptedProposer(proposals),
+        allocator=ScriptedAllocator(allocations),
+        estimator=ObservedRunsEstimator(),
+    )
+
+
+class FakeBattleSearchAdapter:
+    """通常戦闘の形式別アダプターの代役（common のテストはラボをimportできない）。
+
+    固定条件は `{"enemyFormation": FormationRequest相当, "turnLimit": n}`。
+    """
+
+    format = "BATTLE"
+
+    def fixed_problems(self, fixed: Mapping[str, Any]) -> list[str]:
+        problems = [f"{key} が無い" for key in ("enemyFormation", "turnLimit") if key not in fixed]
+        return problems
+
+    def build_input(self, problem: SearchProblem, ally: FormationSpec) -> FakeBattleInput:
+        validate_formation(ally, "ally")
+        return FakeBattleInput(
+            match=FakeBattleMatch(
+                allyFormation=ally,
+                enemyFormation=FormationSpec.model_validate(problem.fixed["enemyFormation"]),
+                turnLimit=problem.fixed["turnLimit"],
+            )
+        )
+
+    def catalog_problems(self, problem: SearchProblem, catalog: Any) -> list[str]:
+        return []

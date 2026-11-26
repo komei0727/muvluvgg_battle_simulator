@@ -4,7 +4,8 @@
 開発コマンドは [`../README.md`](../README.md) にある。
 
 対戦入力の基盤と、評価設定から試行計画を作る口（`evaluation`）を持つ。評価APIの分割実行・保存・再開は
-共通基盤（`mlgg_lab_common`）が持つ。通常戦闘の集計（`analysis`）と評価コマンド（`battle-lab`）を持つ。探索は後続の段階で足す。
+共通基盤（`mlgg_lab_common`）が持つ。通常戦闘の集計（`analysis`）と評価コマンド（`battle-lab`）、固定相手の探索の形式別アダプター（`search_space`。
+相手編成・規定ターン数を固定する）を持つ。探索の使い方は [`../README.md`](../README.md)「探索の共通基盤（固定相手）」にある。
 
 ## 対戦入力
 
