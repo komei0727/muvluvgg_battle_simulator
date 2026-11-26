@@ -39,6 +39,7 @@ from .resolved import (
     ResolvedInput,
     dump_resolved_input,
     load_resolved_input,
+    revalidated,
 )
 
 __all__ = [
@@ -76,5 +77,6 @@ __all__ = [
     "dump_resolved_input",
     "load_resolved_input",
     "participant_slots",
+    "revalidated",
     "validate_formation",
 ]

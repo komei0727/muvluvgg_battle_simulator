@@ -53,6 +53,7 @@ from mlgg_lab_common.models import (
     dump_resolved_input,
     load_resolved_input,
     participant_slots,
+    revalidated,
     validate_formation,
 )
 
@@ -282,13 +283,15 @@ def resolve_exercise_config(
         sources.append(player_data.source.model_copy(update={"applies_to": "ally"}))
     if catalog is not None:
         raise_if_invalid(validate_against_catalog(config, catalog))
-    return ResolvedExerciseInput(
-        match=config,
-        provenance=InputProvenance(
-            sources=sources,
-            catalogRevision=None if catalog is None else catalog.catalog_revision,
-            warnings=warnings,
-        ),
+    return revalidated(
+        ResolvedExerciseInput(
+            match=config,
+            provenance=InputProvenance(
+                sources=sources,
+                catalogRevision=None if catalog is None else catalog.catalog_revision,
+                warnings=warnings,
+            ),
+        )
     )
 
 

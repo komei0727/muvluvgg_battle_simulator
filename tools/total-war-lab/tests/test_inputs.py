@@ -6,6 +6,7 @@ import pytest
 
 from mlgg_lab_common.inputs.catalog import Catalog
 from mlgg_lab_common.inputs.draft import DraftError
+from mlgg_lab_common.inputs.player_data import PlayerDataError
 from mlgg_lab_common.inputs.resolution import InputValidationError
 from mlgg_lab_common.models import ConfigError, SlotKey
 from mlgg_lab_common.testing import draft_body, slot
@@ -260,3 +261,12 @@ def test_a_normal_battle_draft_is_not_read_as_a_total_war_draft(tmp_path):
 
     with pytest.raises(DraftError, match="mlgg:last-draft:total-war"):
         load_total_war_draft(path)
+
+
+def test_player_data_that_breaks_the_model_is_rejected_at_resolution(tmp_path):
+    """解決できた入力は、保存して編集せずに読み戻せなければならない。"""
+    broken = {**PLAYER_DATA, "units": {"UNIT_A": {"level": 0, "gears": [None] * 9}}}
+    player_data = write(tmp_path, "pd.json", json.dumps(broken))
+
+    with pytest.raises(PlayerDataError, match=r"UNIT_A.*level"):
+        resolve_total_war_input(load(tmp_path), player_data_path=player_data)

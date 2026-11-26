@@ -231,4 +231,21 @@ def _apply_unit(
         module = resolved_module(stored)
         if module is not None:
             update["module"] = module
-    return unit.model_copy(update=update) if update else unit
+    if not update:
+        return unit
+    # `model_copy(update=...)` は検証を通らない。手持ちデータの値域（`level` 等）は
+    # `FormationUnitSpec` より緩いので、ここで編成モデルの制約に掛け直す。通さないと
+    # 解決済み入力が保存でき、編集せずに読み戻しただけで失敗する。
+    try:
+        return FormationUnitSpec.model_validate(
+            unit.model_copy(update=update).model_dump(by_alias=True)
+        )
+    except ValidationError as error:
+        reasons = "; ".join(
+            f"{'.'.join(str(part) for part in detail['loc'])}: {detail['msg']}"
+            for detail in error.errors()
+        )
+        raise PlayerDataError(
+            f"{unit.unit_definition_id}: 手持ちデータを適用した値が編成として成立しない"
+            f"（{reasons}）"
+        ) from error

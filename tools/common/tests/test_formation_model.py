@@ -19,6 +19,7 @@ from mlgg_lab_common.models import (
     build_formation_request,
     dump_resolved_input,
     load_resolved_input,
+    revalidated,
     validate_formation,
 )
 
@@ -152,3 +153,23 @@ def test_duplicate_positions_within_a_formation_are_rejected():
 
 def test_the_same_definition_may_fill_several_slots():
     validate_formation(formation(), "ally")
+
+
+def test_a_document_built_from_unvalidated_instances_is_caught_before_it_is_saved():
+    """インスタンスを渡して組み立てた解決済み入力は内側が再検証されないので、
+    保存前に読み戻しと同じ検証へ通す。"""
+    spec = formation().model_copy(
+        update={"units": [formation().units[0].model_copy(update={"level": 0})]}
+    )
+    document = Document(formation=spec)
+
+    with pytest.raises(ConfigError, match="level"):
+        revalidated(document)
+    with pytest.raises(ConfigError):
+        load_resolved_input(Document, dump_resolved_input(document), where="saved.json")
+
+
+def test_revalidating_a_valid_document_keeps_it_equal():
+    document = Document(formation=apply_player_data(formation(), PLAYER_DATA)[0])
+
+    assert revalidated(document) == document

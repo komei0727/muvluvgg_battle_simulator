@@ -57,6 +57,21 @@ def dump_resolved_input(document: ResolvedInput) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
 
 
+def revalidated[ResolvedT: ResolvedInput](document: ResolvedT) -> ResolvedT:
+    """解決済み入力を、保存して読み戻したときと同じ検証に通し直したものを返す。
+
+    既存のモデルインスタンスを渡して組み立てると、内側の値は再検証されない
+    （pydanticはインスタンスをそのまま受け取る）。解決時にここを通すことで
+    「解決できたのに読み戻せない」入力を作らない。
+    """
+    try:
+        return type(document).model_validate(
+            document.model_dump(mode="json", by_alias=True, exclude_none=True)
+        )
+    except ValidationError as error:
+        raise ConfigError(f"解決した入力がモデルの制約を満たさない: {error}") from error
+
+
 def load_resolved_input[ResolvedT: ResolvedInput](
     model: type[ResolvedT], text: str, *, where: str
 ) -> ResolvedT:

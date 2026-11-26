@@ -527,3 +527,33 @@ def write(tmp_path, name: str, text: str):
 
 def write_json(tmp_path, value):
     return write(tmp_path, "player-data.json", json.dumps(value))
+
+
+@pytest.mark.parametrize(
+    ("stored", "field"),
+    [({"level": 0}, "level"), ({"level": -5}, "level")],
+)
+def test_stored_values_outside_the_formation_model_are_rejected_when_applied(
+    tmp_path, stored, field
+):
+    """手持ちデータの読み込みは通っても、適用後の編成は `FormationUnitSpec` の制約を満たす。
+
+    `model_copy` は検証を通らないため、ここで落とさないと解決済み入力が保存できて
+    しまい、再読み込みで初めて失敗する。
+    """
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    raw = {**PLAYER_DATA, "units": {"UNIT_A": {**PLAYER_DATA["units"]["UNIT_A"], **stored}}}
+    data = load_player_data(write(tmp_path, "player-data.json", json.dumps(raw)))
+
+    with pytest.raises(PlayerDataError, match=rf"UNIT_A.*{field}"):
+        apply_player_data(config, data)
+
+
+def test_a_level_link_below_one_falls_back_and_is_never_applied(tmp_path):
+    config = load_formation_config(write(tmp_path, "formation.yaml", CONFIG_YAML))
+    raw = {**PLAYER_DATA, "levelLink": {"enabled": True, "level": 0}}
+    data = load_player_data(write(tmp_path, "player-data.json", json.dumps(raw)))
+
+    applied, _ = apply_player_data(config, data)
+
+    assert [unit.level for unit in applied.units] == [240, 200]

@@ -11,6 +11,7 @@ from exercise_lab.inputs.exercise import (
     resolve_exercise_input,
 )
 from mlgg_lab_common.inputs.catalog import Catalog
+from mlgg_lab_common.inputs.player_data import PlayerDataError
 from mlgg_lab_common.inputs.resolution import InputValidationError
 from mlgg_lab_common.models import InputSource, SlotKey
 from mlgg_lab_common.testing import draft_json
@@ -101,3 +102,22 @@ def test_the_enemy_is_the_single_unnumbered_enemy_slot(tmp_path):
         SlotKey(side="ALLY", formation_number=None, unit_index=0),
         SlotKey(side="ALLY", formation_number=None, unit_index=1),
     ]
+
+
+def test_player_data_that_breaks_the_model_is_rejected_at_resolution(tmp_path):
+    """解決できた入力は、保存して編集せずに読み戻せなければならない。"""
+    config = write(tmp_path, "formation.yaml", CONFIG_YAML)
+    player_data = write(
+        tmp_path,
+        "pd.json",
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "academyLevels": {"unitTypes": {}, "attributes": {}},
+                "units": {"UNIT_A": {"level": 0, "gears": [None] * 9}},
+            }
+        ),
+    )
+
+    with pytest.raises(PlayerDataError, match=r"UNIT_A.*level"):
+        resolve_exercise_input(config, player_data_path=player_data)

@@ -63,6 +63,7 @@ from mlgg_lab_common.models import (
     dump_resolved_input,
     load_resolved_input,
     participant_slots,
+    revalidated,
     validate_formation,
 )
 
@@ -316,13 +317,15 @@ def resolve_total_war_input(
         match = match.model_copy(update=updates)
     if catalog is not None:
         raise_if_invalid(validate_against_catalog(match, catalog))
-    return ResolvedTotalWarInput(
-        match=match,
-        provenance=InputProvenance(
-            sources=sources,
-            catalogRevision=None if catalog is None else catalog.catalog_revision,
-            warnings=warnings,
-        ),
+    return revalidated(
+        ResolvedTotalWarInput(
+            match=match,
+            provenance=InputProvenance(
+                sources=sources,
+                catalogRevision=None if catalog is None else catalog.catalog_revision,
+                warnings=warnings,
+            ),
+        )
     )
 
 
