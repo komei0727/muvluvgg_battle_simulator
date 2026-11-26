@@ -8,10 +8,10 @@ import jsonschema
 import pytest
 import yaml
 
-from exercise_lab.inputs.catalog import Catalog
 from exercise_lab.inputs.exercise import load_formation_config
-from exercise_lab.inputs.models import ConfigError
 from exercise_lab.inputs.schema import build_formation_json_schema
+from mlgg_lab_common.inputs.catalog import Catalog
+from mlgg_lab_common.models import ConfigError
 
 CATALOG = Catalog.model_validate(
     {
@@ -98,13 +98,13 @@ def test_unknown_ids_are_rejected(schema):
 
 
 def test_enums_are_sorted_so_the_generated_file_is_stable(schema):
-    ally_ids = schema["$defs"]["AllyUnitSpec"]["properties"]["unitDefinitionId"]["enum"]
+    ally_ids = schema["$defs"]["FormationUnitSpec"]["properties"]["unitDefinitionId"]["enum"]
     assert ally_ids == ["UNIT_A", "UNIT_B"]
     assert schema["$defs"]["EnemySpec"]["properties"]["unitDefinitionId"]["enum"] == ["UNIT_ENEMY"]
 
 
 def test_enum_values_carry_display_names_for_completion(schema):
-    unit_property = schema["$defs"]["AllyUnitSpec"]["properties"]["unitDefinitionId"]
+    unit_property = schema["$defs"]["FormationUnitSpec"]["properties"]["unitDefinitionId"]
 
     # `enum` と同じ並びで対応する説明を置く（VSCode系エディタが補完候補へ出す）。
     assert unit_property["enum"] == ["UNIT_A", "UNIT_B"]

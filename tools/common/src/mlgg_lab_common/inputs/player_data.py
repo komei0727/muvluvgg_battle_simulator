@@ -6,6 +6,10 @@
 
 明示した編成の値が常に優先する。手持ちデータは「書かなかった項目の既定値」であり、
 明示した値を上書きすると、編成を読んでも何を評価したのか分からなくなる。
+
+適用は入力の解決（値の選択と単位変換）であり、ステータス計算ではない。適用後の値は
+すべてAPIの単位で `FormationSpec` へ入るため、適用済みの編成へもう一度適用しても
+変わらない（書かなかった項目が残っていないため。単位変換が二重に掛かることもない）。
 """
 
 from __future__ import annotations
@@ -16,13 +20,13 @@ from typing import Literal
 
 from pydantic import Field, FiniteFloat, StrictInt, ValidationError
 
-from .models import (
+from ..models.formation import (
     DEFAULT_UNIT_LEVEL,
     DEFAULT_UNIT_RANK,
     MAX_GEARS,
     AcademyLevels,
-    AllySpec,
-    AllyUnitSpec,
+    FormationSpec,
+    FormationUnitSpec,
     Gear,
     ModuleOverride,
     ModuleStatOverride,
@@ -78,7 +82,7 @@ class StoredUnitEnhancement(Spec):
     # 陣営のレベルリンクから外した枠。リンク導入前のエクスポートには無い。
     link_excluded: bool = Field(default=False, alias="linkExcluded")
     # ランク導入前のエクスポートを取り直させないため既定値付き（`link_excluded` と同じ扱い）。
-    # 値域は `AllyUnitSpec.rank` と同じ0〜5（`10_API設計.md`「UnitEnhancementRequest」）。
+    # 値域は `FormationUnitSpec.rank` と同じ0〜5（`10_API設計.md`「UnitEnhancementRequest」）。
     # ここで弾かないと、範囲外の値がそのまま評価リクエストへ載りAPIの422で初めて気づく。
     # `StrictInt`: bool・float・数値文字列への標準変換を止める。`true` や `"3"` を
     # 3・整数と黙って同一視すると、書き間違いに気づけなくなる。
@@ -168,8 +172,12 @@ def load_player_data(path: Path) -> PlayerData:
         raise PlayerDataError(f"{path}: {error}") from error
 
 
-def apply_player_data(ally: AllySpec, data: PlayerData) -> tuple[AllySpec, list[str]]:
-    """手持ちデータを味方編成へ適用し、適用後の編成と警告一覧を返す。
+def apply_player_data(
+    formation: FormationSpec, data: PlayerData
+) -> tuple[FormationSpec, list[str]]:
+    """手持ちデータを編成へ適用し、適用後の編成と警告一覧を返す。
+
+    陣営には依らない。どの陣営・どの編成へ適用するかは各ラボの入力が決める。
 
     枠ごとに解決する。同じユニットを2枠へ置いた編成でも、片方の枠へ明示した値が
     もう片方へ移ることはない（手持ちデータ側の記録はIDで引くので、未指定の項目には
@@ -179,18 +187,24 @@ def apply_player_data(ally: AllySpec, data: PlayerData) -> tuple[AllySpec, list[
     黙って進むと「育成済みのつもりの編成」の結果が出てしまう。
     """
     warnings: list[str] = []
-    units = [_apply_unit(unit, data, warnings) for unit in ally.units]
-    applied = ally.model_copy(
+    units = [_apply_unit(unit, data, warnings) for unit in formation.units]
+    applied = formation.model_copy(
         update={
             "units": units,
             # 明示した学園レベルが常に優先する。手持ちは書かなかったときだけ効く。
-            "academy_levels": ally.academy_levels or data.academy_levels,
+            # `or` ではなく `is None` で判定する: 空の `AcademyLevels()`（全系統1の明示）は
+            # 指定済みであり、手持ちで置き換えてはいけない。
+            "academy_levels": data.academy_levels
+            if formation.academy_levels is None
+            else formation.academy_levels,
         }
     )
     return applied, warnings
 
 
-def _apply_unit(unit: AllyUnitSpec, data: PlayerData, warnings: list[str]) -> AllyUnitSpec:
+def _apply_unit(
+    unit: FormationUnitSpec, data: PlayerData, warnings: list[str]
+) -> FormationUnitSpec:
     stored = data.units.get(unit.unit_definition_id)
     level = resolved_level(stored, data)
     rank = resolved_rank(stored)

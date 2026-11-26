@@ -1,6 +1,7 @@
 // 生成物。手で編集しない。
 // tools/exercise-lab/scripts/export_ui_parity_fixture.py が
-// `exercise_lab.reference_stats`（descriptive / daily_best）から書き出す。
+// `mlgg_lab_common.statistics.descriptive` と `exercise_lab.statistics.daily_best`
+// から書き出す。
 //
 //   cd tools/exercise-lab && uv run python scripts/export_ui_parity_fixture.py
 

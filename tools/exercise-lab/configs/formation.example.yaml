@@ -3,7 +3,7 @@
 #
 # level・rank・gears・academyLevels をあえて書いていないのは、手持ちデータ
 # （localStorage `mlgg:player-data`）で実際の育成状態を載せる前提だからである
-# （`exercise_lab.inputs.exercise.apply_player_data`）。手持ちデータを適用しなければ
+# （`exercise_lab.inputs.exercise.apply_player_data` / `resolve_exercise_input`）。手持ちデータを適用しなければ
 # 全員レベル200・ランク5(LR+5)・ギアなし・強化計算なしの「素の性能」になる。
 #
 # ID は `GET /api/v1/battle-simulation-catalog` が返す値をそのまま書く（不透明な文字列で、
@@ -11,9 +11,10 @@
 # 編成プール違反（R-TEX-11 #1: 味方は PLAYABLE、敵は EXERCISE_ENEMY）を検出できる。
 # Catalog からユニットが消えたら現行IDへ差し替える。
 #
-# IDを手で書き写す必要はない。UIで組んだ編成は `lab import-draft` で取り込めるし、
-# `lab units --owned --player-data local_storage/player-data.json` / `lab memories --grep <語>` で引ける。
-# エディタ補完を効かせるには `lab schema` を実行し、次の行の先頭の `#` を1つ削る。
+# IDを手で書き写す必要はない。UIで組んだ編成は `exercise-lab import-draft` で取り込めるし、
+# `exercise-lab units --owned --player-data local_storage/player-data.json` /
+# `exercise-lab memories --grep <語>` で引ける。
+# エディタ補完を効かせるには `exercise-lab schema` を実行し、次の行の先頭の `#` を1つ削る。
 ## yaml-language-server: $schema=../.schema/formation.schema.json
 
 ally:

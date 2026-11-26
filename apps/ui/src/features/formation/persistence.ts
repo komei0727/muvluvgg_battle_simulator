@@ -55,7 +55,7 @@ export const EXERCISE_DRAFT_STORAGE_KEY = "mlgg:last-draft:exercise";
  * 版を上げると`envelopeOf`の完全一致判定で全利用者の保存データ（手持ちデータと
  * 両モードのdraft）が破棄されるためである。デコーダは既知キーだけを読むので、
  * 新項目を「欠落したら既定値」で読めば旧データはそのまま復元できる。
- * `mlgg:player-data`には未知キーを拒否する外部の読み手（`tools/exercise-lab`）が
+ * `mlgg:player-data`には未知キーを拒否する外部の読み手（`tools/common`）が
  * いるため、そちらを先に追随させてからこの項目を書き始める。
  */
 export const PERSISTENCE_SCHEMA_VERSION = 1;

@@ -7,9 +7,18 @@ import json
 
 import pytest
 
-from exercise_lab.inputs.exercise import apply_player_data, load_formation_config
-from exercise_lab.inputs.models import build_ally_formation
-from exercise_lab.inputs.player_data import PlayerDataError, load_player_data
+from mlgg_lab_common.inputs.player_data import PlayerDataError, apply_player_data, load_player_data
+from mlgg_lab_common.inputs.yaml_io import load_yaml_mapping
+from mlgg_lab_common.models import FormationSpec, build_formation_request, validate_formation
+
+
+def load_formation_config(path):
+    """YAMLの `ally` を1編成として読む。手持ちデータの適用は陣営に依らないので、
+    書き慣れた演習の編成YAMLの形をそのまま入力に使う（`enemy` は読まない）。"""
+    formation = FormationSpec.model_validate(load_yaml_mapping(path)["ally"])
+    validate_formation(formation, path)
+    return formation
+
 
 PLAYER_DATA = {
     "schemaVersion": 1,
@@ -62,7 +71,7 @@ def test_stored_level_and_gears_are_applied_to_the_matching_unit(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[0]["enhancement"] == {
         "level": 240,
         "gears": [
@@ -78,7 +87,7 @@ def test_stored_academy_levels_enable_side_enhancement(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    formation = build_ally_formation(applied.ally)
+    formation = build_formation_request(applied)
     assert formation["enhancement"]["academyLevels"]["unitTypes"]["ENERGY"] == 55
     assert formation["enhancement"]["academyLevels"]["attributes"]["CLEVER"] == 35
 
@@ -90,7 +99,7 @@ def test_unit_absent_from_player_data_is_warned_and_left_at_defaults(tmp_path):
     applied, warnings = apply_player_data(config, data)
 
     assert any("UNIT_MISSING" in warning for warning in warnings)
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert "enhancement" not in units[1]
 
 
@@ -104,7 +113,7 @@ def test_stored_rank_is_applied_to_the_matching_unit(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[0]["enhancement"]["rank"] == 3
 
 
@@ -115,7 +124,7 @@ def test_export_without_the_rank_field_defaults_to_five(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     # rank 5 は省略時の既定と同値なので `enhancement` へは出ない。
     assert "rank" not in units[0]["enhancement"]
 
@@ -186,7 +195,7 @@ def test_stored_module_is_applied_and_the_ratio_is_converted_from_percent_to_the
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[0]["enhancement"]["module"] == {
         "hp": {"fixed": 5000, "ratio": 0.1},
         "defense": {"ratio": -0.05},
@@ -234,7 +243,7 @@ def test_stored_module_with_every_field_blank_is_omitted(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert "module" not in units[0]["enhancement"]
 
 
@@ -245,7 +254,7 @@ def test_export_without_the_module_field_defaults_to_no_override(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert "module" not in units[0]["enhancement"]
 
 
@@ -270,7 +279,7 @@ def test_yaml_module_wins_over_the_stored_module(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[0]["enhancement"]["module"] == {"hp": {"fixed": 1}}
 
 
@@ -293,7 +302,7 @@ def test_yaml_rank_wins_over_the_stored_rank(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[0]["enhancement"]["rank"] == 1
 
 
@@ -315,7 +324,7 @@ def test_an_explicit_zero_is_kept_and_not_treated_as_unspecified(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    enhancement = build_ally_formation(applied.ally)["units"][0]["enhancement"]
+    enhancement = build_formation_request(applied)["units"][0]["enhancement"]
     assert enhancement["rank"] == 0
     assert enhancement["module"] == {"hp": {"fixed": 0, "ratio": 0}}
 
@@ -335,7 +344,7 @@ def test_yaml_values_win_over_stored_values(tmp_path):
 
     applied, _ = apply_player_data(config, data)
 
-    formation = build_ally_formation(applied.ally)
+    formation = build_formation_request(applied)
     assert formation["units"][0]["enhancement"] == {"level": 1, "gears": []}
     assert formation["enhancement"]["academyLevels"]["unitTypes"] == {
         "PHYSICAL": 3,
@@ -365,7 +374,7 @@ def test_unit_absent_from_player_data_is_still_linked(tmp_path):
 
     applied, warnings = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert units[1]["enhancement"] == {"level": 260, "gears": []}
     # ギアが無いことは依然として実際の欠落なので、警告自体は残す。
     assert any("UNIT_MISSING" in warning and "レベル260" in warning for warning in warnings)
@@ -448,7 +457,7 @@ def linked(player_data, *, level: int, enabled: bool = True):
 
 
 def level_of(config) -> int:
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config)["units"]
     return units[0]["enhancement"]["level"]
 
 
@@ -503,7 +512,7 @@ enemy:
 
     applied, _ = apply_player_data(config, data)
 
-    units = build_ally_formation(applied.ally)["units"]
+    units = build_formation_request(applied)["units"]
     assert [unit["position"]["column"] for unit in units] == [0, 1]
     assert [unit["enhancement"]["level"] for unit in units] == [300, 240]
     # ギアは未指定の両枠へ手持ちから入る。

@@ -1,4 +1,4 @@
-"""`lab schema` の出力。演習の編成YAMLと編成ライブラリのSchemaを書き出す。"""
+"""`exercise-lab schema` の出力。演習の編成YAMLと編成ライブラリのSchemaを書き出す。"""
 
 import json
 
@@ -7,7 +7,7 @@ import respx
 from typer.testing import CliRunner
 
 from exercise_lab.cli import app
-from exercise_lab.inputs.catalog import CATALOG_PATH
+from mlgg_lab_common.inputs.catalog import CATALOG_PATH
 
 BASE_URL = "http://localhost:3000"
 
@@ -66,7 +66,9 @@ def test_the_library_schema_carries_the_catalog_enums(tmp_path):
     runner.invoke(app, ["schema", "--out", str(out)])
 
     schema = json.loads((out / "formation-seed.schema.json").read_text(encoding="utf-8"))
-    assert schema["$defs"]["AllyUnitSpec"]["properties"]["unitDefinitionId"]["enum"] == ["UNIT_A"]
+    assert schema["$defs"]["FormationUnitSpec"]["properties"]["unitDefinitionId"]["enum"] == [
+        "UNIT_A"
+    ]
     assert schema["properties"]["memoryDefinitionIds"]["items"]["enum"] == ["MEM_A"]
     assert "enemy" not in schema["properties"]
 

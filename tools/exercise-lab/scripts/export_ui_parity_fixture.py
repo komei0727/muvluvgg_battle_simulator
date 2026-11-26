@@ -1,7 +1,8 @@
 """UI側の統計ライブラリ（`apps/ui/src/features/exercise-stats/`）が数値一致を検証する
 fixtureを書き出す。
 
-統計の定義の正本は `exercise_lab.reference_stats`（`descriptive` / `daily_best`）であり、
+統計の定義の正本は `mlgg_lab_common.statistics.descriptive`（記述統計）と
+`exercise_lab.statistics.daily_best`（演習固有の日次ベスト指標）であり、
 UIのTS実装はその移植である。両者が黙って乖離しないよう、期待値はここで生成して
 リポジトリへコミットし、TS側のテストが読む。標本はこのファイル内のLCGで作るので、
 Pythonや依存の版が変わっても同じ入力が再現する。
@@ -17,7 +18,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from exercise_lab.reference_stats.daily_best import (
+from exercise_lab.statistics.daily_best import (
     DEFAULT_BEST_OF,
     MIN_RELIABLE_EFFECTIVE_SAMPLES,
     best_quantile,
@@ -25,7 +26,7 @@ from exercise_lab.reference_stats.daily_best import (
     expected_best,
     is_reliable,
 )
-from exercise_lab.reference_stats.descriptive import (
+from mlgg_lab_common.statistics.descriptive import (
     break_count_distribution,
     defeat_rate,
     histogram_bin_count,
@@ -136,7 +137,8 @@ def main() -> None:
     header = (
         "// 生成物。手で編集しない。\n"
         "// tools/exercise-lab/scripts/export_ui_parity_fixture.py が\n"
-        "// `exercise_lab.reference_stats`（descriptive / daily_best）から書き出す。\n"
+        "// `mlgg_lab_common.statistics.descriptive` と `exercise_lab.statistics.daily_best`\n"
+        "// から書き出す。\n"
         "//\n"
         "//   cd tools/exercise-lab && uv run python scripts/export_ui_parity_fixture.py\n"
         "\n"

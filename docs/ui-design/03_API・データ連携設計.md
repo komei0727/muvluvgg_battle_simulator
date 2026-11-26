@@ -290,7 +290,7 @@ interface SideEnhancementInput {
  * リンクレベルが1以上の整数でない間（打ち直しのために消した`""`を含む）は
  * リンクを適用せず枠の値へフォールバックする。
  *
- * 同じ規則を`tools/exercise-lab`の`resolved_level`（`inputs/player_data.py`）が写している。
+ * 同じ規則を`tools/common`の`resolved_level`（`tools/common/src/mlgg_lab_common/inputs/player_data.py`）が写している。
  * 片方だけ変えると、UIとlabが別のレベルで同じ編成を評価する。
  */
 function resolveSlotLevel(

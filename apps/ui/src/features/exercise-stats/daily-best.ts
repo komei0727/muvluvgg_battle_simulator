@@ -1,4 +1,4 @@
-// 日次ベスト指標。定義の正本は `tools/exercise-lab/src/exercise_lab/reference_stats/daily_best.py`。
+// 日次ベスト指標。定義の正本は `tools/exercise-lab/src/exercise_lab/statistics/daily_best.py`。
 //
 // スコアアタックは1日k回挑戦でき、その日の成績は最大値で決まる。したがって見るべき値は
 // 平均ではなく E[k回中のベスト] である。平均だと向きが2つ狂う——会心で伸びる上振れ

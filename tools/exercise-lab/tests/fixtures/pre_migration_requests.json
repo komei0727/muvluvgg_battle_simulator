@@ -1,0 +1,377 @@
+{
+  "plain/none": {
+    "request": {
+      "allyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_C",
+            "position": {
+              "column": 2,
+              "row": "REAR"
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 0,
+              "row": "FRONT"
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_MISSING",
+            "position": {
+              "column": 0,
+              "row": "REAR"
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_B",
+            "position": {
+              "column": 1,
+              "row": "REAR"
+            }
+          }
+        ],
+        "memoryDefinitionIds": ["MEM_Z", "MEM_A", "MEM_M"]
+      },
+      "enemyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_ENEMY_TEX",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            }
+          }
+        ],
+        "memoryDefinitionIds": []
+      }
+    },
+    "warnings": []
+  },
+  "plain/player-data": {
+    "request": {
+      "allyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_C",
+            "position": {
+              "column": 2,
+              "row": "REAR"
+            },
+            "enhancement": {
+              "level": 400,
+              "gears": []
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 0,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 400,
+              "gears": [
+                {
+                  "stat": "ATTACK",
+                  "tier": "III",
+                  "grade": "S"
+                },
+                {
+                  "stat": "DEFENSE",
+                  "tier": "II",
+                  "grade": "C"
+                }
+              ],
+              "rank": 3,
+              "module": {
+                "hp": {
+                  "fixed": 4288.0,
+                  "ratio": 0.1
+                },
+                "attack": {
+                  "ratio": 0.125
+                }
+              }
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 400,
+              "gears": [
+                {
+                  "stat": "ATTACK",
+                  "tier": "III",
+                  "grade": "S"
+                },
+                {
+                  "stat": "DEFENSE",
+                  "tier": "II",
+                  "grade": "C"
+                }
+              ],
+              "rank": 3,
+              "module": {
+                "hp": {
+                  "fixed": 4288.0,
+                  "ratio": 0.1
+                },
+                "attack": {
+                  "ratio": 0.125
+                }
+              }
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_MISSING",
+            "position": {
+              "column": 0,
+              "row": "REAR"
+            },
+            "enhancement": {
+              "level": 400,
+              "gears": []
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_B",
+            "position": {
+              "column": 1,
+              "row": "REAR"
+            },
+            "enhancement": {
+              "level": 310,
+              "gears": []
+            }
+          }
+        ],
+        "memoryDefinitionIds": ["MEM_Z", "MEM_A", "MEM_M"],
+        "enhancement": {
+          "academyLevels": {
+            "unitTypes": {
+              "PHYSICAL": 120,
+              "ENERGY": 110,
+              "AGILE": 1
+            },
+            "attributes": {
+              "AGGRESSIVE": 1,
+              "SHY": 1,
+              "CUTE": 30,
+              "SMART": 120,
+              "COMICAL": 1,
+              "CLEVER": 1
+            }
+          }
+        }
+      },
+      "enemyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_ENEMY_TEX",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            }
+          }
+        ],
+        "memoryDefinitionIds": []
+      }
+    },
+    "warnings": ["UNIT_MISSING は手持ちデータに無い（レベル400・ギアなしとして評価する）"]
+  },
+  "explicit/none": {
+    "request": {
+      "allyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 0,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 1,
+              "gears": [],
+              "rank": 0
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_B",
+            "position": {
+              "column": 2,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 200,
+              "gears": [],
+              "module": {
+                "attack": {
+                  "ratio": 0.2
+                }
+              }
+            }
+          }
+        ],
+        "memoryDefinitionIds": [],
+        "enhancement": {
+          "academyLevels": {
+            "unitTypes": {
+              "PHYSICAL": 1,
+              "ENERGY": 1,
+              "AGILE": 1
+            },
+            "attributes": {
+              "AGGRESSIVE": 1,
+              "SHY": 1,
+              "CUTE": 1,
+              "SMART": 1,
+              "COMICAL": 1,
+              "CLEVER": 1
+            }
+          }
+        }
+      },
+      "enemyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_ENEMY_TEX",
+            "position": {
+              "column": 0,
+              "row": "REAR"
+            }
+          }
+        ],
+        "memoryDefinitionIds": []
+      }
+    },
+    "warnings": []
+  },
+  "explicit/player-data": {
+    "request": {
+      "allyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 0,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 1,
+              "gears": [],
+              "rank": 0,
+              "module": {
+                "hp": {
+                  "fixed": 4288.0,
+                  "ratio": 0.1
+                },
+                "attack": {
+                  "ratio": 0.125
+                }
+              }
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_A",
+            "position": {
+              "column": 1,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 400,
+              "gears": [
+                {
+                  "stat": "ATTACK",
+                  "tier": "III",
+                  "grade": "S"
+                },
+                {
+                  "stat": "DEFENSE",
+                  "tier": "II",
+                  "grade": "C"
+                }
+              ],
+              "rank": 3,
+              "module": {
+                "hp": {
+                  "fixed": 4288.0,
+                  "ratio": 0.1
+                },
+                "attack": {
+                  "ratio": 0.125
+                }
+              }
+            }
+          },
+          {
+            "unitDefinitionId": "UNIT_B",
+            "position": {
+              "column": 2,
+              "row": "FRONT"
+            },
+            "enhancement": {
+              "level": 310,
+              "gears": [],
+              "module": {
+                "attack": {
+                  "ratio": 0.2
+                }
+              }
+            }
+          }
+        ],
+        "memoryDefinitionIds": [],
+        "enhancement": {
+          "academyLevels": {
+            "unitTypes": {
+              "PHYSICAL": 1,
+              "ENERGY": 1,
+              "AGILE": 1
+            },
+            "attributes": {
+              "AGGRESSIVE": 1,
+              "SHY": 1,
+              "CUTE": 1,
+              "SMART": 1,
+              "COMICAL": 1,
+              "CLEVER": 1
+            }
+          }
+        }
+      },
+      "enemyFormation": {
+        "units": [
+          {
+            "unitDefinitionId": "UNIT_ENEMY_TEX",
+            "position": {
+              "column": 0,
+              "row": "REAR"
+            }
+          }
+        ],
+        "memoryDefinitionIds": []
+      }
+    },
+    "warnings": []
+  }
+}

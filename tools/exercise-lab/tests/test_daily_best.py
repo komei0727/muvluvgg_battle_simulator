@@ -2,7 +2,7 @@
 
 import pytest
 
-from exercise_lab.reference_stats.daily_best import (
+from exercise_lab.statistics.daily_best import (
     MIN_RELIABLE_EFFECTIVE_SAMPLES,
     best_quantile,
     effective_samples,

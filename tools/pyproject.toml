@@ -1,0 +1,52 @@
+# tools/ の uv workspace。ルートは配布物を持たない仮想プロジェクトで、
+# 4パッケージの依存解決・lockfile（uv.lock）と開発ツールの設定だけを持つ。
+#
+# 依存の向きは「各ラボ → mlgg-lab-common」の一方向だけ。common からラボへ、
+# ラボ同士の依存は持たせない（tests/test_package_boundaries.py が検査する）。
+[tool.uv.workspace]
+members = ["common", "exercise-lab", "battle-lab", "total-war-lab"]
+
+[tool.uv.sources]
+mlgg-lab-common = { workspace = true }
+exercise-lab = { workspace = true }
+battle-lab = { workspace = true }
+total-war-lab = { workspace = true }
+
+[dependency-groups]
+# workspace全体の開発・検査用。各パッケージの実行時依存はここへ入れない
+# （ここにあるものはどのパッケージのimportからも見えてしまうため）。
+dev = [
+    "mlgg-lab-common",
+    "exercise-lab",
+    "battle-lab",
+    "total-war-lab",
+    "jsonschema>=4.23",
+    "pytest>=8.3",
+    "respx>=0.22",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "common/tests", "exercise-lab/tests", "battle-lab/tests", "total-war-lab/tests"]
+# パッケージをまたいで同名のテストファイル（test_inputs.py 等）を置けるようにする。
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = [
+    "common/src",
+    "exercise-lab/src",
+    "exercise-lab/tests",
+    "battle-lab/src",
+    "total-war-lab/src",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+# 全角約物は日本語コメント・メッセージの正しい表記であり、半角との取り違えではない
+# （リポジトリの他の言語も日本語コメントで統一している）。
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mlgg_lab_common", "exercise_lab", "battle_lab", "total_war_lab"]
