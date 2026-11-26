@@ -76,6 +76,9 @@ export function deriveRunSeed(baseSeed: number, runIndex: number): number {
 
 /** {@link SeededRandomSourceProvider}のmulberry32アダプター。 */
 export class Mulberry32SeededRandomSourceProvider implements SeededRandomSourceProvider {
+  /** seed文字列の畳み込み・サブシード導出・PRNGのいずれかを変えたら版を上げる。 */
+  readonly derivationVersion = "MULBERRY32_FNV1A_SPLITMIX32_V1";
+
   forRun(seed: string, runIndex: number): RandomSourceFactory {
     const runSeed = deriveRunSeed(hashSeedString(seed), runIndex);
     return {

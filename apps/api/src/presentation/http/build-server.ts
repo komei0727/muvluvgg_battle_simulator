@@ -47,6 +47,24 @@ import {
   tacticalExerciseEvaluationRequestDocSchema,
   tacticalExerciseEvaluationResponseDocSchema,
 } from "./schemas/simulation/tactical-exercise-evaluation-schema.js";
+import {
+  registerBattleEvaluationRoute,
+  BATTLE_EVALUATIONS_PATH,
+  type EvaluateBattlesUseCasePort,
+} from "./routes/battle-evaluation-route.js";
+import {
+  registerTotalWarEvaluationRoute,
+  TOTAL_WAR_EVALUATIONS_PATH,
+  type EvaluateTotalWarsUseCasePort,
+} from "./routes/total-war-evaluation-route.js";
+import {
+  battleEvaluationRequestDocSchema,
+  battleEvaluationResponseDocSchema,
+} from "./schemas/simulation/battle-evaluation-schema.js";
+import {
+  totalWarEvaluationRequestDocSchema,
+  totalWarEvaluationResponseDocSchema,
+} from "./schemas/simulation/total-war-evaluation-schema.js";
 import { formationStatPreviewRequestDocSchema } from "./schemas/simulation/formation-stat-preview-schema.js";
 import {
   tacticalExerciseRequestDocSchema,
@@ -78,6 +96,8 @@ export type { SimulateBattleUseCasePort, ShutdownGatePort } from "./routes/simul
 export type { PreviewFormationStatsUseCasePort } from "./routes/formation-stat-preview-route.js";
 export type { SimulateTacticalExerciseUseCasePort } from "./routes/tactical-exercise-route.js";
 export type { EvaluateTacticalExerciseCandidatesUseCasePort } from "./routes/tactical-exercise-evaluation-route.js";
+export type { EvaluateBattlesUseCasePort } from "./routes/battle-evaluation-route.js";
+export type { EvaluateTotalWarsUseCasePort } from "./routes/total-war-evaluation-route.js";
 export type { SimulateTotalWarUseCasePort } from "./routes/total-war-route.js";
 export type { GetBattleSimulationCatalogUseCasePort } from "./routes/catalog-route.js";
 
@@ -148,6 +168,23 @@ const NO_EVALUATION: EvaluateTacticalExerciseCandidatesUseCasePort = {
         { reason: "tactical exercise evaluation is not enabled on this server" },
       ]),
     ),
+};
+
+/** 大量試行APIも`EVALUATION_ENDPOINT_ENABLED`に従い、無効な配備では`NO_EVALUATION`と同じく404を返す。 */
+function evaluationDisabled(name: string): Promise<never> {
+  return Promise.reject(
+    new ApplicationError("ENDPOINT_DISABLED", [
+      { reason: `${name} is not enabled on this server` },
+    ]),
+  );
+}
+
+const NO_BATTLE_EVALUATION: EvaluateBattlesUseCasePort = {
+  executeBattleEvaluation: () => evaluationDisabled("battle evaluation"),
+};
+
+const NO_TOTAL_WAR_EVALUATION: EvaluateTotalWarsUseCasePort = {
+  executeTotalWarEvaluation: () => evaluationDisabled("total war evaluation"),
 };
 
 const ACCESS_KEY_SECURITY_SCHEME = "accessKey";
@@ -254,6 +291,10 @@ export interface BuildServerOptions {
   readonly totalWarUseCase?: SimulateTotalWarUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
   readonly evaluationUseCase?: EvaluateTacticalExerciseCandidatesUseCasePort;
+  /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
+  readonly battleEvaluationUseCase?: EvaluateBattlesUseCasePort;
+  /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
+  readonly totalWarEvaluationUseCase?: EvaluateTotalWarsUseCasePort;
   /**
    * `10_API設計.md`「CORS」「productionの許可originは`https://komei0727.github.io`を
    * 完全一致で設定する」。既定は空配列（全origin拒否）——`bootstrap/index.ts`が
@@ -321,6 +362,8 @@ export async function buildServer(
   const exerciseUseCase = options.exerciseUseCase ?? NO_EXERCISE;
   const totalWarUseCase = options.totalWarUseCase ?? NO_TOTAL_WAR;
   const evaluationUseCase = options.evaluationUseCase ?? NO_EVALUATION;
+  const battleEvaluationUseCase = options.battleEvaluationUseCase ?? NO_BATTLE_EVALUATION;
+  const totalWarEvaluationUseCase = options.totalWarEvaluationUseCase ?? NO_TOTAL_WAR_EVALUATION;
   const app = Fastify({
     bodyLimit: options.bodyLimit ?? DEFAULT_BODY_LIMIT_BYTES,
     // `11_インフラストラクチャ設計.md`「構造化ログ」。既定は`false`
@@ -504,6 +547,30 @@ export async function buildServer(
           url,
         };
       }
+      const evaluationDocSchemas =
+        url === BATTLE_EVALUATIONS_PATH
+          ? { body: battleEvaluationRequestDocSchema, ok: battleEvaluationResponseDocSchema }
+          : url === TOTAL_WAR_EVALUATIONS_PATH
+            ? { body: totalWarEvaluationRequestDocSchema, ok: totalWarEvaluationResponseDocSchema }
+            : undefined;
+      if (evaluationDocSchemas !== undefined) {
+        // 演習POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ差し込む。
+        return {
+          schema: {
+            ...schema,
+            ...(schema.body !== undefined ? { body: evaluationDocSchemas.body } : {}),
+            ...(schema.response !== undefined
+              ? {
+                  response: withResponseDoc({
+                    ...schema.response,
+                    200: evaluationDocSchemas.ok,
+                  }),
+                }
+              : {}),
+          },
+          url,
+        };
+      }
       if (url === FORMATION_STAT_PREVIEW_PATH) {
         // 戦闘POSTと同じ理由で、値域・列挙値を持つschemaは公開文書側だけへ
         // 差し込む（実行時validationは`route.schema`のまま）。
@@ -606,6 +673,16 @@ export async function buildServer(
     shutdownGate,
     simulationTimeoutMs,
   });
+  registerBattleEvaluationRoute(app, {
+    useCase: battleEvaluationUseCase,
+    shutdownGate,
+    simulationTimeoutMs,
+  });
+  registerTotalWarEvaluationRoute(app, {
+    useCase: totalWarEvaluationUseCase,
+    shutdownGate,
+    simulationTimeoutMs,
+  });
   registerFormationStatPreviewRoute(app, previewUseCase);
   registerCatalogRoute(app, catalogUseCase);
   registerCorsPreflightDocRoutes(app, [
@@ -613,6 +690,8 @@ export async function buildServer(
     TACTICAL_EXERCISES_PATH,
     TACTICAL_EXERCISE_EVALUATIONS_PATH,
     TOTAL_WAR_SIMULATIONS_PATH,
+    BATTLE_EVALUATIONS_PATH,
+    TOTAL_WAR_EVALUATIONS_PATH,
     FORMATION_STAT_PREVIEW_PATH,
     BATTLE_SIMULATION_CATALOG_PATH,
   ]);

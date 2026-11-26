@@ -101,6 +101,34 @@ POST /api/v1/tactical-exercise-evaluations
 
 期限（`SIMULATION_TIMEOUT_MS`）はリクエスト全体に掛かり、超過した場合はエラーではなく**部分結果**を返す（Q-TEX-18）。候補ごとの `completedRuns` が要求した `runsPerCandidate` より小さいことで不足を判別できる。
 
+### 通常戦闘を大量試行する
+
+```http
+POST /api/v1/battle-evaluations
+```
+
+ケースごとに両陣営・規定ターン数・試行番号を指定し、明示したseedと試行番号に対応する通常戦闘の観測結果を返す（Issue #883）。統計量はサーバーで算出しない。
+
+| 項目                   | 値                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| 認証                   | 戦闘シミュレーションと同じ（下記「認証」）。                                                         |
+| リクエストContent-Type | `application/json`                                                                                   |
+| レスポンスContent-Type | `application/json; charset=utf-8`                                                                    |
+| 成功ステータス         | `200 OK`（期限到達時の部分結果を含む）                                                               |
+| 永続化                 | しない                                                                                               |
+| 冪等性                 | 同じ対戦入力・seed・試行番号・`catalogRevision`・`engineRevision`・`seedDerivationVersion`で同一結果 |
+| 公開制御               | `EVALUATION_ENDPOINT_ENABLED`（既定 `false`）。無効な配備は `404 ENDPOINT_DISABLED`                  |
+
+APIは状態を持たず、自動再送・結果保存・ジョブ管理を行わない。未完了の試行はクライアントが同じ試行番号で再指定すれば同じ結果が得られる。
+
+### 総力戦を大量試行する
+
+```http
+POST /api/v1/total-war-evaluations
+```
+
+ケースごとに各陣営1～3編成（出撃順）と試行番号を指定し、勝ち抜き戦全体を1試行とした総力戦の観測結果を返す。`turnLimit` は持たない。その他の項目は「通常戦闘を大量試行する」と同じである。
+
 ### 総力戦をシミュレーションする
 
 ```http
@@ -563,6 +591,46 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 
 候補数・総試行数の上限は設定（`EVALUATION_*` 環境変数）で変わるため、JSON Schemaでは範囲を固定せずアプリケーション検証の `422`（`INVALID_COMMAND`）として返す。候補の編成違反は `candidates[i].allyFormation...` として候補indexを含むパスで返し、共有の敵編成の違反は候補数によらず1回だけ返す。
 
+### BattleEvaluationRequest
+
+`POST /api/v1/battle-evaluations` のリクエスト本文。
+
+| プロパティ                | 型                              | 必須 | 制約                                                                                                                     |
+| ------------------------- | ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------ |
+| `seed`                    | `string`                        | 必須 | 空白のみは拒否する。サーバーは生成しない。                                                                               |
+| `cases`                   | `BattleEvaluationCaseRequest[]` | 必須 | 1件以上 `BATTLE_EVALUATION_MAX_CASES` 件以下。`runIndices` の件数の合計が `BATTLE_EVALUATION_MAX_TOTAL_RUNS` 以下。      |
+| `expectedCatalogRevision` | `string`                        | 任意 | 指定時、サーバーの `catalogRevision` と一致しなければ実行前に `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`）。 |
+| `expectedEngineRevision`  | `string`                        | 任意 | 同上（パス `/expectedEngineRevision`）。                                                                                 |
+
+### BattleEvaluationCaseRequest
+
+| プロパティ       | 型                 | 必須 | 制約                                                                            |
+| ---------------- | ------------------ | ---- | ------------------------------------------------------------------------------- |
+| `caseId`         | `string`           | 必須 | 空白のみ不可、要求内で一意。                                                    |
+| `allyFormation`  | `FormationRequest` | 必須 | `BattleSimulationRequest` と同じ制約。配置・育成・メモリー順は並べ替えない。    |
+| `enemyFormation` | `FormationRequest` | 必須 | 同上。                                                                          |
+| `turnLimit`      | `integer`          | 必須 | 1～99。                                                                         |
+| `runIndices`     | `integer[]`        | 必須 | 1件以上、重複なし、0～4294967295。`[0, 1, 42]` のような不連続な番号も受理する。 |
+
+`options`（`logLevel`）は持たない。
+
+### TotalWarEvaluationRequest
+
+`POST /api/v1/total-war-evaluations` のリクエスト本文。トップレベルは `BattleEvaluationRequest` と同じで、`cases` が `TotalWarEvaluationCaseRequest[]`（上限は `TOTAL_WAR_EVALUATION_MAX_CASES`／`TOTAL_WAR_EVALUATION_MAX_TOTAL_RUNS`）になる。
+
+### TotalWarEvaluationCaseRequest
+
+| プロパティ        | 型                   | 必須 | 制約                                                                  |
+| ----------------- | -------------------- | ---- | --------------------------------------------------------------------- |
+| `caseId`          | `string`             | 必須 | `BattleEvaluationCaseRequest` と同じ。                                |
+| `allyFormations`  | `FormationRequest[]` | 必須 | `TotalWarRequest` と同じ制約（1～3編成、出撃順、1編成内の重複不可）。 |
+| `enemyFormations` | `FormationRequest[]` | 必須 | 同上。                                                                |
+| `runIndices`      | `integer[]`          | 必須 | `BattleEvaluationCaseRequest` と同じ。                                |
+
+`turnLimit` は持たず、指定は構造違反（`400`）になる。
+
+件数・値域・一意性の違反は他のエンドポイントと同じくアプリケーション検証の `422 INVALID_COMMAND` として返し、形・値・参照を全ケースについて事前検証する。1ケースでも不正なら1試行も実行しない。違反のパスは `/cases/1/enemyFormations/0/units/2/unitDefinitionId` のようにケース・陣営・編成・枠を含む。
+
 ### TotalWarRequest
 
 `POST /api/v1/total-war-simulations` のリクエスト本文。
@@ -873,6 +941,85 @@ DTOの構造検証に成功しても、IDの存在、配置重複、未対応ル
 統計量（平均・分散など）は含めない（Q-TEX-16）。6つの配列は同じ試行を同じ添字で指し、いずれも外側の長さが `completedRuns` に一致する。`allyUnit*` の内側はリクエストの `candidates[i].allyFormation.units` と同じ長さ・同じ順（編成順）である。ブレイク履歴（`breaks`）・イベント列・状態遷移・ユニット別集計（`unitSummaries`）は返さない。
 
 `allyUnitDamageTotals` は単発の演習（`POST /api/v1/tactical-exercises`）が同じseedで返す `unitSummaries` の味方側 `damageDealt` と一致する（同じ投影をそのまま使う）。`allyUnitBreakCounts` は `UnitBroken` の発生源を参加枠へ帰属させたもので、数えるのは**味方の枠が起こしたブレイクだけ**である。したがって各行の和は同じ添字の `breakCounts` 以下であり、差は「発生源が味方の枠でないブレイク」の件数になる。これには発生源ユニットを持たないブレイク（メモリー由来の継続ダメージ、`R-MEM-04`）と、敵の枠自身が起こしたブレイク（混乱による自傷など、`R-CFS-01`）の両方が入る — 残差を一律に「メモリー由来」として読んではならない。
+
+### BattleEvaluationResponse／TotalWarEvaluationResponse
+
+大量試行APIの成功レスポンス。
+
+```json
+{
+  "schemaVersion": 1,
+  "seed": "study-1",
+  "seedDerivationVersion": "MULBERRY32_FNV1A_SPLITMIX32_V1",
+  "catalogRevision": "2026-06-28.1",
+  "engineRevision": "67b3de61...",
+  "requestedRuns": 3,
+  "completedRuns": 2,
+  "partial": true,
+  "cases": [
+    {
+      "caseId": "mirror",
+      "runs": [
+        {
+          "runIndex": 0,
+          "outcome": "ALLY_WIN",
+          "completionReason": "ENEMY_DEFEATED",
+          "completedTurn": 1,
+          "units": [
+            {
+              "side": "ALLY",
+              "unitIndex": 0,
+              "unitDefinitionId": "UNIT_MEIYA_FATED",
+              "damageDealt": 120000,
+              "damageTaken": 0,
+              "healingDone": 0,
+              "finalHp": 50000,
+              "maximumHp": 50000,
+              "combatStatus": "ACTIVE"
+            }
+          ]
+        }
+      ],
+      "incompleteRunIndices": [42]
+    }
+  ]
+}
+```
+
+| プロパティ              | 型                         | 値                                                     |
+| ----------------------- | -------------------------- | ------------------------------------------------------ |
+| `seed`                  | string                     | 実際に使用したseed（リクエストの値）。                 |
+| `seedDerivationVersion` | string                     | `(seed, runIndex)` から乱数列を導く規約の識別子。      |
+| `catalogRevision`       | string                     | 実行に使ったCatalogのrevision。                        |
+| `engineRevision`        | string                     | 戦闘実装の識別情報（起動時に確定）。                   |
+| `requestedRuns`         | integer                    | 全ケースの `runIndices` の件数の合計。                 |
+| `completedRuns`         | integer                    | 期限内に完了した試行数。                               |
+| `partial`               | boolean                    | `completedRuns < requestedRuns`。期限到達時に `true`。 |
+| `cases`                 | `EvaluationCaseResponse[]` | リクエストと同じ順・同じ件数。                         |
+
+### EvaluationCaseResponse
+
+| プロパティ             | 型        | 値                                                                                      |
+| ---------------------- | --------- | --------------------------------------------------------------------------------------- |
+| `caseId`               | string    | リクエストの `caseId`。                                                                 |
+| `runs`                 | object[]  | 完了した試行だけ。各要素が `runIndex` を持ち、配列の位置に対応を依存させない。          |
+| `incompleteRunIndices` | integer[] | 期限までに完了しなかった試行番号。完了0件でも全番号を列挙し、穴を詰めて採番し直さない。 |
+
+通常戦闘の試行（`BattleEvaluationRunResponse`）は `runIndex`・`outcome`（`ALLY_WIN`／`ALLY_LOSE`、引き分けは導入しない）・`completionReason`・`completedTurn`・`units` を持つ。総力戦の試行（`TotalWarEvaluationRunResponse`）は、これに `outcome` の `DRAW`・`stages`（`TotalWarStageResponse[]`）・`defeatedFormationCounts` を加える。
+
+### EvaluationUnitRecordResponse
+
+| プロパティ         | 型      | 値                                                                                         |
+| ------------------ | ------- | ------------------------------------------------------------------------------------------ |
+| `side`             | string  | `ALLY`／`ENEMY`。                                                                          |
+| `formationNumber`  | integer | 総力戦のみ。リクエストの編成配列での1始まりの番号。                                        |
+| `unitIndex`        | integer | リクエストの編成の `units` での添字（0始まり）。同じユニットを複数枠へ置いても区別できる。 |
+| `unitDefinitionId` | string  | 枠のユニット定義ID。                                                                       |
+| `damageDealt` 等   | —       | `UnitBattleSummaryResponse` と同じ値・同じ集計セマンティクス。                             |
+| `deployed`         | boolean | 総力戦のみ。一度でも出撃したか。控えのまま終わった枠は `false`。                           |
+| `reappearance`     | boolean | 総力戦のみ。再登場の基礎値補正（R-TWR-02）を受けたか。                                     |
+
+総力戦のユニット別集計は総力戦全体の値であり、ステージ別の値は返さない。イベント列・状態遷移・詳細ログ・統計量（勝率・平均・分位点・ランキング）は含めない。
 
 ### FormationStatPreviewResponse
 
@@ -1498,7 +1645,7 @@ reconstructedFinalState = apply(
 
 `POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`401`・`406`・`413`・`415`・`422`・`500` だけを返す（`401` はアクセスキーを要求する配備のみ）。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
 
-`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations` だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。この操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。
+`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations` だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。これらの操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。大量試行APIの期待revision不一致は `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`／`/expectedEngineRevision`）で、戦闘を1回も開始しない。
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 

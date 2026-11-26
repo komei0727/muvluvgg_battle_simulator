@@ -427,4 +427,100 @@ describe("createSimulationTaskRunner", () => {
       },
     });
   });
+
+  it("UT-TASKRUNNER-014: dispatches a BATTLE_EVALUATION task with the injected engine revision and the seeded provider", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1", "B_2"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
+      engineRevision: "engine-fixed",
+    });
+    const { allyFormation, enemyFormation } = minimalRequest();
+
+    const outcome = runner({
+      mode: "BATTLE_EVALUATION",
+      requestId: "req-battle-evaluation-1",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        seed: "runner",
+        cases: [{ caseId: "c", allyFormation, enemyFormation, turnLimit: 3, runIndices: [4, 9] }],
+      },
+    });
+
+    if (!outcome.ok || outcome.mode !== "BATTLE_EVALUATION") {
+      expect.fail(`expected an ok BATTLE_EVALUATION outcome, got ${JSON.stringify(outcome)}`);
+    }
+    expect(outcome.result).toMatchObject({
+      engineRevision: "engine-fixed",
+      seedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+      catalogRevision: catalog.catalogRevision,
+      completedRuns: 2,
+    });
+    expect(outcome.result.cases[0]!.runs.map((run) => run.runIndex)).toEqual([4, 9]);
+  });
+
+  it("UT-TASKRUNNER-015: dispatches a TOTAL_WAR_EVALUATION task and applies the total war limits", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator(["B_1"]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
+      engineRevision: "engine-fixed",
+      totalWarEvaluationLimits: { maxCases: 1, maxTotalRuns: 1 },
+    });
+    const { allyFormation, enemyFormation } = minimalRequest();
+    const task = (runIndices: number[]): WorkerSimulationTask => ({
+      mode: "TOTAL_WAR_EVALUATION",
+      requestId: "req-total-war-evaluation-1",
+      deadlineEpochMs: Date.now() + 30_000,
+      expectedCatalogRevision: catalog.catalogRevision,
+      request: {
+        seed: "runner",
+        cases: [
+          {
+            caseId: "c",
+            allyFormations: [allyFormation],
+            enemyFormations: [enemyFormation],
+            runIndices,
+          },
+        ],
+      },
+    });
+
+    const ok = runner(task([3]));
+    if (!ok.ok || ok.mode !== "TOTAL_WAR_EVALUATION") {
+      expect.fail(`expected an ok TOTAL_WAR_EVALUATION outcome, got ${JSON.stringify(ok)}`);
+    }
+    expect(ok.result.cases[0]!.runs.map((run) => run.runIndex)).toEqual([3]);
+
+    expect(runner(task([0, 1]))).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_COMMAND", violations: [expect.objectContaining({ path: "cases" })] },
+    });
+  });
+
+  it("UT-TASKRUNNER-016: an evaluation task on a worker without an engine revision fails instead of answering with an unknown revision", () => {
+    const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+    const runner = createSimulationTaskRunner(catalog, {
+      battleIdGenerator: new FixedBattleIdGenerator([]),
+      randomSourceFactory: new SequenceRandomSourceFactory([]),
+      clock: new ManualClock(Date.now()),
+    });
+    const { allyFormation, enemyFormation } = minimalRequest();
+
+    expect(
+      runner({
+        mode: "BATTLE_EVALUATION",
+        requestId: "req-battle-evaluation-2",
+        deadlineEpochMs: Date.now() + 30_000,
+        expectedCatalogRevision: catalog.catalogRevision,
+        request: {
+          seed: "runner",
+          cases: [{ caseId: "c", allyFormation, enemyFormation, turnLimit: 3, runIndices: [0] }],
+        },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "INTERNAL_INVARIANT_VIOLATION" } });
+  });
 });

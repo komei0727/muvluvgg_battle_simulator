@@ -131,3 +131,39 @@ export interface TacticalExerciseEvaluationRequestBody {
   /** 省略時はサーバーが生成し、応答へ載せる（同じ結果を再現できるようにするため）。 */
   readonly seed?: string;
 }
+
+/** `10_API設計.md`「BattleEvaluationCaseRequest」。両陣営と規定ターン数をケースごとに持つ。 */
+export interface BattleEvaluationCaseRequestBody {
+  readonly caseId: string;
+  readonly allyFormation: FormationRequestBody;
+  readonly enemyFormation: FormationRequestBody;
+  readonly turnLimit: number;
+  readonly runIndices: readonly number[];
+}
+
+/**
+ * `10_API設計.md`「通常戦闘を大量試行する」（`POST /api/v1/battle-evaluations`）の request body契約。
+ * `seed`は必須で、サーバーは暗黙に生成しない。`options.logLevel`を持たない。
+ */
+export interface BattleEvaluationRequestBody {
+  readonly seed: string;
+  readonly cases: readonly BattleEvaluationCaseRequestBody[];
+  readonly expectedCatalogRevision?: string;
+  readonly expectedEngineRevision?: string;
+}
+
+/** `10_API設計.md`「TotalWarEvaluationCaseRequest」。各陣営の編成を出撃順に持ち、`turnLimit`を持たない。 */
+export interface TotalWarEvaluationCaseRequestBody {
+  readonly caseId: string;
+  readonly allyFormations: readonly FormationRequestBody[];
+  readonly enemyFormations: readonly FormationRequestBody[];
+  readonly runIndices: readonly number[];
+}
+
+/** `10_API設計.md`「総力戦を大量試行する」（`POST /api/v1/total-war-evaluations`）の request body契約。 */
+export interface TotalWarEvaluationRequestBody {
+  readonly seed: string;
+  readonly cases: readonly TotalWarEvaluationCaseRequestBody[];
+  readonly expectedCatalogRevision?: string;
+  readonly expectedEngineRevision?: string;
+}

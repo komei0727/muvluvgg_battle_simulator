@@ -4,6 +4,9 @@ import {
   DEFAULT_EVALUATION_LIMITS,
   type EvaluationLimits,
 } from "../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import { DEFAULT_BATTLE_EVALUATION_LIMITS } from "../application/simulation/evaluate-battles-command.js";
+import { DEFAULT_TOTAL_WAR_EVALUATION_LIMITS } from "../application/simulation/evaluate-total-wars-command.js";
+import type { EvaluationRequestLimits } from "../application/simulation/evaluation-command.js";
 import {
   DEFAULT_SIMULATION_EXECUTION_LIMITS,
   type SimulationExecutionLimits,
@@ -64,6 +67,15 @@ export interface ApplicationConfig {
    */
   readonly evaluationEndpointEnabled: boolean;
   readonly evaluationLimits: EvaluationLimits;
+  /** `POST /api/v1/battle-evaluations`の要求量上限。総力戦とは別に設定する。 */
+  readonly battleEvaluationLimits: EvaluationRequestLimits;
+  /** `POST /api/v1/total-war-evaluations`の要求量上限。 */
+  readonly totalWarEvaluationLimits: EvaluationRequestLimits;
+  /**
+   * 大量試行の応答が載せる戦闘実装の識別情報を明示する（コンテナのビルド時に注入する
+   * 想定）。未設定は起動時にリポジトリから決める意味なので`undefined`のまま渡す。
+   */
+  readonly engineRevision: string | undefined;
 }
 
 interface PositiveIntegerSpec {
@@ -415,6 +427,37 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     ),
   };
 
+  const evaluationRequestLimits = (
+    prefix: string,
+    defaults: EvaluationRequestLimits,
+  ): EvaluationRequestLimits => ({
+    maxCases: parsePositiveInteger(
+      env[`${prefix}_MAX_CASES`],
+      { envVar: `${prefix}_MAX_CASES`, defaultValue: defaults.maxCases, min: 1 },
+      violations,
+    ),
+    maxTotalRuns: parsePositiveInteger(
+      env[`${prefix}_MAX_TOTAL_RUNS`],
+      { envVar: `${prefix}_MAX_TOTAL_RUNS`, defaultValue: defaults.maxTotalRuns, min: 1 },
+      violations,
+    ),
+  });
+  const battleEvaluationLimits = evaluationRequestLimits(
+    "BATTLE_EVALUATION",
+    DEFAULT_BATTLE_EVALUATION_LIMITS,
+  );
+  const totalWarEvaluationLimits = evaluationRequestLimits(
+    "TOTAL_WAR_EVALUATION",
+    DEFAULT_TOTAL_WAR_EVALUATION_LIMITS,
+  );
+
+  const rawEngineRevision = env["ENGINE_REVISION"];
+  const engineRevision = rawEngineRevision?.trim();
+  if (engineRevision === "") {
+    // 空の識別子は「どの実装か分からない」ことを、分かっているかのように返してしまう。
+    violations.push("ENGINE_REVISION must not be blank when set");
+  }
+
   if (violations.length > 0) {
     throw new ConfigError(violations);
   }
@@ -435,5 +478,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApplicationConfig {
     workerMaxThreads,
     evaluationEndpointEnabled,
     evaluationLimits,
+    battleEvaluationLimits,
+    totalWarEvaluationLimits,
+    engineRevision,
   };
 }

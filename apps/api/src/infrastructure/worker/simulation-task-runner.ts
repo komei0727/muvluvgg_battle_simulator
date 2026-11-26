@@ -12,6 +12,13 @@ import {
   DEFAULT_EVALUATION_LIMITS,
   type EvaluationLimits,
 } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
+import { DEFAULT_BATTLE_EVALUATION_LIMITS } from "../../application/simulation/evaluate-battles-command.js";
+import { toEvaluateBattlesCommand } from "../../application/simulation/evaluate-battles-mapper.js";
+import { EvaluateBattlesUseCase } from "../../application/simulation/evaluate-battles-use-case.js";
+import { DEFAULT_TOTAL_WAR_EVALUATION_LIMITS } from "../../application/simulation/evaluate-total-wars-command.js";
+import { toEvaluateTotalWarsCommand } from "../../application/simulation/evaluate-total-wars-mapper.js";
+import { EvaluateTotalWarsUseCase } from "../../application/simulation/evaluate-total-wars-use-case.js";
+import type { EvaluationRequestLimits } from "../../application/simulation/evaluation-command.js";
 import { SimulateBattleUseCase } from "../../application/simulation/simulate-battle-use-case.js";
 import type { SimulationExecutionLimits } from "../../application/simulation/battle-execution.js";
 import { toSimulateTacticalExerciseCommand } from "../../application/simulation/simulate-tactical-exercise-request-mapper.js";
@@ -39,6 +46,16 @@ export interface SimulationTaskRunnerDependencies {
   readonly seededRandomSourceProvider?: SeededRandomSourceProvider;
   /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。省略時は{@link DEFAULT_EVALUATION_LIMITS}。 */
   readonly evaluationLimits?: EvaluationLimits;
+  /**
+   * 大量試行の応答が載せる戦闘実装の識別情報。起動時に確定させて注入する。省略時は
+   * 大量試行を実行しない — 未知の値を固定文字列で返すと、別の実装の結果を同じ条件の
+   * ものとして混ぜられてしまう。
+   */
+  readonly engineRevision?: string;
+  /** 通常戦闘の大量試行の要求量上限。省略時は{@link DEFAULT_BATTLE_EVALUATION_LIMITS}。 */
+  readonly battleEvaluationLimits?: EvaluationRequestLimits;
+  /** 総力戦の大量試行の要求量上限。省略時は{@link DEFAULT_TOTAL_WAR_EVALUATION_LIMITS}。 */
+  readonly totalWarEvaluationLimits?: EvaluationRequestLimits;
 }
 
 export type SimulationTaskRunner = (task: WorkerSimulationTask) => WorkerSimulationResult;
@@ -80,6 +97,32 @@ export function createSimulationTaskRunner(
       : {}),
   });
 
+  const seededEvaluationDependencies = (engineRevision: string) => ({
+    battleCatalog: catalog,
+    battleIdGenerator: dependencies.battleIdGenerator,
+    clock: dependencies.clock,
+    seededRandomSourceProvider,
+    runtimeInfo: { engineRevision },
+    ...(dependencies.executionLimits !== undefined
+      ? { executionLimits: dependencies.executionLimits }
+      : {}),
+  });
+  const engineRevision = dependencies.engineRevision;
+  const battleEvaluationUseCase =
+    engineRevision === undefined
+      ? undefined
+      : new EvaluateBattlesUseCase({
+          ...seededEvaluationDependencies(engineRevision),
+          limits: dependencies.battleEvaluationLimits ?? DEFAULT_BATTLE_EVALUATION_LIMITS,
+        });
+  const totalWarEvaluationUseCase =
+    engineRevision === undefined
+      ? undefined
+      : new EvaluateTotalWarsUseCase({
+          ...seededEvaluationDependencies(engineRevision),
+          limits: dependencies.totalWarEvaluationLimits ?? DEFAULT_TOTAL_WAR_EVALUATION_LIMITS,
+        });
+
   return function runSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
     if (task.expectedCatalogRevision !== catalog.catalogRevision) {
       return {
@@ -101,6 +144,31 @@ export function createSimulationTaskRunner(
       // `09_アプリケーション設計.md`「実行境界」: モード判別子でユースケースを
       // 振り分ける。Catalogリビジョン検査・期限・容量制御は上で共有済み。
       const context = { requestId: task.requestId, deadlineEpochMs: task.deadlineEpochMs };
+      if (task.mode === "BATTLE_EVALUATION" || task.mode === "TOTAL_WAR_EVALUATION") {
+        if (battleEvaluationUseCase === undefined || totalWarEvaluationUseCase === undefined) {
+          throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+            { reason: "this worker has no engineRevision configured for seeded evaluations" },
+          ]);
+        }
+        if (task.mode === "BATTLE_EVALUATION") {
+          return {
+            ok: true,
+            mode: "BATTLE_EVALUATION",
+            result: battleEvaluationUseCase.execute(
+              toEvaluateBattlesCommand(task.request),
+              context,
+            ),
+          };
+        }
+        return {
+          ok: true,
+          mode: "TOTAL_WAR_EVALUATION",
+          result: totalWarEvaluationUseCase.execute(
+            toEvaluateTotalWarsCommand(task.request),
+            context,
+          ),
+        };
+      }
       if (task.mode === "TACTICAL_EXERCISE_EVALUATION") {
         return {
           ok: true,

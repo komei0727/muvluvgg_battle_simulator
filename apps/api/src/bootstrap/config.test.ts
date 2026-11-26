@@ -326,4 +326,33 @@ describe("loadConfig — evaluation endpoint", () => {
     expect(message).toContain("API_ACCESS_KEYS");
     expect(message).not.toContain(secret);
   });
+
+  it("CFG-047: battle and total war evaluation limits have separate measured defaults", () => {
+    const config = loadConfig(envWith({}));
+    expect(config.battleEvaluationLimits).toEqual({ maxCases: 64, maxTotalRuns: 300 });
+    expect(config.totalWarEvaluationLimits).toEqual({ maxCases: 32, maxTotalRuns: 120 });
+  });
+
+  it("CFG-048: battle and total war evaluation limits are overridden independently", () => {
+    const config = loadConfig(
+      envWith({
+        BATTLE_EVALUATION_MAX_CASES: "5",
+        BATTLE_EVALUATION_MAX_TOTAL_RUNS: "50",
+        TOTAL_WAR_EVALUATION_MAX_CASES: "2",
+        TOTAL_WAR_EVALUATION_MAX_TOTAL_RUNS: "8",
+      }),
+    );
+    expect(config.battleEvaluationLimits).toEqual({ maxCases: 5, maxTotalRuns: 50 });
+    expect(config.totalWarEvaluationLimits).toEqual({ maxCases: 2, maxTotalRuns: 8 });
+  });
+
+  it("CFG-049: a zero total war evaluation limit throws", () => {
+    expect(() => loadConfig(envWith({ TOTAL_WAR_EVALUATION_MAX_CASES: "0" }))).toThrow(ConfigError);
+  });
+
+  it("CFG-050: ENGINE_REVISION is trimmed and an unset or blank value leaves the revision to be resolved at startup", () => {
+    expect(loadConfig(envWith({ ENGINE_REVISION: " abc123 " })).engineRevision).toBe("abc123");
+    expect(loadConfig(envWith({})).engineRevision).toBeUndefined();
+    expect(() => loadConfig(envWith({ ENGINE_REVISION: "  " }))).toThrow(ConfigError);
+  });
 });

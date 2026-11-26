@@ -12742,6 +12742,1213 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/battle-evaluations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            /** @description Required. Together with each runIndex it fully determines the random stream; the server never generates one. */
+            seed: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedCatalogRevision) before any run if the server catalogRevision differs. */
+            expectedCatalogRevision?: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedEngineRevision) before any run if the server engineRevision differs. */
+            expectedEngineRevision?: string;
+            cases: {
+              /** @description Identifies the case in the response. Must be unique within the request. */
+              caseId: string;
+              allyFormation: {
+                units: {
+                  unitDefinitionId: string;
+                  position: {
+                    /** @enum {integer} */
+                    column: 0 | 1 | 2;
+                    /** @enum {string} */
+                    row: "FRONT" | "REAR";
+                  };
+                  enhancement?: {
+                    level?: number;
+                    rank?: number;
+                    /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
+                    gears?: {
+                      /** @enum {string} */
+                      stat:
+                        | "MAXIMUM_HP"
+                        | "ATTACK"
+                        | "DEFENSE"
+                        | "ACTION_SPEED"
+                        | "CRITICAL_RATE"
+                        | "CRITICAL_DAMAGE_BONUS"
+                        | "AFFINITY_BONUS";
+                      /** @enum {string} */
+                      tier: "II" | "III";
+                      /** @enum {string} */
+                      grade: "D" | "C" | "B" | "A" | "S";
+                    }[];
+                  };
+                }[];
+                memoryDefinitionIds: string[];
+                enhancement?: {
+                  academyLevels?: {
+                    unitTypes?: {
+                      PHYSICAL?: number;
+                      ENERGY?: number;
+                      AGILE?: number;
+                    };
+                    attributes?: {
+                      AGGRESSIVE?: number;
+                      SHY?: number;
+                      CUTE?: number;
+                      SMART?: number;
+                      COMICAL?: number;
+                      CLEVER?: number;
+                    };
+                  };
+                };
+              };
+              enemyFormation: {
+                units: {
+                  unitDefinitionId: string;
+                  position: {
+                    /** @enum {integer} */
+                    column: 0 | 1 | 2;
+                    /** @enum {string} */
+                    row: "FRONT" | "REAR";
+                  };
+                  enhancement?: {
+                    level?: number;
+                    rank?: number;
+                    /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
+                    gears?: {
+                      /** @enum {string} */
+                      stat:
+                        | "MAXIMUM_HP"
+                        | "ATTACK"
+                        | "DEFENSE"
+                        | "ACTION_SPEED"
+                        | "CRITICAL_RATE"
+                        | "CRITICAL_DAMAGE_BONUS"
+                        | "AFFINITY_BONUS";
+                      /** @enum {string} */
+                      tier: "II" | "III";
+                      /** @enum {string} */
+                      grade: "D" | "C" | "B" | "A" | "S";
+                    }[];
+                  };
+                }[];
+                memoryDefinitionIds: string[];
+                enhancement?: {
+                  academyLevels?: {
+                    unitTypes?: {
+                      PHYSICAL?: number;
+                      ENERGY?: number;
+                      AGILE?: number;
+                    };
+                    attributes?: {
+                      AGGRESSIVE?: number;
+                      SHY?: number;
+                      CUTE?: number;
+                      SMART?: number;
+                      COMICAL?: number;
+                      CLEVER?: number;
+                    };
+                  };
+                };
+              };
+              turnLimit: number;
+              /** @description Run numbers to execute for this case. Each run index alone (with the seed) selects the random stream, so the same index reproduces the same run and gaps such as [0, 1, 42] are allowed. */
+              runIndices: number[];
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              seed: string;
+              seedDerivationVersion: string;
+              catalogRevision: string;
+              /** @description Identifies the battle implementation that produced the runs, fixed at server start. Results are reproducible only for the same seed, runIndex, catalogRevision, engineRevision and seedDerivationVersion. */
+              engineRevision: string;
+              requestedRuns: number;
+              completedRuns: number;
+              /** @description True when the request deadline was reached before every requested run completed. Runs that did not complete are listed per case in incompleteRunIndices and are never reported as results. */
+              partial: boolean;
+              cases: {
+                caseId: string;
+                runs: {
+                  runIndex: number;
+                  /** @enum {string} */
+                  outcome: "ALLY_WIN" | "ALLY_LOSE";
+                  /** @enum {string} */
+                  completionReason:
+                    | "SIMULTANEOUS_DEFEAT"
+                    | "ENEMY_DEFEATED"
+                    | "ALLY_DEFEATED"
+                    | "TURN_LIMIT_REACHED";
+                  completedTurn: number;
+                  units: {
+                    /** @enum {string} */
+                    side: "ALLY" | "ENEMY";
+                    formationNumber?: number;
+                    unitIndex: number;
+                    unitDefinitionId: string;
+                    damageDealt: number;
+                    damageTaken: number;
+                    healingDone: number;
+                    finalHp: number;
+                    maximumHp: number;
+                    /** @enum {string} */
+                    combatStatus: "ACTIVE" | "DEFEATED";
+                    deployed?: boolean;
+                    reappearance?: boolean;
+                  }[];
+                }[];
+                incompleteRunIndices: number[];
+              }[];
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "MALFORMED_REQUEST";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "ENDPOINT_DISABLED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        406: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "NOT_ACCEPTABLE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        413: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "REQUEST_TOO_LARGE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        415: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNSUPPORTED_MEDIA_TYPE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        422: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "INVALID_COMMAND" | "DEFINITION_NOT_FOUND";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Seconds to wait before retrying, when the server can estimate it. */
+            "Retry-After"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMIT_EXCEEDED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code:
+                  | "INVALID_DEFINITION"
+                  | "DOMAIN_RULE_VIOLATION"
+                  | "INTERNAL_INVARIANT_VIOLATION";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        503: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Seconds to wait before retrying, when the server can estimate it. */
+            "Retry-After"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "EXECUTION_LIMIT_EXCEEDED" | "EXECUTION_CANCELLED" | "CAPACITY_EXCEEDED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        504: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "EXECUTION_TIMEOUT";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description The requesting page's origin. Present on a genuine CORS preflight request. */
+          origin: string;
+          /** @description The HTTP method the actual request will use (GET or POST). */
+          "access-control-request-method": string;
+          /** @description Comma-separated list of headers the actual request will send. */
+          "access-control-request-headers"?: string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description CORS preflight response — fulfilled by @fastify/cors's onRequest hook before this handler runs for an allowed origin (11_インフラストラクチャ設計.md「CORS」). */
+        204: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description GET, POST, OPTIONS. */
+            "Access-Control-Allow-Methods"?: string;
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
+            "Access-Control-Allow-Headers"?: string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Invalid Preflight Request — returned as text/plain by @fastify/cors's onRequest hook (not this handler) when an allowed Origin sends OPTIONS without Access-Control-Request-Method (11_インフラストラクチャ設計.md「CORS」). */
+        400: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+      };
+    };
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/total-war-evaluations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            /** @description Required. Together with each runIndex it fully determines the random stream; the server never generates one. */
+            seed: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedCatalogRevision) before any run if the server catalogRevision differs. */
+            expectedCatalogRevision?: string;
+            /** @description When set, the request is rejected with 422 INVALID_COMMAND (path expectedEngineRevision) before any run if the server engineRevision differs. */
+            expectedEngineRevision?: string;
+            cases: {
+              /** @description Identifies the case in the response. Must be unique within the request. */
+              caseId: string;
+              /** @description Formations in deployment order. */
+              allyFormations: {
+                units: {
+                  unitDefinitionId: string;
+                  position: {
+                    /** @enum {integer} */
+                    column: 0 | 1 | 2;
+                    /** @enum {string} */
+                    row: "FRONT" | "REAR";
+                  };
+                  enhancement?: {
+                    level?: number;
+                    rank?: number;
+                    /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
+                    gears?: {
+                      /** @enum {string} */
+                      stat:
+                        | "MAXIMUM_HP"
+                        | "ATTACK"
+                        | "DEFENSE"
+                        | "ACTION_SPEED"
+                        | "CRITICAL_RATE"
+                        | "CRITICAL_DAMAGE_BONUS"
+                        | "AFFINITY_BONUS";
+                      /** @enum {string} */
+                      tier: "II" | "III";
+                      /** @enum {string} */
+                      grade: "D" | "C" | "B" | "A" | "S";
+                    }[];
+                  };
+                }[];
+                memoryDefinitionIds: string[];
+                enhancement?: {
+                  academyLevels?: {
+                    unitTypes?: {
+                      PHYSICAL?: number;
+                      ENERGY?: number;
+                      AGILE?: number;
+                    };
+                    attributes?: {
+                      AGGRESSIVE?: number;
+                      SHY?: number;
+                      CUTE?: number;
+                      SMART?: number;
+                      COMICAL?: number;
+                      CLEVER?: number;
+                    };
+                  };
+                };
+              }[];
+              /** @description Formations in deployment order. */
+              enemyFormations: {
+                units: {
+                  unitDefinitionId: string;
+                  position: {
+                    /** @enum {integer} */
+                    column: 0 | 1 | 2;
+                    /** @enum {string} */
+                    row: "FRONT" | "REAR";
+                  };
+                  enhancement?: {
+                    level?: number;
+                    rank?: number;
+                    /** @description At most 3 gears may share the same stat (R-ENH-04 #6). Violations come back as 422 INVALID_COMMAND with the stat in the path. */
+                    gears?: {
+                      /** @enum {string} */
+                      stat:
+                        | "MAXIMUM_HP"
+                        | "ATTACK"
+                        | "DEFENSE"
+                        | "ACTION_SPEED"
+                        | "CRITICAL_RATE"
+                        | "CRITICAL_DAMAGE_BONUS"
+                        | "AFFINITY_BONUS";
+                      /** @enum {string} */
+                      tier: "II" | "III";
+                      /** @enum {string} */
+                      grade: "D" | "C" | "B" | "A" | "S";
+                    }[];
+                  };
+                }[];
+                memoryDefinitionIds: string[];
+                enhancement?: {
+                  academyLevels?: {
+                    unitTypes?: {
+                      PHYSICAL?: number;
+                      ENERGY?: number;
+                      AGILE?: number;
+                    };
+                    attributes?: {
+                      AGGRESSIVE?: number;
+                      SHY?: number;
+                      CUTE?: number;
+                      SMART?: number;
+                      COMICAL?: number;
+                      CLEVER?: number;
+                    };
+                  };
+                };
+              }[];
+              /** @description Run numbers to execute for this case. Each run index alone (with the seed) selects the random stream, so the same index reproduces the same run and gaps such as [0, 1, 42] are allowed. */
+              runIndices: number[];
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              seed: string;
+              seedDerivationVersion: string;
+              catalogRevision: string;
+              /** @description Identifies the battle implementation that produced the runs, fixed at server start. Results are reproducible only for the same seed, runIndex, catalogRevision, engineRevision and seedDerivationVersion. */
+              engineRevision: string;
+              requestedRuns: number;
+              completedRuns: number;
+              /** @description True when the request deadline was reached before every requested run completed. Runs that did not complete are listed per case in incompleteRunIndices and are never reported as results. */
+              partial: boolean;
+              cases: {
+                caseId: string;
+                runs: {
+                  runIndex: number;
+                  /** @enum {string} */
+                  outcome: "ALLY_WIN" | "ALLY_LOSE" | "DRAW";
+                  /** @enum {string} */
+                  completionReason:
+                    | "SIMULTANEOUS_DEFEAT"
+                    | "ENEMY_DEFEATED"
+                    | "ALLY_DEFEATED"
+                    | "TURN_LIMIT_REACHED";
+                  completedTurn: number;
+                  stages: {
+                    stageNumber: number;
+                    allyFormationNumber: number;
+                    enemyFormationNumber: number;
+                    startTurn: number;
+                    endTurn: number;
+                    defeatedSides: ("ALLY" | "ENEMY")[];
+                  }[];
+                  defeatedFormationCounts: {
+                    ally: number;
+                    enemy: number;
+                  };
+                  units: {
+                    /** @enum {string} */
+                    side: "ALLY" | "ENEMY";
+                    formationNumber: number;
+                    unitIndex: number;
+                    unitDefinitionId: string;
+                    damageDealt: number;
+                    damageTaken: number;
+                    healingDone: number;
+                    finalHp: number;
+                    maximumHp: number;
+                    /** @enum {string} */
+                    combatStatus: "ACTIVE" | "DEFEATED";
+                    deployed: boolean;
+                    reappearance: boolean;
+                  }[];
+                }[];
+                incompleteRunIndices: number[];
+              }[];
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "MALFORMED_REQUEST";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Always "Bearer": send the access key as Authorization: Bearer <key>. */
+            "WWW-Authenticate"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "ENDPOINT_DISABLED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        406: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "NOT_ACCEPTABLE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        413: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "REQUEST_TOO_LARGE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        415: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "UNSUPPORTED_MEDIA_TYPE";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        422: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "INVALID_COMMAND" | "DEFINITION_NOT_FOUND";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Seconds to wait before retrying, when the server can estimate it. */
+            "Retry-After"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMIT_EXCEEDED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code:
+                  | "INVALID_DEFINITION"
+                  | "DOMAIN_RULE_VIOLATION"
+                  | "INTERNAL_INVARIANT_VIOLATION";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        503: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            /** @description Seconds to wait before retrying, when the server can estimate it. */
+            "Retry-After"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "EXECUTION_LIMIT_EXCEEDED" | "EXECUTION_CANCELLED" | "CAPACITY_EXCEEDED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        504: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "EXECUTION_TIMEOUT";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description The requesting page's origin. Present on a genuine CORS preflight request. */
+          origin: string;
+          /** @description The HTTP method the actual request will use (GET or POST). */
+          "access-control-request-method": string;
+          /** @description Comma-separated list of headers the actual request will send. */
+          "access-control-request-headers"?: string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description CORS preflight response — fulfilled by @fastify/cors's onRequest hook before this handler runs for an allowed origin (11_インフラストラクチャ設計.md「CORS」). */
+        204: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description GET, POST, OPTIONS. */
+            "Access-Control-Allow-Methods"?: string;
+            /** @description Content-Type, Accept, X-Request-Id, If-None-Match, Authorization. */
+            "Access-Control-Allow-Headers"?: string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Invalid Preflight Request — returned as text/plain by @fastify/cors's onRequest hook (not this handler) when an allowed Origin sends OPTIONS without Access-Control-Request-Method (11_インフラストラクチャ設計.md「CORS」). */
+        400: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+      };
+    };
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/formation-stat-previews": {
     parameters: {
       query?: never;

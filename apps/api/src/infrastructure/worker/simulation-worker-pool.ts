@@ -10,7 +10,14 @@ import type {
   TacticalExerciseRequestBody,
   TotalWarRequestBody,
 } from "../../application/contracts/request.js";
-import type { TacticalExerciseEvaluationRequestBody } from "../../application/contracts/request.js";
+import type {
+  BattleEvaluationRequestBody,
+  TacticalExerciseEvaluationRequestBody,
+  TotalWarEvaluationRequestBody,
+} from "../../application/contracts/request.js";
+import type { EvaluateBattlesResult } from "../../application/simulation/evaluate-battles-use-case.js";
+import type { EvaluateTotalWarsResult } from "../../application/simulation/evaluate-total-wars-use-case.js";
+import type { EvaluationRequestLimits } from "../../application/simulation/evaluation-command.js";
 import type { EvaluationLimits } from "../../application/simulation/evaluate-tactical-exercise-candidates-command.js";
 import type { EvaluateTacticalExerciseCandidatesResult } from "../../application/simulation/evaluate-tactical-exercise-candidates-use-case.js";
 import { SimulationCapacityExceededError } from "../../application/simulation/simulation-capacity-exceeded-error.js";
@@ -36,6 +43,15 @@ export interface SimulationWorkerPoolOptions {
   readonly executionLimits?: SimulationExecutionLimits;
   /** 1リクエストが要求できる評価の量（`EVALUATION_*`環境変数）。`workerData`としてWorkerへ配る。省略時はWorker側の既定値。 */
   readonly evaluationLimits?: EvaluationLimits;
+  /**
+   * 大量試行の応答が載せる戦闘実装の識別情報（起動時に一度だけ確定させた値）。
+   * `workerData`としてWorkerへ配る。省略時のWorkerは大量試行を実行しない。
+   */
+  readonly engineRevision?: string;
+  /** 通常戦闘の大量試行の要求量上限。省略時はWorker側の既定値。 */
+  readonly battleEvaluationLimits?: EvaluationRequestLimits;
+  /** 総力戦の大量試行の要求量上限。省略時はWorker側の既定値。 */
+  readonly totalWarEvaluationLimits?: EvaluationRequestLimits;
   /** テスト・結合テストが明示的なworker entryファイルを指すためのfallback。省略時は同ディレクトリの`simulation-worker-entry`。 */
   readonly workerFileUrl?: URL;
   /** `11_インフラストラクチャ設計.md`「Graceful Shutdown」`shutdown()`が実行中タスクを待つ上限(ms)。省略時はPiscina自身の既定(30000)。 */
@@ -169,6 +185,13 @@ export class SimulationWorkerPool {
           : {}),
         ...(options.executionLimits !== undefined
           ? { executionLimits: options.executionLimits }
+          : {}),
+        ...(options.engineRevision !== undefined ? { engineRevision: options.engineRevision } : {}),
+        ...(options.battleEvaluationLimits !== undefined
+          ? { battleEvaluationLimits: options.battleEvaluationLimits }
+          : {}),
+        ...(options.totalWarEvaluationLimits !== undefined
+          ? { totalWarEvaluationLimits: options.totalWarEvaluationLimits }
           : {}),
       },
       // Piscinaの既定`atomics: 'sync'`（`SharedArrayBuffer`+`Atomics.wait`による
@@ -348,6 +371,51 @@ export class SimulationWorkerPool {
     );
     if (outcome.mode !== "TOTAL_WAR") {
       throw modeMismatchError("TOTAL_WAR", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /**
+   * 通常戦闘の大量試行。ケース×試行のループはWorker側の1タスク内で回る。他のモードと
+   * 同じタイムアウト・容量制御・キャンセル・Catalogリビジョン検査を共有する。
+   */
+  async executeBattleEvaluation(
+    request: BattleEvaluationRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<EvaluateBattlesResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "BATTLE_EVALUATION",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "BATTLE_EVALUATION") {
+      throw modeMismatchError("BATTLE_EVALUATION", outcome.mode);
+    }
+    return outcome.result;
+  }
+
+  /** 総力戦の大量試行。1試行は勝ち抜き戦全体であり、1リクエストを1タスクで処理する。 */
+  async executeTotalWarEvaluation(
+    request: TotalWarEvaluationRequestBody,
+    context: SimulationExecutionContext,
+  ): Promise<EvaluateTotalWarsResult> {
+    const outcome = await this.runTask(
+      {
+        mode: "TOTAL_WAR_EVALUATION",
+        requestId: context.requestId,
+        request,
+        deadlineEpochMs: context.deadlineEpochMs,
+        expectedCatalogRevision: this.catalogRevision,
+      },
+      context,
+    );
+    if (outcome.mode !== "TOTAL_WAR_EVALUATION") {
+      throw modeMismatchError("TOTAL_WAR_EVALUATION", outcome.mode);
     }
     return outcome.result;
   }

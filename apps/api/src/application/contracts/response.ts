@@ -552,3 +552,71 @@ export interface TacticalExerciseEvaluationResponseBody {
   readonly runsPerCandidate: number;
   readonly candidates: readonly TacticalExerciseCandidateEvaluationResponseBody[];
 }
+
+/**
+ * `10_API設計.md`「EvaluationUnitRecordResponse」。1試行のユニット1枠分の集計。枠は
+ * `side`・`formationNumber`（総力戦のみ）・`unitIndex`で元リクエストの参加枠を指す。
+ */
+export interface EvaluationUnitRecordResponseBody {
+  readonly side: string;
+  readonly formationNumber?: number;
+  readonly unitIndex: number;
+  readonly unitDefinitionId: string;
+  readonly damageDealt: number;
+  readonly damageTaken: number;
+  readonly healingDone: number;
+  readonly finalHp: number;
+  readonly maximumHp: number;
+  readonly combatStatus: string;
+  readonly deployed?: boolean;
+  readonly reappearance?: boolean;
+}
+
+/** `10_API設計.md`「BattleEvaluationRunResponse」。 */
+export interface BattleEvaluationRunResponseBody {
+  readonly runIndex: number;
+  readonly outcome: string;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly units: readonly EvaluationUnitRecordResponseBody[];
+}
+
+/** `10_API設計.md`「TotalWarEvaluationRunResponse」。 */
+export interface TotalWarEvaluationRunResponseBody {
+  readonly runIndex: number;
+  readonly outcome: string;
+  readonly completionReason: string;
+  readonly completedTurn: number;
+  readonly stages: readonly TotalWarStageResponseBody[];
+  readonly defeatedFormationCounts: { readonly ally: number; readonly enemy: number };
+  readonly units: readonly EvaluationUnitRecordResponseBody[];
+}
+
+/** `10_API設計.md`「EvaluationCaseResponse」。 */
+export interface EvaluationCaseResponseBody<Run> {
+  readonly caseId: string;
+  readonly runs: readonly Run[];
+  readonly incompleteRunIndices: readonly number[];
+}
+
+/** `10_API設計.md`「EvaluationResponse」の共通ヘッダー。 */
+interface EvaluationResponseHeaderBody {
+  readonly schemaVersion: number;
+  readonly seed: string;
+  readonly seedDerivationVersion: string;
+  readonly catalogRevision: string;
+  readonly engineRevision: string;
+  readonly requestedRuns: number;
+  readonly completedRuns: number;
+  readonly partial: boolean;
+}
+
+/** `10_API設計.md`「BattleEvaluationResponse」。 */
+export interface BattleEvaluationResponseBody extends EvaluationResponseHeaderBody {
+  readonly cases: readonly EvaluationCaseResponseBody<BattleEvaluationRunResponseBody>[];
+}
+
+/** `10_API設計.md`「TotalWarEvaluationResponse」。 */
+export interface TotalWarEvaluationResponseBody extends EvaluationResponseHeaderBody {
+  readonly cases: readonly EvaluationCaseResponseBody<TotalWarEvaluationRunResponseBody>[];
+}
