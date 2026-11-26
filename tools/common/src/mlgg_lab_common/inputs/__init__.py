@@ -8,4 +8,5 @@
 - `schema`: 編成ライブラリ用のJSON Schema生成と、Schemaへ実IDを差し込む部品
 - `resolution`: 入力解決の共通手順（手持ちデータの適用・検証エラーの集約）
 - `yaml_io`: 入力YAMLの読み書き
+- `migration`: 従来の置き場所から `tools/data/inputs/` への入力データの移行
 """

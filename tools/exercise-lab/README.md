@@ -27,6 +27,11 @@ uv sync --locked --all-packages
 cd exercise-lab   # 以降の相対パス（configs/・local_storage/）はここが基準
 ```
 
+個人の入力は `tools/data/inputs/`（ドラフト・編成YAML・育成JSON）にまとめて置ける（従来の
+`local_storage/`・`configs/formations/` もそのまま使える）。配置・移行の手順は [`../README.md`](../README.md)
+「データの置き場所」にある。戦術演習の評価APIは試行番号を指定できる形への再設計待ちのため、共通の評価実行
+基盤（同「評価の実行」）からはまだ評価できない。
+
 コマンド名は `lab` から `exercise-lab` に変わった（workspace の他のラボとの衝突を避けるため）。
 サブコマンド・オプションは変わらない。個人ファイル（`configs/*.yaml`・`configs/formations/`・
 `local_storage/`）の場所も変わらず、ツールはそれらを移動・削除・上書きしない。

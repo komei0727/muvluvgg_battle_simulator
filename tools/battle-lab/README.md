@@ -3,7 +3,8 @@
 通常戦闘（`NORMAL`）のラボ。`tools/` の uv workspace の1パッケージで、全体の構成・依存の向き・
 開発コマンドは [`../README.md`](../README.md) にある。
 
-今は対戦入力の基盤だけを持つ。評価APIの大量試行・保存・探索は後続の段階で足す。
+対戦入力の基盤と、評価設定から試行計画を作る口（`evaluation`）を持つ。評価APIの分割実行・保存・再開は
+共通基盤（`mlgg_lab_common`）が持つ。利用者向けのコマンドと探索は後続の段階で足す。
 
 ## 対戦入力
 
@@ -55,3 +56,9 @@ Path("resolved.json").write_text(dump_resolved_battle_input(resolved), encoding=
 手持ちデータは既定で味方にだけ当てる。どちらの陣営でも、編成に明示した値が優先する。
 `catalog=` を渡すと未知IDと編成プール違反をまとめて検出する（`InputValidationError`）。
 `configs/*.yaml`（サンプル以外）と `local_storage/` は gitignore してある。
+
+## 評価設定から試行計画を作る
+
+[`configs/evaluation.example.yaml`](configs/evaluation.example.yaml) を写して使う。ケースごとに対戦入力ファイル
+（`match:`）かUIドラフト（`draft:`）と試行番号を書き、`plan_battle_evaluation(path)` で解決済み入力・送信内容・参加枠を
+確定した計画にする。実行・保存・再開の手順と不変条件は [`../README.md`](../README.md)「評価の実行（共通基盤）」にある。
