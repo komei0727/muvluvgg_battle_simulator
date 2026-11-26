@@ -18,7 +18,7 @@ function findCase(name: string): (typeof PYTHON_PARITY.cases)[number] {
   return found;
 }
 
-// UI-UT-STS-001: 統計の定義の正本は exercise-lab の `reference_stats/descriptive.py` であり、この移植が
+// UI-UT-STS-001: 統計の定義の正本は `mlgg_lab_common/statistics/descriptive.py` であり、この移植が
 // 黙って乖離しないことを、同じ標本に対する期待値の一致で示す。
 describe("summarizeScores (UI-UT-STS-001)", () => {
   it.each(PYTHON_PARITY.cases.map((entry) => entry.name))(

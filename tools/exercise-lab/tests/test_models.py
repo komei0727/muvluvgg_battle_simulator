@@ -7,7 +7,7 @@
 import pytest
 
 from exercise_lab.inputs.exercise import build_enemy_formation, load_formation_config
-from exercise_lab.inputs.models import ConfigError, build_ally_formation
+from mlgg_lab_common.models import ConfigError, build_formation_request
 
 MINIMAL_YAML = """
 ally:
@@ -28,7 +28,7 @@ enemy:
 def test_units_and_memories_keep_yaml_order(tmp_path):
     config = load_formation_config(write(tmp_path, MINIMAL_YAML))
 
-    ally = build_ally_formation(config.ally)
+    ally = build_formation_request(config.ally)
     assert [unit["unitDefinitionId"] for unit in ally["units"]] == ["UNIT_B", "UNIT_A"]
     assert ally["memoryDefinitionIds"] == ["MEMORY_Z", "MEMORY_A"]
 
@@ -40,7 +40,7 @@ def test_request_without_enhancement_omits_enhancement_keys(tmp_path):
         "units": [{"unitDefinitionId": "UNIT_ENEMY", "position": {"column": 1, "row": "FRONT"}}],
         "memoryDefinitionIds": [],
     }
-    assert build_ally_formation(config.ally) == {
+    assert build_formation_request(config.ally) == {
         "units": [
             {"unitDefinitionId": "UNIT_B", "position": {"column": 2, "row": "REAR"}},
             {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}},
@@ -129,7 +129,7 @@ enemy:
 def test_academy_levels_emit_all_nine_keys_defaulting_to_one(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
 
-    assert build_ally_formation(config.ally)["enhancement"] == {
+    assert build_formation_request(config.ally)["enhancement"] == {
         "academyLevels": {
             "unitTypes": {"PHYSICAL": 60, "ENERGY": 1, "AGILE": 1},
             "attributes": {
@@ -147,7 +147,7 @@ def test_academy_levels_emit_all_nine_keys_defaulting_to_one(tmp_path):
 def test_unit_enhancement_keeps_gear_order_and_omits_default_units(tmp_path):
     config = load_formation_config(write(tmp_path, ENHANCED_YAML))
 
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config.ally)["units"]
 
     assert units[0]["enhancement"] == {
         "level": 240,
@@ -179,7 +179,7 @@ def test_unknown_academy_level_key_is_rejected(tmp_path):
 def test_unit_rank_is_sent_when_it_differs_from_the_default(tmp_path):
     config = load_formation_config(write(tmp_path, RANKED_YAML))
 
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config.ally)["units"]
 
     assert units[0]["enhancement"] == {"level": 200, "rank": 3, "gears": []}
 
@@ -187,7 +187,7 @@ def test_unit_rank_is_sent_when_it_differs_from_the_default(tmp_path):
 def test_unit_rank_equal_to_the_default_is_omitted(tmp_path):
     config = load_formation_config(write(tmp_path, RANKED_YAML))
 
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config.ally)["units"]
 
     # rank 5（LR+5）はlevel 200・ギア0件と同じく省略時の既定と同値なので、
     # `enhancement` 自体を出さない。
@@ -207,7 +207,7 @@ def test_unit_rank_without_academy_levels_is_rejected(tmp_path):
 def test_unit_module_is_sent_when_present_and_only_the_written_fields_appear(tmp_path):
     config = load_formation_config(write(tmp_path, MODULE_YAML))
 
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config.ally)["units"]
 
     assert units[0]["enhancement"]["module"] == {
         "hp": {"fixed": 5000, "ratio": 0.1},
@@ -236,7 +236,7 @@ enemy:
 """
     config = load_formation_config(write(tmp_path, yaml_text))
 
-    units = build_ally_formation(config.ally)["units"]
+    units = build_formation_request(config.ally)["units"]
 
     assert units[0]["enhancement"] == {
         "level": 200,

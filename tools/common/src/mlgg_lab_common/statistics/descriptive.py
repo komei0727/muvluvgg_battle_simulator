@@ -1,8 +1,10 @@
 """試行ごとの生値から出す記述統計。
 
 サーバーは統計量を返さない（`10_API設計.md`「TacticalExerciseCandidateEvaluationResponse」、
-Q-TEX-16）。UIの `descriptive-statistics.ts` はこの関数群の移植であり、両者の一致は
-`scripts/export_ui_parity_fixture.py` が書き出すfixtureで検証する。
+Q-TEX-16。大量試行APIも試行ごとの値だけを返す）。戦闘形式には依らない。UIの
+`descriptive-statistics.ts` はこの関数群の移植であり、両者の一致は
+`tools/exercise-lab/scripts/export_ui_parity_fixture.py` が書き出すfixtureで検証する。
+定義・数値計算法を変えるときは、UI側の移植とfixtureを同時に更新する。
 """
 
 from __future__ import annotations
@@ -71,7 +73,7 @@ def summarize_scores(scores: Sequence[int]) -> ScoreSummary:
 
 
 def defeat_rate(completion_reasons: Sequence[str]) -> float:
-    """`ALLY_DEFEATED` で終わった試行の割合。5ターン走り切れない編成を弾くための指標。"""
+    """`ALLY_DEFEATED` で終わった試行の割合。規定ターンを走り切れない編成を弾くための指標。"""
     if len(completion_reasons) == 0:
         raise ValueError("敗北率を出すには1件以上の完了理由が要る")
     defeated = sum(1 for reason in completion_reasons if reason == ALLY_DEFEATED)

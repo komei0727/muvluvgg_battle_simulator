@@ -1,16 +1,18 @@
 # exercise-lab
 
-ローカル専用のPythonツール。役割は2つに絞ってある。
+戦術演習のラボ。`tools/` の uv workspace の1パッケージで、全体の構成・依存の向き・
+開発コマンドは [`../README.md`](../README.md) にある。
 
-- **入力の取り込み**（`exercise_lab.inputs`）— 手持ちデータ（育成状態）・編成（YAML・UIのドラフト・
-  編成ライブラリ）・Catalog を読み、検証し、API の `FormationRequest` へ変換する
-- **UI統計の参照実装**（`exercise_lab.reference_stats`）— UIの統計表示
-  （`apps/ui/src/features/exercise-stats/`）が数値一致を検証する fixture の生成元
+- **演習の入力**（`exercise_lab.inputs`）— 演習の編成YAML・演習ドラフトを読み、演習固有の
+  受理条件（敵ちょうど1体・敵メモリーなし・敵は `EXERCISE_ENEMY`）で検証し、解決済みの演習入力
+  とAPIのリクエストを作る
+- **演習固有の統計**（`exercise_lab.statistics`）— 挑戦回数別の最高値（日次ベスト指標）。UIの
+  統計表示（`apps/ui/src/features/exercise-stats/`）が数値一致を検証する fixture の生成元でもある
+- **入力補助CLI**（`exercise-lab`）— ドラフトの取り込み・IDの検索・編成ライブラリの一覧・Schema生成
 
-戦闘ルール・育成計算の正本は TypeScript 側（`apps/api/`）にあり、ここでは再実装しない。
-
-このディレクトリは pnpm workspace にも CI 品質ゲートにも属さない。`ruff` / `pytest` は
-ツール内で完結し、`scripts/run-quality-gates.sh` からは呼ばれない。
+戦闘形式に依らない部分（編成・育成モデル、手持ちデータ、UIドラフト、編成ライブラリ、Catalog、
+記述統計）は `mlgg_lab_common`（[`../common/`](../common/)）にある。戦闘ルール・育成計算の正本は
+TypeScript 側（`apps/api/`）にあり、ここでは再実装しない。
 
 > 以前ここにあった統計・探索・ギア分析（`lab stats` / `optimize` / `compare` /
 > `gear-sensitivity` / `gear-plan`）は Issue #881 で削除した。実装は Git 履歴
@@ -19,44 +21,42 @@
 
 ## セットアップ
 
-[uv](https://docs.astral.sh/uv/) と Python 3.12 以上が要る。
-
 ```bash
-cd tools/exercise-lab
-uv sync --locked
+cd tools
+uv sync --locked --all-packages
+cd exercise-lab   # 以降の相対パス（configs/・local_storage/）はここが基準
 ```
+
+コマンド名は `lab` から `exercise-lab` に変わった（workspace の他のラボとの衝突を避けるため）。
+サブコマンド・オプションは変わらない。個人ファイル（`configs/*.yaml`・`configs/formations/`・
+`local_storage/`）の場所も変わらず、ツールはそれらを移動・削除・上書きしない。
 
 Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` で `mise run dev`、既定ポート 3000）を
 相手にする。別の配備を指すときは `--base-url` を渡す。
 
 ## 構成
 
-| モジュール              | 役割                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `inputs/models.py`      | 味方編成の値型（配置・ギア・学園レベル・モジュール）と `FormationRequest`（味方）変換 |
-| `inputs/player_data.py` | 手持ちデータ `mlgg:player-data` の版・形・値の検証と、育成値の解決                    |
-| `inputs/draft.py`       | UIの編成ドラフト（`BattleDraft`）の版検証と、配置・ユニット・メモリーの抽出           |
-| `inputs/library.py`     | 編成ライブラリ（`configs/formations/<id>.yaml`）の一覧・読み書き                      |
-| `inputs/catalog.py`     | Catalog の取得・DTO・検索                                                             |
-| `inputs/exercise.py`    | 戦術演習の既存形式（編成YAML・演習ドラフト）のアダプター                              |
-| `inputs/schema.py`      | 編成YAML・編成ライブラリ用 JSON Schema の生成                                         |
-| `reference_stats/`      | UI統計の参照実装（記述統計・日次ベスト指標）                                          |
-| `cli.py`                | `lab` コマンド（入力補助）                                                            |
+| モジュール                            | 役割                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `inputs/exercise.py`                  | 演習の編成YAML・演習ドラフトの読み書き、演習固有の検証、解決済み入力 |
+| `inputs/schema.py`                    | 演習の編成YAML用 JSON Schema の生成                                  |
+| `statistics/daily_best.py`            | 日次ベスト指標（UI統計の参照実装）                                   |
+| `cli.py`                              | `exercise-lab` コマンド（入力補助）                                  |
+| `scripts/export_ui_parity_fixture.py` | UI統計の fixture を書き出す                                          |
 
-演習固有の受理条件（敵ちょうど1体・敵メモリーなし・敵は `EXERCISE_ENEMY`）は `inputs/exercise.py`
-の中だけにある。他のモジュールは戦闘種別に依らない。
+演習固有の受理条件は `inputs/exercise.py` の中だけにある。
 
 ## コマンド
 
-| コマンド           | 用途                                                  |
-| ------------------ | ----------------------------------------------------- |
-| `lab import-draft` | UIで組んだ演習編成を編成定義YAMLへ変換する            |
-| `lab units`        | Catalog のユニットを検索してIDを引く                  |
-| `lab memories`     | Catalog のメモリーを検索してIDを引く                  |
-| `lab formations`   | 編成ライブラリ（`configs/formations/`）のIDを一覧する |
-| `lab schema`       | エディタ補完用の JSON Schema を Catalog から生成する  |
+| コマンド                    | 用途                                                  |
+| --------------------------- | ----------------------------------------------------- |
+| `exercise-lab import-draft` | UIで組んだ演習編成を編成定義YAMLへ変換する            |
+| `exercise-lab units`        | Catalog のユニットを検索してIDを引く                  |
+| `exercise-lab memories`     | Catalog のメモリーを検索してIDを引く                  |
+| `exercise-lab formations`   | 編成ライブラリ（`configs/formations/`）のIDを一覧する |
+| `exercise-lab schema`       | エディタ補完用の JSON Schema を Catalog から生成する  |
 
-### UIのドラフトを取り込む（`lab import-draft`）
+### UIのドラフトを取り込む（`exercise-lab import-draft`）
 
 UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保存している。
 
@@ -66,7 +66,7 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 4. 変換する
 
    ```bash
-   uv run lab import-draft local_storage/draft/kotoha-anis.json -o configs/formation.yaml
+   uv run exercise-lab import-draft local_storage/draft/kotoha-anis.json -o configs/formation.yaml
    ```
 
 `-o` を省くと標準出力へ出る。生成物には**育成状態（レベル・ギア・学園レベル）を含めない** —
@@ -81,11 +81,11 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 出す。`--note` で意図・狙いも書ける（`--library` 専用）。
 
 ```bash
-uv run lab import-draft local_storage/draft/kotoha-anis.json --library \
+uv run exercise-lab import-draft local_storage/draft/kotoha-anis.json --library \
   --note "属性デバフ特化" -o configs/formations/kotoha-anis.yaml
 ```
 
-### 編成ライブラリ（`lab formations`）
+### 編成ライブラリ（`exercise-lab formations`）
 
 `configs/formations/<id>.yaml` 1ファイルが、敵に依らない味方編成1件である（ファイル名がID）。
 
@@ -99,13 +99,15 @@ memoryDefinitionIds:
 ```
 
 ```bash
-uv run lab formations              # 全件
-uv run lab formations --grep olga  # 部分一致
+uv run exercise-lab formations              # 全件
+uv run exercise-lab formations --grep olga  # 部分一致
 ```
 
 `configs/formations/` は個人の編成置き場であり gitignore してある。公開サンプル・テストはここに依存しない。
+編成ライブラリは陣営に依らないので、通常戦闘・総力戦の対戦入力からも `{ library: <id> }` で参照できる
+（`battle-lab` / `total-war-lab` へこのディレクトリを `formations_dir` として渡す）。
 
-### エディタ補完（`lab schema`）
+### エディタ補完（`exercise-lab schema`）
 
 Catalog から実IDを enum に焼いた JSON Schema を生成する。既定の出力先は `.schema/`（gitignore 済み）。
 
@@ -130,14 +132,14 @@ Catalog から実IDを enum に焼いた JSON Schema を生成する。既定の
 味方の配置重複は JSON Schema で表せないため、エディタは通しローダーが落とす
 （差異は `tests/test_schema.py` で固定してある）。**Catalog を更新したら作り直す。**
 
-### IDを引く（`lab units` / `lab memories`）
+### IDを引く（`exercise-lab units` / `exercise-lab memories`）
 
 ```bash
-uv run lab units --owned --player-data local_storage/player-data.json   # 手持ちだけに絞る
-uv run lab units --grep 反逆                              # 表示名・キャラ名・IDの部分一致
-uv run lab units --category EXERCISE_ENEMY                # 演習の敵一覧
-uv run lab memories --grep 心
-uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼れる形で出す
+uv run exercise-lab units --owned --player-data local_storage/player-data.json   # 手持ちだけに絞る
+uv run exercise-lab units --grep 反逆                              # 表示名・キャラ名・IDの部分一致
+uv run exercise-lab units --category EXERCISE_ENEMY                # 演習の敵一覧
+uv run exercise-lab memories --grep 心
+uv run exercise-lab units --grep コトハ --yaml                     # 編成YAMLへ貼れる形で出す
 ```
 
 `--yaml` の `position` は仮置きなので、貼った後に実際の配置へ直す。`--owned` のレベル列は
@@ -165,20 +167,29 @@ uv run lab units --grep コトハ --yaml                     # 編成YAMLへ貼�
 ```python
 from pathlib import Path
 
-from exercise_lab.inputs.exercise import apply_player_data, build_enemy_formation, load_formation_config
-from exercise_lab.inputs.models import build_ally_formation
-from exercise_lab.inputs.player_data import load_player_data
+from exercise_lab.inputs.exercise import (
+    dump_resolved_exercise_input,
+    load_resolved_exercise_input,
+    resolve_exercise_input,
+)
 
-config = load_formation_config(Path("configs/formation.example.yaml"))
-data = load_player_data(Path("local_storage/player-data.json"))
-config, warnings = apply_player_data(config, data)
-request = {
-    "allyFormation": build_ally_formation(config.ally),
-    "enemyFormation": build_enemy_formation(config.enemy),
-}
+resolved = resolve_exercise_input(
+    Path("configs/formation.example.yaml"),
+    player_data_path=Path("local_storage/player-data.json"),
+)
+print(resolved.provenance.warnings)  # 手持ちデータに無いユニットなど
+request = resolved.to_request()  # {"allyFormation": ..., "enemyFormation": ...}
+
+# 解決済み入力はJSONへ保存して読み戻せる（元ファイルを読み直さない）。
+Path("resolved.json").write_text(dump_resolved_exercise_input(resolved), encoding="utf-8")
+assert load_resolved_exercise_input(Path("resolved.json")).to_request() == request
 ```
 
-演習以外の編成は `inputs.player_data.apply_player_data(ally, data)` へ `AllySpec` を直接渡す。
+`catalog=`（`mlgg_lab_common.inputs.catalog.CatalogClient(...).fetch_catalog()` の結果）を渡すと、
+未知IDと編成プール違反をまとめて事前検証する。
+
+手持ちデータの適用は陣営に依らない `mlgg_lab_common.inputs.player_data.apply_player_data(formation, data)`
+（`FormationSpec` を渡す）が行い、ここは味方へだけ当てる。
 
 適用規則:
 
@@ -203,8 +214,8 @@ request = {
 
 ## UI統計の参照実装と fixture
 
-`apps/ui/src/features/exercise-stats/` は `reference_stats/descriptive.py`（記述統計・敗北率・
-ブレイク分布・ヒストグラムのビン数）と `reference_stats/daily_best.py`（期待日次ベスト・
+`apps/ui/src/features/exercise-stats/` は `mlgg_lab_common.statistics.descriptive`（記述統計・敗北率・
+ブレイク分布・ヒストグラムのビン数）と `exercise_lab.statistics.daily_best`（期待日次ベスト・
 日次ベスト分位点・実効サンプル数）をTypeScriptへ移植している。UI 側のテストはここから書き出した
 期待値を読む。
 
@@ -221,8 +232,10 @@ cd ../.. && mise exec -- pnpm exec prettier --write apps/ui/src/features/exercis
 ## 開発
 
 ```bash
-uv sync --locked
-uv run pytest
-uv run ruff check src tests scripts
-uv run ruff format src tests scripts
+cd tools
+uv run pytest common exercise-lab tests
+uv run ruff check .
+uv run ruff format --check .
 ```
+
+workspace 全体のコマンドと境界の検査は [`../README.md`](../README.md) にある。

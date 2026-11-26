@@ -2,7 +2,10 @@
 
 保存形式は `apps/ui/src/features/formation/persistence.ts` の `toStoredDraft` /
 `BattleDraft` を写す。ここは形式の検証と、配置・ユニット・メモリーの抽出だけを行い、
-どの戦闘の編成として成立するかは判定しない（演習の受理条件は `exercise.py`）。
+どの戦闘の編成として成立するかは判定しない（形式ごとの受理条件は各ラボが持つ）。
+
+通常戦闘・戦術演習は1キーに `BattleDraft` 1件（`load_draft`）、総力戦は
+`BattleDraft` の本体を3組持つ（`parse_draft_body` を組ごとに使う）。
 
 **強化情報（レベル・ギア・学園レベル）は読まない。** ドラフトにも育成状態は入っているが、
 このツールでの正本は手持ちデータ（`mlgg:player-data`）側に一本化する。両方から取れる
@@ -20,7 +23,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .models import Column, Row, Spec
+from ..models.formation import Column, FormationSpec, FormationUnitSpec, Position, Row, Spec
 
 # `persistence.ts` の `PERSISTENCE_SCHEMA_VERSION`。異なる版は読み替えず落とす。
 SUPPORTED_SCHEMA_VERSION = 1
@@ -51,25 +54,55 @@ class StoredDraft:
     ally_memory_definition_ids: tuple[str, ...]
     # 敵メモリー欄そのものが無いドラフトと、空の欄を区別しない（どちらも0件）。
     enemy_memory_definition_ids: tuple[str, ...]
+    # UIの規定ターン数欄。未入力（`""`）や欄そのものが無いときは `None`。値域の判定は
+    # 規定ターン数を持つ形式（通常戦闘）の側で行う。
+    turn_limit: int | None = None
 
 
 def load_draft(path: Path, *, storage_key: str) -> StoredDraft:
     """`storage_key` はエラー文で「どのキーの中身を渡すか」を示すためだけに使う。"""
-    stored = _stored_object(path)
+    stored = load_stored_object(path)
     draft = stored.get("draft")
     if not isinstance(draft, dict):
         raise DraftError(f"{path}: `draft` が無い（{storage_key} の中身を渡す）")
+    return parse_draft_body(draft, where=str(path))
+
+
+def parse_draft_body(draft: dict[str, object], *, where: str) -> StoredDraft:
+    """封筒（`schemaVersion`）を剥がした後の `BattleDraft` 本体1件を読む。"""
     return StoredDraft(
-        ally_slots=_filled_slots(draft.get("allySlots"), "allySlots", path),
-        enemy_slots=_filled_slots(draft.get("enemySlots"), "enemySlots", path),
+        ally_slots=_filled_slots(draft.get("allySlots"), "allySlots", where),
+        enemy_slots=_filled_slots(draft.get("enemySlots"), "enemySlots", where),
         ally_memory_definition_ids=_memory_ids(
-            draft.get("allyMemoryDefinitionIds"), "allyMemoryDefinitionIds", path
+            draft.get("allyMemoryDefinitionIds"), "allyMemoryDefinitionIds", where
         ),
         enemy_memory_definition_ids=_optional_memory_ids(draft.get("enemyMemoryDefinitionIds")),
+        turn_limit=_optional_turn_limit(draft.get("turnLimit")),
     )
 
 
-def _stored_object(path: Path) -> dict[str, object]:
+def formation_of(
+    slots: tuple[StoredSlot, ...], memory_definition_ids: tuple[str, ...]
+) -> FormationSpec:
+    """ドラフトの枠・メモリーから編成を作る。強化情報は持たせない（モジュール冒頭参照）。
+
+    枠数の上限などの宣言的な制約はここで初めて効くので、呼び出し側は
+    `pydantic.ValidationError` を利用者向けのエラーへ畳む。
+    """
+    return FormationSpec(
+        units=[
+            FormationUnitSpec(
+                unitDefinitionId=slot.unit_definition_id,
+                position=Position(column=slot.column, row=slot.row),
+            )
+            for slot in slots
+        ],
+        memoryDefinitionIds=list(memory_definition_ids),
+    )
+
+
+def load_stored_object(path: Path) -> dict[str, object]:
+    """UIが保存した封筒（`schemaVersion` 付きのオブジェクト）を読み、版を検証する。"""
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
@@ -100,9 +133,9 @@ def _slot_of(value: object) -> StoredSlot:
         raise DraftError(f"枠の形が契約と合わない: {error}") from error
 
 
-def _filled_slots(value: object, field: str, path: Path) -> tuple[StoredSlot, ...]:
+def _filled_slots(value: object, field: str, where: str) -> tuple[StoredSlot, ...]:
     if not isinstance(value, list):
-        raise DraftError(f"{path}: `{field}` が配列ではない")
+        raise DraftError(f"{where}: `{field}` が配列ではない")
     slots = [_slot_of(entry) for entry in value]
     filled = [slot for slot in slots if slot.unit_definition_id]
     # 保存された配列順ではなく行・列で並べ替える。送信順はUIの生成物と揃えたいが、
@@ -110,9 +143,9 @@ def _filled_slots(value: object, field: str, path: Path) -> tuple[StoredSlot, ..
     return tuple(sorted(filled, key=lambda slot: (ROW_ORDER[slot.row], slot.column)))
 
 
-def _memory_ids(value: object, field: str, path: Path) -> tuple[str, ...]:
+def _memory_ids(value: object, field: str, where: str) -> tuple[str, ...]:
     if not isinstance(value, list):
-        raise DraftError(f"{path}: `{field}` が配列ではない")
+        raise DraftError(f"{where}: `{field}` が配列ではない")
     # 空枠は配列上 `null`。除いたうえで枠順のまま返す（ID順に並べ替えない）。
     return tuple(entry for entry in value if isinstance(entry, str) and entry)
 
@@ -121,3 +154,10 @@ def _optional_memory_ids(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(entry for entry in value if isinstance(entry, str) and entry)
+
+
+def _optional_turn_limit(value: object) -> int | None:
+    # `bool` は `int` の派生なので先に除く（`true` を1ターンと読まない）。
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value

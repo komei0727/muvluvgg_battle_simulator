@@ -4,8 +4,8 @@
 1回のカタログ取得で先に検出する。
 """
 
-from exercise_lab.inputs.catalog import Catalog
 from exercise_lab.inputs.exercise import load_formation_config, validate_against_catalog
+from mlgg_lab_common.inputs.catalog import Catalog
 
 CATALOG = Catalog.model_validate(
     {
@@ -87,7 +87,7 @@ def test_unknown_id_errors_point_at_the_search_command(tmp_path):
 
     errors = validate_against_catalog(config, CATALOG)
 
-    assert any("lab units --grep" in error for error in errors)
+    assert any("exercise-lab units --grep" in error for error in errors)
 
 
 def test_unknown_memory_errors_point_at_the_search_command(tmp_path):
@@ -95,4 +95,4 @@ def test_unknown_memory_errors_point_at_the_search_command(tmp_path):
 
     errors = validate_against_catalog(config, CATALOG)
 
-    assert any("lab memories --grep" in error for error in errors)
+    assert any("exercise-lab memories --grep" in error for error in errors)

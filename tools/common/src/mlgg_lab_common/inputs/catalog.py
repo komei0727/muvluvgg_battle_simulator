@@ -13,14 +13,15 @@ from typing import Any, Self
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .models import GearGrade, GearStat, GearTier
+from ..models.formation import FormationSpec, GearGrade, GearStat, GearTier
 
 CATALOG_PATH = "/api/v1/battle-simulation-catalog"
 
 DEFAULT_BASE_URL = "http://localhost:3000"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
-# `R-TEX-11` #1: 演習の味方は `PLAYABLE`、敵は `EXERCISE_ENEMY` からしか選べない。
+# `R-TEX-11`: ユニット定義のカテゴリ。どの形式でどちらを使えるか（演習の敵は
+# `EXERCISE_ENEMY`、それ以外はすべて `PLAYABLE`）は各ラボが決める。
 PLAYABLE = "PLAYABLE"
 EXERCISE_ENEMY = "EXERCISE_ENEMY"
 
@@ -193,28 +194,74 @@ def search_hint(definition_id: str) -> str:
     return without_prefix.split("_")[0] or definition_id
 
 
+# 検索コマンドの案内に使うCLI。IDを引く入口は今のところ exercise-lab だけにある。
+SEARCH_COMMAND = "exercise-lab"
+
+
 def unit_errors(
-    unit_definition_id: str, side: str, required_category: str, catalog: Catalog
+    unit_definition_id: str,
+    where: str,
+    required_category: str,
+    catalog: Catalog,
+    *,
+    rule: str,
 ) -> list[str]:
-    """未知ID・編成プール違反を、検索コマンドの当たり付きで返す。"""
+    """未知ID・編成プール違反を、検索コマンドの当たり付きで返す。
+
+    `rule` は編成プール違反の根拠（`R-TEX-11 #1` 等）。形式ごとに項番が違うため
+    呼び出し側が渡す。
+    """
     unit = catalog.unit(unit_definition_id)
     if unit is None:
         return [
-            f"{side}: 未知のユニット {unit_definition_id}"
-            f"（`lab units --grep {search_hint(unit_definition_id)}` で探せる）"
+            f"{where}: 未知のユニット {unit_definition_id}"
+            f"（`{SEARCH_COMMAND} units --grep {search_hint(unit_definition_id)}` で探せる）"
         ]
     if unit.category != required_category:
         return [
-            f"{side}: {unit_definition_id} は category={unit.category} であり "
-            f"{required_category} ではない（R-TEX-11 #1）"
+            f"{where}: {unit_definition_id} は category={unit.category} であり "
+            f"{required_category} ではない（{rule}）"
         ]
     return []
 
 
-def memory_errors(memory_definition_ids: Collection[str], side: str, catalog: Catalog) -> list[str]:
+def memory_errors(
+    memory_definition_ids: Collection[str], where: str, catalog: Catalog
+) -> list[str]:
     return [
-        f"{side}: 未知のメモリー {memory_definition_id}"
-        f"（`lab memories --grep {search_hint(memory_definition_id)}` で探せる）"
+        f"{where}: 未知のメモリー {memory_definition_id}"
+        f"（`{SEARCH_COMMAND} memories --grep {search_hint(memory_definition_id)}` で探せる）"
         for memory_definition_id in memory_definition_ids
         if not catalog.has_memory(memory_definition_id)
     ]
+
+
+def formation_reference_errors(
+    formation: FormationSpec,
+    where: str,
+    catalog: Catalog,
+    *,
+    required_category: str,
+    rule: str,
+) -> list[str]:
+    """1編成のユニット・メモリーの参照をCatalogと突き合わせ、問題をすべて返す。
+
+    最初の1件で止めない。IDの打ち間違いが複数あるときに1件ずつ往復させると、
+    devサーバー起動込みの試行錯誤が長くなる。ここは事前検証であり、最終的な
+    受理判定はAPIが行う。
+    """
+    errors: list[str] = []
+    for index, unit in enumerate(formation.units):
+        errors.extend(
+            unit_errors(
+                unit.unit_definition_id,
+                f"{where}.units[{index}]",
+                required_category,
+                catalog,
+                rule=rule,
+            )
+        )
+    errors.extend(
+        memory_errors(formation.memory_definition_ids, f"{where}.memoryDefinitionIds", catalog)
+    )
+    return errors

@@ -6,7 +6,7 @@ import respx
 from typer.testing import CliRunner
 
 from exercise_lab.cli import app
-from exercise_lab.inputs.catalog import CATALOG_PATH, CatalogClient, LabApiError
+from mlgg_lab_common.inputs.catalog import CATALOG_PATH, CatalogClient, LabApiError
 
 BASE_URL = "http://localhost:3000"
 INPUT_COMMANDS = ("import-draft", "units", "memories", "formations", "schema")

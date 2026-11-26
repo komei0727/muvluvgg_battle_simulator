@@ -2,42 +2,65 @@
 
 演習の編成YAML（味方 + 敵1体）と、UIの演習ドラフト（localStorage
 `mlgg:last-draft:exercise`）の受理条件はここに閉じ込める。値型・手持ちデータ・
-ドラフトの読み取り自体は戦闘種別に依らないモジュールが持つ。
+ドラフトの読み取り自体は戦闘形式に依らない `mlgg_lab_common` が持つ。
+
+演習の対戦条件は「味方編成 + 演習対象（敵1体と配置）」である。規定ターン数は5で固定
+（R-TEX-01 #4）なので持たない。最終的な受理判定はAPIが行う。
 
 通常戦闘のドラフト（`mlgg:last-draft`）との取り違えは、保存形式が同じ `BattleDraft` で
 あるため完全には判別できない。敵が2体以上のときと敵メモリーを持つときはここで
 落とせるが、敵1体・敵メモリーなしの通常戦闘ドラフトは通る。それは Catalog との
-突き合わせ（{@link validate_against_catalog}）が捕まえる——通常戦闘の敵は `PLAYABLE`
+突き合わせ（`validate_against_catalog`）が捕まえる——通常戦闘の敵は `PLAYABLE`
 であり、演習の敵プール（`EXERCISE_ENEMY`）に合わないため R-TEX-11 #1 で弾かれる。
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, ValidationError
 
-from .catalog import EXERCISE_ENEMY, PLAYABLE, Catalog, memory_errors, unit_errors
-from .draft import DraftError, StoredDraft, StoredSlot, load_draft
-from .models import (
-    MAX_ALLY_UNITS,
-    AllySpec,
-    AllyUnitSpec,
-    ConfigError,
+from mlgg_lab_common.inputs.catalog import (
+    EXERCISE_ENEMY,
+    PLAYABLE,
+    Catalog,
+    memory_errors,
+    unit_errors,
+)
+from mlgg_lab_common.inputs.draft import DraftError, StoredDraft, formation_of, load_draft
+from mlgg_lab_common.inputs.player_data import PlayerData
+from mlgg_lab_common.inputs.player_data import apply_player_data as apply_player_data_to_formation
+from mlgg_lab_common.inputs.resolution import load_player_data_input, raise_if_invalid
+from mlgg_lab_common.inputs.yaml_io import (
     FlowMapping,
-    Position,
-    Spec,
     dump_yaml,
     load_yaml_mapping,
     placement_documents,
-    validate_ally,
 )
-from .player_data import PlayerData
-from .player_data import apply_player_data as apply_player_data_to_ally
+from mlgg_lab_common.models import (
+    MAX_FORMATION_UNITS,
+    ConfigError,
+    FormationSpec,
+    FormationUnitSpec,
+    InputProvenance,
+    InputSource,
+    ParticipantSlot,
+    Position,
+    ResolvedInput,
+    Spec,
+    build_formation_request,
+    dump_resolved_input,
+    load_resolved_input,
+    participant_slots,
+    revalidated,
+    validate_formation,
+)
 
 EXERCISE_DRAFT_STORAGE_KEY = "mlgg:last-draft:exercise"
 EXERCISE_ENEMY_UNIT_COUNT = 1
+# 演習の編成プール: 味方は `PLAYABLE`、敵は `EXERCISE_ENEMY`。
+EXERCISE_POOL_RULE = "R-TEX-11 #1"
 
 
 class EnemySpec(Spec):
@@ -48,7 +71,9 @@ class EnemySpec(Spec):
 
 
 class FormationConfig(Spec):
-    ally: AllySpec
+    """演習の対戦条件（編成定義YAMLの形）。"""
+
+    ally: FormationSpec
     enemy: EnemySpec
 
 
@@ -58,7 +83,7 @@ def load_formation_config(path: Path) -> FormationConfig:
         config = FormationConfig.model_validate(raw)
     except ValidationError as error:
         raise ConfigError(f"{path}: {error}") from error
-    validate_ally(config.ally, path)
+    validate_formation(config.ally, f"{path}: ally")
     return config
 
 
@@ -101,7 +126,7 @@ def apply_player_data(
     config: FormationConfig, data: PlayerData
 ) -> tuple[FormationConfig, list[str]]:
     """味方側にだけ手持ちデータを適用する。演習の敵は強化を持たない。"""
-    ally, warnings = apply_player_data_to_ally(config.ally, data)
+    ally, warnings = apply_player_data_to_formation(config.ally, data)
     return config.model_copy(update={"ally": ally}), warnings
 
 
@@ -113,8 +138,18 @@ def validate_against_catalog(config: FormationConfig, catalog: Catalog) -> list[
     """
     errors: list[str] = []
     for unit in config.ally.units:
-        errors.extend(unit_errors(unit.unit_definition_id, "ally", PLAYABLE, catalog))
-    errors.extend(unit_errors(config.enemy.unit_definition_id, "enemy", EXERCISE_ENEMY, catalog))
+        errors.extend(
+            unit_errors(unit.unit_definition_id, "ally", PLAYABLE, catalog, rule=EXERCISE_POOL_RULE)
+        )
+    errors.extend(
+        unit_errors(
+            config.enemy.unit_definition_id,
+            "enemy",
+            EXERCISE_ENEMY,
+            catalog,
+            rule=EXERCISE_POOL_RULE,
+        )
+    )
     errors.extend(
         memory_errors(config.ally.memory_definition_ids, "ally.memoryDefinitionIds", catalog)
     )
@@ -140,10 +175,7 @@ def _reasons(error: ValidationError) -> str:
 def _config_of(draft: StoredDraft) -> FormationConfig:
     enemy = draft.enemy_slots[0]
     return FormationConfig(
-        ally=AllySpec(
-            units=[_ally_unit(slot) for slot in draft.ally_slots],
-            memoryDefinitionIds=list(draft.ally_memory_definition_ids),
-        ),
+        ally=formation_of(draft.ally_slots, draft.ally_memory_definition_ids),
         enemy=EnemySpec(
             unitDefinitionId=enemy.unit_definition_id,
             position=Position(column=enemy.column, row=enemy.row),
@@ -151,21 +183,15 @@ def _config_of(draft: StoredDraft) -> FormationConfig:
     )
 
 
-def _ally_unit(slot: StoredSlot) -> AllyUnitSpec:
-    return AllyUnitSpec(
-        unitDefinitionId=slot.unit_definition_id,
-        position=Position(column=slot.column, row=slot.row),
-    )
-
-
 def _reject_unusable(draft: StoredDraft, path: Path) -> None:
     ally, enemy = draft.ally_slots, draft.enemy_slots
     if not ally:
         raise DraftError(f"{path}: 味方が0体のドラフトからは編成を作れない")
-    if len(ally) > MAX_ALLY_UNITS:
+    if len(ally) > MAX_FORMATION_UNITS:
         # UIの盤面は6枠あるので、6体埋めたドラフトも保存できてしまう。
         raise DraftError(
-            f"{path}: 味方が{len(ally)}体ある。編成できるのは{MAX_ALLY_UNITS}体まで（R-FRM-01）"
+            f"{path}: 味方が{len(ally)}体ある。"
+            f"編成できるのは{MAX_FORMATION_UNITS}体まで（R-FRM-01）"
         )
     if not enemy:
         raise DraftError(f"{path}: 敵が置かれていない（演習は敵1体が要る）")
@@ -183,3 +209,100 @@ def _reject_unusable(draft: StoredDraft, path: Path) -> None:
             f"{path}: 敵メモリーが入っている。演習の敵はメモリーを持たない（R-TEX-01 #3）。"
             f"通常戦闘の `mlgg:last-draft` ではなく `{EXERCISE_DRAFT_STORAGE_KEY}` を書き出す"
         )
+
+
+def build_exercise_request(config: FormationConfig) -> dict[str, Any]:
+    """`TacticalExerciseRequest` の対戦条件部分（`options` を除く）。
+
+    評価API（`TacticalExerciseEvaluationRequest`）は同じ2編成を候補・共有の敵として
+    持つため、組み替えは呼び出し側が行う。
+    """
+    return {
+        "allyFormation": build_formation_request(config.ally),
+        "enemyFormation": build_enemy_formation(config.enemy),
+    }
+
+
+def exercise_participant_slots(config: FormationConfig) -> list[ParticipantSlot]:
+    enemy = FormationSpec(
+        units=[
+            FormationUnitSpec(
+                unitDefinitionId=config.enemy.unit_definition_id,
+                position=config.enemy.position,
+            )
+        ]
+    )
+    return participant_slots("ALLY", [config.ally], numbered=False) + participant_slots(
+        "ENEMY", [enemy], numbered=False
+    )
+
+
+class ResolvedExerciseInput(ResolvedInput):
+    """解決済みの演習入力。手持ちデータ適用後の編成をそのまま持つ。"""
+
+    format: Literal["TACTICAL_EXERCISE"] = "TACTICAL_EXERCISE"
+    match: FormationConfig
+
+    def validate_match(self, where: str) -> None:
+        validate_formation(self.match.ally, f"{where}: match.ally")
+
+    def to_request(self) -> dict[str, Any]:
+        return build_exercise_request(self.match)
+
+
+def resolve_exercise_input(
+    config_path: Path,
+    *,
+    player_data_path: Path | None = None,
+    catalog: Catalog | None = None,
+) -> ResolvedExerciseInput:
+    """編成定義YAML（+ 手持ちデータ・Catalog）から解決済みの演習入力を作る。
+
+    `catalog` を渡すと参照（未知ID・編成プール）を事前検証し、問題があればすべて
+    まとめて `InputValidationError` で落とす。渡さない場合は検証をAPIへ委ねる。
+    """
+    config = load_formation_config(config_path)
+    return resolve_exercise_config(
+        config,
+        origin=InputSource(role="MATCH_FILE", path=str(config_path)),
+        player_data_path=player_data_path,
+        catalog=catalog,
+    )
+
+
+def resolve_exercise_config(
+    config: FormationConfig,
+    *,
+    origin: InputSource,
+    player_data_path: Path | None = None,
+    catalog: Catalog | None = None,
+) -> ResolvedExerciseInput:
+    """読み込み済みの演習入力（YAML・ドラフトのどちらから作ったものでもよい）を解決する。"""
+    sources = [origin]
+    warnings: list[str] = []
+    if player_data_path is not None:
+        player_data = load_player_data_input(player_data_path)
+        config, warnings = apply_player_data(config, player_data.data)
+        sources.append(player_data.source.model_copy(update={"applies_to": "ally"}))
+    if catalog is not None:
+        raise_if_invalid(validate_against_catalog(config, catalog))
+    return revalidated(
+        ResolvedExerciseInput(
+            match=config,
+            provenance=InputProvenance(
+                sources=sources,
+                catalogRevision=None if catalog is None else catalog.catalog_revision,
+                warnings=warnings,
+            ),
+        )
+    )
+
+
+def dump_resolved_exercise_input(resolved: ResolvedExerciseInput) -> str:
+    return dump_resolved_input(resolved)
+
+
+def load_resolved_exercise_input(path: Path) -> ResolvedExerciseInput:
+    return load_resolved_input(
+        ResolvedExerciseInput, path.read_text(encoding="utf-8"), where=str(path)
+    )

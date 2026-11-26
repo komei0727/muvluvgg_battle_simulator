@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from exercise_lab.reference_stats.descriptive import (
+from mlgg_lab_common.statistics.descriptive import (
     break_count_distribution,
     defeat_rate,
     histogram_bin_count,

@@ -1,0 +1,42 @@
+# 通常戦闘の対戦入力サンプル。個人ファイルなしで読み込める
+# （`battle_lab.inputs.load_battle_match_file`）。
+#
+# キーはAPI（`BattleSimulationRequest`）と同じ。ユニット・メモリーは書いた順のまま送る。
+# 育成状態（academyLevels・level・rank・gears）は書かず、手持ちデータ
+# （localStorage `mlgg:player-data`）を `resolve_battle_input(player_data_path=...)` で当てる。
+# 当てなければ全員レベル200・ランク5・ギアなし・強化計算なしになる。
+#
+# 編成は次のどちらでも書ける。
+#   - インライン（下の allyFormation のように units / memoryDefinitionIds を書く）
+#   - 編成ライブラリの参照: `{ library: <id> }`（`configs/formations/<id>.yaml`。
+#     既存の置き場所は tools/exercise-lab/configs/formations/ で、
+#     `load_battle_match_file(path, formations_dir=...)` へそのディレクトリを渡す）
+#
+# 演習と違い、敵は1～5体・メモリー0～6件・同じユニットの複数枠を置ける。編成プールは
+# 両陣営とも PLAYABLE（R-TEX-11 #3）。
+
+# 1～99（R-FRM-05）。
+turnLimit: 15
+
+allyFormation:
+  units:
+    - unitDefinitionId: UNIT_YURIA_WILDCARD
+      position: { column: 0, row: FRONT }
+    - unitDefinitionId: UNIT_OLGA_NADYA_BOND
+      position: { column: 1, row: FRONT }
+    - unitDefinitionId: UNIT_RAMI_SKYWING
+      position: { column: 1, row: REAR }
+  memoryDefinitionIds:
+    - MEM_ABSOLUTE_ORDER
+    - MEM_BRIEF_RESPITE
+
+enemyFormation:
+  units:
+    - unitDefinitionId: UNIT_LYDIA_SUMMER
+      position: { column: 0, row: FRONT }
+    - unitDefinitionId: UNIT_KOTOHA_DAILY
+      position: { column: 2, row: FRONT }
+    - unitDefinitionId: UNIT_ROSIE_CAMPAIGN
+      position: { column: 1, row: REAR }
+  memoryDefinitionIds:
+    - MEM_CHAOS_MAIDEN

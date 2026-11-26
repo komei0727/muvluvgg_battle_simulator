@@ -1,0 +1,82 @@
+"""陣営・戦闘形式に依存しない編成・育成のデータモデル。
+
+- `formation`: 編成の値型と `FormationRequest` 変換
+- `participants`: 参加枠の識別（陣営・編成番号・枠の添字）
+- `resolved`: 解決済み入力の基底・由来情報・JSON往復
+"""
+
+from .formation import (
+    ATTRIBUTES,
+    DEFAULT_ACADEMY_LEVEL,
+    DEFAULT_UNIT_LEVEL,
+    DEFAULT_UNIT_RANK,
+    MAX_FORMATION_UNITS,
+    MAX_GEARS,
+    MAX_MEMORIES,
+    UNIT_TYPES,
+    AcademyLevels,
+    Column,
+    ConfigError,
+    FormationSpec,
+    FormationUnitSpec,
+    Gear,
+    GearGrade,
+    GearStat,
+    GearTier,
+    ModuleOverride,
+    ModuleStatOverride,
+    Position,
+    Row,
+    Spec,
+    build_formation_request,
+    validate_formation,
+)
+from .participants import SIDES, ParticipantSlot, Side, SlotKey, participant_slots
+from .resolved import (
+    RESOLVED_INPUT_SCHEMA_VERSION,
+    InputProvenance,
+    InputSource,
+    ResolvedInput,
+    dump_resolved_input,
+    load_resolved_input,
+    revalidated,
+)
+
+__all__ = [
+    "ATTRIBUTES",
+    "DEFAULT_ACADEMY_LEVEL",
+    "DEFAULT_UNIT_LEVEL",
+    "DEFAULT_UNIT_RANK",
+    "MAX_FORMATION_UNITS",
+    "MAX_GEARS",
+    "MAX_MEMORIES",
+    "RESOLVED_INPUT_SCHEMA_VERSION",
+    "SIDES",
+    "UNIT_TYPES",
+    "AcademyLevels",
+    "Column",
+    "ConfigError",
+    "FormationSpec",
+    "FormationUnitSpec",
+    "Gear",
+    "GearGrade",
+    "GearStat",
+    "GearTier",
+    "InputProvenance",
+    "InputSource",
+    "ModuleOverride",
+    "ModuleStatOverride",
+    "ParticipantSlot",
+    "Position",
+    "ResolvedInput",
+    "Row",
+    "Side",
+    "SlotKey",
+    "Spec",
+    "build_formation_request",
+    "dump_resolved_input",
+    "load_resolved_input",
+    "participant_slots",
+    "revalidated",
+    "validate_formation",
+]

@@ -1,0 +1,39 @@
+# 総力戦の対戦入力サンプル。個人ファイルなしで読み込める
+# （`total_war_lab.inputs.load_total_war_match_file`）。
+#
+# キーはAPI（`TotalWarRequest`）と同じ。各陣営1～3編成を**出撃順に**並べる
+# （両陣営の編成数は違ってよい）。規定ターン数は15で固定なので書けない（R-TWR-01 #5）。
+# 育成状態は書かず、手持ちデータを `resolve_total_war_input(player_data_path=...)` で当てる。
+#
+# 1編成内で同じユニット・同じメモリーは置けない（R-TWR-01 #3／#4）。別の編成への
+# 再登場は可で、基礎値補正（R-TWR-02）はAPIが掛ける。配置の重複は編成ごとに判定する。
+# 編成は通常戦闘と同じく、インラインか `{ library: <id> }` で書ける。
+
+allyFormations:
+  - units:
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_OLGA_NADYA_BOND
+        position: { column: 1, row: FRONT }
+    memoryDefinitionIds:
+      - MEM_ABSOLUTE_ORDER
+      - MEM_BRIEF_RESPITE
+  # 2編成目。1編成目と同じユニット・メモリー・配置を使ってよい（再登場）。
+  - units:
+      - unitDefinitionId: UNIT_YURIA_WILDCARD
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_RAMI_SKYWING
+        position: { column: 1, row: REAR }
+    memoryDefinitionIds:
+      - MEM_ABSOLUTE_ORDER
+
+enemyFormations:
+  - units:
+      - unitDefinitionId: UNIT_LYDIA_SUMMER
+        position: { column: 0, row: FRONT }
+      - unitDefinitionId: UNIT_KOTOHA_DAILY
+        position: { column: 2, row: FRONT }
+      - unitDefinitionId: UNIT_ROSIE_CAMPAIGN
+        position: { column: 1, row: REAR }
+    memoryDefinitionIds:
+      - MEM_CHAOS_MAIDEN

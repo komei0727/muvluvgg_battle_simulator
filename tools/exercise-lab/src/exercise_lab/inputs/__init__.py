@@ -1,10 +1,9 @@
-"""育成情報・編成情報・Catalogの取り込み。
+"""戦術演習に固有の入力。
 
-- `models`: 味方編成の値型と `FormationRequest`（味方）へのAPI変換
-- `player_data`: 手持ちデータ（`mlgg:player-data`）の検証と育成値の解決
-- `draft`: UIの編成ドラフト（`BattleDraft`）の読み取り
-- `library`: 編成ライブラリ（`configs/formations/<id>.yaml`）
-- `catalog`: Catalogの取得と検索
-- `exercise`: 戦術演習の既存入力形式（編成YAML・演習ドラフト）のアダプター
-- `schema`: 編成YAML・編成ライブラリ用のJSON Schema生成
+- `exercise`: 演習の既存入力形式（編成YAML・演習ドラフト）、演習固有の受理条件、
+  解決済みの演習入力
+- `schema`: 演習の編成YAML用のJSON Schema生成
+
+戦闘形式に依らない編成・手持ちデータ・ドラフト・編成ライブラリ・Catalogは
+`mlgg_lab_common` が持つ。
 """

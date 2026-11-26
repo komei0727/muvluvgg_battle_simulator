@@ -1,7 +1,7 @@
-"""`lab` コマンド。育成情報・編成情報・Catalogの取り込みを補助する。
+"""`exercise-lab` コマンド。育成情報・編成情報・Catalogの取り込みを補助する。
 
-    uv run lab import-draft local_storage/draft.json --out configs/formation.yaml
-    uv run lab units --grep 純夏
+    uv run exercise-lab import-draft local_storage/draft.json --out configs/formation.yaml
+    uv run exercise-lab units --grep 純夏
 
 Catalogを引くコマンドの相手はローカルのdevサーバー（`apps/api/` で `mise run dev`）を
 既定にする。
@@ -18,7 +18,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .inputs.catalog import (
+from mlgg_lab_common.inputs.catalog import (
     DEFAULT_BASE_URL,
     Catalog,
     CatalogClient,
@@ -27,24 +27,26 @@ from .inputs.catalog import (
     search_memories,
     search_units,
 )
-from .inputs.draft import DraftError
-from .inputs.exercise import dump_formation_config, load_exercise_draft
-from .inputs.library import (
+from mlgg_lab_common.inputs.draft import DraftError
+from mlgg_lab_common.inputs.library import (
     DEFAULT_FORMATIONS_DIR,
     FormationLibraryEntry,
     dump_formation_library_entry,
     list_formation_ids,
     load_formation_library_entry,
 )
-from .inputs.models import ConfigError
-from .inputs.player_data import (
+from mlgg_lab_common.inputs.player_data import (
     PlayerData,
     PlayerDataError,
     StoredUnitEnhancement,
     load_player_data,
     resolved_level,
 )
-from .inputs.schema import build_formation_json_schema, build_formation_library_json_schema
+from mlgg_lab_common.inputs.schema import build_formation_library_json_schema
+from mlgg_lab_common.models import ConfigError
+
+from .inputs.exercise import dump_formation_config, load_exercise_draft
+from .inputs.schema import build_formation_json_schema
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
@@ -58,9 +60,9 @@ error_console = Console(stderr=True)
 
 @app.callback()
 def main() -> None:
-    """常にサブコマンド形式（`lab units ...`）を保つために置く。
+    """常にサブコマンド形式（`exercise-lab units ...`）を保つために置く。
 
-    typerはコマンドが1つだけのときトップレベルへ畳み込み、`lab <引数>` になる。
+    typerはコマンドが1つだけのときトップレベルへ畳み込み、`exercise-lab <引数>` になる。
     コマンドの増減で呼び出し方が変わると、それまでの手順・スクリプトが黙って壊れる。
     """
 
@@ -87,7 +89,7 @@ def import_draft(
 
     `--library` を付けると、敵を含まない編成ライブラリ1件分（`units` +
     `memoryDefinitionIds`）を出す。`configs/formations/<id>.yaml` として保存すれば、
-    `lab formations` にファイル名（ID）で載る。
+    `exercise-lab formations` にファイル名（ID）で載る。
     """
     if note is not None and not library:
         _abort("--note には --library が要る（note は編成ライブラリだけが持つ項目）")
@@ -116,7 +118,7 @@ def import_draft(
         console.print(
             f"[bold]{out}[/] を書き出した（味方{len(config.ally.units)}体 /"
             f" メモリー{len(config.ally.memory_definition_ids)}件）。"
-            f" configs/formations/ 配下へ置けば `lab formations` にIDで載る"
+            f" configs/formations/ 配下へ置けば `exercise-lab formations` にIDで載る"
         )
         return
     console.print(
@@ -129,12 +131,12 @@ def import_draft(
 # 生成物であることと、育成状態がここに無いことをファイル自身に持たせる。
 # 後から開いた人が「レベルが書いていない＝レベル200で評価される」と誤読しないため。
 _IMPORTED_HEADER = """\
-# {source} から `lab import-draft` で生成した編成定義。
+# {source} から `exercise-lab import-draft` で生成した編成定義。
 #
 # 育成状態（レベル・ギア・学園レベル）は含まない。育成値は手持ちデータ
 # （localStorage `mlgg:player-data`）が正本で、読み込む側が未指定の項目へ適用する。
 #
-# エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の
+# エディタ補完を効かせるには `exercise-lab schema` でSchemaを生成したうえで、次の行の
 # 先頭の `#` を1つ削り、パスをこのファイルからの相対で合わせる。
 #
 # `# yaml-language-server:` はコメントではなく有効なディレクティブなので、
@@ -144,13 +146,13 @@ _IMPORTED_HEADER = """\
 """
 
 _IMPORTED_LIBRARY_HEADER = """\
-# {source} から `lab import-draft --library` で生成した編成ライブラリの1件。
+# {source} から `exercise-lab import-draft --library` で生成した編成ライブラリの1件。
 #
 # `configs/formations/<id>.yaml` として保存する（ファイル名がそのままID）。
 # 敵・育成状態（レベル・ギア・学園レベル）は含まない——敵に依らない編成の
 # 中身だけを持つ。
 #
-# エディタ補完を効かせるには `lab schema` でSchemaを生成したうえで、次の行の
+# エディタ補完を効かせるには `exercise-lab schema` でSchemaを生成したうえで、次の行の
 # 先頭の `#` を1つ削る（`configs/formations/` 以外へ保存するならパスも相対で合わせる）。
 ## yaml-language-server: $schema=../../.schema/formation-seed.schema.json
 
