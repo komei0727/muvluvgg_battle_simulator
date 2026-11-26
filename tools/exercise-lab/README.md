@@ -48,6 +48,7 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 | `inputs/exercise.py`                  | 演習の編成YAML・演習ドラフトの読み書き、演習固有の検証、解決済み入力 |
 | `inputs/schema.py`                    | 演習の編成YAML用 JSON Schema の生成                                  |
 | `statistics/daily_best.py`            | 日次ベスト指標（UI統計の参照実装）                                   |
+| `search_space.py`                     | 固定相手の探索の演習アダプター（演習対象の敵1体と配置を固定する）    |
 | `cli.py`                              | `exercise-lab` コマンド（入力補助）                                  |
 | `scripts/export_ui_parity_fixture.py` | UI統計の fixture を書き出す                                          |
 

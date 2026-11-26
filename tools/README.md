@@ -3,12 +3,12 @@
 ローカル専用のPython分析ツール群。[uv](https://docs.astral.sh/uv/) の workspace として、
 共通ライブラリ1つと形式ごとのラボ3つを持つ。
 
-| パッケージ                         | import名          | 役割                                                                                                                 |
-| ---------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [`common/`](common/)               | `mlgg_lab_common` | 陣営に依らない編成・育成モデル、手持ちデータ・ドラフト・編成ライブラリ・Catalog、記述統計、評価APIの実行・保存・再開 |
-| [`exercise-lab/`](exercise-lab/)   | `exercise_lab`    | 戦術演習の入力・演習固有統計・入力補助と評価のCLI（`exercise-lab`）                                                  |
-| [`battle-lab/`](battle-lab/)       | `battle_lab`      | 通常戦闘の対戦入力（両陣営の編成・規定ターン数）・形式固有の検証・集計と評価のCLI（`battle-lab`）                    |
-| [`total-war-lab/`](total-war-lab/) | `total_war_lab`   | 総力戦の対戦入力（両陣営の編成列・出撃順）・形式固有の検証・集計と評価のCLI（`total-war-lab`）                       |
+| パッケージ                         | import名          | 役割                                                                                                                                           |
+| ---------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`common/`](common/)               | `mlgg_lab_common` | 陣営に依らない編成・育成モデル、手持ちデータ・ドラフト・編成ライブラリ・Catalog、記述統計、評価APIの実行・保存・再開、固定相手の探索の共通基盤 |
+| [`exercise-lab/`](exercise-lab/)   | `exercise_lab`    | 戦術演習の入力・演習固有統計・入力補助と評価のCLI（`exercise-lab`）                                                                            |
+| [`battle-lab/`](battle-lab/)       | `battle_lab`      | 通常戦闘の対戦入力（両陣営の編成・規定ターン数）・形式固有の検証・集計と評価のCLI（`battle-lab`）                                              |
+| [`total-war-lab/`](total-war-lab/) | `total_war_lab`   | 総力戦の対戦入力（両陣営の編成列・出撃順）・形式固有の検証・集計と評価のCLI（`total-war-lab`）                                                 |
 
 戦闘処理・ステータス計算・育成計算・最終的な編成合法性の判定はAPI（`apps/api/`）の責務であり、
 ここでは再実装しない。ラボが持つのは入力の読み込み・育成情報の適用・事前検証と、APIの
@@ -460,6 +460,175 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
   味方枠のブレイクの和と `breakCount` の差は、メモリー由来と敵の自傷の両方を含む。
 - 旧契約（`runsPerCandidate`・`<seed>#<runOffset>`）向けの互換アダプターは持たない。旧UI・旧CLIの
   seed・CSVは新契約の試行番号と同じ試行ではない。
+
+## 探索の共通基盤（固定相手）
+
+通常戦闘・戦術演習で、相手側の編成・条件を固定したまま味方編成を探索するための共通部品。
+具体的な探索手法・目的関数・試行配分の方針は持たず、それらを後から接続する契約・実行制御・
+保存・再開だけを持つ（総力戦・PvP環境の探索は対象外）。CLIは持たず、Pythonから使う。
+
+```text
+探索問題（固定条件・育成条件・探索範囲・ギア条件・起点・実行条件・接続情報）
+  → 手法が候補を提案 → 共通の制約と形式別アダプターで検証（不正は送らずに記録）
+  → 手法が候補と試行を要求 → 試行番号を割り当てて予算を確認
+  → 段階2の評価計画を新しく作って実行・保存（ラウンド = 評価実行1つ）
+  → 観測を候補・要求へ対応づけ、評価情報を推定して手法へ返す
+  → 手法の状態を保存して次のステップへ
+```
+
+| モジュール                  | 役割                                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `search.problem`            | 探索問題・育成条件・探索範囲・ギア条件・実行条件・接続情報（JSON往復）                                         |
+| `search.candidate`          | 候補（味方のユニット・配置・メモリー順・ギア）・候補ID・由来・編成への展開                                     |
+| `search.operations`         | 候補操作（ユニットの追加・除外・入れ替え・移動・配置交換、メモリーの追加・除外・入れ替え・並べ替え、ギア変更） |
+| `search.constraints`        | 共通の制約検証・形式別アダプターを通した検証・探索問題の検証                                                   |
+| `search.adapter`            | 形式別アダプターの契約                                                                                         |
+| `search.training`           | 手持ちデータから育成条件を作る（評価入力と同じ解決規則）                                                       |
+| `search.method`             | 手法の接続契約（候補提案・試行配分・評価情報の推定・状態管理）                                                 |
+| `search.view`               | 手法へ見せる状況・ラウンドの結果                                                                               |
+| `search.runner`             | 実行制御（`run_search`）・停止理由                                                                             |
+| `experiments.search_store`  | 探索の履歴・チェックポイントのSQLite                                                                           |
+| `experiments.layout`        | 探索ディレクトリの作成（探索問題の検証つき）・オープン                                                         |
+| `battle_lab.search_space`   | 通常戦闘のアダプター（固定条件 = 相手編成・規定ターン数）                                                      |
+| `exercise_lab.search_space` | 戦術演習のアダプター（固定条件 = 演習対象の敵1体と配置）                                                       |
+
+### 探索問題
+
+作成時に入力を解決して写し取り、実行途中で元の編成YAML・育成JSONを読み直さない。
+
+| 項目        | 内容                                                                                                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fixed`     | 形式別の固定条件（JSON。解釈はアダプター）。候補は味方側だけを持つので、候補操作で相手を変える経路は無い                                           |
+| `training`  | 味方の育成条件。学園レベルと、ユニットIDごとのレベル・ランク・ギア・モジュール                                                                     |
+| `space`     | 使用可能ユニット・メモリー、置いてよい配置、人数・メモリー数の範囲、重複の可否、固定ユニット（配置）・固定メモリー（位置）                         |
+| `gear`      | `FIXED`（育成条件のギアを使い、候補のギア変更を拒否）／`ADJUSTABLE`（調整してよいユニット・能力・段階・等級・1体あたりの個数・編成全体の資源上限） |
+| `starts`    | 起点の候補（複数可）。作成時に合法性を検証する                                                                                                     |
+| `execution` | `candidateSeed`（候補生成・配分の乱数）・`battleSeed`（評価APIのseed）・探索全体の送信予算・接続先                                                 |
+| `method`    | 接続した部品の識別子・版と、手法の設定（共通基盤は解釈しない）                                                                                     |
+
+- 育成条件は枠ではなくユニットIDに付く。入れ替えで枠へ入ったユニットにはそのユニットの育成条件が当たり、
+  前のユニット向けに枠へ指定したギアは引き継がない（`replace_unit` は枠のギアを未指定へ戻す）。
+- 候補の `gears=None` は「育成条件のギア」、`gears=()` は「ギアなし」で、別の候補になる。
+- 重複の既定は「許さない」（`allowDuplicateUnits` / `allowDuplicateMemories`）。APIはR-FRM-03で同じユニットを
+  複数枠へ置けるが、使用可能プールは手持ちの1体ずつを表すことが多いため、許すときは明示する。
+- 資源上限（`resourceLimits`）は実際に送るギア（調整したギアと、調整していないユニットの育成条件のギア）で数える。
+  ギアの効果は計算しない（ステータス計算はAPIの責務）。
+- 起点の編成から作るとき（`battle_search_problem` / `exercise_search_problem`）は、配置・ユニット順・
+  メモリー順だけを写し、育成値は `training` から引く。
+
+### 候補の識別と由来
+
+- 候補IDは候補の内容（ユニット・配置・ギア・メモリーの並び順）だけのハッシュ。並び順が違えば別の候補で、
+  同じスコア・勝敗が返ったことを理由に統合しない。
+- 同じ候補が別の経路から提案されると、候補は1つのまま由来（`Origin`: 起点/提案・操作名・元の候補ID・手法の付帯情報）が増える。
+- 候補ID・要求IDは評価APIのseedへ混ぜない。戦闘の乱数列は `(battleSeed, runIndex)` だけで決まるので、
+  別の候補でも同じ試行番号は同じ乱数列で比べられる。
+
+### 手法の接続契約
+
+| 部品                 | メソッド                                                                                    | 責務                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `CandidateProposer`  | `propose(view, rng) -> [Proposal]`                                                          | 起点・過去の観測から候補を提案する                     |
+| `TrialAllocator`     | `allocate(view, rng) -> Allocation`                                                         | 評価する候補と試行（件数か番号の列）・終了を決める     |
+| `ObjectiveEstimator` | `estimate(entry) -> dict`                                                                   | 候補の観測から評価情報（任意のJSONオブジェクト）を作る |
+| 共通                 | `descriptor` / `state_version` / `dump_state()` / `load_state(state)` / `observe(feedback)` | 識別・状態の保存と復元・ラウンド結果の受け取り         |
+
+- `SearchMethod(proposer, allocator, estimator)` で束ね、`method.binding(settings)` を探索問題の `method` に書く。
+- 評価情報は1つの点推定値に限らない。標本数・分布・推定区間などを手法が決めて入れ、共通基盤は保存して
+  `view.candidates[id].estimate` で見せるだけ。スコア計算・勝率推定・追加試行や打ち切りの判断は実装しない。
+- `TrialRequest(candidate_id, runs=n)` はその候補でまだ要求していない最小の番号から割り当て、
+  `run_indices=(...)` は不連続な番号をそのまま使う。同じ候補で要求済みの番号は使えない（二重計上の防止）。
+- 状態はJSONで、共通基盤は中身を読まない。乱数は共通基盤が `candidateSeed` から部品ごとに作って渡し、状態を保存する。
+- テスト用の接続実装（`mlgg_lab_common.testing` の `ScriptedProposer` / `ScriptedAllocator` /
+  `ObservedRunsEstimator`）は台本どおりに返すだけで、製品の探索手法・目的関数ではない。
+
+### 実行・停止・再開
+
+| 停止理由             | 場面                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `METHOD_FINISHED`    | 配分が終了を返した                                                                       |
+| `METHOD_IDLE`        | 配分が要求も終了も返さなかった（同じ状態で呼び続けない）                                 |
+| `BUDGET_EXHAUSTED`   | 探索全体の送信予算が尽きた・要求が残りを超えた（送信しない）                             |
+| `STEP_LIMIT_REACHED` | `run_search(max_steps=...)` に達した                                                     |
+| `INTERRUPTED`        | `should_stop()` が真を返した                                                             |
+| `EVALUATION_STOPPED` | 評価が完了せずに止まった（`evaluation_stop_reason` に段階2の理由）。ラウンドは開いたまま |
+| `INVALID_REQUEST`    | 未登録・不正な候補、要求済みの試行番号などを要求した（送信しない）                       |
+
+- **予算**: 探索全体の上限は送信試行数（再送込み）。各ラウンドの評価計画の送信予算を「その時点の探索全体の残り」にし、
+  段階2が再送込みで守る。要求が残りを超えるときは送らずに止まる。使用量は段階2の各評価実行DBの送信試行数の和。
+- **再開**: 同じ探索ディレクトリを開いて `run_search` をもう一度呼ぶ。開いたラウンドがあれば先にその評価を続け
+  （段階2の再開そのもの。完了済みの試行は送らない）、完了したら閉じて手法へ返す。手法の状態・乱数は直前の区切り
+  （ステップの確定・ラウンドを閉じた時点）から復元する。ラウンドは1回だけ閉じるので、観測・推定・予算は二重に数えない。
+- **部分結果**: 評価が続けられないラウンド（入力不正・予算切れ等）は `close_open_round=True` で、その時点の
+  完了分の観測と未完了の番号を返して閉じる。未完了・通信失敗・実行エラーは観測にならず、敗北・スコア0へ変換しない。
+  未完了の番号は同じ候補では再利用しない。
+- **不一致**: 保存済みの探索と接続した部品の識別子・版、状態の版が違えば `IncompatibleMethodError`、
+  探索DBの保存形式が違えば `SearchStorageError` で、黙って読み込まない。
+
+### 保存
+
+```text
+<searches-dir>/<search-id>/
+  search.sqlite3              # 探索問題・候補と由来・要求と評価実行の対応・推定・手法の状態（正本）
+  search.sqlite3.lock         # 実行中だけ保持する排他ロック
+  evaluations/round-00001/    # ラウンドごとの評価実行（段階2の保存形式。生の対戦結果の正本）
+```
+
+| テーブル         | 内容                                                                    |
+| ---------------- | ----------------------------------------------------------------------- |
+| `search`         | 探索ID・形式・探索問題（`problemFormatVersion` 付きJSON）               |
+| `candidates`     | 受け入れた候補（候補ID → 内容・初出ステップ）                           |
+| `proposals`      | 提案ごとの候補・由来・受理/却下と却下理由（起点はステップ0）            |
+| `rounds`         | ラウンド → 評価実行ID・開/閉・段階2の停止理由・送信試行数（閉じた時点） |
+| `round_requests` | 要求 → 候補・ケースID・試行番号・タグ・完了/未完了の番号（閉じた時点）  |
+| `estimates`      | ラウンド×候補の評価情報                                                 |
+| `checkpoints`    | 区切りごとの手法の状態（部品の識別子・版・状態の版・状態・乱数）        |
+| `sessions`       | 実行1回ごとの開始・終了・停止理由                                       |
+
+生の対戦結果は段階2の評価実行DBにだけあり、探索DBへは複製しない（観測は再開時に評価実行DBから読み直す）。
+探索DBの保存形式は `PRAGMA user_version`（`SEARCH_STORAGE_VERSION`）と `application_id`（評価実行DBと別）で見分ける。
+
+### Pythonから使う
+
+```python
+from pathlib import Path
+
+from battle_lab.inputs import load_battle_match_file, resolve_battle_input
+from battle_lab.search_space import BATTLE_SEARCH, battle_search_problem
+from mlgg_lab_common.experiments.layout import create_search, open_search
+from mlgg_lab_common.inputs.player_data import load_player_data
+from mlgg_lab_common.search.problem import GearPolicy, SearchExecution, SearchSpace
+from mlgg_lab_common.search.runner import run_search
+from mlgg_lab_common.search.training import training_from_player_data
+
+method = ...  # SearchMethod(proposer, allocator, estimator)。手法は後続段階で接続する
+
+resolved = resolve_battle_input(load_battle_match_file(Path("battle-lab/configs/my-match.yaml")))
+pool = ["UNIT_YURIA_WILDCARD", "UNIT_OLGA_NADYA_BOND", "UNIT_RAMI_SKYWING", "UNIT_KOTOHA_DAILY"]
+training, warnings = training_from_player_data(
+    pool, load_player_data(Path("data/inputs/player-data/player-data.json"))
+)
+problem = battle_search_problem(
+    resolved,  # 相手編成・規定ターン数を固定し、味方編成を起点にする
+    space=SearchSpace(unitPool=pool, memoryPool=["MEM_ABSOLUTE_ORDER", "MEM_BRIEF_RESPITE"]),
+    training=training,
+    gear=GearPolicy(mode="FIXED"),
+    execution=SearchExecution(
+        candidateSeed="gen-1", battleSeed="battle-1", budget={"maxSubmittedRuns": 3000}
+    ),
+    method=method.binding({"note": "手法の設定"}),
+)
+directory, store = create_search(Path("data/searches"), problem, BATTLE_SEARCH)
+with store, problem.execution.api.http_client() as client:
+    report = run_search(store, method, BATTLE_SEARCH, client)
+
+# 再開: 同じディレクトリを開いて同じ部品でもう一度呼ぶ。
+with open_search(directory) as store, problem.execution.api.http_client() as client:
+    run_search(store, method, BATTLE_SEARCH, client)
+```
+
+戦術演習は `exercise_lab.search_space` の `EXERCISE_SEARCH` / `exercise_search_problem`（固定条件は演習対象の敵）で
+同じ手順になる。各ラウンドの評価実行は段階2の `status` / `summarize` / `export`（`<探索>/evaluations/round-NNNNN`）でも読める。
 
 ## 開発
 
