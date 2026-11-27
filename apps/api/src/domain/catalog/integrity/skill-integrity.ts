@@ -6,7 +6,10 @@ import type {
   TargetFilterDefinition,
   TargetSelectorDefinition,
 } from "../definitions/target-selector-definition.js";
-import type { EffectStepDefinition } from "../definitions/effect-sequence.js";
+import type {
+  EffectStepDefinition,
+  TargetBindingDefinition,
+} from "../definitions/effect-sequence.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
 import {
@@ -115,6 +118,7 @@ function validateActivationConditionReferences(
   if (scope === "PASSIVE") {
     return;
   }
+  const drawInfluenced = drawInfluencedBindingIds(skill.resolution.targetBindings);
   for (const { reference, path } of collectConditionTargetReferencePaths(
     activationCondition,
     "activationCondition",
@@ -122,7 +126,7 @@ function validateActivationConditionReferences(
     if (
       reference.kind === "BINDING" &&
       reference.targetBindingId !== undefined &&
-      bindingDraws(reference.targetBindingId, bindingSelectors)
+      drawInfluenced.has(reference.targetBindingId)
     ) {
       violations.push({
         targetId: skill.skillDefinitionId,
@@ -215,6 +219,61 @@ function bindingDraws(
     selectorOrFallbackDraws(selector) ||
     bindingDependsOnDraw(targetBindingId, bindingSelectors, visited)
   );
+}
+
+/** 選ぶ数が限られている（自身または`fallback`の`count`が数値）か。 */
+function selectsLimitedCount(selector: TargetSelectorDefinition): boolean {
+  return (
+    typeof selector.count === "number" ||
+    (selector.fallback !== undefined && selectsLimitedCount(selector.fallback))
+  );
+}
+
+function selectorSidesOverlap(a: TargetSelectorDefinition, b: TargetSelectorDefinition): boolean {
+  const sideA = a.side ?? "ALL";
+  const sideB = b.side ?? "ALL";
+  return sideA === "ALL" || sideB === "ALL" || sideA === sideB;
+}
+
+/**
+ * R-TGT-11: 選ぶ対象が抽選に左右されうるbindingのID。行動選択は抽選しないため、
+ * これらを発動条件が参照すると、判定した対象と実際の対象が食い違いうる。
+ *
+ * 1. 自身（`fallback`を含む）が`RANDOM`で抽選する。
+ * 2. `BINDING_DERIVED`の`base`・`EXCLUDE_RESOLVED_UNIT`フィルタで、1〜3に当たるbindingを参照する。
+ * 3. 先に評価する1〜3のbindingと陣営が重なり、選ぶ数が限られている。先行bindingが
+ *    抽選で先頭に置いたStealth所持者のStealthは消費扱いになり、後続bindingの評価へ
+ *    引き継がれる（R-TGT-08 #2、R-TGT-10）ため、後続bindingが選ぶユニットも抽選で変わる。
+ *    全員を選ぶbindingはStealthで並び順しか変わらず、候補集合は抽選に依らない。
+ *    遅延評価（`ON_FIRST_REFERENCE`）のbindingはStealthの消費を引き継がないため、
+ *    この経路では影響を受けず、また与えない。
+ *
+ * 参照（`base`・フィルタ）は先行bindingにしか向かないため、定義順の1回の走査で求まる。
+ */
+function drawInfluencedBindingIds(
+  targetBindings: readonly TargetBindingDefinition[],
+): ReadonlySet<string> {
+  const influenced = new Set<string>();
+  const earlierInfluencedSelectors: TargetSelectorDefinition[] = [];
+  for (const binding of targetBindings) {
+    const selector = binding.selector;
+    const explicit =
+      selectorOrFallbackDraws(selector) ||
+      referencedBindingIds(selector).some((id) => influenced.has(id));
+    const deferred = binding.evaluation === "ON_FIRST_REFERENCE";
+    const viaStealth =
+      !deferred &&
+      (selector.kind === "SELECT" || selector.kind === "BINDING_DERIVED") &&
+      selectsLimitedCount(selector) &&
+      earlierInfluencedSelectors.some((earlier) => selectorSidesOverlap(earlier, selector));
+    if (explicit || viaStealth) {
+      influenced.add(binding.targetBindingId);
+      if (!deferred) {
+        earlierInfluencedSelectors.push(selector);
+      }
+    }
+  }
+  return influenced;
 }
 
 /**
