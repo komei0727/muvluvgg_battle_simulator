@@ -297,10 +297,7 @@ describe("resolveSkillUse", () => {
    * R-TGT-11: 敵3体（既定順 NEAR_FRONT → LEFT_BACK → RIGHT_BACK）から抽選で1体を攻撃するAS。
    * 乱数の先頭2回が抽選で、1回目 floor(0.5 × 3) = 1 により LEFT_BACK が選ばれる。
    */
-  function resolveRandomAttack(
-    actorEffects: readonly AppliedEffect[] = [],
-    options: { readonly preStartKill?: string } = {},
-  ): {
+  function resolveRandomAttack(actorEffects: readonly AppliedEffect[] = []): {
     readonly events: ReturnType<EventRecorder["getEvents"]>;
     readonly random: SequenceRandomSource;
     readonly randomBindingId: ReturnType<typeof createTargetBindingId>;
@@ -351,97 +348,13 @@ describe("resolveSkillUse", () => {
     ).map(([id, position]) =>
       unit(id, "ENEMY", { unitDefinitionId: enemyUnitDefinitionId, position }),
     );
-    // 開始前PS: 味方のスキル使用開始（`SkillUseStarting`）に反応して、指定の敵のHPを0にする。
-    const watcherUnitDefinitionId = createUnitDefinitionId("UNIT_PRESTART_WATCHER");
-    const kill: EffectActionDefinition = {
-      kind: "MODIFY_RESOURCE",
-      effectActionDefinitionId: createEffectActionDefinitionId("ACT_PRESTART_KILL"),
-      metadata: { tags: [] },
-      payload: {
-        resource: "HP",
-        operation: "ADD",
-        formula: { kind: "CONSTANT", value: -1000 },
-        bounds: { min: 0, max: "CURRENT_MAX" },
-      },
-    };
-    const killBindingId = createTargetBindingId("TGT_KILL");
-    const preStartPs: SkillDefinition = {
-      ...trivialAttackSkill("SKL_PRESTART_KILL", "ACT_PRESTART_KILL"),
-      skillType: "PS",
-      cost: { resource: "PP", amount: 1 },
-      triggers: [
-        {
-          eventType: "SkillUseStarting",
-          category: "TIMING",
-          sourceSelector: "OTHER_ALLY",
-          targetSelector: "ANY",
-          condition: { kind: "TRUE" },
-        },
-      ],
-      resolution: {
-        kind: "IMMEDIATE",
-        targetBindings: [
-          {
-            targetBindingId: killBindingId,
-            selector: {
-              ...ENEMY_ALL,
-              filters: [
-                {
-                  kind: "UNIT_DEFINITION",
-                  unitDefinitionId: `UNIT_${options.preStartKill ?? "NONE"}`,
-                },
-              ],
-            },
-          },
-        ],
-        steps: [
-          {
-            kind: "ACTION",
-            stepCondition: { kind: "TRUE" },
-            targetCondition: { kind: "TRUE" },
-            target: { kind: "BINDING", targetBindingId: killBindingId },
-            actions: [{ effectActionDefinitionId: kill.effectActionDefinitionId }],
-          },
-        ],
-      },
-    };
-    const watcher =
-      options.preStartKill === undefined
-        ? []
-        : [
-            unit("WATCHER", "ALLY", {
-              unitDefinitionId: watcherUnitDefinitionId,
-              currentPp: 3,
-              position: { column: "LEFT", row: "BACK" },
-            }),
-          ];
-    const enemiesWithIds = enemies.map((enemy) =>
-      enemy.battleUnitId === options.preStartKill
-        ? { ...enemy, unitDefinitionId: createUnitDefinitionId(`UNIT_${options.preStartKill}`) }
-        : enemy,
-    );
     const definitions = definitionsOf(
       new Map([
         [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
         [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
-        ...(options.preStartKill === undefined
-          ? []
-          : ([
-              [
-                createUnitDefinitionId(`UNIT_${options.preStartKill}`),
-                unitDefinitionOf(createUnitDefinitionId(`UNIT_${options.preStartKill}`)),
-              ],
-              [
-                watcherUnitDefinitionId,
-                unitDefinitionOf(watcherUnitDefinitionId, [preStartPs.skillDefinitionId]),
-              ],
-            ] as const)),
       ]),
-      new Map([[preStartPs.skillDefinitionId, preStartPs]]),
-      new Map([
-        [hit.effectActionDefinitionId, hit],
-        [kill.effectActionDefinitionId, kill],
-      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
     );
     const recorder = new EventRecorder(createBattleId("B_1"));
     const random = new SequenceRandomSource([0.5, 0, 0.99, 0.99, 0.99, 0.99]);
@@ -451,7 +364,7 @@ describe("resolveSkillUse", () => {
       skill,
       "AS",
       "AS",
-      [actor, ...watcher, ...enemiesWithIds],
+      [actor, ...enemies],
       definitions,
       random,
       recorder,
@@ -474,25 +387,6 @@ describe("resolveSkillUse", () => {
     });
     expect(damagedUnitIds(events)).toEqual(["LEFT_BACK"]);
     expect(random.consumedValues.slice(0, 2)).toEqual([0.5, 0]);
-  });
-
-  it("UT-R-TGT-11-010 [R-TGT-11, R-ATM-02]: the draw happens after the pre-start PS reacts — SkillUseStarting carries the draw-free preliminary target, and a unit the PS defeated is no longer drawn", () => {
-    const { events, randomBindingId } = resolveRandomAttack([], { preStartKill: "LEFT_BACK" });
-
-    // 予備対象は乱数を使わない既定順の先頭。
-    expect(events.find((e) => e.eventType === "SkillUseStarting")?.targetUnitIds).toEqual([
-      "NEAR_FRONT",
-    ]);
-    // 開始前PSが LEFT_BACK を倒した後の盤面で抽選する: 候補 [NEAR_FRONT, RIGHT_BACK]、
-    // 1回目 floor(0.5 × 2) = 1 → RIGHT_BACK。
-    const eventTypes = events.map((e) => e.eventType);
-    expect(eventTypes.indexOf("SkillUseStarting")).toBeLessThan(
-      eventTypes.indexOf("TargetsSelected"),
-    );
-    expect(events.find((e) => e.eventType === "TargetsSelected")?.payload).toMatchObject({
-      bindings: [{ targetBindingId: randomBindingId, selectedTargetUnitIds: ["RIGHT_BACK"] }],
-    });
-    expect(damagedUnitIds(events)).toEqual(["RIGHT_BACK"]);
   });
 
   it("UT-R-TGT-11-009 [R-TGT-11, R-INT-01]: a taunt the attacker holds still overrides the drawn target at hit time", () => {

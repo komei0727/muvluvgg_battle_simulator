@@ -23,7 +23,6 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
   collectPreAttackObservations,
   containsAttack,
-  previewSkillTargetUnitIds,
   resolveSkillOrder,
   type EffectSequencePlan,
 } from "../skill/skill-resolution-service.js";
@@ -291,15 +290,21 @@ export function resolveSkillUse(
     return interrupted;
   }
 
-  // R-ATM-02 #1: `SkillUseStarting`には副作用なし（Stealth消費・乱数消費なし）に
-  // 仮解決した予備対象を載せる。対象の束縛（抽選を含む）は開始前PSの反応後に行う。
-  const preliminaryTargetUnitIds = previewSkillTargetUnitIds(
+  // 継続回復とそのPS連鎖で使用者自身のHP・combatStatsが変わりうるため、対象選択
+  // （`plan`）とその監査再解決（`TargetsSelected.bindings`）はどちらもこの時点の
+  // 最新状態から行う — 両者が同じ`BattleUnit`を見ないと、イベントpayloadが実際に
+  // 解決された対象と食い違いうる。
+  const actorBeforeTargeting = requireUnit(working, actorUnitId);
+  const plan = resolveSkillOrder(
     skill,
-    requireUnit(working, actorUnitId),
+    actorBeforeTargeting,
     working,
     definitions.effectActions,
+    undefined,
     definitions.unitDefinitions,
+    random,
   );
+  const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
   // EFF-006/Issue #212: この解決（`skillUseId`）が宣言するEffectSequence
@@ -312,51 +317,6 @@ export function resolveSkillUse(
     skill.skillDefinitionId,
     skill.resolution.counterUpdates ?? [],
   );
-  // CHARGEのスキルは`resolveChargeStart`へ振り分けられる（チャージ開始は
-  // `SkillUseStarting`を発行せず、解放側の`resolveChargeRelease`が発行する）。
-  // IMMEDIATEであることは直後の本束縛（`resolveSkillOrder`）が検証する。
-  const isAttack = containsAttack(
-    skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
-    definitions.effectActions,
-  );
-  const skillUseStarting = recorder.record({
-    eventType: "SkillUseStarting",
-    category: "TIMING",
-    turnNumber,
-    cycleNumber,
-    actionId,
-    skillUseId,
-    resolutionScopeId: actionScope,
-    parentEventId: lastEventId,
-    rootEventId: actionStarted.eventId,
-    sourceUnitId: actorUnitId,
-    targetUnitIds: preliminaryTargetUnitIds,
-    payload: {
-      skillDefinitionId: skill.skillDefinitionId,
-      skillType: skill.skillType,
-      isAttack,
-      actorUnitId,
-      targetUnitIds: preliminaryTargetUnitIds,
-      costResource: skill.cost.resource,
-      costAmount: skill.cost.amount,
-    },
-  });
-  working = passiveRuntime.onFactEvent(skillUseStarting, working).units;
-
-  // R-ATM-02 #1・`06_戦闘状態遷移.md` AS #4: 開始前PSによる状態変化を反映した最新状態で
-  // 対象を束縛する — 開始前PSが倒した敵や付与した状態を、古い盤面のまま使わない。
-  // `TargetsSelected`はこの束縛結果をそのまま写す。
-  const actorBeforeTargeting = requireUnit(working, actorUnitId);
-  const plan = resolveSkillOrder(
-    skill,
-    actorBeforeTargeting,
-    working,
-    definitions.effectActions,
-    undefined,
-    definitions.unitDefinitions,
-    random,
-  );
-  const targetUnitIds = plan.targetUnitIds;
   const targetsSelected = recorder.record({
     eventType: "TargetsSelected",
     category: "FACT",
@@ -365,7 +325,7 @@ export function resolveSkillUse(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: skillUseStarting.eventId,
+    parentEventId: lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorUnitId,
     targetUnitIds,
@@ -379,6 +339,37 @@ export function resolveSkillUse(
     },
   });
 
+  // `resolveSkillOrder`（`plan`）がkind==="IMMEDIATE"を検証済み。CHARGEのスキルは
+  // `resolveChargeStart`へ振り分けられる（チャージ開始は`SkillUseStarting`を発行せず、
+  // 解放側の`resolveChargeRelease`が発行する）。
+  const isAttack = containsAttack(
+    skill.resolution.kind === "IMMEDIATE" ? skill.resolution.steps : [],
+    definitions.effectActions,
+  );
+  const skillUseStarting = recorder.record({
+    eventType: "SkillUseStarting",
+    category: "TIMING",
+    turnNumber,
+    cycleNumber,
+    actionId,
+    skillUseId,
+    resolutionScopeId: actionScope,
+    parentEventId: targetsSelected.eventId,
+    rootEventId: actionStarted.eventId,
+    sourceUnitId: actorUnitId,
+    targetUnitIds,
+    payload: {
+      skillDefinitionId: skill.skillDefinitionId,
+      skillType: skill.skillType,
+      isAttack,
+      actorUnitId,
+      targetUnitIds,
+      costResource: skill.cost.resource,
+      costAmount: skill.cost.amount,
+    },
+  });
+  working = passiveRuntime.onFactEvent(skillUseStarting, working).units;
+
   // R-SKL-04 #4: 使用したスキルへクールタイムを設定し、現在の行動IDを設定
   // スコープとして記録する（SkillUseStarting発行後、SkillUseStarted発行前）。
   // Issue #143: `SkillUseStarting`のPS解決（あれば）で`working`が変化しうる
@@ -390,7 +381,7 @@ export function resolveSkillUse(
     { actionId, turnNumber, cycleNumber, resolutionScopeId: actionScope, actorUnitId },
     actorBeforeCooldown.cooldowns,
     skill,
-    targetsSelected.eventId,
+    skillUseStarting.eventId,
     actionStarted.eventId,
   );
   const actorWithCooldown = { ...actorBeforeCooldown, cooldowns: cooldownResult.cooldowns };

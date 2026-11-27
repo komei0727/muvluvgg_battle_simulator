@@ -515,30 +515,6 @@
     },
     {
       "sequence": 14,
-      "type": "SKILL_USE_STARTING",
-      "category": "TIMING",
-      "turnNumber": 1,
-      "cycleNumber": 1,
-      "rootSequence": 11,
-      "targetUnitIds": ["enemy:1"],
-      "details": {
-        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
-        "skillType": "AS",
-        "isAttack": true,
-        "actorUnitId": "ally:1",
-        "targetUnitIds": ["enemy:1"],
-        "costResource": "AP",
-        "costAmount": 1
-      },
-      "stateVersionBefore": 10,
-      "stateVersionAfter": 10,
-      "actionId": "B_UI_FIXTURE_DUPLICATE:action:1",
-      "skillUseId": "B_UI_FIXTURE_DUPLICATE:skill-use:1",
-      "parentSequence": 13,
-      "sourceUnitId": "ally:1"
-    },
-    {
-      "sequence": 15,
       "type": "TARGETS_SELECTED",
       "category": "FACT",
       "turnNumber": 1,
@@ -553,6 +529,30 @@
             "selectedTargetUnitIds": ["enemy:1"]
           }
         ]
+      },
+      "stateVersionBefore": 10,
+      "stateVersionAfter": 10,
+      "actionId": "B_UI_FIXTURE_DUPLICATE:action:1",
+      "skillUseId": "B_UI_FIXTURE_DUPLICATE:skill-use:1",
+      "parentSequence": 13,
+      "sourceUnitId": "ally:1"
+    },
+    {
+      "sequence": 15,
+      "type": "SKILL_USE_STARTING",
+      "category": "TIMING",
+      "turnNumber": 1,
+      "cycleNumber": 1,
+      "rootSequence": 11,
+      "targetUnitIds": ["enemy:1"],
+      "details": {
+        "skillDefinitionId": "SKL_UI_FIXTURE_STRIKE",
+        "skillType": "AS",
+        "isAttack": true,
+        "actorUnitId": "ally:1",
+        "targetUnitIds": ["enemy:1"],
+        "costResource": "AP",
+        "costAmount": 1
       },
       "stateVersionBefore": 10,
       "stateVersionAfter": 10,
