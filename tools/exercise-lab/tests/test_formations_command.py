@@ -42,3 +42,26 @@ def test_the_formations_command_reports_a_malformed_entry_without_a_traceback(tm
     assert result.exit_code == 1
     assert "マッピング" in result.output
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_the_default_directory_is_the_shared_library_under_the_tools_root(tmp_path, monkeypatch):
+    root = tmp_path / "tools"
+    (root / "exercise-lab").mkdir(parents=True)
+    (root / "pyproject.toml").write_text("[tool.uv.workspace]\nmembers = []\n", encoding="utf-8")
+    write_entry(root / "data" / "inputs" / "formations", "shared")
+    # 実行場所（ラボのディレクトリ）に依らず、tools ルートの共有ライブラリを見る。
+    monkeypatch.chdir(root / "exercise-lab")
+
+    result = runner.invoke(app, ["formations"])
+
+    assert result.exit_code == 0, result.output
+    assert "shared" in result.output
+
+
+def test_outside_a_workspace_the_directory_must_be_given(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["formations"])
+
+    assert result.exit_code == 1
+    assert "--formations-dir" in result.output

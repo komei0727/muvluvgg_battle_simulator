@@ -43,7 +43,8 @@ from total_war_lab.inputs import (
 
 loaded = load_total_war_match_file(
     Path("configs/match.example.yaml"),
-    formations_dir=Path("../exercise-lab/configs/formations"),
+    # 編成ライブラリは全ラボ共通の置き場所を参照する。
+    formations_dir=Path("../data/inputs/formations"),
 )
 # または: loaded = load_total_war_draft(Path("local_storage/last-draft-total-war.json"))
 resolved = resolve_total_war_input(
@@ -77,3 +78,13 @@ uv run total-war-lab export data/evaluations/example      # trials.jsonl / trial
 [`../README.md`](../README.md)「評価コマンド」にある。
 
 総力戦は勝ち抜き戦全体を1試行として集計し、引き分け（`DRAW`）を勝敗へ換算しない。編成対戦（`stages`）の比率も分母は試行数である。
+
+## エディタ補完（`total-war-lab schema`）
+
+```bash
+uv run total-war-lab schema   # tools/.schema/ へ出す（どこから実行しても同じ）
+```
+
+共通の `formation-library.schema.json` に加えて、`total-war.match.schema.json`（総力戦の対戦入力）と
+`total-war.evaluation.schema.json`（`format` を固定した評価設定）を出す。`configs/*.example.yaml` の先頭行が
+参照の例になっている。生成物の一覧と参照の書き方は [`../README.md`](../README.md)「エディタ補完」にある。

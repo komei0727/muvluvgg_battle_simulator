@@ -40,8 +40,8 @@ from battle_lab.inputs import (
 
 loaded = load_battle_match_file(
     Path("configs/match.example.yaml"),
-    # 編成ライブラリは既存の置き場所をそのまま参照する。
-    formations_dir=Path("../exercise-lab/configs/formations"),
+    # 編成ライブラリは全ラボ共通の置き場所を参照する。
+    formations_dir=Path("../data/inputs/formations"),
 )
 # または: loaded = load_battle_draft(Path("local_storage/last-draft.json"))
 resolved = resolve_battle_input(
@@ -77,3 +77,13 @@ uv run battle-lab export data/evaluations/example      # trials.jsonl / trials.c
 
 集計の定義は [`src/battle_lab/analysis.py`](src/battle_lab/analysis.py)、オプション・終了コード・出力形式は
 [`../README.md`](../README.md)「評価コマンド」にある。
+
+## エディタ補完（`battle-lab schema`）
+
+```bash
+uv run battle-lab schema   # tools/.schema/ へ出す（どこから実行しても同じ）
+```
+
+共通の `formation-library.schema.json` に加えて、`battle.match.schema.json`（通常戦闘の対戦入力）と
+`battle.evaluation.schema.json`（`format` を固定した評価設定）を出す。`configs/*.example.yaml` の先頭行が
+参照の例になっている。生成物の一覧と参照の書き方は [`../README.md`](../README.md)「エディタ補完」にある。

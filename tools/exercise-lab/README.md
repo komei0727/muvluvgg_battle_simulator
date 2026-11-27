@@ -56,21 +56,21 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 
 ## コマンド
 
-| コマンド                    | 用途                                                  |
-| --------------------------- | ----------------------------------------------------- |
-| `exercise-lab import-draft` | UIで組んだ演習編成を編成定義YAMLへ変換する            |
-| `exercise-lab units`        | Catalog のユニットを検索してIDを引く                  |
-| `exercise-lab memories`     | Catalog のメモリーを検索してIDを引く                  |
-| `exercise-lab formations`   | 編成ライブラリ（`configs/formations/`）のIDを一覧する |
-| `exercise-lab schema`       | エディタ補完用の JSON Schema を Catalog から生成する  |
-| `exercise-lab evaluate`     | 評価設定から計画を保存し、演習の評価APIで実行する     |
-| `exercise-lab resume`       | 保存済みの評価実行の続きを実行する                    |
-| `exercise-lab status`       | 評価実行の進捗・予算・停止理由を表示する              |
-| `exercise-lab summarize`    | 保存結果のスコア等をケース別に要約する                |
-| `exercise-lab export`       | 保存結果を JSONL / CSV / JSON へ書き出す              |
-| `exercise-lab search`       | 対話型探索の作成・候補列挙・実行・再開                |
-| `exercise-lab compare`      | 基準編成と変更候補を対応試行で比較する                |
-| `exercise-lab inspect`      | 保存した試行の詳細ログを再生し、スコア差を調べる      |
+| コマンド                    | 用途                                                                      |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `exercise-lab import-draft` | UIで組んだ演習編成を編成定義YAMLへ変換する                                |
+| `exercise-lab units`        | Catalog のユニットを検索してIDを引く                                      |
+| `exercise-lab memories`     | Catalog のメモリーを検索してIDを引く                                      |
+| `exercise-lab formations`   | 編成ライブラリ（`tools/data/inputs/formations/`）のIDを一覧する           |
+| `exercise-lab schema`       | エディタ補完用の JSON Schema を `tools/.schema/` へ生成する（全ラボ共通） |
+| `exercise-lab evaluate`     | 評価設定から計画を保存し、演習の評価APIで実行する                         |
+| `exercise-lab resume`       | 保存済みの評価実行の続きを実行する                                        |
+| `exercise-lab status`       | 評価実行の進捗・予算・停止理由を表示する                                  |
+| `exercise-lab summarize`    | 保存結果のスコア等をケース別に要約する                                    |
+| `exercise-lab export`       | 保存結果を JSONL / CSV / JSON へ書き出す                                  |
+| `exercise-lab search`       | 対話型探索の作成・候補列挙・実行・再開                                    |
+| `exercise-lab compare`      | 基準編成と変更候補を対応試行で比較する                                    |
+| `exercise-lab inspect`      | 保存した試行の詳細ログを再生し、スコア差を調べる                          |
 
 評価コマンドのオプション・終了コード・出力形式は [`../README.md`](../README.md)「評価コマンド」にある。
 `summarize` のスコア要約は観測結果の確認用で、日次ベスト等の目的関数（`exercise_lab.statistics`）は使わない。
@@ -212,12 +212,13 @@ UI は演習モードの編成を localStorage `mlgg:last-draft:exercise` へ保
 
 ```bash
 uv run exercise-lab import-draft local_storage/draft/kotoha-anis.json --library \
-  --note "属性デバフ特化" -o configs/formations/kotoha-anis.yaml
+  --note "属性デバフ特化" -o ../data/inputs/formations/kotoha-anis.yaml
 ```
 
 ### 編成ライブラリ（`exercise-lab formations`）
 
-`configs/formations/<id>.yaml` 1ファイルが、敵に依らない味方編成1件である（ファイル名がID）。
+`tools/data/inputs/formations/<id>.yaml` 1ファイルが、敵に依らない味方編成1件である（ファイル名がID）。
+既定の一覧先は tools ルート基準のこのディレクトリで、どこから実行しても同じ場所を見る（`--formations-dir` で変えられる）。
 
 ```yaml
 note: 属性デバフ特化
@@ -233,32 +234,19 @@ uv run exercise-lab formations              # 全件
 uv run exercise-lab formations --grep olga  # 部分一致
 ```
 
-`configs/formations/` は個人の編成置き場であり gitignore してある。公開サンプル・テストはここに依存しない。
+`tools/data/` は個人の編成置き場であり gitignore してある。公開サンプル・テストはここに依存しない。
 編成ライブラリは陣営に依らないので、通常戦闘・総力戦の対戦入力からも `{ library: <id> }` で参照できる
 （`battle-lab` / `total-war-lab` へこのディレクトリを `formations_dir` として渡す）。
 
 ### エディタ補完（`exercise-lab schema`）
 
-Catalog から実IDを enum に焼いた JSON Schema を生成する。既定の出力先は `.schema/`（gitignore 済み）。
+全ラボ共通の `schema` コマンドで、`tools/.schema/` へ JSON Schema を書き出す（生成物・参照の書き方は
+[tools/README.md「エディタ補完」](../README.md#エディタ補完lab-schema)）。演習が加えて出すのは次の2つ。
 
-| 生成物                               | 対象YAML                                   |
-| ------------------------------------ | ------------------------------------------ |
-| `.schema/formation.schema.json`      | 演習の編成定義                             |
-| `.schema/formation-seed.schema.json` | 編成ライブラリ1件（`configs/formations/`） |
-| `.schema/evaluation.schema.json`     | 戦術演習の初期設定（`evaluation.yaml`）    |
-
-対象YAMLの先頭へ対応する1行を置くと、YAML Language Server が ID を補完・検証する。
-
-```yaml
-# yaml-language-server: $schema=../.schema/formation.schema.json
-```
-
-`configs/evaluation.yaml` には `# yaml-language-server: $schema=../.schema/evaluation.schema.json` を使う。
-
-```yaml
-# tools/data/inputs/formations/<id>.yaml から参照する場合。
-# yaml-language-server: $schema=../../../exercise-lab/.schema/formation-seed.schema.json
-```
+| 生成物                        | 対象YAML                                        |
+| ----------------------------- | ----------------------------------------------- |
+| `exercise.match.schema.json`  | 演習の編成定義（`ally` + `enemy`）              |
+| `exercise.search.schema.json` | 戦術演習の初期設定（`configs/evaluation.yaml`） |
 
 味方枠と敵枠には別々の enum が入るので、R-TEX-11 #1 はエディタ上で分かる。学園レベルのキー9種と、
 「`ally.academyLevels` なしにユニットの `level` / `rank` / `gears` / `module` は書けない」もSchemaで表す。

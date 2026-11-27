@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../.schema/total-war.evaluation.schema.json
 # 総力戦の評価設定サンプル。個人ファイルなしで計画を作れる
 # （`total_war_lab.evaluation.plan_total_war_evaluation`）。
 #

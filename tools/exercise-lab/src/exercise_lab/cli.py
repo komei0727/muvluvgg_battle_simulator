@@ -14,7 +14,7 @@ Catalogを引くコマンドの相手はローカルのdevサーバー（`apps/a
 
 from __future__ import annotations
 
-import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -23,7 +23,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mlgg_lab_common.cli import LabCommands, register_evaluation_commands
+from mlgg_lab_common.cli import (
+    LabCommands,
+    register_evaluation_commands,
+    register_lab_schema_command,
+)
 from mlgg_lab_common.inputs.catalog import (
     DEFAULT_BASE_URL,
     Catalog,
@@ -35,7 +39,6 @@ from mlgg_lab_common.inputs.catalog import (
 )
 from mlgg_lab_common.inputs.draft import DraftError
 from mlgg_lab_common.inputs.library import (
-    DEFAULT_FORMATIONS_DIR,
     FormationLibraryEntry,
     dump_formation_library_entry,
     list_formation_ids,
@@ -48,8 +51,9 @@ from mlgg_lab_common.inputs.player_data import (
     load_player_data,
     resolved_level,
 )
-from mlgg_lab_common.inputs.schema import build_formation_library_json_schema
+from mlgg_lab_common.inputs.schema import FORMATION_LIBRARY_SCHEMA, SchemaFile, schema_name
 from mlgg_lab_common.models import ConfigError
+from mlgg_lab_common.workspace import SCHEMA_DIR, default_formations_dir, default_schema_dir
 
 from .analysis import ANALYZER
 from .analysis_cli import compare, inspect
@@ -58,11 +62,16 @@ from .inputs.exercise import dump_formation_config, load_exercise_draft
 from .inputs.schema import build_formation_json_schema, build_search_json_schema
 from .search_cli import app as search_app
 
-DEFAULT_SCHEMA_DIR = Path(".schema")
-FORMATION_SCHEMA_JSON = "formation.schema.json"
-# 既存の編成ライブラリのファイルがこの名前を `yaml-language-server` の行で指している。
-FORMATION_LIBRARY_SCHEMA_JSON = "formation-seed.schema.json"
-EVALUATION_SCHEMA_JSON = "evaluation.schema.json"
+MATCH_SCHEMA = schema_name(FORMAT, "match")
+SEARCH_SCHEMA = schema_name(FORMAT, "search")
+SCHEMAS = (
+    SchemaFile(name=MATCH_SCHEMA, label="編成定義YAML", build=build_formation_json_schema),
+    SchemaFile(
+        name=SEARCH_SCHEMA,
+        label="探索の初期設定YAML（exercise-lab search）",
+        build=build_search_json_schema,
+    ),
+)
 
 app = typer.Typer(
     add_completion=False,
@@ -92,7 +101,9 @@ def import_draft(
     ] = None,
     library: Annotated[
         bool,
-        typer.Option("--library", help="編成ライブラリ形式（configs/formations/<id>.yaml）で出す"),
+        typer.Option(
+            "--library", help="編成ライブラリ形式（data/inputs/formations/<id>.yaml）で出す"
+        ),
     ] = False,
     note: Annotated[
         str | None,
@@ -102,7 +113,7 @@ def import_draft(
     """UIで組んだ演習編成を編成定義YAMLへ変換する。IDの転記を不要にする入口。
 
     `--library` を付けると、敵を含まない編成ライブラリ1件分（`units` +
-    `memoryDefinitionIds`）を出す。`configs/formations/<id>.yaml` として保存すれば、
+    `memoryDefinitionIds`）を出す。`tools/data/inputs/formations/<id>.yaml` として保存すれば、
     `exercise-lab formations` にファイル名（ID）で載る。
     """
     if note is not None and not library:
@@ -118,10 +129,13 @@ def import_draft(
             memory_definition_ids=config.ally.memory_definition_ids,
         )
         document = _IMPORTED_LIBRARY_HEADER.format(
-            source=draft_path.name
+            source=draft_path.name,
+            schema=_schema_path(out, FORMATION_LIBRARY_SCHEMA, recommended_depth=3),
         ) + dump_formation_library_entry(entry)
     else:
-        document = _IMPORTED_HEADER.format(source=draft_path.name) + dump_formation_config(config)
+        document = _IMPORTED_HEADER.format(
+            source=draft_path.name, schema=_schema_path(out, MATCH_SCHEMA, recommended_depth=2)
+        ) + dump_formation_config(config)
     if out is None:
         # 標準出力へはヘッダーごと出す。リダイレクトしてもそのまま使える。
         print(document, end="")
@@ -132,7 +146,7 @@ def import_draft(
         console.print(
             f"[bold]{out}[/] を書き出した（味方{len(config.ally.units)}体 /"
             f" メモリー{len(config.ally.memory_definition_ids)}件）。"
-            f" configs/formations/ 配下へ置けば `exercise-lab formations` にIDで載る"
+            f" tools/data/inputs/formations/ 配下へ置けば `exercise-lab formations` にIDで載る"
         )
         return
     console.print(
@@ -151,26 +165,41 @@ _IMPORTED_HEADER = """\
 # （localStorage `mlgg:player-data`）が正本で、読み込む側が未指定の項目へ適用する。
 #
 # エディタ補完を効かせるには `exercise-lab schema` でSchemaを生成したうえで、次の行の
-# 先頭の `#` を1つ削り、パスをこのファイルからの相対で合わせる。
+# 先頭の `#` を1つ削る。パスは tools/.schema/ をこのファイルからの相対で指す
+# （ファイルを動かしたら合わせ直す）。
 #
 # `# yaml-language-server:` はコメントではなく有効なディレクティブなので、
 # 最初から効かせておくと、まだ生成していないSchemaを指してエディタが赤くなる。
-## yaml-language-server: $schema=../.schema/formation.schema.json
+## yaml-language-server: $schema={schema}
 
 """
 
 _IMPORTED_LIBRARY_HEADER = """\
 # {source} から `exercise-lab import-draft --library` で生成した編成ライブラリの1件。
 #
-# `configs/formations/<id>.yaml` として保存する（ファイル名がそのままID）。
+# `tools/data/inputs/formations/<id>.yaml` として保存する（ファイル名がそのままID）。
 # 敵・育成状態（レベル・ギア・学園レベル）は含まない——敵に依らない編成の
 # 中身だけを持つ。
 #
 # エディタ補完を効かせるには `exercise-lab schema` でSchemaを生成したうえで、次の行の
-# 先頭の `#` を1つ削る（`configs/formations/` 以外へ保存するならパスも相対で合わせる）。
-## yaml-language-server: $schema=../../.schema/formation-seed.schema.json
+# 先頭の `#` を1つ削る。パスは tools/.schema/ をこのファイルからの相対で指す。
+## yaml-language-server: $schema={schema}
 
 """
+
+
+def _schema_path(out: Path | None, name: str, *, recommended_depth: int) -> str:
+    """書き出すファイルから `tools/.schema/<name>` への相対パス。
+
+    出力先が分からない（標準出力）か workspace の外なら、推奨の置き場所から数えた
+    深さ（編成ライブラリは `data/inputs/formations/` で3、編成定義は `<lab>/configs/` で2）
+    を前提にする。
+    """
+    if out is not None:
+        schema_dir = default_schema_dir(out.resolve().parent)
+        if schema_dir is not None:
+            return Path(os.path.relpath(schema_dir / name, out.resolve().parent)).as_posix()
+    return "/".join([".."] * recommended_depth + [SCHEMA_DIR.as_posix(), name])
 
 
 @app.command()
@@ -230,13 +259,21 @@ def memories(
 def formations(
     grep: Annotated[str | None, typer.Option("--grep", help="IDの部分一致")] = None,
     formations_dir: Annotated[
-        Path, typer.Option("--formations-dir", help="編成ライブラリのディレクトリ")
-    ] = DEFAULT_FORMATIONS_DIR,
+        Path | None,
+        typer.Option(
+            "--formations-dir",
+            help="編成ライブラリのディレクトリ。既定は tools/data/inputs/formations/",
+        ),
+    ] = None,
 ) -> None:
-    """編成ライブラリ（`configs/formations/`）に登録済みの編成IDを一覧する。
+    """編成ライブラリ（`tools/data/inputs/formations/`）に登録済みの編成IDを一覧する。
 
     Catalogへは問い合わせない（ローカルのファイル一覧だけで完結する）。
     """
+    if formations_dir is None:
+        formations_dir = default_formations_dir()
+    if formations_dir is None:
+        _abort("tools/ の uv workspace の外で実行している。--formations-dir で場所を指定する")
     ids = list_formation_ids(formations_dir)
     if grep:
         ids = [formation_id for formation_id in ids if grep in formation_id]
@@ -258,42 +295,6 @@ def formations(
             spec.note or "-",
         )
     console.print(table)
-
-
-@app.command()
-def schema(
-    out: Annotated[Path, typer.Option("--out", "-o", help="出力ディレクトリ")] = DEFAULT_SCHEMA_DIR,
-    base_url: Annotated[str, typer.Option("--base-url")] = DEFAULT_BASE_URL,
-) -> None:
-    """YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。
-
-    演習の編成定義、編成ライブラリ1件、探索設定のSchemaを出す。
-    実IDを enum に焼くので、Catalog を更新したら作り直す。
-    """
-    catalog = _fetch_catalog(base_url)
-    out.mkdir(parents=True, exist_ok=True)
-    written = [
-        (
-            out / FORMATION_SCHEMA_JSON,
-            build_formation_json_schema(catalog),
-            "編成定義YAML",
-        ),
-        (
-            out / FORMATION_LIBRARY_SCHEMA_JSON,
-            build_formation_library_json_schema(catalog),
-            "編成ライブラリYAML（configs/formations/）",
-        ),
-        (out / EVALUATION_SCHEMA_JSON, build_search_json_schema(catalog), "探索の初期設定YAML"),
-    ]
-    for path, document, _ in written:
-        path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-    console.print(
-        f"[bold]{out}[/] へ書き出した（catalogRevision {catalog.catalog_revision}）。"
-        "各YAMLの先頭へ対応する行を置くと補完が効く:"
-    )
-    for path, _, label in written:
-        console.print(f"  {label}: # yaml-language-server: $schema={path}", highlight=False)
 
 
 def _fetch_catalog(base_url: str) -> Catalog:
@@ -390,9 +391,14 @@ def _abort(message: str) -> NoReturn:
 
 
 LAB = LabCommands(
-    name="exercise-lab", format=FORMAT, planner=plan_exercise_evaluation, analyzer=ANALYZER
+    name="exercise-lab",
+    format=FORMAT,
+    planner=plan_exercise_evaluation,
+    analyzer=ANALYZER,
+    schemas=SCHEMAS,
 )
 register_evaluation_commands(app, LAB)
+register_lab_schema_command(app, LAB)
 app.add_typer(search_app, name="search")
 app.command()(compare)
 app.command()(inspect)

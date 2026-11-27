@@ -10,10 +10,12 @@
 | `models.resolved`        | 解決済み入力の基底・由来情報（`InputProvenance`）・JSON往復                               |
 | `inputs.player_data`     | 手持ちデータ `mlgg:player-data` の検証と育成値の解決（レベルリンク・除外・単位変換）      |
 | `inputs.draft`           | UIの編成ドラフト（`BattleDraft`）の読み取り                                               |
-| `inputs.library`         | 編成ライブラリ（`configs/formations/<id>.yaml`）の一覧・読み書き                          |
+| `inputs.library`         | 編成ライブラリ（`data/inputs/formations/<id>.yaml`）の一覧・読み書き                      |
 | `inputs.sources`         | 対戦入力ファイル内の編成1件（インライン／`{ library: <id> }`）                            |
 | `inputs.catalog`         | Catalog の取得・DTO・検索・参照の事前検証                                                 |
-| `inputs.schema`          | 編成ライブラリ用 JSON Schema と、Schemaへ実IDを差し込む部品                               |
+| `inputs.schema`          | 編成ライブラリ用 JSON Schema・Schemaへ実IDを差し込む部品・Schemaのファイル名              |
+| `evaluation.schema`      | 評価設定（`evaluation.yaml`）用 JSON Schema（`format` をラボの形式に固定）                |
+| `workspace`              | tools ルートの探索と、そこを基準にした既定の置き場所（`.schema/`・編成ライブラリ）        |
 | `inputs.resolution`      | 入力解決の共通手順（手持ちデータの適用・検証エラーの集約）                                |
 | `statistics.descriptive` | 記述統計（UI統計の参照実装。追加依存 `statistics` が要る）                                |
 | `statistics.summary`     | 保存結果を確かめる要約統計・件数と比率・分布（標準ライブラリだけ）                        |
@@ -23,7 +25,7 @@
 | `evaluation.*`           | 評価設定・試行計画・識別・要求分割・予算・実行と再開                                      |
 | `storage.*`              | 評価実行ごとのSQLite（再開状態の正本）・保存形式の移行・保存先ディレクトリ                |
 | `reporting.*`            | 保存結果の読み出し・進捗・ケース別の記述統計・JSONL/CSV/JSON出力（APIへ接続しない）       |
-| `cli`                    | 各ラボの評価コマンドの共通部（追加依存 `cli` が要る）                                     |
+| `cli`                    | 各ラボの評価コマンドと `schema` コマンドの共通部（追加依存 `cli` が要る）                 |
 | `search.*`               | 固定相手の探索の共通基盤（探索問題・候補・候補操作・制約・手法の接続契約・実行制御）      |
 | `experiments.*`          | 探索の履歴・チェックポイントのSQLite・探索ディレクトリ                                    |
 | `testing`                | テスト用のドラフト生成（UIの保存形式を写す）、評価APIの応答・偽物、探索のテスト用接続実装 |

@@ -1,4 +1,7 @@
-"""`exercise-lab schema` の出力。演習の編成YAMLと編成ライブラリのSchemaを書き出す。"""
+"""`exercise-lab schema` の出力。共通Schemaに加えて、演習の編成定義と探索設定のSchemaを書き出す。
+
+出力先・共通Schemaの中身・失敗の伝え方は共通部（`common/tests/test_schema_command.py`）で固定する。
+ここは演習が渡すSchemaの一覧と中身だけを見る。"""
 
 import json
 
@@ -9,6 +12,7 @@ from typer.testing import CliRunner
 
 from exercise_lab.cli import app
 from mlgg_lab_common.inputs.catalog import CATALOG_PATH
+from mlgg_lab_common.inputs.schema import FORMATION_LIBRARY_SCHEMA
 
 BASE_URL = "http://localhost:3000"
 
@@ -45,34 +49,40 @@ def mock_catalog():
 
 
 @respx.mock
-def test_the_formation_library_and_search_schemas_are_written(tmp_path):
+def test_the_common_and_the_exercise_schemas_are_written(tmp_path):
     mock_catalog()
-    out = tmp_path / ".schema"
 
-    result = runner.invoke(app, ["schema", "--out", str(out)])
+    result = runner.invoke(app, ["schema", "--out", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
-    # 編成ライブラリのSchema名は既存の `configs/formations/*.yaml` が指している名前を保つ。
-    assert sorted(path.name for path in out.iterdir()) == [
-        "evaluation.schema.json",
-        "formation-seed.schema.json",
-        "formation.schema.json",
-    ]
+    assert sorted(path.name for path in tmp_path.iterdir()) == sorted(
+        [
+            "exercise.evaluation.schema.json",
+            FORMATION_LIBRARY_SCHEMA,
+            "exercise.match.schema.json",
+            "exercise.search.schema.json",
+        ]
+    )
 
 
 @respx.mock
-def test_the_library_schema_carries_the_catalog_enums(tmp_path):
+def test_the_evaluation_schema_is_fixed_to_the_exercise_format(tmp_path):
     mock_catalog()
-    out = tmp_path / ".schema"
+    runner.invoke(app, ["schema", "--out", str(tmp_path)])
 
-    runner.invoke(app, ["schema", "--out", str(out)])
+    schema = json.loads((tmp_path / "exercise.evaluation.schema.json").read_text(encoding="utf-8"))
+    assert schema["properties"]["format"]["const"] == "TACTICAL_EXERCISE"
 
-    schema = json.loads((out / "formation-seed.schema.json").read_text(encoding="utf-8"))
-    assert schema["$defs"]["FormationUnitSpec"]["properties"]["unitDefinitionId"]["enum"] == [
-        "UNIT_A"
-    ]
-    assert schema["properties"]["memoryDefinitionIds"]["items"]["enum"] == ["MEM_A"]
-    assert "enemy" not in schema["properties"]
+
+@respx.mock
+def test_the_match_schema_separates_the_ally_and_the_enemy_pools(tmp_path):
+    mock_catalog()
+    runner.invoke(app, ["schema", "--out", str(tmp_path)])
+
+    schema = json.loads((tmp_path / "exercise.match.schema.json").read_text(encoding="utf-8"))
+    definitions = schema["$defs"]
+    assert definitions["FormationUnitSpec"]["properties"]["unitDefinitionId"]["enum"] == ["UNIT_A"]
+    assert definitions["EnemySpec"]["properties"]["unitDefinitionId"]["enum"] == ["UNIT_ENEMY"]
 
 
 @respx.mock
@@ -81,7 +91,7 @@ def test_the_search_schema_carries_the_catalog_enums_and_requires_enabled_pools(
     result = runner.invoke(app, ["schema", "--out", str(tmp_path)])
     assert result.exit_code == 0, result.output
 
-    schema = json.loads((tmp_path / "evaluation.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads((tmp_path / "exercise.search.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     space = schema["$defs"]["ConfiguredSpace"]["properties"]
     assert space["unitPool"]["items"]["enum"] == ["UNIT_A"]
@@ -106,37 +116,3 @@ def test_the_search_schema_carries_the_catalog_enums_and_requires_enabled_pools(
     with_pools = config | {"space": {"unitPool": ["UNIT_A"], "memoryPool": ["MEM_A"]}}
     assert validator.is_valid(with_pools)
     assert not validator.is_valid(with_pools | {"starts": []})
-
-
-@respx.mock
-def test_the_console_shows_the_directive_line_for_each_schema(tmp_path):
-    mock_catalog()
-    out = tmp_path / ".schema"
-
-    result = runner.invoke(app, ["schema", "--out", str(out)])
-
-    assert "formation.schema.json" in result.output
-    assert "formation-seed.schema.json" in result.output
-    assert "evaluation.schema.json" in result.output
-    assert "yaml-language-server" in result.output
-
-
-@respx.mock
-def test_the_output_directory_is_created(tmp_path):
-    mock_catalog()
-    out = tmp_path / "nested" / ".schema"
-
-    result = runner.invoke(app, ["schema", "--out", str(out)])
-
-    assert result.exit_code == 0, result.output
-    assert (out / "formation.schema.json").exists()
-
-
-@respx.mock
-def test_an_unreachable_server_is_reported_without_a_traceback(tmp_path):
-    respx.get(f"{BASE_URL}{CATALOG_PATH}").mock(side_effect=httpx.ConnectError("refused"))
-
-    result = runner.invoke(app, ["schema", "--out", str(tmp_path / ".schema")])
-
-    assert result.exit_code == 1
-    assert "APIへ到達できない" in result.output

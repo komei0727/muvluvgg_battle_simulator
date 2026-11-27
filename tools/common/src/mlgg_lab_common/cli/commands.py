@@ -8,6 +8,9 @@
 | `summarize` | ケース別の記述統計                                      | しない          |
 | `export`    | JSONL / CSV / JSON                                      | しない          |
 
+`schema`（YAML用の JSON Schema の生成）は `schema_command` が持ち、`build_lab_app` が一緒に
+登録する。Catalog を取得するだけで、評価APIへは接続しない。
+
 終了コード:
 
 - 0: 成功（`evaluate` / `resume` はすべての試行が完了した）
@@ -47,6 +50,7 @@ from ..evaluation.runner import (
 )
 from ..inputs.draft import DraftError
 from ..inputs.player_data import PlayerDataError
+from ..inputs.schema import SchemaFile
 from ..models.formation import ConfigError
 from ..reporting import (
     FormatAnalyzer,
@@ -61,6 +65,7 @@ from ..storage.layout import create_evaluation, open_evaluation, write_manifest
 from ..storage.repository import EvaluationRepository
 from ..storage.sqlite import UnknownStorageFormatError
 from .render import render_status, render_summary
+from .schema_command import register_schema_command
 
 EXIT_OK = 0
 EXIT_INPUT_ERROR = 1
@@ -107,6 +112,8 @@ class LabCommands:
     # テストは評価APIの偽物を返す。既定は計画の接続先・タイムアウトのHTTPクライアント。
     transport_factory: TransportFactory = _http_transport
     sleep: Callable[[float], None] = field(default=time.sleep)
+    # `schema` コマンドが共通Schemaに加えて書き出す、このラボの入力のSchema。
+    schemas: tuple[SchemaFile, ...] = ()
 
 
 def exit_code_for(reason: StopReason) -> int:
@@ -120,7 +127,12 @@ def exit_code_for(reason: StopReason) -> int:
 def build_lab_app(lab: LabCommands, *, help: str) -> typer.Typer:
     app = typer.Typer(add_completion=False, help=help, no_args_is_help=True)
     register_evaluation_commands(app, lab)
+    register_lab_schema_command(app, lab)
     return app
+
+
+def register_lab_schema_command(app: typer.Typer, lab: LabCommands) -> None:
+    register_schema_command(app, format=lab.format, schemas=lab.schemas)
 
 
 EvaluationArg = Annotated[

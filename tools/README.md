@@ -97,6 +97,7 @@ tools/
         manifest.json                    # 実行概要（確認用の写し）
         evaluation.sqlite3               # 計画・入力・要求履歴・結果の正本
         evaluation.sqlite3.lock          # 実行中だけ保持する排他ロック（ファイルは残ってよい）
+  .schema/                               # 各ラボの `schema` の生成物（gitignore 済み）
   exercise-lab/configs/                  # 演習の設定・共有サンプル
   battle-lab/configs/                    # 通常戦闘の設定・共有サンプル
   total-war-lab/configs/                 # 総力戦の設定・共有サンプル
@@ -106,8 +107,47 @@ tools/
   テストの fixture は各パッケージの `tests/` にある。どちらも個人ファイルなしで動く。
 - `data/inputs/` は**推奨の置き場所であって必須ではない**。従来の置き場所
   （`exercise-lab/local_storage/`・`exercise-lab/configs/formations/`）もそのまま入力パスに使える。
+  `exercise-lab formations` の既定は tools ルート基準の `data/inputs/formations/` である。
 - `data/inputs/`（入力の整理）と `data/evaluations/`（実行ごとの保存）は別の責務である。評価実行は
   計画を作った時点の入力をDBへ写すので、`data/inputs/` を後から書き換えても実行中の評価は変わらない。
+
+### エディタ補完（`<lab> schema`）
+
+各ラボの `schema` コマンドが、Catalog から実IDを enum に焼いた JSON Schema を `tools/.schema/` へ書き出す。
+出力先は実行場所に依らない（カレントディレクトリから上へ uv workspace のルートを探す）。workspace の外で
+実行するときは `--out` で指定する。形式ごとに内容が変わるSchemaは形式の接頭辞付きの名前で出すので、
+全ラボを同じ出力先で実行しても上書きし合わない。
+
+```bash
+uv run exercise-lab schema      # 共通 + 演習
+uv run battle-lab schema        # 共通 + 通常戦闘
+uv run total-war-lab schema     # 共通 + 総力戦
+```
+
+| 生成物（`tools/.schema/`）      | 出すコマンド    | 対象YAML                                                               |
+| ------------------------------- | --------------- | ---------------------------------------------------------------------- |
+| `formation-library.schema.json` | 全ラボ          | 編成ライブラリ1件（`data/inputs/formations/`）                         |
+| `<形式>.evaluation.schema.json` | 各ラボ          | 評価設定（`format` をそのラボの形式に固定）                            |
+| `exercise.match.schema.json`    | `exercise-lab`  | 演習の編成定義（`ally` + `enemy`）                                     |
+| `exercise.search.schema.json`   | `exercise-lab`  | 演習の探索設定（`exercise-lab search` の `evaluation.yaml`）           |
+| `battle.match.schema.json`      | `battle-lab`    | 通常戦闘の対戦入力（`allyFormation` / `enemyFormation` / `turnLimit`） |
+| `total-war.match.schema.json`   | `total-war-lab` | 総力戦の対戦入力（`allyFormations` / `enemyFormations`）               |
+
+`<形式>` は `exercise` / `battle` / `total-war`。
+
+対象YAMLの先頭へ、そのファイルから `tools/.schema/` への相対パスで1行置くと、YAML Language Server が
+ID を補完・検証する。
+
+```yaml
+# tools/data/inputs/formations/<id>.yaml
+# yaml-language-server: $schema=../../../.schema/formation-library.schema.json
+# tools/<lab>/configs/*.yaml
+# yaml-language-server: $schema=../../.schema/battle.match.schema.json
+```
+
+`exercise-lab import-draft` は、書き出し先から数えたパスでこの行を（`##` で無効にした状態で）付ける。
+リポジトリ内のサンプルの参照先は `tests/test_schema_directives.py` が検査する。Schemaはローダーの受理条件を
+すべては表さない（配置・編成内の重複は表せず、読み込み時に落ちる）。**Catalog を更新したら作り直す。**
 
 ### 入力の運用
 

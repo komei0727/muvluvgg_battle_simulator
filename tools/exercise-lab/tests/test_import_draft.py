@@ -121,17 +121,56 @@ def test_note_without_library_is_rejected(tmp_path):
     assert not out.exists()
 
 
-def test_library_schema_directive_points_two_levels_up(tmp_path):
-    """編成ライブラリは `configs/` の1つ下（`configs/formations/`）にあるため、
-    他の2つのSchemaディレクティブ（`../.schema/...`）と違い `../../` になる。"""
+def make_workspace(tmp_path):
+    root = tmp_path / "tools"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[tool.uv.workspace]\nmembers = []\n", encoding="utf-8")
+    return root
+
+
+def directive_lines(text):
+    return [line for line in text.splitlines() if "yaml-language-server: $schema=" in line]
+
+
+def test_library_directive_points_at_the_tools_schema_dir(tmp_path):
+    root = make_workspace(tmp_path)
     source = write_draft(tmp_path)
-    out = tmp_path / "formations" / "seed-a-c-d.yaml"
+    out = root / "data" / "inputs" / "formations" / "seed-a-c-d.yaml"
 
     runner.invoke(app, ["import-draft", str(source), "--library", "-o", str(out)])
 
-    lines = out.read_text(encoding="utf-8").splitlines()
-    assert not any(line.startswith("# yaml-language-server:") for line in lines)
-    assert "## yaml-language-server: $schema=../../.schema/formation-seed.schema.json" in lines
+    assert directive_lines(out.read_text(encoding="utf-8")) == [
+        "## yaml-language-server: $schema=../../../.schema/formation-library.schema.json"
+    ]
+
+
+def test_match_directive_follows_where_the_file_is_written(tmp_path):
+    root = make_workspace(tmp_path)
+    source = write_draft(tmp_path)
+    out = root / "exercise-lab" / "configs" / "formation.yaml"
+
+    runner.invoke(app, ["import-draft", str(source), "-o", str(out)])
+
+    assert directive_lines(out.read_text(encoding="utf-8")) == [
+        "## yaml-language-server: $schema=../../.schema/exercise.match.schema.json"
+    ]
+
+
+def test_without_a_known_destination_the_directive_assumes_the_recommended_place(tmp_path):
+    # 標準出力やworkspaceの外では置き場所が分からないので、推奨の置き場所
+    # （編成ライブラリは data/inputs/formations/、編成定義は <lab>/configs/）を前提にする。
+    source = write_draft(tmp_path)
+
+    library = runner.invoke(app, ["import-draft", str(source), "--library"])
+    match = runner.invoke(app, ["import-draft", str(source), "-o", str(tmp_path / "f.yaml")])
+
+    assert directive_lines(library.output) == [
+        "## yaml-language-server: $schema=../../../.schema/formation-library.schema.json"
+    ]
+    assert directive_lines((tmp_path / "f.yaml").read_text(encoding="utf-8")) == [
+        "## yaml-language-server: $schema=../../.schema/exercise.match.schema.json"
+    ]
+    assert match.exit_code == 0, match.output
 
 
 def write_draft(tmp_path):
