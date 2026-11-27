@@ -614,67 +614,85 @@ describe("production Catalog UNIT_MERU_BESIDE_TEX (【隣歩む想い】桃園�
     });
   });
 
-  it("IT-UNIT-MERU-BESIDE-TEX-006 [R-HIT-02]: the 「真心」 evasion evades at exactly 50% per hit — a roll just below 0.5 evades and a roll of 0.5 does not", () => {
-    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO);
-    const holding = applyPrecedingActions(board, [
-      { effectActionDefinitionId: "ACT_MERU_BESIDE_TEX_MAGOKORO_MARKER", target: "SELF" },
-      {
-        effectActionDefinitionId: "ACT_MERU_BESIDE_TEX_MAGOKORO_EVASION",
-        target: "SELF",
-        withPrevious: true,
-      },
-    ]);
-    const attacked = observeLifecycleDamageProbe({
-      definitions: board.definitions,
-      units: holding,
-      attackerUnitId: "enemy:front",
-      targetUnitId: "ally:subject",
-      hitCount: 2,
-      accuracy: "NORMAL",
-      // 回避は `next() < 確率` で成立する。確率が50%から少しでもずれると、どちらかの
-      // ヒットの結果が入れ替わる。
-      random: new SequenceRandomSource([0.49, 0.5]),
-      battleId: "B_MERU_TEX_EVASION",
-    });
-
-    expect(attacked.hits).toEqual([
-      { hitIndex: 1, result: "EVADED", evadedBy: "ACT_MERU_BESIDE_TEX_MAGOKORO_EVASION" },
-      { hitIndex: 2, result: "CONFIRMED" },
-    ]);
+  it("IT-UNIT-MERU-BESIDE-TEX-006 [R-HIT-02]: both 「真心」 evasion definitions (battle-long and the PS1 2-action variant) declare a 50% evasion chance", () => {
+    expect(
+      [MAGOKORO_IDS[""].evasion, MAGOKORO_IDS.TIMED_.evasion].map(
+        (id) => (effectActionFrom(snapshot, id).payload as { probability?: number }).probability,
+      ),
+    ).toEqual([0.5, 0.5]);
   });
 
-  it("IT-UNIT-MERU-BESIDE-TEX-007 [R-SUB-02]: 「願い星」 adds one hit of the provider's attack × 10% to each of the holder's attacks, in the triggering attack's damage type", () => {
-    const board = withConstantWishStarDurability(
-      productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO),
-    );
-    const armed = applyPrecedingActions(board, [
-      { effectActionDefinitionId: WISH_STAR, target: "SELF" },
-    ]);
-    const observed = observeLifecycleDamageProbe({
-      definitions: board.definitions,
-      units: armed,
-      attackerUnitId: "ally:subject",
-      targetUnitId: "enemy:front",
-      power: 1,
-      battleId: "B_MERU_TEX_SUBUNIT_ADDITIONAL",
-    });
+  it.each([
+    { markerAction: MAGOKORO_IDS[""].marker, evasion: MAGOKORO_IDS[""].evasion },
+    {
+      markerAction: MAGOKORO_IDS.TIMED_.marker,
+      evasion: MAGOKORO_IDS.TIMED_.evasion,
+    },
+  ])(
+    "IT-UNIT-MERU-BESIDE-TEX-008 [R-HIT-02]: $evasion evades a roll just below 0.5 and lets a roll of exactly 0.5 hit",
+    ({ markerAction, evasion }) => {
+      const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO);
+      const holding = applyPrecedingActions(board, [
+        { effectActionDefinitionId: markerAction, target: "SELF" },
+        { effectActionDefinitionId: evasion, target: "SELF", withPrevious: true },
+      ]);
+      const attacked = observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: holding,
+        attackerUnitId: "enemy:front",
+        targetUnitId: "ally:subject",
+        hitCount: 2,
+        accuracy: "NORMAL",
+        // 回避は `next() < 確率` で成立する。境界のすぐ下（0.4999999999）と境界ちょうど（0.5）を
+        // 引くため、確率が50%から上下どちらへずれても、どちらかのヒットの結果が入れ替わる。
+        random: new SequenceRandomSource([0.4999999999, 0.5]),
+        battleId: "B_MERU_TEX_EVASION",
+      });
 
-    // 追加ダメージ = 付与者（自身）の付与時攻撃力1000 × 10% = 100。所持者の攻撃力1000 ≥
-    // 対象の防御力500 のため防御による減衰はない（R-SUB-02）。願い星はタイプを宣言しないため、
-    // 契機の攻撃（既定の `PHYSICAL`）のタイプを引き継ぐ。
-    expect(damageCalculationsOf(observed.recorder)).toEqual([
-      {
-        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
-        damageType: "PHYSICAL",
-        skillPower: 1,
-        finalDamage: 500,
-      },
-      {
-        effectActionDefinitionId: WISH_STAR,
-        damageType: "PHYSICAL",
-        skillPower: 100,
-        finalDamage: 100,
-      },
-    ]);
-  });
+      expect(attacked.hits).toEqual([
+        { hitIndex: 1, result: "EVADED", evadedBy: evasion },
+        { hitIndex: 2, result: "CONFIRMED" },
+      ]);
+    },
+  );
+
+  it.each(["PHYSICAL", "EN"] as const)(
+    "IT-UNIT-MERU-BESIDE-TEX-007 [R-SUB-02]: 「願い星」 adds one hit of the provider's attack × 10% to a %s attack by the holder, in that attack's damage type",
+    (damageType) => {
+      const board = withConstantWishStarDurability(
+        productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO),
+      );
+      const armed = applyPrecedingActions(board, [
+        { effectActionDefinitionId: WISH_STAR, target: "SELF" },
+      ]);
+      const observed = observeLifecycleDamageProbe({
+        definitions: board.definitions,
+        units: armed,
+        attackerUnitId: "ally:subject",
+        targetUnitId: "enemy:front",
+        power: 1,
+        damageType,
+        battleId: "B_MERU_TEX_SUBUNIT_ADDITIONAL",
+      });
+
+      // 追加ダメージ = 付与者（自身）の付与時攻撃力1000 × 10% = 100。所持者の攻撃力1000 ≥
+      // 対象の防御力500 のため防御による減衰はない（R-SUB-02）。願い星はタイプを宣言しないため、
+      // 契機の攻撃のタイプを引き継ぐ。実戦でめるが攻撃するのはENのEXであり、タイプが変わると
+      // タイプ付きシールドの適用先が変わるため、両方のタイプで確かめる。
+      expect(damageCalculationsOf(observed.recorder)).toEqual([
+        {
+          effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+          damageType,
+          skillPower: 1,
+          finalDamage: 500,
+        },
+        {
+          effectActionDefinitionId: WISH_STAR,
+          damageType,
+          skillPower: 100,
+          finalDamage: 100,
+        },
+      ]);
+    },
+  );
 });
