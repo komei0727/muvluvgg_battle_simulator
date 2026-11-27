@@ -50,16 +50,7 @@ class FailureKind(StrEnum):
 _RETRYABLE = frozenset({FailureKind.TRANSPORT, FailureKind.RETRYABLE_STATUS})
 # 503のうち、混雑・内部キャンセルは時間をおけば通り得る。安全上限超過は同じ入力で再び超える。
 _RETRYABLE_503_CODES = frozenset({"CAPACITY_EXCEEDED", "EXECUTION_CANCELLED"})
-# 大量試行のトップレベルの期待値と、単発APIの再生指定（`replay`）が持つ識別情報。
-_REVISION_PATHS = frozenset(
-    {
-        "expectedCatalogRevision",
-        "expectedEngineRevision",
-        "replay/expectedCatalogRevision",
-        "replay/expectedEngineRevision",
-        "replay/expectedSeedDerivationVersion",
-    }
-)
+_REVISION_PATHS = frozenset({"expectedCatalogRevision", "expectedEngineRevision"})
 
 
 @dataclass(frozen=True)

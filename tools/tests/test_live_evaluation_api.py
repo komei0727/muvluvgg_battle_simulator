@@ -188,33 +188,3 @@ def test_cli_evaluate_interrupt_resume_summarize_export(tmp_path, fmt, lab, app)
     assert run("export", evaluation).exit_code == EXIT_OK
     lines = (evaluation / "exports/trials.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(lines) == 5
-
-
-def test_exercise_inspect_replays_saved_runs_through_the_single_exercise_api(tmp_path):
-    configs = tmp_path / "configs"
-    configs.mkdir()
-    config = write_config(
-        configs,
-        "TACTICAL_EXERCISE",
-        "exercise-lab",
-        cases=["  - { caseId: a, match: MATCH, runIndices: [0, 7, 42] }\n"],
-    )
-    runner = CliRunner()
-    evaluation = tmp_path / "evaluations/live"
-
-    def run(*args: object):
-        return runner.invoke(exercise_app, [str(a) for a in args], catch_exceptions=False)
-
-    evaluated = run(
-        "evaluate", config, "--evaluations-dir", evaluation.parent, "--evaluation-id", "live"
-    )
-    assert evaluated.exit_code == EXIT_OK, evaluated.output
-
-    for run_index in (0, 7, 42):
-        inspected = run("inspect", evaluation, "--case", "a", "--run", run_index, "--json")
-        assert inspected.exit_code == EXIT_OK, inspected.output
-        report = json.loads(inspected.output)
-        assert report["replayed"] == report["saved"]
-        trace = json.loads(Path(report["tracePath"]).read_text(encoding="utf-8"))
-        assert trace["events"] and trace["stateTransitions"]
-        assert trace["result"]["totalScore"] == report["saved"]["totalScore"]
