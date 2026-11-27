@@ -5,6 +5,8 @@ import {
   type WorkerSimulationTask,
 } from "./worker-contract.js";
 import { ApplicationError } from "../../application/contracts/application-error.js";
+import type { SimulationReplayRequestBody } from "../../application/contracts/request.js";
+import { validateSimulationReplay } from "../../application/simulation/simulation-replay.js";
 import { toSimulateBattleCommand } from "../../application/simulation/simulate-battle-request-mapper.js";
 import { toEvaluateTacticalExercisesCommand } from "../../application/simulation/evaluate-tactical-exercises-mapper.js";
 import { EvaluateTacticalExercisesUseCase } from "../../application/simulation/evaluate-tactical-exercises-use-case.js";
@@ -118,6 +120,39 @@ export function createSimulationTaskRunner(
             DEFAULT_TACTICAL_EXERCISE_EVALUATION_LIMITS,
         });
 
+  /**
+   * 単発タスクの再生指定を検証し、その試行の乱数源へ差し替えた依存を返す。大量試行と同じ
+   * `forRun(seed, runIndex)`を使うことで、同じ編成・条件から同じ1試行を再実行する。
+   * 識別情報の照合はWorker自身の値で行う — 実際に戦闘を実行する実装・Catalogが
+   * 保存済みの試行と同じであることを、ここ以外では保証できないためである。
+   */
+  function replayDependenciesFor(request: {
+    readonly replay?: SimulationReplayRequestBody;
+    readonly options?: { readonly logLevel?: string };
+  }): typeof useCaseDependencies | undefined {
+    const replay = request.replay;
+    if (replay === undefined) {
+      return undefined;
+    }
+    if (engineRevision === undefined) {
+      throw new ApplicationError("INTERNAL_INVARIANT_VIOLATION", [
+        { reason: "this worker has no engineRevision configured for seeded replays" },
+      ]);
+    }
+    const violations = validateSimulationReplay(replay, request.options?.logLevel, {
+      catalogRevision: catalog.catalogRevision,
+      engineRevision,
+      seedDerivationVersion: seededRandomSourceProvider.derivationVersion,
+    });
+    if (violations.length > 0) {
+      throw new ApplicationError("INVALID_COMMAND", violations);
+    }
+    return {
+      ...useCaseDependencies,
+      randomSourceFactory: seededRandomSourceProvider.forRun(replay.seed, replay.runIndex),
+    };
+  }
+
   return function runSimulationTask(task: WorkerSimulationTask): WorkerSimulationResult {
     if (task.expectedCatalogRevision !== catalog.catalogRevision) {
       return {
@@ -182,27 +217,46 @@ export function createSimulationTaskRunner(
           ),
         };
       }
+      const replayDependencies = replayDependenciesFor(task.request);
       if (task.mode === "TOTAL_WAR") {
+        const command = toSimulateTotalWarCommand(task.request);
         return {
           ok: true,
           mode: "TOTAL_WAR",
-          result: totalWarUseCase.execute(toSimulateTotalWarCommand(task.request), context),
+          result:
+            replayDependencies === undefined
+              ? totalWarUseCase.execute(command, context)
+              : new SimulateTotalWarUseCase(replayDependencies).execute(
+                  { ...command, logLevel: "DETAILED" },
+                  context,
+                ),
         };
       }
       if (task.mode === "TACTICAL_EXERCISE") {
+        const command = toSimulateTacticalExerciseCommand(task.request);
         return {
           ok: true,
           mode: "TACTICAL_EXERCISE",
-          result: tacticalExerciseUseCase.execute(
-            toSimulateTacticalExerciseCommand(task.request),
-            context,
-          ),
+          result:
+            replayDependencies === undefined
+              ? tacticalExerciseUseCase.execute(command, context)
+              : new SimulateTacticalExerciseUseCase(replayDependencies).execute(
+                  { ...command, logLevel: "DETAILED" },
+                  context,
+                ),
         };
       }
+      const command = toSimulateBattleCommand(task.request);
       return {
         ok: true,
         mode: "BATTLE_SIMULATION",
-        result: useCase.execute(toSimulateBattleCommand(task.request), context),
+        result:
+          replayDependencies === undefined
+            ? useCase.execute(command, context)
+            : new SimulateBattleUseCase(replayDependencies).execute(
+                { ...command, logLevel: "DETAILED" },
+                context,
+              ),
       };
     } catch (error) {
       if (error instanceof ApplicationError) {

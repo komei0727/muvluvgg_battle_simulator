@@ -4,9 +4,10 @@
     uv run exercise-lab units --grep 純夏
     uv run exercise-lab evaluate exercise-lab/configs/evaluation.example.yaml
     uv run exercise-lab summarize data/evaluations/<evaluation-id>
+    uv run exercise-lab inspect data/evaluations/<evaluation-id> --case a --run 7
 
 評価コマンド（evaluate / resume / status / summarize / export）の通信・保存・再開・表示は
-`mlgg_lab_common.cli` の共通部が持つ。
+`mlgg_lab_common.cli` の共通部が持つ。保存済みの試行の再生（inspect）は `inspect.py` が持つ。
 
 Catalogを引くコマンドの相手はローカルのdevサーバー（`apps/api/` で `mise run dev`）を
 既定にする。
@@ -55,6 +56,7 @@ from .analysis import ANALYZER
 from .evaluation import FORMAT, plan_exercise_evaluation
 from .inputs.exercise import dump_formation_config, load_exercise_draft
 from .inputs.schema import build_formation_json_schema
+from .inspect import register_inspect_command
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
@@ -390,6 +392,7 @@ LAB = LabCommands(
     name="exercise-lab", format=FORMAT, planner=plan_exercise_evaluation, analyzer=ANALYZER
 )
 register_evaluation_commands(app, LAB)
+register_inspect_command(app, LAB)
 
 
 if __name__ == "__main__":

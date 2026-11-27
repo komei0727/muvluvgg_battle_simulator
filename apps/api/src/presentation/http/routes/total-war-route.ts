@@ -8,9 +8,12 @@ import {
   totalWarRequestSchema,
   totalWarResponseSchema,
 } from "../schemas/simulation/total-war-schema.js";
-import { errorResponseSchema } from "../schemas/error/error-schema.js";
 import { getRequestExecutionState } from "../protocol/request-id/request-id.js";
-import type { ShutdownGatePort } from "./simulation-route.js";
+import {
+  REPLAYABLE_ERROR_RESPONSES,
+  rejectReplayWhenDisabled,
+  type ShutdownGatePort,
+} from "./simulation-route.js";
 
 export const TOTAL_WAR_SIMULATIONS_PATH = "/api/v1/total-war-simulations";
 
@@ -26,39 +29,24 @@ export interface SimulateTotalWarUseCasePort {
   ): Promise<SimulateTotalWarResult>;
 }
 
-/**
- * 戦闘POSTと同じ実行境界（Worker Pool）を通るため、返り得るエラーステータスも
- * 同じになる（`10_API設計.md`「ステータスコード対応」）。
- */
-const ERROR_RESPONSES = {
-  400: errorResponseSchema,
-  401: errorResponseSchema,
-  406: errorResponseSchema,
-  413: errorResponseSchema,
-  415: errorResponseSchema,
-  422: errorResponseSchema,
-  429: errorResponseSchema,
-  500: errorResponseSchema,
-  503: errorResponseSchema,
-  504: errorResponseSchema,
-} as const;
-
 export interface RegisterTotalWarRouteOptions {
   readonly useCase: SimulateTotalWarUseCasePort;
   readonly shutdownGate: ShutdownGatePort;
   readonly simulationTimeoutMs: number;
+  /** 再生指定を受け付けるか。大量試行APIを開いた配備だけで`true`にする。 */
+  readonly replayEnabled: boolean;
 }
 
 export function registerTotalWarRoute(
   app: FastifyInstance,
-  { useCase, shutdownGate, simulationTimeoutMs }: RegisterTotalWarRouteOptions,
+  { useCase, shutdownGate, simulationTimeoutMs, replayEnabled }: RegisterTotalWarRouteOptions,
 ): void {
   app.post(
     TOTAL_WAR_SIMULATIONS_PATH,
     {
       schema: {
         body: totalWarRequestSchema,
-        response: { 200: totalWarResponseSchema, ...ERROR_RESPONSES },
+        response: { 200: totalWarResponseSchema, ...REPLAYABLE_ERROR_RESPONSES },
       },
     },
     async (request: FastifyRequest<{ Body: TotalWarRequestBody }>, reply: FastifyReply) => {
@@ -67,6 +55,7 @@ export function registerTotalWarRoute(
       if (shutdownGate.isShuttingDown()) {
         throw new SimulationCapacityExceededError();
       }
+      rejectReplayWhenDisabled(request.body, replayEnabled);
 
       // `onRequest`が全リクエストで先に`trackRequestExecution`を登録済みのため、必ず存在する。
       const { requestId, cancellationController } = getRequestExecutionState(request)!;

@@ -50,6 +50,7 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 | `statistics/daily_best.py`            | 日次ベスト指標（UI統計の参照実装）                                   |
 | `search_space.py`                     | 固定相手の探索の演習アダプター（演習対象の敵1体と配置を固定する）    |
 | `cli.py`                              | `exercise-lab` コマンド（入力補助）                                  |
+| `inspect.py`                          | 保存済みの試行の再生（`exercise-lab inspect`）                       |
 | `scripts/export_ui_parity_fixture.py` | UI統計の fixture を書き出す                                          |
 
 演習固有の受理条件は `inputs/exercise.py` の中だけにある。
@@ -68,9 +69,32 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 | `exercise-lab status`       | 評価実行の進捗・予算・停止理由を表示する              |
 | `exercise-lab summarize`    | 保存結果のスコア等をケース別に要約する                |
 | `exercise-lab export`       | 保存結果を JSONL / CSV / JSON へ書き出す              |
+| `exercise-lab inspect`      | 保存済みの試行を詳細ログ付きで再生する                |
 
 評価コマンドのオプション・終了コード・出力形式は [`../README.md`](../README.md)「評価コマンド」にある。
 `summarize` のスコア要約は観測結果の確認用で、日次ベスト等の目的関数（`exercise_lab.statistics`）は使わない。
+
+### 保存済みの試行を再生する（`exercise-lab inspect`）
+
+評価実行に保存した完了試行を1件、単発の演習API（`POST /api/v1/tactical-exercises`）で詳細ログ付きに
+再実行する。行動順・対象選択・効果の付与と消費を、保存した試行と同じ乱数条件で確かめるためである。
+
+```bash
+uv run exercise-lab inspect ../data/evaluations/<evaluation-id> --case <caseId> --run <runIndex>
+uv run exercise-lab inspect ../data/evaluations/<evaluation-id> --case a --run 7 --json
+```
+
+- 評価設定・編成YAMLは読み直さない。評価実行のDBが持つ seed・送信した対戦条件・試行番号・
+  確定した実行環境（`catalogRevision`・`engineRevision`・`seedDerivationVersion`）から、
+  リクエストの `replay` を組み立てる（API契約は `docs/ddd/10_API設計.md`「保存済みの試行を詳細ログ付きで再生する」）。
+- 接続先は評価を実行した時の計画の値（`api.baseUrl`）を使う。アクセスキーは `--access-key` か
+  `MLGG_LAB_ACCESS_KEY` で毎回渡す。再生は評価APIを開いた配備（`EVALUATION_ENDPOINT_ENABLED=true`）
+  でだけ受け付けられ、閉じた配備は `404 ENDPOINT_DISABLED` になる。
+- 再生結果のスコア・ブレイク回数・終了理由・完了ターンと `catalogRevision` を保存値と照合し、
+  一致したときだけ応答全体を `<評価実行>/traces/<caseId>-<runIndex>.json` へ保存する（同じ試行は上書き）。
+  一致しない再生・詳細イベントの無い応答は保存せず止める。
+- 終了コード: 0 一致して保存した、1 ケース・試行が無い（未完了の試行は再生できない）・評価実行を読めない、
+  4 APIが拒否した（サーバーの実装・Catalogが評価時と違えば `ENVIRONMENT_MISMATCH`）か保存値と一致しない。
 
 ### UIのドラフトを取り込む（`exercise-lab import-draft`）
 

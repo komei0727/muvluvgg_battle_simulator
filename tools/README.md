@@ -460,6 +460,11 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
   味方枠のブレイクの和と `breakCount` の差は、メモリー由来と敵の自傷の両方を含む。
 - 旧契約（`runsPerCandidate`・`<seed>#<runOffset>`）向けの互換アダプターは持たない。旧UI・旧CLIの
   seed・CSVは新契約の試行番号と同じ試行ではない。
+- 保存済みの完了試行は `exercise-lab inspect <評価実行> --case <caseId> --run <runIndex>` で、単発の
+  演習API（`POST /api/v1/tactical-exercises`）に `replay`（seed・試行番号・実行環境の識別情報）を付けて
+  詳細ログ付きに再生できる。スコア・ブレイク回数・終了理由・完了ターンが保存値と一致したときだけ
+  `<評価実行>/traces/` へ保存する（手順は [`exercise-lab/README.md`](exercise-lab/README.md)「保存済みの試行を再生する」）。
+  通常戦闘・総力戦の単発APIも同じ `replay` を受け付ける（`docs/ddd/10_API設計.md`「保存済みの試行を詳細ログ付きで再生する」）。
 
 ## 探索の共通基盤（固定相手）
 
@@ -651,7 +656,8 @@ bash scripts/check-isolated-installs.sh        # パッケージ単独のイン�
 実APIのテスト（`tests/test_live_evaluation_api.py`）は `MLGG_LAB_LIVE_API_URL` が無ければskipする。
 `apps/api/` で `EVALUATION_ENDPOINT_ENABLED=true PORT=3917 mise exec -- pnpm exec tsx src/main.ts` として
 起動したサーバーを相手に、戦術演習・通常戦闘・総力戦の複数ケース・複数試行を「要求を大きく」「細かく分けてケース順を逆に」
-「同条件で再実行」の3通りで実行し、意味上の観測値が一致することを確かめる。
+「同条件で再実行」の3通りで実行し、意味上の観測値が一致することを確かめる。戦術演習は `exercise-lab inspect`
+で保存済みの試行を単発演習APIへ再生し、保存値と一致して詳細ログを保存できることも確かめる。
 
 テストは各パッケージの `tests/` と、workspace横断の `tests/`（境界・公開サンプル）にある。
 ラボのテストは別のラボをimportしない。テスト用のドラフト生成は `mlgg_lab_common.testing` にある。

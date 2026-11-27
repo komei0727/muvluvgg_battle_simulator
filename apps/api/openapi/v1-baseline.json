@@ -1098,6 +1098,46 @@
                         "enum": ["SUMMARY", "DETAILED"]
                       }
                     }
+                  },
+                  "replay": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "seed",
+                      "runIndex",
+                      "expectedCatalogRevision",
+                      "expectedEngineRevision",
+                      "expectedSeedDerivationVersion"
+                    ],
+                    "properties": {
+                      "seed": {
+                        "type": "string",
+                        "pattern": "\\S",
+                        "description": "The seed of the evaluation request that produced the run."
+                      },
+                      "runIndex": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295,
+                        "description": "The runIndex of the run to replay."
+                      },
+                      "expectedCatalogRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The catalogRevision recorded in the evaluation response."
+                      },
+                      "expectedEngineRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The engineRevision recorded in the evaluation response."
+                      },
+                      "expectedSeedDerivationVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The seedDerivationVersion recorded in the evaluation response."
+                      }
+                    },
+                    "description": "Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path."
                   }
                 }
               }
@@ -13007,6 +13047,88 @@
               }
             }
           },
+          "404": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["ENDPOINT_DISABLED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "406": {
             "description": "Default Response",
             "headers": {
@@ -14103,6 +14225,46 @@
                         "enum": ["SUMMARY", "DETAILED"]
                       }
                     }
+                  },
+                  "replay": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "seed",
+                      "runIndex",
+                      "expectedCatalogRevision",
+                      "expectedEngineRevision",
+                      "expectedSeedDerivationVersion"
+                    ],
+                    "properties": {
+                      "seed": {
+                        "type": "string",
+                        "pattern": "\\S",
+                        "description": "The seed of the evaluation request that produced the run."
+                      },
+                      "runIndex": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295,
+                        "description": "The runIndex of the run to replay."
+                      },
+                      "expectedCatalogRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The catalogRevision recorded in the evaluation response."
+                      },
+                      "expectedEngineRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The engineRevision recorded in the evaluation response."
+                      },
+                      "expectedSeedDerivationVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The seedDerivationVersion recorded in the evaluation response."
+                      }
+                    },
+                    "description": "Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path."
                   }
                 }
               }
@@ -26645,6 +26807,88 @@
               }
             }
           },
+          "404": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["ENDPOINT_DISABLED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "406": {
             "description": "Default Response",
             "headers": {
@@ -27751,6 +27995,46 @@
                         "enum": ["SUMMARY", "DETAILED"]
                       }
                     }
+                  },
+                  "replay": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "seed",
+                      "runIndex",
+                      "expectedCatalogRevision",
+                      "expectedEngineRevision",
+                      "expectedSeedDerivationVersion"
+                    ],
+                    "properties": {
+                      "seed": {
+                        "type": "string",
+                        "pattern": "\\S",
+                        "description": "The seed of the evaluation request that produced the run."
+                      },
+                      "runIndex": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295,
+                        "description": "The runIndex of the run to replay."
+                      },
+                      "expectedCatalogRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The catalogRevision recorded in the evaluation response."
+                      },
+                      "expectedEngineRevision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The engineRevision recorded in the evaluation response."
+                      },
+                      "expectedSeedDerivationVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The seedDerivationVersion recorded in the evaluation response."
+                      }
+                    },
+                    "description": "Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path."
                   }
                 }
               }
@@ -40711,6 +40995,88 @@
                         "code": {
                           "type": "string",
                           "enum": ["UNAUTHORIZED"]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["message"],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "definitionId": {
+                                "type": "string"
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "diagnosticId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim."
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "X-Request-Id, Retry-After, ETag — present only for allowed-origin requests."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」)."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["schemaVersion", "error"],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["code", "message", "violations"],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": ["ENDPOINT_DISABLED"]
                         },
                         "message": {
                           "type": "string"
