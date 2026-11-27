@@ -10,13 +10,22 @@ import {
 } from "../../../testing/production-unit/definition-closure.js";
 import {
   PRODUCTION_CATALOG_DIR,
+  applyPrecedingActions,
   collectedExecutedActionIds,
   observeSkillUse,
+  productionBoard,
   resetExecutedActionIds,
   type BoardOverrides,
+  type ProductionBoard,
   type SkillBehaviourCase,
 } from "../../../testing/production-unit/skill-behaviour.js";
 import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
+import { observeLifecycleDamageProbe } from "../../../testing/production-unit/damage-probe.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
+import type { BattleDomainEvent } from "../../../domain/battle/events/domain-event.js";
+import type { EventRecorder } from "../../../domain/battle/events/event-recorder.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import type { EffectActionDefinition } from "../../../domain/catalog/definitions/effect-action-definition.js";
 
 /**
  * `UNIT_MERU_BESIDE_TEX`（【隣歩む想い】桃園める・戦術演習版）のユニット単位production結合テスト
@@ -463,6 +472,51 @@ const MAGOKORO_EFFECT_ACTION_IDS = [
   ...Object.values(MAGOKORO_IDS.TIMED_),
 ];
 
+const WISH_STAR = "ACT_MERU_BESIDE_TEX_EX_SUBUNIT";
+
+/**
+ * 願い星の耐久（同じスキル使用の与ダメージ×125%）は、前提アクション（EffectAction 1件を
+ * 合成スキルで撃つ）では与ダメージ合計が存在せず評価できない。追加ダメージの検証には
+ * 耐久の量は関わらないため、耐久だけを定数へ差し替え、追加ダメージ式は production
+ * 定義のまま使う。耐久の125%は `-001` のEX行（`magnitude: 682`）が固定している。
+ */
+function withConstantWishStarDurability(board: ProductionBoard): ProductionBoard {
+  const id = createEffectActionDefinitionId(WISH_STAR);
+  const real = board.definitions.effectActions.get(id)!;
+  const payload = real.payload as unknown as Record<string, unknown> & {
+    durability: Record<string, unknown>;
+  };
+  const patched = {
+    ...real,
+    payload: {
+      ...payload,
+      durability: { ...payload.durability, formula: { kind: "CONSTANT", value: 682 } },
+    },
+  } as unknown as EffectActionDefinition;
+  return {
+    ...board,
+    definitions: {
+      ...board.definitions,
+      effectActions: new Map(board.definitions.effectActions).set(id, patched),
+    },
+  };
+}
+
+function damageCalculationsOf(recorder: EventRecorder) {
+  return recorder
+    .getEvents()
+    .filter(
+      (event): event is Extract<BattleDomainEvent, { eventType: "DamageCalculated" }> =>
+        event.eventType === "DamageCalculated",
+    )
+    .map((event) => ({
+      effectActionDefinitionId: String(event.payload.effectActionDefinitionId),
+      damageType: event.payload.damageType,
+      skillPower: event.payload.skillPower,
+      finalDamage: event.payload.finalDamage,
+    }));
+}
+
 function durationOf(effectActionDefinitionId: string): Record<string, unknown> {
   const definition = effectActionFrom(snapshot, effectActionDefinitionId);
   return (definition.payload as unknown as { duration: Record<string, unknown> }).duration;
@@ -558,5 +612,69 @@ describe("production Catalog UNIT_MERU_BESIDE_TEX (【隣歩む想い】桃園�
       timeLimit: { unit: "ACTION", count: 1, owner: "EFFECT_SOURCE" },
       removeOnSourceDefeated: true,
     });
+  });
+
+  it("IT-UNIT-MERU-BESIDE-TEX-006 [R-HIT-02]: the 「真心」 evasion evades at exactly 50% per hit — a roll just below 0.5 evades and a roll of 0.5 does not", () => {
+    const board = productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO);
+    const holding = applyPrecedingActions(board, [
+      { effectActionDefinitionId: "ACT_MERU_BESIDE_TEX_MAGOKORO_MARKER", target: "SELF" },
+      {
+        effectActionDefinitionId: "ACT_MERU_BESIDE_TEX_MAGOKORO_EVASION",
+        target: "SELF",
+        withPrevious: true,
+      },
+    ]);
+    const attacked = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: holding,
+      attackerUnitId: "enemy:front",
+      targetUnitId: "ally:subject",
+      hitCount: 2,
+      accuracy: "NORMAL",
+      // 回避は `next() < 確率` で成立する。確率が50%から少しでもずれると、どちらかの
+      // ヒットの結果が入れ替わる。
+      random: new SequenceRandomSource([0.49, 0.5]),
+      battleId: "B_MERU_TEX_EVASION",
+    });
+
+    expect(attacked.hits).toEqual([
+      { hitIndex: 1, result: "EVADED", evadedBy: "ACT_MERU_BESIDE_TEX_MAGOKORO_EVASION" },
+      { hitIndex: 2, result: "CONFIRMED" },
+    ]);
+  });
+
+  it("IT-UNIT-MERU-BESIDE-TEX-007 [R-SUB-02]: 「願い星」 adds one hit of the provider's attack × 10% to each of the holder's attacks, in the triggering attack's damage type", () => {
+    const board = withConstantWishStarDurability(
+      productionBoard(snapshot, UNIT_DEFINITION_ID, SOLO),
+    );
+    const armed = applyPrecedingActions(board, [
+      { effectActionDefinitionId: WISH_STAR, target: "SELF" },
+    ]);
+    const observed = observeLifecycleDamageProbe({
+      definitions: board.definitions,
+      units: armed,
+      attackerUnitId: "ally:subject",
+      targetUnitId: "enemy:front",
+      power: 1,
+      battleId: "B_MERU_TEX_SUBUNIT_ADDITIONAL",
+    });
+
+    // 追加ダメージ = 付与者（自身）の付与時攻撃力1000 × 10% = 100。所持者の攻撃力1000 ≥
+    // 対象の防御力500 のため防御による減衰はない（R-SUB-02）。願い星はタイプを宣言しないため、
+    // 契機の攻撃（既定の `PHYSICAL`）のタイプを引き継ぐ。
+    expect(damageCalculationsOf(observed.recorder)).toEqual([
+      {
+        effectActionDefinitionId: "ACT_TEST_DAMAGE_PROBE",
+        damageType: "PHYSICAL",
+        skillPower: 1,
+        finalDamage: 500,
+      },
+      {
+        effectActionDefinitionId: WISH_STAR,
+        damageType: "PHYSICAL",
+        skillPower: 100,
+        finalDamage: 100,
+      },
+    ]);
   });
 });
