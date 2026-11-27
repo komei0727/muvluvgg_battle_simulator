@@ -1,12 +1,15 @@
-"""リポジトリ内のYAMLの `yaml-language-server: $schema=` 行が、`schema` コマンドの
-出力（`tools/.schema/<名前>`）を指していること。
+"""リポジトリ内のYAMLの Schema 参照が、`schema` コマンドの出力（`tools/.schema/<名前>`）を
+指していること。
+
+対象は tools/README.md「エディタ補完」の保証範囲——ファイル先頭のコメント・空行ブロックに
+行頭から書いた `# yaml-language-server: $schema=...` と `## yaml-language-server: $schema=...`——に
+限る。YAML Language Server が読む他の書式（`# $schema: ...` 等）は保証せず、検査もしない。
 
 Schemaのファイル名や置き場所を変えると、YAML側の参照は黙って壊れる（エディタの
 補完が効かなくなるだけで、どの検査も落ちない）。ここで参照先を実際に解決して突き合わせる。
 対象はリポジトリ全体で git が追跡しているYAMLだけ——個人の入力（`tools/data/`）は追跡しない。
 """
 
-import itertools
 import re
 import subprocess
 from pathlib import Path
@@ -24,57 +27,26 @@ from mlgg_lab_common.workspace import SCHEMA_DIR, find_tools_root
 from total_war_lab.cli import LAB as TOTAL_WAR_LAB
 
 TOOLS = find_tools_root(Path(__file__).parent)
-# YAML Language Server（`modelineUtil.ts`）と同じ判定。行が modeline かを先に見て、
-# 参照先はその行から取り出す。空白の数・`$schema:` の形もサーバーが読む範囲は受理する。
-# サーバーはYAMLのコメント（`#` の前のインデントを除いたもの）へ判定を掛けるので、行頭の空白は
-# 許す。先頭の `#` は複数を許す——`##` の書きかけの行も、`#` を1つ削れば効くので検査する。
-MODELINE = re.compile(r"^\s*#+\s+(?:yaml-language-server\s*:|\$schema:)")
-TARGET = re.compile(r"\$schema(?:=|:[^\S\r\n]*)(\S+)")
+# 保証範囲（tools/README.md「エディタ補完」）: ファイル先頭のコメント・空行ブロックに、
+# 行頭から書いた次の2書式だけ。`##` は `import-draft` が書く書きかけの行で、`#` を1つ外すと効く。
+DIRECTIVE = re.compile(r"^##? yaml-language-server: \$schema=(?P<path>\S+)\s*$")
 LABS = (EXERCISE_LAB, BATTLE_LAB, TOTAL_WAR_LAB)
 GENERATED = {file.name for lab in LABS for file in (*common_schema_files(lab.format), *lab.schemas)}
 
 
-def schema_target(line: str) -> str | None:
-    if not MODELINE.match(line):
-        return None
-    found = TARGET.search(line)
-    return None if found is None else found[1]
-
-
-# 文書の頭の区切り。これらの後から次のトークンまでの行が、その文書のヘッダーになる。
-_HEADER_OPENERS = (
-    yaml.StreamStartToken,
-    yaml.DirectiveToken,
-    yaml.DocumentStartToken,
-    yaml.DocumentEndToken,
-)
-
-
-def header_comment_lines(text: str) -> list[str]:
-    """各文書の最初の内容より前にあるコメント行（ヘッダーコメント）。
-
-    サーバーは文書のヘッダーコメントだけを modeline として読む。行単位で探すと、
-    ブロックスカラー（`|`）の中身や内容の後のコメントまで拾ってしまう。コメントは
-    トークンにならないので、内容のトークンの位置からヘッダーの行範囲を求める。
-    """
-    lines = text.splitlines()
-    tokens = list(yaml.scan(text, Loader=yaml.SafeLoader))
-    header: list[str] = []
-    for previous, following in itertools.pairwise(tokens):
-        if not isinstance(previous, _HEADER_OPENERS):
-            continue
-        # 区切りと同じ行（`--- # ...`）はヘッダーコメントとして扱わない。
-        first = previous.end_mark.line + (0 if isinstance(previous, yaml.StreamStartToken) else 1)
-        last = following.start_mark.line
-        if isinstance(following, yaml.StreamEndToken):
-            last = len(lines)
-        header.extend(line for line in lines[first:last] if line.lstrip().startswith("#"))
-    return header
+def leading_block(text: str) -> list[str]:
+    """ファイル先頭のコメント行と空行の並び。最初の内容（`---` を含む）の手前で終わる。"""
+    block: list[str] = []
+    for line in text.splitlines():
+        if line.strip() and not line.lstrip().startswith("#"):
+            break
+        block.append(line)
+    return block
 
 
 def directives_in(text: str) -> list[str]:
-    targets = (schema_target(line) for line in header_comment_lines(text))
-    return [target for target in targets if target is not None]
+    matches = (DIRECTIVE.match(line) for line in leading_block(text))
+    return [match["path"] for match in matches if match is not None]
 
 
 def _git(*args: str) -> str:
@@ -107,70 +79,39 @@ def directives() -> list[tuple[Path, str]]:
     ]
 
 
-@pytest.mark.parametrize(
-    ("line", "target"),
-    [
-        ("# yaml-language-server: $schema=a.json", "a.json"),
-        ("#  yaml-language-server: $schema=a.json", "a.json"),
-        ("#\tyaml-language-server : $schema=a.json", "a.json"),
-        ("# yaml-language-server:$schema=a.json  ", "a.json"),
-        ("# $schema: a.json", "a.json"),
-        ("# $schema:a.json", "a.json"),
-        # `##` はサーバーが読まないが、先頭の `#` を1つ削れば効く書きかけの行として検査する。
-        ("## yaml-language-server: $schema=a.json", "a.json"),
-        # YAMLのコメントとして読むので、`#` の前のインデントは取り除かれてから判定される。
-        ("  # yaml-language-server: $schema=a.json", "a.json"),
-        ("\t# $schema: a.json", "a.json"),
-    ],
-)
-def test_every_form_the_language_server_reads_is_found(line, target):
-    assert schema_target(line) == target
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        "#yaml-language-server: $schema=a.json",
-        "# `# yaml-language-server:` はコメントではなく有効なディレクティブなので、",
-        "# yaml-language-server: $schema= a.json",
-        "# $schema=a.json",
-        "key: value  # yaml-language-server: $schema=a.json",
-    ],
-)
-def test_lines_the_language_server_ignores_are_not_found(line):
-    assert schema_target(line) is None
+def case(text: str, targets: list[str], id: str):
+    return pytest.param(text, targets, id=id)
 
 
 @pytest.mark.parametrize(
     ("text", "targets"),
     [
-        pytest.param(
-            "  # yaml-language-server: $schema=a.json\nkey: 1\n", ["a.json"], id="indented-header"
-        ),
-        pytest.param(
+        # 保証範囲の2書式。先頭のコメント・空行ブロックのどこにあってもよい。
+        case("# yaml-language-server: $schema=a.json\nkey: 1\n", ["a.json"], "standard"),
+        case("## yaml-language-server: $schema=a.json\nkey: 1\n", ["a.json"], "inert"),
+        case(
             "# note\n\n## yaml-language-server: $schema=a.json\n# more\nkey: 1\n",
             ["a.json"],
-            id="header-after-other-comments",
+            "after-other-comments",
         ),
-        pytest.param(
+        case("# yaml-language-server: $schema=a.json\n", ["a.json"], "comment-only"),
+        # 保証範囲外の書式は参照として扱わない（検査が発火しない）。
+        case("# $schema: other.schema.json\nkey: 1\n", [], "schema-colon-form"),
+        case("#  yaml-language-server: $schema=a.json\nkey: 1\n", [], "two-spaces"),
+        case("  # yaml-language-server: $schema=a.json\nkey: 1\n", [], "indented"),
+        case("### yaml-language-server: $schema=a.json\nkey: 1\n", [], "three-hashes"),
+        case("# yaml-language-server : $schema=a.json\nkey: 1\n", [], "space-before-colon"),
+        # 先頭ブロックの外は対象にしない。
+        case(
             "embeddedYaml: |\n  # yaml-language-server: $schema=embedded.json\n  value: 1\n",
             [],
-            id="block-scalar",
+            "block-scalar",
         ),
-        pytest.param("key: 1\n# yaml-language-server: $schema=late.json\n", [], id="after-content"),
-        pytest.param(
-            "list:\n  # yaml-language-server: $schema=nested.json\n  - 1\n", [], id="nested"
-        ),
-        pytest.param(
-            "# yaml-language-server: $schema=a.json\na: 1\n---\n"
-            "# yaml-language-server: $schema=b.json\nb: 1\n",
-            ["a.json", "b.json"],
-            id="each-document",
-        ),
-        pytest.param("# yaml-language-server: $schema=a.json\n", ["a.json"], id="comment-only"),
+        case("key: 1\n# yaml-language-server: $schema=late.json\n", [], "after-content"),
+        case("---\n# yaml-language-server: $schema=a.json\nkey: 1\n", [], "after-marker"),
     ],
 )
-def test_only_header_comments_are_read(text, targets):
+def test_only_the_supported_forms_in_the_leading_block_are_read(text, targets):
     assert directives_in(text) == targets
 
 
