@@ -25,8 +25,9 @@ from total_war_lab.cli import LAB as TOTAL_WAR_LAB
 TOOLS = find_tools_root(Path(__file__).parent)
 # YAML Language Server（`modelineUtil.ts`）と同じ判定。行が modeline かを先に見て、
 # 参照先はその行から取り出す。空白の数・`$schema:` の形もサーバーが読む範囲は受理する。
-# 先頭の `#` は複数を許す——`##` の書きかけの行も、`#` を1つ削れば効くので検査する。
-MODELINE = re.compile(r"^#+\s+(?:yaml-language-server\s*:|\$schema:)")
+# サーバーはYAMLのコメント（`#` の前のインデントを除いたもの）へ判定を掛けるので、行頭の空白は
+# 許す。先頭の `#` は複数を許す——`##` の書きかけの行も、`#` を1つ削れば効くので検査する。
+MODELINE = re.compile(r"^\s*#+\s+(?:yaml-language-server\s*:|\$schema:)")
 TARGET = re.compile(r"\$schema(?:=|:[^\S\r\n]*)(\S+)")
 LABS = (EXERCISE_LAB, BATTLE_LAB, TOTAL_WAR_LAB)
 GENERATED = {file.name for lab in LABS for file in (*common_schema_files(lab.format), *lab.schemas)}
@@ -82,6 +83,9 @@ def directives() -> list[tuple[Path, str]]:
         ("# $schema:a.json", "a.json"),
         # `##` はサーバーが読まないが、先頭の `#` を1つ削れば効く書きかけの行として検査する。
         ("## yaml-language-server: $schema=a.json", "a.json"),
+        # YAMLのコメントとして読むので、`#` の前のインデントは取り除かれてから判定される。
+        ("  # yaml-language-server: $schema=a.json", "a.json"),
+        ("\t# $schema: a.json", "a.json"),
     ],
 )
 def test_every_form_the_language_server_reads_is_found(line, target):
