@@ -20,6 +20,7 @@ import type { ExerciseRuntime } from "../model/exercise-runtime.js";
 import {
   collectPreAttackObservations,
   containsAttack,
+  previewSkillTargetUnitIds,
   resolveChargeReleaseOrder,
 } from "../skill/skill-resolution-service.js";
 import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
@@ -425,17 +426,17 @@ export function resolveChargeRelease(
     return interrupted;
   }
 
-  const plan = resolveChargeReleaseOrder(
+  // R-ATM-02 #1（チャージ解放行）: `SkillUseStarting`・`ChargeReleased`には副作用なし
+  // （Stealth消費・乱数消費なし）に仮解決した予備対象を載せ、対象の束縛（抽選を含む）は
+  // 両イベントの候補解決の後に行う。継続回復で使用者自身のHP・combatStatsが変わりうるため、
+  // 予備対象もこの時点の最新状態から求める。
+  const preliminaryTargetUnitIds = previewSkillTargetUnitIds(
     skill,
-    // 継続回復で使用者自身のHP・combatStatsが変わりうるため、対象選択はこの
-    // 時点の最新状態から行う。
     requireUnit(working, actorUnitId),
     working,
     definitions.effectActions,
     definitions.unitDefinitions,
-    random,
   );
-  const targetUnitIds = plan.targetUnitIds;
 
   const skillUseId = recorder.nextSkillUseId();
   // EFF-006/Issue #212: `resolveSkillUse`と同様、この解決が宣言する
@@ -448,30 +449,6 @@ export function resolveChargeRelease(
       skill.resolution.chargeRelease.counterUpdates ?? [],
     );
   }
-  const targetsSelected = recorder.record({
-    eventType: "TargetsSelected",
-    category: "FACT",
-    turnNumber,
-    cycleNumber,
-    actionId,
-    skillUseId,
-    resolutionScopeId: actionScope,
-    parentEventId: continuousHeal.lastEventId,
-    rootEventId: actionStarted.eventId,
-    sourceUnitId: actorUnitId,
-    targetUnitIds,
-    payload: {
-      skillDefinitionId: skill.skillDefinitionId,
-      // `plan`(直前の`resolveChargeReleaseOrder`呼び出し)が既にkind==="CHARGE"を検証済み。
-      bindings:
-        skill.resolution.kind === "CHARGE"
-          ? bindingSelectionsOf(
-              skill.resolution.chargeRelease.targetBindings,
-              plan.resolvedBindings,
-            )
-          : [],
-    },
-  });
 
   // R-ATM-02 #1（チャージ解放行）: 解放は元ASの攻撃そのものであるため、AS/EX経路と
   // 同じ`SkillUseStarting`を解放の前段で発行し、「アクティブスキルで攻撃する前」の
@@ -488,16 +465,16 @@ export function resolveChargeRelease(
     actionId,
     skillUseId,
     resolutionScopeId: actionScope,
-    parentEventId: targetsSelected.eventId,
+    parentEventId: continuousHeal.lastEventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorUnitId,
-    targetUnitIds,
+    targetUnitIds: preliminaryTargetUnitIds,
     payload: {
       skillDefinitionId: skill.skillDefinitionId,
       skillType: skill.skillType,
       isAttack: containsAttack(releaseSteps, definitions.effectActions),
       actorUnitId,
-      targetUnitIds,
+      targetUnitIds: preliminaryTargetUnitIds,
       costResource: skill.cost.resource,
       costAmount: 0,
     },
@@ -515,7 +492,7 @@ export function resolveChargeRelease(
     parentEventId: skillUseStarting.eventId,
     rootEventId: actionStarted.eventId,
     sourceUnitId: actorUnitId,
-    targetUnitIds,
+    targetUnitIds: preliminaryTargetUnitIds,
     payload: {
       actorUnitId,
       skillDefinitionId: skill.skillDefinitionId,
@@ -534,6 +511,42 @@ export function resolveChargeRelease(
   // で登録済みのEFFECT_SEQUENCEスコープcounterUpdatesとPS/Memory候補の両方へ
   // 届けるとともに、`working`を最新化する。
   working = passiveRuntime.onFactEvent(chargeReleased, working).units;
+
+  // `06_戦闘状態遷移.md`「チャージ効果発動」#2: 前段のPS/Memoryによる状態変化を反映した
+  // 最新状態で解放スキルの対象を束縛する。`TargetsSelected`はこの束縛結果をそのまま写す。
+  const plan = resolveChargeReleaseOrder(
+    skill,
+    requireUnit(working, actorUnitId),
+    working,
+    definitions.effectActions,
+    definitions.unitDefinitions,
+    random,
+  );
+  const targetUnitIds = plan.targetUnitIds;
+  const targetsSelected = recorder.record({
+    eventType: "TargetsSelected",
+    category: "FACT",
+    turnNumber,
+    cycleNumber,
+    actionId,
+    skillUseId,
+    resolutionScopeId: actionScope,
+    parentEventId: chargeReleased.eventId,
+    rootEventId: actionStarted.eventId,
+    sourceUnitId: actorUnitId,
+    targetUnitIds,
+    payload: {
+      skillDefinitionId: skill.skillDefinitionId,
+      // `plan`(直前の`resolveChargeReleaseOrder`呼び出し)が既にkind==="CHARGE"を検証済み。
+      bindings:
+        skill.resolution.kind === "CHARGE"
+          ? bindingSelectionsOf(
+              skill.resolution.chargeRelease.targetBindings,
+              plan.resolvedBindings,
+            )
+          : [],
+    },
+  });
 
   // R-ATM-03: 前段フェーズの最後に攻撃前観測を行う（R-ATM-02 #1の表、チャージ解放行）。
   const observation = emitPreAttackObservations(
@@ -560,7 +573,7 @@ export function resolveChargeRelease(
     actorUnitId,
     // R-FUP-01 #2: チャージ解放の攻撃にも追撃ライダーが相乗りするため、その型を含める。
     definitions.effectActions,
-    chargeReleased.eventId,
+    targetsSelected.eventId,
     (events, unitsForChain) =>
       passiveRuntime.onPreAttackObservations(events, unitsForChain, events[0]!.eventId).units,
   );

@@ -6,6 +6,7 @@ import type { Side } from "../../shared/side.js";
 import {
   createMemoryResolutionSource,
   requireSourceUnit,
+  resolveTargets,
   resolveTargetsWithStealthConsumption,
   type ResolutionSource,
   type StealthConsumption,
@@ -693,6 +694,7 @@ function resolveEffectSequence(
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   random?: RandomSource,
+  preview = false,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
@@ -711,16 +713,29 @@ function resolveEffectSequence(
       deferredBindings.set(binding.targetBindingId, binding);
       continue;
     }
-    const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
-      binding.selector,
-      source,
-      allUnits,
-      resolvedBindingUnits,
-      triggerContext,
-      unitDefinitions,
-      consumedStealthEffectInstanceIds,
-      random,
-    );
+    // R-ATM-02 #1: 予備対象の仮解決はStealth消費・乱数消費を行わない。
+    const { units, stealthConsumption } = preview
+      ? {
+          units: resolveTargets(
+            binding.selector,
+            source,
+            allUnits,
+            resolvedBindingUnits,
+            triggerContext,
+            unitDefinitions,
+          ),
+          stealthConsumption: undefined,
+        }
+      : resolveTargetsWithStealthConsumption(
+          binding.selector,
+          source,
+          allUnits,
+          resolvedBindingUnits,
+          triggerContext,
+          unitDefinitions,
+          consumedStealthEffectInstanceIds,
+          random,
+        );
     if (stealthConsumption !== undefined) {
       stealthConsumptions.push(stealthConsumption);
       consumedStealthEffectInstanceIds.add(stealthConsumption.effectInstanceId);
@@ -1147,6 +1162,34 @@ export function resolveSkillOrder(
     unitDefinitions,
     random,
   );
+}
+
+/**
+ * R-ATM-02 #1「予備対象」: `SkillUseStarting.targetUnitIds`のため、発行時点の状態で
+ * `targetBindings`を副作用なし（Stealth消費・乱数消費なし）に仮解決し、
+ * `resolveSkillOrder`と同じ規約で対象を初出順に列挙する。混乱の反転（R-CFS-01）は
+ * 本束縛と同じ規則で適用する。CHARGEでは解放側（`chargeRelease`）を仮解決する。
+ * 確定対象は開始前PSの反応後に行う本束縛が正であり、予備対象とは異なり得る。
+ */
+export function previewSkillTargetUnitIds(
+  skill: SkillDefinition,
+  actor: BattleUnit,
+  allUnits: readonly BattleUnit[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+): readonly BattleUnitId[] {
+  const sequence =
+    skill.resolution.kind === "CHARGE" ? skill.resolution.chargeRelease : skill.resolution;
+  return resolveEffectSequence(
+    applyConfusionTargetRedirect(sequence, skill, actor, effectActions),
+    actor,
+    allUnits,
+    effectActions,
+    undefined,
+    unitDefinitions,
+    undefined,
+    true,
+  ).targetUnitIds;
 }
 
 /**

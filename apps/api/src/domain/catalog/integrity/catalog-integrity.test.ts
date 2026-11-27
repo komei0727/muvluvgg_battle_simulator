@@ -3602,6 +3602,144 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     });
 
+    /** 抽選する束縛 `TGT_RANDOM` と、それに依存しうる2つ目の束縛 `TGT_OTHER` を持つAS。 */
+    function randomDependentSkill(
+      other: TargetSelectorDefinitionInput,
+      options: {
+        readonly optional?: boolean;
+        readonly activationCondition?: ConditionDefinitionInput;
+        readonly skillType?: "AS" | "PS";
+      } = {},
+    ): SkillDefinition {
+      const skillType = options.skillType ?? "AS";
+      return createSkillDefinition({
+        skillDefinitionId: skillType === "PS" ? "SKL_PS1" : "SKL_AS1",
+        skillType,
+        cost: { resource: skillType === "PS" ? "PP" : "AP", amount: 1 },
+        ...(options.activationCondition === undefined
+          ? {}
+          : { activationCondition: options.activationCondition }),
+        ...(skillType === "PS"
+          ? {
+              triggers: [
+                {
+                  eventType: "DamageApplied",
+                  category: "FACT",
+                  sourceSelector: "ENEMY",
+                  targetSelector: "SELF",
+                },
+              ],
+            }
+          : {}),
+        resolution: {
+          kind: "IMMEDIATE",
+          targetBindings: [
+            {
+              targetBindingId: "TGT_RANDOM",
+              selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM"] },
+            },
+            {
+              targetBindingId: "TGT_OTHER",
+              selector: other,
+              ...(options.optional === true ? { optional: true } : {}),
+            },
+          ],
+          steps: [
+            {
+              kind: "ACTION",
+              target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+              actions: [{ effectActionDefinitionId: "ACT_DAMAGE_1" }],
+            },
+          ],
+        },
+        cooldown: { unit: "ACTION", count: 1 },
+        traits: {},
+        metadata: { displayName: "Random dependent" },
+      });
+    }
+    const aheadOfRandom: TargetSelectorDefinitionInput = {
+      kind: "BINDING_DERIVED",
+      side: "ENEMY",
+      base: { kind: "BINDING", targetBindingId: "TGT_RANDOM" },
+      area: { kind: "DIRECTLY_AHEAD_OF_BASE" },
+    };
+    const otherThanRandom: TargetSelectorDefinitionInput = {
+      kind: "SELECT",
+      side: "ENEMY",
+      count: 1,
+      order: ["DEFAULT"],
+      filters: [
+        {
+          kind: "AND",
+          conditions: [
+            { kind: "POSITION_ROW", row: "FRONT" },
+            {
+              kind: "NOT",
+              condition: {
+                kind: "NOT",
+                condition: {
+                  kind: "EXCLUDE_RESOLVED_UNIT",
+                  reference: { kind: "BINDING", targetBindingId: "TGT_RANDOM" },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    it("UT-CAT-IDX-145 [R-TGT-11, R-TGT-10, R-ACT-02]: rejects a required AS/EX binding whose candidates depend on a RANDOM binding — action selection resolves it without drawing, so whether it has candidates can differ from the real resolution", () => {
+      const defs = baseDefinitions();
+      for (const other of [aheadOfRandom, otherThanRandom]) {
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [randomDependentSkill(other), exSkill("SKL_EX1", 7)],
+          }),
+        ).toThrowError(/RANDOM_DEPENDENT_REQUIRED_BINDING/);
+        // 0件でも発動不能にしない（optional）なら、抽選に依らず判定が一致する。
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [randomDependentSkill(other, { optional: true }), exSkill("SKL_EX1", 7)],
+          }),
+        ).not.toThrow();
+        // PSは対象の有無で発動可否を判定しないため対象外。
+        expect(() =>
+          buildCatalogIndex({
+            ...defs,
+            skills: [
+              randomDependentSkill(other, { skillType: "PS" }),
+              asSkill("SKL_AS1", "ACT_DAMAGE_1"),
+              exSkill("SKL_EX1", 7),
+            ],
+          }),
+        ).not.toThrow();
+      }
+    });
+
+    it("UT-CAT-IDX-146 [R-TGT-11, R-ACT-02]: rejects an activationCondition on a binding that depends on a RANDOM binding through an EXCLUDE_RESOLVED_UNIT filter nested in AND/NOT", () => {
+      const defs = baseDefinitions();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            randomDependentSkill(otherThanRandom, {
+              optional: true,
+              activationCondition: {
+                kind: "TARGET_STATE",
+                target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+                field: "HP_RATIO",
+                op: "GTE",
+                value: 0.5,
+              },
+            }),
+            exSkill("SKL_EX1", 7),
+          ],
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_RANDOM_BINDING/);
+    });
+
     it("UT-CAT-IDX-097 [R-EFF-02] (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
       const defs = baseDefinitions();
       const chargeSkill = (

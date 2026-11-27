@@ -5,7 +5,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ANIS_SWEETDEVIL compl
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 650,
-  "eventSequenceHash": "sha256:5e1d270acea07def",
+  "eventSequenceHash": "sha256:4e64c44ea9ee988c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 12,
     "ACTION_COMPLETING": 12,
@@ -57,7 +57,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ANIS_TROUBLEMAKER com
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 138,
-  "eventSequenceHash": "sha256:111e52232588285d",
+  "eventSequenceHash": "sha256:f009f5e0f7aedd1a",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -107,7 +107,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_AOI_ELEGANT completes
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 370,
-  "eventSequenceHash": "sha256:23cf6d6616157c19",
+  "eventSequenceHash": "sha256:d7c9e1b094b5ee8d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -160,7 +160,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_AOI_GUARDIAN complete
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1796,
-  "eventSequenceHash": "sha256:fec480cfc368102e",
+  "eventSequenceHash": "sha256:91f069da5266caf7",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 50,
     "ACTION_COMPLETING": 50,
@@ -214,7 +214,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CHIYURU_MAZE complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 107,
-  "eventSequenceHash": "sha256:99b2d3ba16d4fa9d",
+  "eventSequenceHash": "sha256:6781661cffcc5ea2",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -255,7 +255,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CHIYURU_NEWYEAR compl
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 344,
-  "eventSequenceHash": "sha256:7efd845b776823f9",
+  "eventSequenceHash": "sha256:36f7bb30543b8e91",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -309,7 +309,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CHIZURU_DOMESTIC comp
   "completedTurn": 4,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 947,
-  "eventSequenceHash": "sha256:082776507ce66cfa",
+  "eventSequenceHash": "sha256:ba55d0a4a5a7b673",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 31,
     "ACTION_COMPLETING": 31,
@@ -369,7 +369,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CLARA_SANTA completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 324,
-  "eventSequenceHash": "sha256:ec0a0c037d889b86",
+  "eventSequenceHash": "sha256:bea94030ef6f9302",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 9,
     "ACTION_COMPLETING": 9,
@@ -423,7 +423,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_CLARA_TSUNDERE comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 88,
-  "eventSequenceHash": "sha256:23908307dee4ad40",
+  "eventSequenceHash": "sha256:15c9710bf69e8f57",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -468,7 +468,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_DOROTHEA_GRACE comple
   "completedTurn": 2,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 402,
-  "eventSequenceHash": "sha256:182cced20da28cba",
+  "eventSequenceHash": "sha256:b3ddc4d3fe642446",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 14,
     "ACTION_COMPLETING": 14,
@@ -521,7 +521,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_DOROTHEA_PIONEER comp
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 92,
-  "eventSequenceHash": "sha256:226043b9aff7ee1c",
+  "eventSequenceHash": "sha256:18a24309a7905c61",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -567,7 +567,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ELENA_MOODMAKER compl
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 513,
-  "eventSequenceHash": "sha256:7949ebaea8db06b6",
+  "eventSequenceHash": "sha256:63c8f62dab92adfd",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 17,
     "ACTION_COMPLETING": 17,
@@ -617,7 +617,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_EVIE_ECO completes a 
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1015,
-  "eventSequenceHash": "sha256:f3598844f9dae7f6",
+  "eventSequenceHash": "sha256:7f94aa158b79d539",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 47,
     "ACTION_COMPLETING": 47,
@@ -665,7 +665,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_EVIE_KYONSHI complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 116,
-  "eventSequenceHash": "sha256:283ec831b5ccc743",
+  "eventSequenceHash": "sha256:5b19950bb5d6568b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -713,7 +713,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_FEE_ACTOR completes a
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 175,
-  "eventSequenceHash": "sha256:935d39ab0b3d4d8d",
+  "eventSequenceHash": "sha256:d09f27ea9d7156fd",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -761,7 +761,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_FEE_BATH completes a 
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 48,
-  "eventSequenceHash": "sha256:d49392dfba3976d5",
+  "eventSequenceHash": "sha256:9398c60d4dc36854",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -801,7 +801,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_FLUTE_INFLUENCER comp
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1762,
-  "eventSequenceHash": "sha256:524274a53e62cd2d",
+  "eventSequenceHash": "sha256:7322f444c24f138b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 52,
     "ACTION_COMPLETING": 52,
@@ -852,7 +852,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_FLUTE_VAMPIRE complet
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 287,
-  "eventSequenceHash": "sha256:88cb4274628d5ba5",
+  "eventSequenceHash": "sha256:bc1dff452d03ee52",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 6,
     "ACTION_COMPLETING": 6,
@@ -906,7 +906,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_HARRIET_SAGE complete
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1970,
-  "eventSequenceHash": "sha256:15e62c74a5166bed",
+  "eventSequenceHash": "sha256:f66e4d159f77a775",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 48,
     "ACTION_COMPLETING": 48,
@@ -961,7 +961,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_HIIRO_FREEWOLF comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 191,
-  "eventSequenceHash": "sha256:0580637fe8dc5197",
+  "eventSequenceHash": "sha256:be576ce54fecd816",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 2,
     "ACTION_COMPLETING": 2,
@@ -1013,7 +1013,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_HIIRO_LONEWOLF comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 124,
-  "eventSequenceHash": "sha256:6dd32116eb668a8b",
+  "eventSequenceHash": "sha256:c0ce1d0b4dcb041b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1062,7 +1062,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_INIA_CRYSKA completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 148,
-  "eventSequenceHash": "sha256:cdc5a84e991ed624",
+  "eventSequenceHash": "sha256:9f9a34429a922b65",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -1106,7 +1106,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_JULIE_SNOW completes 
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 175,
-  "eventSequenceHash": "sha256:2ab8ac5446041208",
+  "eventSequenceHash": "sha256:710ad08469e72a12",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1158,7 +1158,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_JUNKA_CHILDHOOD compl
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 177,
-  "eventSequenceHash": "sha256:dd1a09a5e0d825c4",
+  "eventSequenceHash": "sha256:c504b8c32d0221ed",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1208,7 +1208,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KARINA_DOWNER complet
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 353,
-  "eventSequenceHash": "sha256:f6ea3f9519ba00f1",
+  "eventSequenceHash": "sha256:67717f4479711e62",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -1261,7 +1261,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KATE_PALADIN complete
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 266,
-  "eventSequenceHash": "sha256:2aba602c60c8798e",
+  "eventSequenceHash": "sha256:faee4958edc58c19",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 6,
     "ACTION_COMPLETING": 6,
@@ -1307,7 +1307,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KEI_JACKKNIFE complet
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 342,
-  "eventSequenceHash": "sha256:ee4cf3a91cc26dd4",
+  "eventSequenceHash": "sha256:52d2d0577c80cf50",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -1361,7 +1361,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOKORO_SPORTSDAY comp
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 75,
-  "eventSequenceHash": "sha256:29be1ff6fe153149",
+  "eventSequenceHash": "sha256:679d1bd505089b4c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -1404,7 +1404,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOTOHA_DAILY complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 204,
-  "eventSequenceHash": "sha256:7052b5115fd6ef39",
+  "eventSequenceHash": "sha256:80bbde69fb5546a2",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -1451,7 +1451,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_KOTOHA_REBEL complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 326,
-  "eventSequenceHash": "sha256:ff6b76fee9c9ab5b",
+  "eventSequenceHash": "sha256:e23c3bff87a678e2",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -1505,7 +1505,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAURA_MOUNTAIN comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 160,
-  "eventSequenceHash": "sha256:6b98c7970905f1a3",
+  "eventSequenceHash": "sha256:ee4791723c06d16b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1558,7 +1558,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAYLA_ENTREPRENEUR co
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 144,
-  "eventSequenceHash": "sha256:aa40066642f04ddc",
+  "eventSequenceHash": "sha256:056964cfd685e9ea",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1608,7 +1608,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LAYLA_NURSE completes
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 367,
-  "eventSequenceHash": "sha256:838cb68a98365420",
+  "eventSequenceHash": "sha256:ce292f84376a77b0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 9,
     "ACTION_COMPLETING": 9,
@@ -1663,7 +1663,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_HERO completes a
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 128,
-  "eventSequenceHash": "sha256:757d1f6c6e063048",
+  "eventSequenceHash": "sha256:1eab173e1ae2fb5d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -1707,7 +1707,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LILY_SINGER completes
   "completedTurn": 4,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 905,
-  "eventSequenceHash": "sha256:11c6b749635e997c",
+  "eventSequenceHash": "sha256:a93b1fa0da871f8e",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 33,
     "ACTION_COMPLETING": 33,
@@ -1760,7 +1760,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LUCIE_COMPANION compl
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1586,
-  "eventSequenceHash": "sha256:3000ecf9593a3ea7",
+  "eventSequenceHash": "sha256:22c233d1b84f984b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 48,
     "ACTION_COMPLETING": 48,
@@ -1813,7 +1813,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LUCIE_MAID completes 
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 334,
-  "eventSequenceHash": "sha256:c9970a7dd1619af3",
+  "eventSequenceHash": "sha256:53e33a70535fcd7a",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 8,
     "ACTION_COMPLETING": 8,
@@ -1867,7 +1867,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LUNA_HUNGRY completes
   "completedTurn": 2,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 458,
-  "eventSequenceHash": "sha256:e151b30e7407932f",
+  "eventSequenceHash": "sha256:92c4e3c39b51c154",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 16,
     "ACTION_COMPLETING": 16,
@@ -1919,7 +1919,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LYDIA_GENIUS complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 235,
-  "eventSequenceHash": "sha256:47fdf8b4e0b962b2",
+  "eventSequenceHash": "sha256:35163c9e56569f0f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -1970,7 +1970,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_LYDIA_SUMMER complete
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 348,
-  "eventSequenceHash": "sha256:ef5a23044caa9803",
+  "eventSequenceHash": "sha256:cf91d459c97b8dbb",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -2023,7 +2023,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MAIA_LAZY completes a
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 165,
-  "eventSequenceHash": "sha256:349e5a920f60c71f",
+  "eventSequenceHash": "sha256:b6f34e9d57a07577",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -2070,7 +2070,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MAIA_SALON completes 
   "completedTurn": 5,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 1991,
-  "eventSequenceHash": "sha256:7ed5d8663a8b9f32",
+  "eventSequenceHash": "sha256:2205b5de9a8abca7",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 38,
     "ACTION_COMPLETING": 38,
@@ -2128,7 +2128,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MAO_COMMITTEE complet
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 148,
-  "eventSequenceHash": "sha256:4a4bfefb139f3f05",
+  "eventSequenceHash": "sha256:bdb269160fd7142a",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -2176,7 +2176,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MAO_SUMMER completes 
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 136,
-  "eventSequenceHash": "sha256:f6cb6f428e0fbccb",
+  "eventSequenceHash": "sha256:c84d1c93f1a8a617",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -2223,7 +2223,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MEIYA_FATED completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 59,
-  "eventSequenceHash": "sha256:b2bfeb6474aa9830",
+  "eventSequenceHash": "sha256:2c299e842bdfbb66",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -2271,7 +2271,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MERU_BESIDE completes
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 2064,
-  "eventSequenceHash": "sha256:45206500d1033f56",
+  "eventSequenceHash": "sha256:9d47b6691d1f0e2b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 48,
     "ACTION_COMPLETING": 48,
@@ -2321,7 +2321,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MERU_FLATSPIN complet
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 60,
-  "eventSequenceHash": "sha256:ddf2e8aca9b0729d",
+  "eventSequenceHash": "sha256:c26cb06c3020cf97",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -2369,7 +2369,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MERU_SIRIUS completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 68,
-  "eventSequenceHash": "sha256:b7e1ed818fdf5617",
+  "eventSequenceHash": "sha256:ac9f552eb49fd67a",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -2409,7 +2409,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MIHIME_SNIPER complet
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 111,
-  "eventSequenceHash": "sha256:0dd1f8b8327e5451",
+  "eventSequenceHash": "sha256:c8e68671d6ea9484",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -2454,7 +2454,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MIKOTO_SURVIVOR compl
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 180,
-  "eventSequenceHash": "sha256:57a2a56d3fcc0121",
+  "eventSequenceHash": "sha256:d45d6d26873be14a",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -2506,7 +2506,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_MIRIAM_MAGE completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 156,
-  "eventSequenceHash": "sha256:63124fe3b1c493ea",
+  "eventSequenceHash": "sha256:af33092c19f8091d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -2557,7 +2557,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NADYA_SUCCESSOR compl
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 635,
-  "eventSequenceHash": "sha256:751f545e8b3ef7f9",
+  "eventSequenceHash": "sha256:b06ce6bb431d660b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 13,
     "ACTION_COMPLETING": 13,
@@ -2610,7 +2610,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NANAE_COMMANDER compl
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 120,
-  "eventSequenceHash": "sha256:b3677f4d2eaa6ff9",
+  "eventSequenceHash": "sha256:3e03bae0340a6707",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 4,
     "ACTION_COMPLETING": 4,
@@ -2658,7 +2658,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NANAE_SOVEREIGN compl
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 512,
-  "eventSequenceHash": "sha256:6ea9bffcf1ca2e73",
+  "eventSequenceHash": "sha256:ac941810f9a6ed0f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 23,
     "ACTION_COMPLETING": 23,
@@ -2703,7 +2703,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NINA_ZINA_FRONTRUNNER
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 280,
-  "eventSequenceHash": "sha256:0210cce98cc0522e",
+  "eventSequenceHash": "sha256:d4d5599acd145662",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -2755,7 +2755,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_NOEL_RUMBLE completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 277,
-  "eventSequenceHash": "sha256:9f29656b48f7ffe8",
+  "eventSequenceHash": "sha256:30e2f5572fd966ea",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -2803,7 +2803,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_NADYA_BOND compl
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 1003,
-  "eventSequenceHash": "sha256:7778c5c4614c7b82",
+  "eventSequenceHash": "sha256:148cf7d64628e4cb",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 23,
     "ACTION_COMPLETING": 23,
@@ -2863,7 +2863,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_OLGA_VETERAN complete
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 739,
-  "eventSequenceHash": "sha256:5f5f2eefdb1e185d",
+  "eventSequenceHash": "sha256:79fa9c2e2f2e085f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 15,
     "ACTION_COMPLETING": 15,
@@ -2923,7 +2923,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAMI_NEWYEAR complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 160,
-  "eventSequenceHash": "sha256:8475fdc5fb7ed5a7",
+  "eventSequenceHash": "sha256:0c172e1552a638f7",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -2974,7 +2974,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAMI_SKYWING complete
   "completedTurn": 4,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 820,
-  "eventSequenceHash": "sha256:6a3dfe3540f22158",
+  "eventSequenceHash": "sha256:fb86cb0c34cd659c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 25,
     "ACTION_COMPLETING": 25,
@@ -3030,7 +3030,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAMI_UNYIELDING compl
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 208,
-  "eventSequenceHash": "sha256:4b6666dc9349dacf",
+  "eventSequenceHash": "sha256:2c70feb2d06e9a80",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 4,
     "ACTION_COMPLETING": 4,
@@ -3082,7 +3082,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RATOROWA_ICEWITCH com
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 988,
-  "eventSequenceHash": "sha256:a8155b6cf47499be",
+  "eventSequenceHash": "sha256:52487f6b539a2ffb",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 46,
     "ACTION_COMPLETING": 46,
@@ -3133,7 +3133,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_RAVEL_MODEL completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 92,
-  "eventSequenceHash": "sha256:4bfaeaa48ea3096f",
+  "eventSequenceHash": "sha256:596d680731c109b1",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -3175,7 +3175,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ROSIE_ARTIST complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 135,
-  "eventSequenceHash": "sha256:40c1382734278ecf",
+  "eventSequenceHash": "sha256:cbb79b829b732073",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -3225,7 +3225,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_ROSIE_CAMPAIGN comple
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 2363,
-  "eventSequenceHash": "sha256:b68b952aee458aba",
+  "eventSequenceHash": "sha256:96ca609f5423a39b",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 50,
     "ACTION_COMPLETING": 50,
@@ -3277,7 +3277,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SAYA_BUNNY completes 
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 346,
-  "eventSequenceHash": "sha256:fb2c132f9c8bdcee",
+  "eventSequenceHash": "sha256:12c288bcbb6c8565",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -3326,7 +3326,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SAYA_LONGING complete
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 66,
-  "eventSequenceHash": "sha256:78f3193a21c6e0ac",
+  "eventSequenceHash": "sha256:afd3549db16bbe5f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 1,
     "ACTION_COMPLETING": 1,
@@ -3375,7 +3375,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SENKA_CHRISTMAS compl
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1627,
-  "eventSequenceHash": "sha256:405c4675cc86f7fa",
+  "eventSequenceHash": "sha256:38ba505b706facee",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 50,
     "ACTION_COMPLETING": 50,
@@ -3428,7 +3428,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SENKA_SCHEMER complet
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 144,
-  "eventSequenceHash": "sha256:175fe663042f7b33",
+  "eventSequenceHash": "sha256:7b5cfaa4dfae08c1",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 2,
     "ACTION_COMPLETING": 2,
@@ -3476,7 +3476,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SHIRANA_LUCKY complet
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 239,
-  "eventSequenceHash": "sha256:652d9534e6ecbd49",
+  "eventSequenceHash": "sha256:1c9f3143a25f7ec7",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 6,
     "ACTION_COMPLETING": 6,
@@ -3525,7 +3525,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SHIRANA_SORA complete
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 2846,
-  "eventSequenceHash": "sha256:a67595df10b504ae",
+  "eventSequenceHash": "sha256:6072059575932e8c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 50,
     "ACTION_COMPLETING": 50,
@@ -3582,7 +3582,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SHOUKA_BEACH complete
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1328,
-  "eventSequenceHash": "sha256:f8858dd0956f48df",
+  "eventSequenceHash": "sha256:2a91a0feb45b35e1",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 32,
     "ACTION_COMPLETING": 32,
@@ -3633,7 +3633,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SHOUKA_SCHEMER comple
   "completedTurn": 5,
   "completionReason": "TURN_LIMIT_REACHED",
   "eventCount": 1386,
-  "eventSequenceHash": "sha256:1675ebc73ceb825b",
+  "eventSequenceHash": "sha256:2a863545989af9cf",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 44,
     "ACTION_COMPLETING": 44,
@@ -3684,7 +3684,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SIENA_DIVA completes 
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 204,
-  "eventSequenceHash": "sha256:5953cc4e72f7669a",
+  "eventSequenceHash": "sha256:484ef059bab78583",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -3737,7 +3737,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SIENA_OFFSTAGE comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 89,
-  "eventSequenceHash": "sha256:672ec2628d80addf",
+  "eventSequenceHash": "sha256:1cd05e1e20191093",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -3785,7 +3785,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_STELLA_STATUE complet
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 571,
-  "eventSequenceHash": "sha256:0deab56f89fa7489",
+  "eventSequenceHash": "sha256:9b542e39e50e2c68",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 19,
     "ACTION_COMPLETING": 19,
@@ -3845,7 +3845,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SUIRAN_CASINO complet
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 526,
-  "eventSequenceHash": "sha256:2dc1813cf6b3d761",
+  "eventSequenceHash": "sha256:f60ed4930a5d7787",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 10,
     "ACTION_COMPLETING": 10,
@@ -3902,7 +3902,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_SUIRAN_CHAOS complete
   "completedTurn": 3,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 496,
-  "eventSequenceHash": "sha256:fac8e167b70df364",
+  "eventSequenceHash": "sha256:f5c819c24ffdf13d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 19,
     "ACTION_COMPLETING": 19,
@@ -3946,7 +3946,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_TARISA_TROUBLEMAKER c
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 332,
-  "eventSequenceHash": "sha256:6b6801535e297428",
+  "eventSequenceHash": "sha256:38451ebf4e0fb368",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 5,
     "ACTION_COMPLETING": 5,
@@ -3999,7 +3999,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_TATIANA_SAGE complete
   "completedTurn": 2,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 643,
-  "eventSequenceHash": "sha256:f1a61b8ad44d75c3",
+  "eventSequenceHash": "sha256:28af8708210b4b87",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 14,
     "ACTION_COMPLETING": 14,
@@ -4059,7 +4059,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_URUU_SUMMER completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 325,
-  "eventSequenceHash": "sha256:b1f71123393e897f",
+  "eventSequenceHash": "sha256:788bf248016ba705",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 7,
     "ACTION_COMPLETING": 7,
@@ -4115,7 +4115,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_URUU_TIMID completes 
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 124,
-  "eventSequenceHash": "sha256:31fe178299bfea89",
+  "eventSequenceHash": "sha256:158894041394e8fe",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -4165,7 +4165,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YIFEI_STORM completes
   "completedTurn": 2,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 429,
-  "eventSequenceHash": "sha256:094148f7db265c12",
+  "eventSequenceHash": "sha256:e51a388bab8e9ec5",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 9,
     "ACTION_COMPLETING": 9,
@@ -4221,7 +4221,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YUI_HEIR completes a 
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 254,
-  "eventSequenceHash": "sha256:1b13c0d4205837ef",
+  "eventSequenceHash": "sha256:1a50b200ae6171af",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 4,
     "ACTION_COMPLETING": 4,
@@ -4273,7 +4273,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YURIA_JOKER completes
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 125,
-  "eventSequenceHash": "sha256:8f2e79b7e74947fa",
+  "eventSequenceHash": "sha256:7c3569989a67044f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 3,
     "ACTION_COMPLETING": 3,
@@ -4318,7 +4318,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YURIA_WILDCARD comple
   "completedTurn": 1,
   "completionReason": "ENEMY_DEFEATED",
   "eventCount": 121,
-  "eventSequenceHash": "sha256:9ad45a4a0ed99317",
+  "eventSequenceHash": "sha256:144d1bdce6b1d6af",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 2,
     "ACTION_COMPLETING": 2,
@@ -4367,7 +4367,7 @@ exports[`production Unit golden battles > E2E-GOLDEN: UNIT_YURIA_YUKATA complete
   "completedTurn": 1,
   "completionReason": "ALLY_DEFEATED",
   "eventCount": 301,
-  "eventSequenceHash": "sha256:2e16b3ca888ff7df",
+  "eventSequenceHash": "sha256:352d7ce956500e5d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 8,
     "ACTION_COMPLETING": 8,

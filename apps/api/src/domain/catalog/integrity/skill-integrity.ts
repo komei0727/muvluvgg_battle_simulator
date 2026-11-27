@@ -2,7 +2,10 @@ import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
-import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type {
+  TargetFilterDefinition,
+  TargetSelectorDefinition,
+} from "../definitions/target-selector-definition.js";
 import type { EffectStepDefinition } from "../definitions/effect-sequence.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
@@ -142,30 +145,105 @@ function validateActivationConditionReferences(
   }
 }
 
+/** セレクタが参照する他の束縛（`base`、`EXCLUDE_RESOLVED_UNIT`フィルタ、`fallback`の分も含む）。 */
+function referencedBindingIds(selector: TargetSelectorDefinition): readonly string[] {
+  const fromFilter = (filter: TargetFilterDefinition): readonly string[] => {
+    switch (filter.kind) {
+      case "EXCLUDE_RESOLVED_UNIT":
+        return filter.reference.kind === "BINDING" && filter.reference.targetBindingId !== undefined
+          ? [filter.reference.targetBindingId]
+          : [];
+      case "AND":
+      case "OR":
+        return filter.conditions.flatMap(fromFilter);
+      case "NOT":
+        return fromFilter(filter.condition);
+      default:
+        return [];
+    }
+  };
+  return [
+    ...(selector.base?.kind === "BINDING" && selector.base.targetBindingId !== undefined
+      ? [selector.base.targetBindingId]
+      : []),
+    ...selector.filters.flatMap(fromFilter),
+    ...(selector.fallback === undefined ? [] : referencedBindingIds(selector.fallback)),
+  ];
+}
+
+function selectorOrFallbackDraws(selector: TargetSelectorDefinition): boolean {
+  return (
+    selector.order.includes("RANDOM") ||
+    (selector.fallback !== undefined && selectorOrFallbackDraws(selector.fallback))
+  );
+}
+
+/**
+ * R-TGT-11: その束縛が依存する他の束縛（推移的）のどれかが抽選するか。
+ * 自身の抽選は含めない — 自身の候補集合は抽選に依らないため。
+ */
+function bindingDependsOnDraw(
+  targetBindingId: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+  visited: ReadonlySet<string> = new Set(),
+): boolean {
+  const selector = bindingSelectors.get(targetBindingId);
+  if (selector === undefined || visited.has(targetBindingId)) {
+    return false;
+  }
+  const nextVisited = new Set([...visited, targetBindingId]);
+  return referencedBindingIds(selector).some((referenced) =>
+    bindingDraws(referenced, bindingSelectors, nextVisited),
+  );
+}
+
 /**
  * R-TGT-11: その束縛の結果が抽選に左右されるか。自身（fallback含む）が`RANDOM`を
- * 持つか、`BINDING_DERIVED`の基準が抽選する束縛である場合に真。
+ * 持つか、参照する束縛（`BINDING_DERIVED`の基準・`EXCLUDE_RESOLVED_UNIT`・推移的）が
+ * 抽選する場合に真。
  */
 function bindingDraws(
   targetBindingId: string,
   bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
   visited: ReadonlySet<string> = new Set(),
 ): boolean {
-  if (visited.has(targetBindingId)) {
-    return false;
-  }
   const selector = bindingSelectors.get(targetBindingId);
-  if (selector === undefined) {
+  if (selector === undefined || visited.has(targetBindingId)) {
     return false;
   }
-  const nextVisited = new Set([...visited, targetBindingId]);
-  const selectorDraws = (candidate: TargetSelectorDefinition): boolean =>
-    candidate.order.includes("RANDOM") ||
-    (candidate.base?.kind === "BINDING" &&
-      candidate.base.targetBindingId !== undefined &&
-      bindingDraws(candidate.base.targetBindingId, bindingSelectors, nextVisited)) ||
-    (candidate.fallback !== undefined && selectorDraws(candidate.fallback));
-  return selectorDraws(selector);
+  return (
+    selectorOrFallbackDraws(selector) ||
+    bindingDependsOnDraw(targetBindingId, bindingSelectors, visited)
+  );
+}
+
+/**
+ * R-TGT-11 / R-TGT-10: AS/EXの必須束縛（`optional`でない）は、行動選択が「候補が
+ * 1体以上いるか」で発動可否を決める（R-TGT-01 #4）。行動選択は抽選しないため、
+ * 抽選する束縛に候補が依存する必須束縛は、判定と実際の解決で候補の有無が食い違い
+ * うる。抽選する束縛自身は候補集合が抽選に依らないため対象外とする。CHARGEは行動選択
+ * が開始側の束縛だけを見るため、解放側は対象外。
+ */
+function validateRandomDependentRequiredBindings(
+  skill: SkillDefinition,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (skill.skillType !== "AS" && skill.skillType !== "EX") {
+    return;
+  }
+  const bindingSelectors = buildBindingSelectors(skill.resolution.targetBindings);
+  for (const binding of skill.resolution.targetBindings) {
+    if (binding.optional === true) {
+      continue;
+    }
+    if (bindingDependsOnDraw(binding.targetBindingId, bindingSelectors)) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "RANDOM_DEPENDENT_REQUIRED_BINDING",
+        message: `targetBindings "${binding.targetBindingId}": a required ${skill.skillType} binding depends on a binding that draws with order RANDOM — action selection resolves without drawing (R-TGT-11), so whether it has candidates can differ from the real resolution. Declare it optional: true`,
+      });
+    }
+  }
 }
 
 export function validateSkill(
@@ -232,6 +310,7 @@ export function validateSkill(
     );
   }
   validateActivationConditionReferences(skill, violations);
+  validateRandomDependentRequiredBindings(skill, violations);
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),

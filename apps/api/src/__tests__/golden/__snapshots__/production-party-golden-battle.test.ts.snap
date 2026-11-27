@@ -19,7 +19,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup +0 complete
     "UNIT_DOROTHEA_GRACE",
   ],
   "eventCount": 810,
-  "eventSequenceHash": "sha256:e95a9a86b703f345",
+  "eventSequenceHash": "sha256:4f532c2b2de326d3",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 12,
     "ACTION_COMPLETING": 12,
@@ -92,7 +92,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 1 completes
     "UNIT_FEE_ACTOR",
   ],
   "eventCount": 1376,
-  "eventSequenceHash": "sha256:eaeae916f5b73c3e",
+  "eventSequenceHash": "sha256:5d3e8adb8d0272d0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 24,
     "ACTION_COMPLETING": 24,
@@ -171,7 +171,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 2 completes
     "UNIT_HIIRO_FREEWOLF",
   ],
   "eventCount": 861,
-  "eventSequenceHash": "sha256:b5f89b2a2da26b27",
+  "eventSequenceHash": "sha256:ae8bfdebeb5965b0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 11,
     "ACTION_COMPLETING": 11,
@@ -248,7 +248,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 3 completes
     "UNIT_KARINA_DOWNER",
   ],
   "eventCount": 828,
-  "eventSequenceHash": "sha256:d2aabc0894d4104d",
+  "eventSequenceHash": "sha256:0b169e70f5801b3e",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 10,
     "ACTION_COMPLETING": 10,
@@ -320,7 +320,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 4 completes
     "UNIT_KOTOHA_REBEL",
   ],
   "eventCount": 1241,
-  "eventSequenceHash": "sha256:b734e3f4c2b6e649",
+  "eventSequenceHash": "sha256:411bd7e5006edef4",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 17,
     "ACTION_COMPLETING": 17,
@@ -393,7 +393,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 5 completes
     "UNIT_LILY_SINGER",
   ],
   "eventCount": 979,
-  "eventSequenceHash": "sha256:b5030ed8a855afb9",
+  "eventSequenceHash": "sha256:c6ee2b2b69c885db",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 14,
     "ACTION_COMPLETING": 14,
@@ -466,7 +466,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 6 completes
     "UNIT_LYDIA_SUMMER",
   ],
   "eventCount": 688,
-  "eventSequenceHash": "sha256:6a0bdaac9473f056",
+  "eventSequenceHash": "sha256:8e788c6546dde613",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 8,
     "ACTION_COMPLETING": 8,
@@ -537,7 +537,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 7 completes
     "UNIT_MEIYA_FATED",
   ],
   "eventCount": 1113,
-  "eventSequenceHash": "sha256:7e52cc8de47128de",
+  "eventSequenceHash": "sha256:ab91b29e4e670ff0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 17,
     "ACTION_COMPLETING": 17,
@@ -614,7 +614,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 8 completes
     "UNIT_MIKOTO_SURVIVOR",
   ],
   "eventCount": 684,
-  "eventSequenceHash": "sha256:96abbd25ed43a88a",
+  "eventSequenceHash": "sha256:e79ef157a3376399",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 10,
     "ACTION_COMPLETING": 10,
@@ -684,7 +684,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 9 completes
     "UNIT_NINA_ZINA_FRONTRUNNER",
   ],
   "eventCount": 518,
-  "eventSequenceHash": "sha256:dadae999fe0b3284",
+  "eventSequenceHash": "sha256:790b625c8183f2cc",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 8,
     "ACTION_COMPLETING": 8,
@@ -752,7 +752,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 10 complete
     "UNIT_RAMI_SKYWING",
   ],
   "eventCount": 1054,
-  "eventSequenceHash": "sha256:aa089f3af6ac814d",
+  "eventSequenceHash": "sha256:7ecccfa92bc7439d",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 16,
     "ACTION_COMPLETING": 16,
@@ -827,7 +827,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 11 complete
     "UNIT_ROSIE_CAMPAIGN",
   ],
   "eventCount": 3059,
-  "eventSequenceHash": "sha256:078ef39b420d4ec1",
+  "eventSequenceHash": "sha256:b237a248bc7ae5bb",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 71,
     "ACTION_COMPLETING": 71,
@@ -909,7 +909,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 12 complete
     "UNIT_SHIRANA_LUCKY",
   ],
   "eventCount": 1181,
-  "eventSequenceHash": "sha256:77e6741cb6603525",
+  "eventSequenceHash": "sha256:e6219b2018c22efc",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 20,
     "ACTION_COMPLETING": 20,
@@ -979,7 +979,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 13 complete
     "UNIT_SIENA_OFFSTAGE",
   ],
   "eventCount": 789,
-  "eventSequenceHash": "sha256:58eae953d36a7201",
+  "eventSequenceHash": "sha256:227f3d204770baec",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 16,
     "ACTION_COMPLETING": 16,
@@ -1050,7 +1050,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 14 complete
     "UNIT_TATIANA_SAGE",
   ],
   "eventCount": 1235,
-  "eventSequenceHash": "sha256:159d6d728679063c",
+  "eventSequenceHash": "sha256:011906f28998a02c",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 26,
     "ACTION_COMPLETING": 26,
@@ -1130,7 +1130,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 15 complete
     "UNIT_YURIA_JOKER",
   ],
   "eventCount": 1089,
-  "eventSequenceHash": "sha256:f72d40616cf72cd9",
+  "eventSequenceHash": "sha256:65dfdd39742f9ee0",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 21,
     "ACTION_COMPLETING": 21,
@@ -1203,7 +1203,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 16 complete
     "UNIT_YURIA_YUKATA",
   ],
   "eventCount": 251,
-  "eventSequenceHash": "sha256:fcb959647928b786",
+  "eventSequenceHash": "sha256:dfde881d71ebc71f",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 4,
     "ACTION_COMPLETING": 4,
@@ -1265,7 +1265,7 @@ exports[`production party golden battles > E2E-GOLDEN-PARTY: matchup 17 complete
     "UNIT_CHIYURU_MAZE",
   ],
   "eventCount": 611,
-  "eventSequenceHash": "sha256:ab4fca0c8bfbdd73",
+  "eventSequenceHash": "sha256:20ba70e948e0c477",
   "eventTypeCounts": {
     "ACTION_COMPLETED": 10,
     "ACTION_COMPLETING": 10,

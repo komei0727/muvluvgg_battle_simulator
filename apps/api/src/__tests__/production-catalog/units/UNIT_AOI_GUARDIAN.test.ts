@@ -183,7 +183,21 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
     skillDefinitionId: "SKL_AOI_GUARDIAN_AS1",
     intent: "(対象): 自身が最もHP割合の低い味方なら、シールドと継続回復は自身へ向かう",
     use: { kind: "ACTIVE", skillDefinitionId: "SKL_AOI_GUARDIAN_AS1" },
-    board: { subject: { state: { currentHp: 1000 } } },
+    board: {
+      subject: { state: { currentHp: 1000 } },
+      allies: [
+        {
+          id: "ally:front",
+          position: { column: "LEFT", row: "FRONT" },
+          state: { currentHp: 9000 },
+        },
+        {
+          id: "ally:back",
+          position: { column: "CENTER", row: "BACK" },
+          state: { currentHp: 9000 },
+        },
+      ],
+    },
     expected: {
       actions: [
         {
@@ -199,7 +213,7 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
           targets: ["ally:subject"],
         },
       ],
-      // 失ったHP 9000 の50%。回復後もHP割合は最低のまま（AS1の対象は変わらない）。
+      // 失ったHP 9000 の50%。回復後（55%）も味方（90%）より低いまま（AS1の対象は変わらない）。
       hpDeltas: {
         "ally:subject": 4500,
       },
@@ -212,6 +226,64 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         },
         {
           unitId: "ally:subject",
+          effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_CONTINUOUS_HEAL",
+          magnitude: 500,
+          timeLimit: { unit: "ACTION", count: 2 },
+        },
+      ],
+      resources: [
+        { unitId: "ally:subject", resource: "AP", delta: -1 },
+        { unitId: "ally:subject", resource: "PP", delta: -1 },
+        { unitId: "ally:subject", resource: "EX_GAUGE", delta: 2 },
+      ],
+      cooldowns: [
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_AOI_GUARDIAN_PS1",
+          remaining: 1,
+        },
+        {
+          unitId: "ally:subject",
+          skillDefinitionId: "SKL_AOI_GUARDIAN_AS1",
+          remaining: 2,
+        },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_AOI_GUARDIAN_AS1",
+    intent:
+      "(対象): 対象は開始前のPS1で自身が回復した後の盤面で選ぶ — 回復で自身（55%）が味方（50%）を上回れば、対象は味方へ移る",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_AOI_GUARDIAN_AS1" },
+    board: { subject: { state: { currentHp: 1000 } } },
+    expected: {
+      actions: [
+        {
+          effectActionDefinitionId: "ACT_AOI_GUARDIAN_PS1_HEAL",
+          targets: ["ally:subject"],
+        },
+        {
+          effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_SHIELD",
+          targets: ["ally:front"],
+        },
+        {
+          effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_CONTINUOUS_HEAL",
+          targets: ["ally:front"],
+        },
+      ],
+      // 失ったHP 9000 の50%。回復後の自身（55%）は味方（50%）より高くなる（R-ATM-02 #1）。
+      hpDeltas: {
+        "ally:subject": 4500,
+      },
+      effectsApplied: [
+        {
+          unitId: "ally:front",
+          effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_SHIELD",
+          magnitude: 1200,
+          timeLimit: { unit: "BATTLE", count: 1 },
+        },
+        {
+          unitId: "ally:front",
           effectActionDefinitionId: "ACT_AOI_GUARDIAN_AS1_CONTINUOUS_HEAL",
           magnitude: 500,
           timeLimit: { unit: "ACTION", count: 2 },

@@ -589,6 +589,78 @@ describe("resolveChargeRelease", () => {
     expect(psOwnerAfter.currentPp).toBe(2);
   });
 
+  it("UT-R-TGT-11-011 [R-TGT-11, R-ATM-02]: a charge release draws its RANDOM binding after SkillUseStarting and ChargeReleased, which carry the draw-free preliminary target", () => {
+    const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const hit = damageEffectAction("ACT_CHARGE_RANDOM_HIT");
+    const base = chargeReleaseSkill("ACT_CHARGE_RANDOM_HIT");
+    const chargeSkill: SkillDefinition =
+      base.resolution.kind === "CHARGE"
+        ? {
+            ...base,
+            resolution: {
+              ...base.resolution,
+              chargeRelease: {
+                ...base.resolution.chargeRelease,
+                targetBindings: [
+                  {
+                    targetBindingId: createTargetBindingId("TGT_1"),
+                    selector: { ...ENEMY_ALL, count: 1, order: ["RANDOM"] },
+                  },
+                ],
+              },
+            },
+          }
+        : base;
+    const charger = unit("CHARGER", "ALLY", {
+      unitDefinitionId: chargerUnitDefinitionId,
+      charge: { skill: chargeSkill, startedActionId: createActionId("B_1:action:0") },
+    });
+    const first = unit("ENEMY_1", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const second = unit("ENEMY_2", "ENEMY", { unitDefinitionId: enemyUnitDefinitionId });
+    const definitions = definitionsOf(
+      new Map([
+        [chargerUnitDefinitionId, unitDefinitionOf(chargerUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+
+    // 抽選の1回目 floor(0.99 × 2) = 1 → ENEMY_2。以降は命中判定などに使う。
+    resolveChargeRelease(
+      charger,
+      "AS",
+      [charger, first, second],
+      definitions,
+      new SequenceRandomSource([0.99, 0.99, 0.99, 0.99, 0.99]),
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+
+    const events = recorder.getEvents();
+    const eventTypes = events.map((e) => e.eventType);
+    expect(events.find((e) => e.eventType === "SkillUseStarting")?.targetUnitIds).toEqual([
+      "ENEMY_1",
+    ]);
+    expect(events.find((e) => e.eventType === "ChargeReleased")?.targetUnitIds).toEqual([
+      "ENEMY_1",
+    ]);
+    expect(eventTypes.indexOf("ChargeReleased")).toBeLessThan(
+      eventTypes.indexOf("TargetsSelected"),
+    );
+    expect(events.find((e) => e.eventType === "TargetsSelected")?.targetUnitIds).toEqual([
+      "ENEMY_2",
+    ]);
+    expect(
+      events.filter((e) => e.eventType === "DamageApplied").flatMap((e) => e.targetUnitIds ?? []),
+    ).toEqual(["ENEMY_2"]);
+  });
+
   it("UT-R-EFF-11-024 (EFF-006 Issue #212): a chargeRelease EffectSequence's own EFFECT_SEQUENCE counterUpdates increments during resolution and is discarded (RuntimeCounterReset) once resolveChargeRelease completes", () => {
     const chargerUnitDefinitionId = createUnitDefinitionId("UNIT_CHARGER");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
