@@ -161,6 +161,23 @@ POST /api/v1/total-war-simulations
 
 既存のエンドポイントの契約は変更しない（加算的変更）。規定ターン数は15で固定であり、リクエストで指定できない。
 
+### 保存済みの試行を詳細ログ付きで再生する
+
+大量試行APIの完了試行を1件だけ、同形式の単発APIで詳細ログ付きに再実行する（Issue #898）。行動順・対象選択・効果の付与と消費などを、保存した試行と同じ乱数条件で確かめるためである。専用のパスは設けず、3形式の単発APIのリクエストへ共通の任意項目 `replay`（下記「SimulationReplay」）を足す。
+
+| 形式     | 単発API                              | 再生元の大量試行API                          |
+| -------- | ------------------------------------ | -------------------------------------------- |
+| 通常戦闘 | `POST /api/v1/battle-simulations`    | `POST /api/v1/battle-evaluations`            |
+| 戦術演習 | `POST /api/v1/tactical-exercises`    | `POST /api/v1/tactical-exercise-evaluations` |
+| 総力戦   | `POST /api/v1/total-war-simulations` | `POST /api/v1/total-war-evaluations`         |
+
+- 編成・通常戦闘の `turnLimit`・総力戦の編成順などの対戦条件は、評価時の値を各単発APIの既存フィールドで渡す。`replay` はseed・試行番号・識別情報だけを持つ。
+- サーバーは大量試行と同じ乱数導出（`forRun(seed, runIndex)`）で1試行を実行する。乱数列は `(seed, runIndex)` だけで決まり、ケースIDやケース順は影響しない。
+- 実行前に `catalogRevision`・`engineRevision`・`seedDerivationVersion` を照合し、不一致は該当フィールドのパス（例 `/replay/expectedEngineRevision`）を示す `422 INVALID_COMMAND` で返して戦闘を開始しない。照合と実行はWorkerで行う。戦闘を実行する実装とCatalog自身の値で照合しなければ、保存した試行の再生であることを保証できない。
+- 再生は常に `DETAILED` で実行する。`options.logLevel` は省略か `DETAILED` だけを受理し、`SUMMARY` の明示は `422 INVALID_COMMAND`（パス `/options/logLevel`）で拒否する。黙って詳細ログへ切り替えると、要約を求めたクライアントへ数MBの応答を返すことになるためである。
+- 応答は各単発APIのレスポンス形式のまま返す。再現性の照合対象は戦闘結果と観測内容（通常戦闘は勝敗・終了理由・完了ターン、戦術演習はスコア・ブレイク回数・終了理由・完了ターン、総力戦はこれに加えてステージ・撃破編成数）であり、実行ごとに発行する `battleId` は照合対象に含めない。
+- 提供可否は大量試行APIと同じ `EVALUATION_ENDPOINT_ENABLED` に従う。無効な配備は `replay` 付きのリクエストを `404 ENDPOINT_DISABLED`（パス `/replay`）で拒否し（JSON解析後・本文のschema検証より前に判定するため、`replay` の必須項目の欠落などの形の誤りも `400` ではなく `404` になる）、`replay` を省略した通常の単発リクエストは従来どおり受理する。認証・Worker Pool・実行期限・容量制御は単発APIの実行境界をそのまま使い、期限超過は単発と同じ `504` になる。
+
 ### 編成の開始時ステータスをプレビューする
 
 ```http
@@ -454,12 +471,13 @@ ETagは `catalogRevision` と `gearEffects`（R-ENH-04 #3の効果表）のfinge
 
 ### BattleSimulationRequest
 
-| プロパティ       | 型                  | 必須 | 制約                       |
-| ---------------- | ------------------- | ---- | -------------------------- |
-| `allyFormation`  | `FormationRequest`  | 必須 | 味方陣営の編成。           |
-| `enemyFormation` | `FormationRequest`  | 必須 | 敵陣営の編成。             |
-| `turnLimit`      | integer             | 必須 | 1～99。                    |
-| `options`        | `SimulationOptions` | 任意 | 省略時は既定値を使用する。 |
+| プロパティ       | 型                  | 必須 | 制約                        |
+| ---------------- | ------------------- | ---- | --------------------------- |
+| `allyFormation`  | `FormationRequest`  | 必須 | 味方陣営の編成。            |
+| `enemyFormation` | `FormationRequest`  | 必須 | 敵陣営の編成。              |
+| `turnLimit`      | integer             | 必須 | 1～99。                     |
+| `options`        | `SimulationOptions` | 任意 | 省略時は既定値を使用する。  |
+| `replay`         | `SimulationReplay`  | 任意 | 大量試行の1試行を再生する。 |
 
 未定義のトップレベルプロパティは拒否する。スペルミスを黙って無視して既定動作へ変えないためである。
 
@@ -568,6 +586,20 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 
 `DIAGNOSTIC` は廃止した（「公開レベル」参照）。指定は `422 INVALID_COMMAND` で拒否し、黙って `DETAILED` として扱わない。
 
+### SimulationReplay
+
+`BattleSimulationRequest`・`TacticalExerciseRequest`・`TotalWarRequest` に共通の任意項目 `replay`。挙動は「保存済みの試行を詳細ログ付きで再生する」を参照。指定する場合は全項目が必須で、未定義のプロパティ・必須項目の欠落・型不正は `400 MALFORMED_REQUEST` になる。
+
+| プロパティ                      | 型        | 必須 | 制約                                                                                            |
+| ------------------------------- | --------- | ---- | ----------------------------------------------------------------------------------------------- |
+| `seed`                          | `string`  | 必須 | 評価リクエストの `seed`。空白のみは `422 INVALID_COMMAND`（`/replay/seed`）。                   |
+| `runIndex`                      | `integer` | 必須 | 再生する試行番号。0～4294967295。範囲外は `422 INVALID_COMMAND`（`/replay/runIndex`）。         |
+| `expectedCatalogRevision`       | `string`  | 必須 | 評価応答の `catalogRevision`。不一致は `422`（`/replay/expectedCatalogRevision`）。             |
+| `expectedEngineRevision`        | `string`  | 必須 | 評価応答の `engineRevision`。不一致は `422`（`/replay/expectedEngineRevision`）。               |
+| `expectedSeedDerivationVersion` | `string`  | 必須 | 評価応答の `seedDerivationVersion`。不一致は `422`（`/replay/expectedSeedDerivationVersion`）。 |
+
+大量試行APIと違い、識別情報の照合は任意ではない。省略を許すと、別の実装・Catalog・乱数導出で得た結果を保存済みの試行の再生として返してしまうためである。
+
 ### TacticalExerciseRequest
 
 `POST /api/v1/tactical-exercises` のリクエスト本文。
@@ -577,6 +609,7 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 | `allyFormation`  | `FormationRequest`  | 必須 | 味方陣営の編成。`BattleSimulationRequest` と同じ制約。  |
 | `enemyFormation` | `FormationRequest`  | 必須 | `units` はちょうど1件、`memoryDefinitionIds` は空配列。 |
 | `options`        | `SimulationOptions` | 任意 | 省略時は既定値を使用する。                              |
+| `replay`         | `SimulationReplay`  | 任意 | 大量試行の1試行を再生する。                             |
 
 `turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。敵編成のユニット数・メモリー数の違反は、他の値域違反と同様にアプリケーション検証の `422` として返す。
 
@@ -648,6 +681,7 @@ R-ENH-08: モジュールの固定加算・割合補正をユニット単位で�
 | `allyFormations`  | `FormationRequest[]` | 必須 | 味方陣営の編成を出撃順に1～3件。各要素は `BattleSimulationRequest` の `allyFormation` と同じ制約。 |
 | `enemyFormations` | `FormationRequest[]` | 必須 | 敵陣営の編成を出撃順に1～3件。制約は `allyFormations` と同じ。                                     |
 | `options`         | `SimulationOptions`  | 任意 | 省略時は既定値を使用する。                                                                         |
+| `replay`          | `SimulationReplay`   | 任意 | 大量試行の1試行を再生する。                                                                        |
 
 `turnLimit` は持たない。未定義のトップレベルプロパティ（`turnLimit` を含む）は拒否する。次はアプリケーション検証の `422`（`INVALID_COMMAND`）として返し、violationのパスに編成の添字を含める（例: `/allyFormations/1/units/3/unitDefinitionId`）。
 
@@ -1662,7 +1696,7 @@ reconstructedFinalState = apply(
 
 `POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`401`・`406`・`413`・`415`・`422`・`500` だけを返す（`401` はアクセスキーを要求する配備のみ）。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
 
-`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations` だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。これらの操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。大量試行APIの期待revision不一致は `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`／`/expectedEngineRevision`）で、戦闘を1回も開始しない。
+`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations` と、`replay` を指定した単発の3API（`POST /api/v1/battle-simulations`・`POST /api/v1/tactical-exercises`・`POST /api/v1/total-war-simulations`）だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。期限超過時、大量試行APIは `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。単発APIの再生は1試行だけを実行するので部分結果を持たず、通常の単発実行と同じく `504 EXECUTION_TIMEOUT` を返す。大量試行APIの期待revision不一致は `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`／`/expectedEngineRevision`）で、戦闘を1回も開始しない。再生指定の識別情報の不一致も同じく `422`（パス `/replay/...`）で、戦闘を開始しない。
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 

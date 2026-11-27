@@ -138,6 +138,30 @@ export const simulationOptionsRequestSchema = {
 } as const;
 
 /**
+ * `10_API設計.md`「SimulationReplay」。3形式の単発APIで共通の再生指定。実行時schemaは
+ * 型と必須項目だけを持ち、空白のseed・試行番号の範囲・識別情報の不一致は
+ * `422 INVALID_COMMAND`で返す（他の値域違反と同じ扱い）。
+ */
+export const simulationReplayRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "seed",
+    "runIndex",
+    "expectedCatalogRevision",
+    "expectedEngineRevision",
+    "expectedSeedDerivationVersion",
+  ],
+  properties: {
+    seed: { type: "string" },
+    runIndex: { type: "integer" },
+    expectedCatalogRevision: { type: "string" },
+    expectedEngineRevision: { type: "string" },
+    expectedSeedDerivationVersion: { type: "string" },
+  },
+} as const;
+
+/**
  * `POST /api/v1/battle-simulations`のrequest body schema（実行時validation用）。
  * 値域・列挙値をあえて持たない（ファイル冒頭の注記を参照）。
  */
@@ -150,6 +174,7 @@ export const battleSimulationRequestSchema = {
     enemyFormation: formationRequestSchema,
     turnLimit: { type: "integer" },
     options: simulationOptionsRequestSchema,
+    replay: simulationReplayRequestSchema,
   },
 } as const;
 
@@ -271,6 +296,40 @@ export const simulationOptionsRequestDocSchema = {
   },
 } as const;
 
+export const simulationReplayRequestDocSchema = {
+  ...simulationReplayRequestSchema,
+  description:
+    "Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path.",
+  properties: {
+    seed: {
+      type: "string",
+      pattern: "\\S",
+      description: "The seed of the evaluation request that produced the run.",
+    },
+    runIndex: {
+      type: "integer",
+      minimum: 0,
+      maximum: 4294967295,
+      description: "The runIndex of the run to replay.",
+    },
+    expectedCatalogRevision: {
+      type: "string",
+      minLength: 1,
+      description: "The catalogRevision recorded in the evaluation response.",
+    },
+    expectedEngineRevision: {
+      type: "string",
+      minLength: 1,
+      description: "The engineRevision recorded in the evaluation response.",
+    },
+    expectedSeedDerivationVersion: {
+      type: "string",
+      minLength: 1,
+      description: "The seedDerivationVersion recorded in the evaluation response.",
+    },
+  },
+} as const;
+
 /**
  * `POST /api/v1/battle-simulations`のOpenAPI公開用request body schema。
  * `10_API設計.md`が明記する値域・列挙値（`turnLimit`の1〜99、`units`の
@@ -289,6 +348,7 @@ export const battleSimulationRequestDocSchema = {
     enemyFormation: formationRequestDocSchema,
     turnLimit: { type: "integer", minimum: 1, maximum: 99 },
     options: simulationOptionsRequestDocSchema,
+    replay: simulationReplayRequestDocSchema,
   },
 } as const;
 

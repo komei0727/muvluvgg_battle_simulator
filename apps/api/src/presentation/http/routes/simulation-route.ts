@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { toBattleSimulationResponseBody } from "../../../application/simulation/simulate-battle-response-mapper.js";
+import { ApplicationError } from "../../../application/contracts/application-error.js";
 import { SimulationCapacityExceededError } from "../../../application/simulation/simulation-capacity-exceeded-error.js";
 import type { SimulationExecutionContext } from "../../../application/simulation/simulation-execution-context.js";
 import type { SimulateBattleResult } from "../../../application/simulation/simulation-result-assembler.js";
@@ -62,22 +63,64 @@ const ERROR_RESPONSES = {
   504: errorResponseSchema,
 } as const;
 
+/**
+ * 再生指定（`replay`）を受け付けられる単発APIで、404が加わったエラーステータスの集合。
+ * 再生は大量試行と同じ配備設定（`EVALUATION_ENDPOINT_ENABLED`）で開閉する。
+ */
+export const REPLAYABLE_ERROR_RESPONSES = { ...ERROR_RESPONSES, 404: errorResponseSchema } as const;
+
+/**
+ * 再生を提供しない配備では、再生指定付きのリクエストをWorkerへ送る前に拒否する。
+ * 通常の単発リクエストはこの設定に関わらず受け付ける。
+ *
+ * ルートの`preValidation`に置き、JSON解析後・本文のschema検証より前に判定する。
+ * 閉じた配備にとって再生指定は提供しない操作そのものなので、`replay`の形の誤り
+ * （`400`）より先に提供可否（`404`）を答える。
+ */
+export function rejectReplayWhenDisabled(replayEnabled: boolean) {
+  // 引数を本文だけの構造型にし、各ルートの`Body`型推論と衝突させない。
+  return (
+    request: { readonly body: unknown },
+    _reply: unknown,
+    done: (error?: Error) => void,
+  ): void => {
+    const body = request.body;
+    if (
+      !replayEnabled &&
+      typeof body === "object" &&
+      body !== null &&
+      (body as { readonly replay?: unknown }).replay !== undefined
+    ) {
+      done(
+        new ApplicationError("ENDPOINT_DISABLED", [
+          { path: "replay", reason: "replay of a seeded run is not enabled on this server" },
+        ]),
+      );
+      return;
+    }
+    done();
+  };
+}
+
 export interface RegisterSimulationRouteOptions {
   readonly useCase: SimulateBattleUseCasePort;
   readonly shutdownGate: ShutdownGatePort;
   readonly simulationTimeoutMs: number;
+  /** 再生指定を受け付けるか。大量試行APIを開いた配備だけで`true`にする。 */
+  readonly replayEnabled: boolean;
 }
 
 export function registerSimulationRoute(
   app: FastifyInstance,
-  { useCase, shutdownGate, simulationTimeoutMs }: RegisterSimulationRouteOptions,
+  { useCase, shutdownGate, simulationTimeoutMs, replayEnabled }: RegisterSimulationRouteOptions,
 ): void {
   app.post(
     BATTLE_SIMULATIONS_PATH,
     {
+      preValidation: rejectReplayWhenDisabled(replayEnabled),
       schema: {
         body: battleSimulationRequestSchema,
-        response: { 200: battleSimulationResponseSchema, ...ERROR_RESPONSES },
+        response: { 200: battleSimulationResponseSchema, ...REPLAYABLE_ERROR_RESPONSES },
       },
     },
     async (request: FastifyRequest<{ Body: BattleSimulationRequestBody }>, reply: FastifyReply) => {

@@ -120,9 +120,10 @@ describe("OpenAPI document", () => {
     expect(operation).toBeDefined();
     expect(operation?.requestBody).toBeDefined();
     // `10_API設計.md`「ステータスコード対応」の全ステータス。429/503/504は
-    // 実際のトリガー（#12/#13/#18）が未実装でも、外部契約として文書化する。
+    // 実際のトリガー（#12/#13/#18）が未実装でも、外部契約として文書化する。404は再生指定を
+    // 提供しない配備（`EVALUATION_ENDPOINT_ENABLED`無効）が返す。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+      ["200", "400", "401", "404", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
   });
 
@@ -167,7 +168,7 @@ describe("OpenAPI document", () => {
     expect(operation?.requestBody).toBeDefined();
     // 戦闘POSTと同じWorker Poolを通るため、返り得るステータスも同じ。
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
-      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+      ["200", "400", "401", "404", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
 
     const result =
@@ -216,6 +217,7 @@ describe("OpenAPI document", () => {
       "allyFormation",
       "enemyFormation",
       "options",
+      "replay",
     ]);
 
     const enemyProperties = (
@@ -315,7 +317,7 @@ describe("OpenAPI document", () => {
     expect(navigate(operation, ["requestBody"])).toBeDefined();
     // 戦闘POSTと同じWorker Poolを通るため、返り得るステータスも同じ。
     expect(Object.keys(navigate(operation, ["responses"]) as object).sort()).toEqual(
-      ["200", "400", "401", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
+      ["200", "400", "401", "404", "406", "413", "415", "422", "429", "500", "503", "504"].sort(),
     );
 
     const body = navigate(operation, ["responses", "200", "content", "application/json", "schema"]);
@@ -376,6 +378,7 @@ describe("OpenAPI document", () => {
       "allyFormations",
       "enemyFormations",
       "options",
+      "replay",
     ]);
     for (const side of ["allyFormations", "enemyFormations"]) {
       expect(navigate(schema, ["properties", side, "minItems"]), side).toBe(1);
@@ -385,6 +388,44 @@ describe("OpenAPI document", () => {
         navigate(schema, ["properties", side, "items", "properties", "units", "maxItems"]),
       ).toBe(5);
     }
+  });
+
+  it("API-OPENAPI-046 (10_API設計.md「SimulationReplay」): the three single-run POSTs publish the same optional replay with every identity required and the run number range, and document the 404 for disabled deployments", () => {
+    const document = app.swagger();
+    const replays = [
+      "/api/v1/battle-simulations",
+      TACTICAL_EXERCISES_PATH,
+      TOTAL_WAR_SIMULATIONS_PATH,
+    ].map((path) => {
+      const body = navigate(document, [
+        "paths",
+        path,
+        "post",
+        "requestBody",
+        "content",
+        "application/json",
+        "schema",
+      ]);
+      expect(navigate(body, ["required"]), path).not.toContain("replay");
+      expect(navigate(document, ["paths", path, "post", "responses", "404"]), path).toBeDefined();
+      return navigate(body, ["properties", "replay"]);
+    });
+
+    expect(replays[1]).toEqual(replays[0]);
+    expect(replays[2]).toEqual(replays[0]);
+    expect(navigate(replays[0], ["additionalProperties"])).toBe(false);
+    expect([...(navigate(replays[0], ["required"]) as string[])].sort()).toEqual([
+      "expectedCatalogRevision",
+      "expectedEngineRevision",
+      "expectedSeedDerivationVersion",
+      "runIndex",
+      "seed",
+    ]);
+    expect(navigate(replays[0], ["properties", "runIndex"])).toMatchObject({
+      type: "integer",
+      minimum: 0,
+      maximum: 4294967295,
+    });
   });
 
   it("API-OPENAPI-045 (TW-008): only the total war POST's published event union carries the formation events and a BATTLE_COMPLETED that can be a DRAW", () => {

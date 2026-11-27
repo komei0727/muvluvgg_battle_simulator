@@ -135,6 +135,8 @@ export async function bootstrap(): Promise<FastifyInstance> {
     // 大量試行API（戦術演習UC-04・通常戦闘・総力戦）はローカルの分析ツール向けであり、
     // 明示的に許可した配備だけで開く。無効な配備でもルートは登録され、404を返す
     // （公開文書の形を保つため）。
+    // 単発APIの再生指定は大量試行の結果を詳しく調べるための操作なので、同じ設定で開く。
+    replayEnabled: evaluationEndpointEnabled,
     ...(evaluationEndpointEnabled
       ? {
           evaluationUseCase: pool,

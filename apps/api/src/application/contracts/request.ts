@@ -73,11 +73,24 @@ export interface SimulationOptionsRequestBody {
   readonly logLevel?: string;
 }
 
+/**
+ * `10_API設計.md`「SimulationReplay」。大量試行の1試行を単発APIで再実行する指定で、
+ * 3形式の単発APIが同じ形で受け取る。値域・照合は`validateSimulationReplay`（422）が行う。
+ */
+export interface SimulationReplayRequestBody {
+  readonly seed: string;
+  readonly runIndex: number;
+  readonly expectedCatalogRevision: string;
+  readonly expectedEngineRevision: string;
+  readonly expectedSeedDerivationVersion: string;
+}
+
 export interface BattleSimulationRequestBody {
   readonly allyFormation: FormationRequestBody;
   readonly enemyFormation: FormationRequestBody;
   readonly turnLimit: number;
   readonly options?: SimulationOptionsRequestBody;
+  readonly replay?: SimulationReplayRequestBody;
 }
 
 /**
@@ -89,6 +102,7 @@ export interface TacticalExerciseRequestBody {
   readonly allyFormation: FormationRequestBody;
   readonly enemyFormation: FormationRequestBody;
   readonly options?: SimulationOptionsRequestBody;
+  readonly replay?: SimulationReplayRequestBody;
 }
 
 /**
@@ -100,6 +114,7 @@ export interface TotalWarRequestBody {
   readonly allyFormations: readonly FormationRequestBody[];
   readonly enemyFormations: readonly FormationRequestBody[];
   readonly options?: SimulationOptionsRequestBody;
+  readonly replay?: SimulationReplayRequestBody;
 }
 
 /**

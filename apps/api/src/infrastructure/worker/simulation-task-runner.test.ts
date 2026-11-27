@@ -532,4 +532,214 @@ describe("createSimulationTaskRunner", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "INTERNAL_INVARIANT_VIOLATION" } });
   });
+  describe("replay of a seeded run (10_API設計.md「SimulationReplay」)", () => {
+    const SEED = "replay-runner";
+    const RUN_INDEX = 5;
+
+    function seededRunner(catalogDir: string = CATALOG_DIR) {
+      const catalog = loadCatalogFromDirectory(catalogDir);
+      // 乱数列は(seed, runIndex)で決まる。既定の乱数源へ空列を渡し、再生がそれを使わないことも確かめる。
+      const runner = createSimulationTaskRunner(catalog, {
+        battleIdGenerator: new FixedBattleIdGenerator(["B_EVAL", "B_REPLAY"]),
+        randomSourceFactory: new SequenceRandomSourceFactory([]),
+        clock: new ManualClock(Date.now()),
+        engineRevision: "engine-fixed",
+      });
+      const replay = {
+        seed: SEED,
+        runIndex: RUN_INDEX,
+        expectedCatalogRevision: catalog.catalogRevision,
+        expectedEngineRevision: "engine-fixed",
+        expectedSeedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+      };
+      const base = {
+        requestId: "req-replay",
+        deadlineEpochMs: Date.now() + 30_000,
+        expectedCatalogRevision: catalog.catalogRevision,
+      };
+      return { runner, replay, base };
+    }
+
+    it("UT-TASKRUNNER-017: a BATTLE_SIMULATION task with replay reproduces the evaluated run and returns the detailed log", () => {
+      const { runner, replay, base } = seededRunner();
+      const { allyFormation, enemyFormation } = minimalRequest();
+
+      const evaluated = runner({
+        ...base,
+        mode: "BATTLE_EVALUATION",
+        request: {
+          seed: SEED,
+          cases: [
+            { caseId: "c", allyFormation, enemyFormation, turnLimit: 3, runIndices: [RUN_INDEX] },
+          ],
+        },
+      });
+      const replayed = runner({
+        ...base,
+        mode: "BATTLE_SIMULATION",
+        request: { allyFormation, enemyFormation, turnLimit: 3, replay },
+      });
+
+      if (!evaluated.ok || evaluated.mode !== "BATTLE_EVALUATION") {
+        expect.fail(`expected an ok BATTLE_EVALUATION outcome, got ${JSON.stringify(evaluated)}`);
+      }
+      if (!replayed.ok || replayed.mode !== "BATTLE_SIMULATION") {
+        expect.fail(`expected an ok BATTLE_SIMULATION outcome, got ${JSON.stringify(replayed)}`);
+      }
+      const run = evaluated.result.cases[0]!.runs[0]!.result;
+      expect({
+        outcome: replayed.result.outcome,
+        completionReason: replayed.result.completionReason,
+        completedTurn: replayed.result.completedTurn,
+      }).toEqual({
+        outcome: run.outcome,
+        completionReason: run.completionReason,
+        completedTurn: run.completedTurn,
+      });
+      expect(replayed.result.events.length).toBeGreaterThan(0);
+    });
+
+    it("UT-TASKRUNNER-018: a TACTICAL_EXERCISE task with replay reproduces the evaluated score, breaks, reason and turn", () => {
+      const { runner, replay, base } = seededRunner(EXERCISE_CATALOG_DIR);
+      const allyFormation = minimalRequest().allyFormation;
+      const enemyFormation = {
+        units: [{ unitDefinitionId: "UNIT_002", position: { column: 0, row: "FRONT" } }],
+        memoryDefinitionIds: [],
+      };
+
+      const evaluated = runner({
+        ...base,
+        mode: "TACTICAL_EXERCISE_EVALUATION",
+        request: {
+          seed: SEED,
+          cases: [{ caseId: "c", allyFormation, enemyFormation, runIndices: [RUN_INDEX] }],
+        },
+      });
+      const replayed = runner({
+        ...base,
+        mode: "TACTICAL_EXERCISE",
+        request: { allyFormation, enemyFormation, options: { logLevel: "DETAILED" }, replay },
+      });
+
+      if (!evaluated.ok || evaluated.mode !== "TACTICAL_EXERCISE_EVALUATION") {
+        expect.fail(`expected an ok evaluation outcome, got ${JSON.stringify(evaluated)}`);
+      }
+      if (!replayed.ok || replayed.mode !== "TACTICAL_EXERCISE") {
+        expect.fail(`expected an ok TACTICAL_EXERCISE outcome, got ${JSON.stringify(replayed)}`);
+      }
+      const run = evaluated.result.cases[0]!.runs[0]!.result;
+      expect({
+        totalScore: replayed.result.totalScore,
+        breakCount: replayed.result.breakCount,
+        completionReason: replayed.result.completionReason,
+        completedTurn: replayed.result.completedTurn,
+      }).toEqual({
+        totalScore: run.totalScore,
+        breakCount: run.breakCount,
+        completionReason: run.completionReason,
+        completedTurn: run.completedTurn,
+      });
+      expect(replayed.result.events.length).toBeGreaterThan(0);
+    });
+
+    it("UT-TASKRUNNER-019: a TOTAL_WAR task with replay reproduces the evaluated outcome, stages and defeated formation counts", () => {
+      const { runner, replay, base } = seededRunner();
+      const { allyFormation, enemyFormation } = minimalRequest();
+      const formations = {
+        allyFormations: [allyFormation, allyFormation],
+        enemyFormations: [enemyFormation],
+      };
+
+      const evaluated = runner({
+        ...base,
+        mode: "TOTAL_WAR_EVALUATION",
+        request: { seed: SEED, cases: [{ caseId: "c", ...formations, runIndices: [RUN_INDEX] }] },
+      });
+      const replayed = runner({ ...base, mode: "TOTAL_WAR", request: { ...formations, replay } });
+
+      if (!evaluated.ok || evaluated.mode !== "TOTAL_WAR_EVALUATION") {
+        expect.fail(`expected an ok evaluation outcome, got ${JSON.stringify(evaluated)}`);
+      }
+      if (!replayed.ok || replayed.mode !== "TOTAL_WAR") {
+        expect.fail(`expected an ok TOTAL_WAR outcome, got ${JSON.stringify(replayed)}`);
+      }
+      const run = evaluated.result.cases[0]!.runs[0]!.result;
+      expect({
+        outcome: replayed.result.outcome,
+        completionReason: replayed.result.completionReason,
+        completedTurn: replayed.result.completedTurn,
+        stages: replayed.result.stages,
+        defeatedFormationCounts: replayed.result.defeatedFormationCounts,
+      }).toEqual({
+        outcome: run.outcome,
+        completionReason: run.completionReason,
+        completedTurn: run.completedTurn,
+        stages: run.stages,
+        defeatedFormationCounts: run.defeatedFormationCounts,
+      });
+      expect(replayed.result.events.length).toBeGreaterThan(0);
+    });
+
+    it("UT-TASKRUNNER-020: a replay whose identity or log level does not match is rejected with INVALID_COMMAND before any battle starts", () => {
+      const { runner, replay, base } = seededRunner();
+      const { allyFormation, enemyFormation } = minimalRequest();
+
+      const outcome = runner({
+        ...base,
+        mode: "BATTLE_SIMULATION",
+        request: {
+          allyFormation,
+          enemyFormation,
+          turnLimit: 3,
+          options: { logLevel: "SUMMARY" },
+          replay: {
+            ...replay,
+            expectedCatalogRevision: "other-catalog",
+            expectedEngineRevision: "other-engine",
+            expectedSeedDerivationVersion: "OTHER_DERIVATION",
+          },
+        },
+      });
+
+      expect(outcome).toMatchObject({ ok: false, error: { code: "INVALID_COMMAND" } });
+      if (!outcome.ok) {
+        expect(outcome.error.violations.map((violation) => violation.path)).toEqual([
+          "replay.expectedCatalogRevision",
+          "replay.expectedEngineRevision",
+          "replay.expectedSeedDerivationVersion",
+          "options.logLevel",
+        ]);
+      }
+    });
+
+    it("UT-TASKRUNNER-021: a replay on a worker without an engine revision fails instead of replaying an unidentified implementation", () => {
+      const catalog = loadCatalogFromDirectory(CATALOG_DIR);
+      const runner = createSimulationTaskRunner(catalog, {
+        battleIdGenerator: new FixedBattleIdGenerator([]),
+        randomSourceFactory: new SequenceRandomSourceFactory([]),
+        clock: new ManualClock(Date.now()),
+      });
+      const { allyFormation, enemyFormation } = minimalRequest();
+
+      expect(
+        runner({
+          mode: "TOTAL_WAR",
+          requestId: "req-replay-no-engine",
+          deadlineEpochMs: Date.now() + 30_000,
+          expectedCatalogRevision: catalog.catalogRevision,
+          request: {
+            allyFormations: [allyFormation],
+            enemyFormations: [enemyFormation],
+            replay: {
+              seed: "s",
+              runIndex: 0,
+              expectedCatalogRevision: catalog.catalogRevision,
+              expectedEngineRevision: "engine-fixed",
+              expectedSeedDerivationVersion: "MULBERRY32_FNV1A_SPLITMIX32_V1",
+            },
+          },
+        }),
+      ).toMatchObject({ ok: false, error: { code: "INTERNAL_INVARIANT_VIOLATION" } });
+    });
+  });
 });

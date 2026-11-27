@@ -283,6 +283,11 @@ export interface BuildServerOptions {
    * `SimulationWorkerPool`を渡す。省略時は`NO_TOTAL_WAR`（上の注記参照）。
    */
   readonly totalWarUseCase?: SimulateTotalWarUseCasePort;
+  /**
+   * 単発APIの再生指定（`replay`）を受け付けるか。大量試行APIと同じ配備設定
+   * （`EVALUATION_ENDPOINT_ENABLED`）で決める。省略時は受け付けず404を返す。
+   */
+  readonly replayEnabled?: boolean;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
   readonly evaluationUseCase?: EvaluateTacticalExercisesUseCasePort;
   /** 省略時は404を返す（`EVALUATION_ENDPOINT_ENABLED`が無効な配備）。 */
@@ -636,16 +641,19 @@ export async function buildServer(
 
   registerErrorHandler(app);
 
-  registerSimulationRoute(app, { useCase, shutdownGate, simulationTimeoutMs });
+  const replayEnabled = options.replayEnabled ?? false;
+  registerSimulationRoute(app, { useCase, shutdownGate, simulationTimeoutMs, replayEnabled });
   registerTacticalExerciseRoute(app, {
     useCase: exerciseUseCase,
     shutdownGate,
     simulationTimeoutMs,
+    replayEnabled,
   });
   registerTotalWarRoute(app, {
     useCase: totalWarUseCase,
     shutdownGate,
     simulationTimeoutMs,
+    replayEnabled,
   });
   registerTacticalExerciseEvaluationRoute(app, {
     useCase: evaluationUseCase,

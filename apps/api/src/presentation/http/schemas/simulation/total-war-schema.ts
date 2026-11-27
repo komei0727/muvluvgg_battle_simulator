@@ -8,6 +8,8 @@ import {
   globalCoordinateResponseSchema,
   simulationOptionsRequestDocSchema,
   simulationOptionsRequestSchema,
+  simulationReplayRequestDocSchema,
+  simulationReplayRequestSchema,
   stateTransitionResponseSchema,
   unitBattleSummaryResponseSchema,
   valueChangeNumberSchema,
@@ -41,6 +43,7 @@ export const totalWarRequestSchema = {
     allyFormations: { type: "array", items: formationRequestSchema },
     enemyFormations: { type: "array", items: formationRequestSchema },
     options: simulationOptionsRequestSchema,
+    replay: simulationReplayRequestSchema,
   },
 } as const;
 
@@ -60,6 +63,7 @@ export const totalWarRequestDocSchema = {
     allyFormations: formationListRequestDocSchema,
     enemyFormations: formationListRequestDocSchema,
     options: simulationOptionsRequestDocSchema,
+    replay: simulationReplayRequestDocSchema,
   },
 } as const;
 

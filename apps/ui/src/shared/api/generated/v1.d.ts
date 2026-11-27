@@ -214,6 +214,19 @@ export interface paths {
               /** @enum {string} */
               logLevel?: "SUMMARY" | "DETAILED";
             };
+            /** @description Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path. */
+            replay?: {
+              /** @description The seed of the evaluation request that produced the run. */
+              seed: string;
+              /** @description The runIndex of the run to replay. */
+              runIndex: number;
+              /** @description The catalogRevision recorded in the evaluation response. */
+              expectedCatalogRevision: string;
+              /** @description The engineRevision recorded in the evaluation response. */
+              expectedEngineRevision: string;
+              /** @description The seedDerivationVersion recorded in the evaluation response. */
+              expectedSeedDerivationVersion: string;
+            };
           };
         };
       };
@@ -3667,6 +3680,37 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        404: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "ENDPOINT_DISABLED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
@@ -4094,6 +4138,19 @@ export interface paths {
             options?: {
               /** @enum {string} */
               logLevel?: "SUMMARY" | "DETAILED";
+            };
+            /** @description Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path. */
+            replay?: {
+              /** @description The seed of the evaluation request that produced the run. */
+              seed: string;
+              /** @description The runIndex of the run to replay. */
+              runIndex: number;
+              /** @description The catalogRevision recorded in the evaluation response. */
+              expectedCatalogRevision: string;
+              /** @description The engineRevision recorded in the evaluation response. */
+              expectedEngineRevision: string;
+              /** @description The seedDerivationVersion recorded in the evaluation response. */
+              expectedSeedDerivationVersion: string;
             };
           };
         };
@@ -7711,6 +7768,37 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        404: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "ENDPOINT_DISABLED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         406: {
           headers: {
             /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
@@ -8138,6 +8226,19 @@ export interface paths {
             options?: {
               /** @enum {string} */
               logLevel?: "SUMMARY" | "DETAILED";
+            };
+            /** @description Re-runs one completed run of the matching evaluation endpoint with the detailed log. Pass the evaluated match conditions in the usual fields. Accepted only where the evaluation endpoints are enabled (404 ENDPOINT_DISABLED otherwise). options.logLevel must be omitted or DETAILED. Each identity is checked before the run, and a mismatch is rejected with 422 INVALID_COMMAND at its path. */
+            replay?: {
+              /** @description The seed of the evaluation request that produced the run. */
+              seed: string;
+              /** @description The runIndex of the run to replay. */
+              runIndex: number;
+              /** @description The catalogRevision recorded in the evaluation response. */
+              expectedCatalogRevision: string;
+              /** @description The engineRevision recorded in the evaluation response. */
+              expectedEngineRevision: string;
+              /** @description The seedDerivationVersion recorded in the evaluation response. */
+              expectedSeedDerivationVersion: string;
             };
           };
         };
@@ -11858,6 +11959,37 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "UNAUTHORIZED";
+                message: string;
+                violations: {
+                  path?: string;
+                  definitionId?: string;
+                  ruleId?: string;
+                  message: string;
+                }[];
+                diagnosticId?: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            /** @description Present only when the request's Origin matches an allowed origin (10_API設計.md「CORS」); reflects that Origin verbatim. */
+            "Access-Control-Allow-Origin"?: string;
+            /** @description X-Request-Id, Retry-After, ETag — present only for allowed-origin requests. */
+            "Access-Control-Expose-Headers"?: string;
+            /** @description no-store for battle POSTs and every error response; private, max-age=300 only for the catalog GET's 200/304 (10_API設計.md「Cache-Control」). */
+            "Cache-Control"?: string;
+            /** @description Echoes the request's X-Request-Id when supplied, otherwise the server-generated one. Present on every response, including errors. */
+            "X-Request-Id"?: string;
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              schemaVersion: number;
+              error: {
+                /** @enum {string} */
+                code: "ENDPOINT_DISABLED";
                 message: string;
                 violations: {
                   path?: string;

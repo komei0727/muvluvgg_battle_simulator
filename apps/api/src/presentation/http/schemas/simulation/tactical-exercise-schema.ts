@@ -5,6 +5,8 @@ import {
   formationRequestSchema,
   simulationOptionsRequestDocSchema,
   simulationOptionsRequestSchema,
+  simulationReplayRequestDocSchema,
+  simulationReplayRequestSchema,
   stateTransitionResponseSchema,
   unitBattleSummaryResponseSchema,
   unitStateDeltaResponseSchema,
@@ -37,6 +39,7 @@ export const tacticalExerciseRequestSchema = {
     allyFormation: formationRequestSchema,
     enemyFormation: formationRequestSchema,
     options: simulationOptionsRequestSchema,
+    replay: simulationReplayRequestSchema,
   },
 } as const;
 
@@ -64,6 +67,7 @@ export const tacticalExerciseRequestDocSchema = {
     allyFormation: formationRequestDocSchema,
     enemyFormation: exerciseEnemyFormationRequestDocSchema,
     options: simulationOptionsRequestDocSchema,
+    replay: simulationReplayRequestDocSchema,
   },
 } as const;
 

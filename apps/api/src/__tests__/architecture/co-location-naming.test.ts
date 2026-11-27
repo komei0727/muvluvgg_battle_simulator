@@ -50,6 +50,7 @@ const NAMING_EXCEPTIONS: readonly string[] = [
   "presentation/http/total-war-route", // 対象は routes/total-war-route.ts
   "presentation/http/simulation-route.log-level-projection", // 対象は routes/simulation-route.ts
   "presentation/http/simulation-route.memory-granted-marker", // 対象は routes/simulation-route.ts
+  "presentation/http/simulation-route.replay", // 対象は routes/simulation-route.ts・tactical-exercise-route.ts・total-war-route.ts の再生指定
 
   // 特定の1モジュールに対応しない横断的なOpenAPI文書検査
   "presentation/http/openapi",
