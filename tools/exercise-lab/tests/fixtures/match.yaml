@@ -15,7 +15,7 @@
 # `exercise-lab units --owned --player-data local_storage/player-data.json` /
 # `exercise-lab memories --grep <語>` で引ける。
 # エディタ補完を効かせるには `exercise-lab schema` を実行し、次の行の先頭の `#` を1つ削る。
-## yaml-language-server: $schema=../.schema/formation.schema.json
+## yaml-language-server: $schema=../../.schema/formation.schema.json
 
 ally:
   # 1〜5体。`column` は俯瞰時の絶対左から 0・1・2、`row` は敵へ近い側が FRONT。

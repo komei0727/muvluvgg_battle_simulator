@@ -55,7 +55,7 @@ def battle_problem(method):
 
 
 def exercise_problem(method):
-    resolved = resolve_exercise_input(TOOLS / "exercise-lab/configs/formation.example.yaml")
+    resolved = resolve_exercise_input(TOOLS / "exercise-lab/tests/fixtures/match.yaml")
     ally = resolved.match.ally
     return exercise_search_problem(
         resolved,

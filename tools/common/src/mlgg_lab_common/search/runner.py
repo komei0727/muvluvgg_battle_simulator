@@ -49,7 +49,7 @@ from ..experiments.search_store import (
     SqliteSearchStore,
     StoredRequest,
 )
-from ..storage.layout import create_evaluation, open_evaluation
+from ..storage.layout import create_evaluation, open_evaluation, write_manifest
 from ..storage.sqlite import SqliteEvaluationRepository
 from .adapter import FormatSearchAdapter
 from .candidate import Candidate, Origin, candidate_id, materialize
@@ -107,6 +107,9 @@ def run_search(
     should_stop: Callable[[], bool] | None = None,
     close_open_round: bool = False,
     sleep: Callable[[float], None] = time.sleep,
+    submission: tuple[str, str] | None = None,
+    max_runs_per_request: int | None = None,
+    max_requests: int | None = None,
 ) -> SearchReport:
     """探索を実行・再開する。
 
@@ -115,8 +118,13 @@ def run_search(
     ラウンドを先へ進めるときに使う。未完了の番号は結果にならず、同じ候補では再利用しない。
     """
     with store.exclusive_run():
-        return _SearchRun(store, method, adapter, transport, sleep).run(
-            max_steps=max_steps, should_stop=should_stop, close_open_round=close_open_round
+        return _SearchRun(
+            store, method, adapter, transport, sleep, max_runs_per_request, max_requests
+        ).run(
+            max_steps=max_steps,
+            should_stop=should_stop,
+            close_open_round=close_open_round,
+            submission=submission,
         )
 
 
@@ -124,9 +132,9 @@ def run_search(
 class _CandidateState:
     candidate: Candidate
     origins: list[Origin] = field(default_factory=list)
-    requested: set[int] = field(default_factory=set)
+    requested: dict[str, set[int]] = field(default_factory=dict)
     observations: list[Observation] = field(default_factory=list)
-    incomplete: list[int] = field(default_factory=list)
+    incomplete: dict[str, list[int]] = field(default_factory=dict)
     estimate: dict[str, Any] | None = None
 
 
@@ -138,12 +146,16 @@ class _SearchRun:
         adapter: FormatSearchAdapter,
         transport: EvaluationTransport,
         sleep: Callable[[float], None],
+        max_runs_per_request: int | None,
+        max_requests: int | None,
     ) -> None:
         self.store = store
         self.method = method
         self.adapter = adapter
         self.transport = transport
         self.sleep = sleep
+        self.max_runs_per_request = max_runs_per_request
+        self.max_requests = max_requests
         self.problem: SearchProblem = store.load_problem()
         if adapter.format != self.problem.format:
             raise IncompatibleMethodError(
@@ -211,9 +223,12 @@ class _SearchRun:
                     )
                 )
         requests_by_round: dict[int, list[StoredRequest]] = {}
+        seeds = {r.round_number: r.seed or self.problem.execution.battle_seed for r in self.rounds}
         for request in self.store.requests():
             requests_by_round.setdefault(request.round_number, []).append(request)
-            self.candidates[request.candidate_id].requested.update(request.run_indices)
+            self.candidates[request.candidate_id].requested.setdefault(
+                seeds[request.round_number], set()
+            ).update(request.run_indices)
         for stored_round in self.rounds:
             if stored_round.status != "CLOSED":
                 continue
@@ -229,10 +244,13 @@ class _SearchRun:
                         request,
                         index,
                         results[(request.case_id, index)],
+                        seeds[stored_round.round_number],
                     )
                     for index in completed
                 )
-                state.incomplete.extend(request.incomplete or ())
+                state.incomplete.setdefault(seeds[stored_round.round_number], []).extend(
+                    request.incomplete or ()
+                )
         for _round, estimated_id, estimate in self.store.estimates():
             self.candidates[estimated_id].estimate = estimate
 
@@ -243,6 +261,7 @@ class _SearchRun:
         request: StoredRequest,
         run_index: int,
         observation: Mapping[str, Any],
+        seed: str,
     ) -> Observation:
         return Observation(
             candidate_id=request.candidate_id,
@@ -251,6 +270,7 @@ class _SearchRun:
             round_number=round_number,
             evaluation_id=evaluation_id,
             case_id=request.case_id,
+            seed=seed,
         )
 
     def _open_round_repository(self, evaluation_id: str) -> SqliteEvaluationRepository:
@@ -264,6 +284,7 @@ class _SearchRun:
         max_steps: int | None,
         should_stop: Callable[[], bool] | None,
         close_open_round: bool,
+        submission: tuple[str, str] | None,
     ) -> SearchReport:
         session = self.store.start_session()
         steps = 0
@@ -276,6 +297,24 @@ class _SearchRun:
             return SearchReport(reason, detail, steps, closed, self._budget(), evaluation)
 
         open_round = next((r for r in self.rounds if r.status == "OPEN"), None)
+        if submission is not None:
+            identifier, digest = submission
+            previous = next((r for r in self.rounds if r.submission_id == identifier), None)
+            if previous is not None:
+                if previous.submission_digest != digest:
+                    return stop(
+                        SearchStopReason.INVALID_REQUEST, f"{identifier}: 同じ指示IDに異なる内容"
+                    )
+                if previous.status == "CLOSED":
+                    return stop(
+                        SearchStopReason.STEP_LIMIT_REACHED, f"{previous.evaluation_id}: 実行済み"
+                    )
+                max_steps = 0
+            elif open_round is not None:
+                return stop(
+                    SearchStopReason.INVALID_REQUEST,
+                    f"{open_round.evaluation_id}: 先に resume する",
+                )
         if open_round is not None:
             # 停止要求があれば、開いたラウンドの評価を続けない（送信・予算消費を進めない）。
             if should_stop is not None and should_stop():
@@ -329,22 +368,33 @@ class _SearchRun:
                     SearchStopReason.METHOD_IDLE,
                     allocation.detail or "試行の要求も終了も返さなかった",
                 )
-            requests, problems = self._assign(allocation)
+            seed = (
+                allocation.seed
+                if allocation.seed is not None
+                else self.problem.execution.battle_seed
+            )
+            if not seed.strip() or allocation.reserve_runs < 0:
+                self.store.commit_step(self.step, recorded, self._states())
+                return stop(SearchStopReason.INVALID_REQUEST, "seed または予約試行数が不正")
+            available = max(0, budget.remaining - allocation.reserve_runs)
+            wanted = sum(
+                request.runs or len(request.run_indices or ()) for request in allocation.requests
+            )
+            if wanted > available:
+                self.store.commit_step(self.step, recorded, self._states())
+                scope = "一次探索の" if allocation.reserve_runs else "探索全体の"
+                return stop(
+                    SearchStopReason.BUDGET_EXHAUSTED,
+                    f"要求した {wanted} 試行が{scope}残り予算 {available} を超える"
+                    "（送信していない）",
+                )
+            requests, problems = self._assign(allocation, seed)
             if problems:
                 self.store.commit_step(self.step, recorded, self._states())
                 return stop(SearchStopReason.INVALID_REQUEST, "; ".join(problems))
-            wanted = sum(len(r.run_indices) for r in requests)
-            if wanted > budget.remaining:
-                self.store.commit_step(self.step, recorded, self._states())
-                return stop(
-                    SearchStopReason.BUDGET_EXHAUSTED,
-                    f"要求した {wanted} 試行が探索全体の残り予算 {budget.remaining} を超える"
-                    "（送信していない）",
-                )
-
             round_number = max((r.round_number for r in self.rounds), default=0) + 1
             evaluation_id = round_evaluation_id(round_number)
-            self._create_round_evaluation(evaluation_id, requests, budget.remaining)
+            self._create_round_evaluation(evaluation_id, requests, available, seed)
             self.store.commit_step(
                 self.step,
                 recorded,
@@ -352,9 +402,13 @@ class _SearchRun:
                 round_number=round_number,
                 evaluation_id=evaluation_id,
                 requests=requests,
+                seed=seed,
+                submission=submission,
             )
             for request in requests:
-                self.candidates[request.candidate_id].requested.update(request.run_indices)
+                self.candidates[request.candidate_id].requested.setdefault(seed, set()).update(
+                    request.run_indices
+                )
             self.rounds = self.store.rounds()
 
             report = self._evaluate_round(round_number, evaluation_id)
@@ -367,7 +421,17 @@ class _SearchRun:
     ) -> tuple[SearchStopReason, str | None, str] | None:
         """ラウンドの評価を（続きから）実行し、完了したら閉じる。止まったら停止理由を返す。"""
         with self._open_round_repository(evaluation_id) as repo:
-            report = run_evaluation(repo, self.transport, sleep=self.sleep)
+            try:
+                report = run_evaluation(
+                    repo,
+                    self.transport,
+                    sleep=self.sleep,
+                    max_requests=self.max_requests,
+                    max_runs_per_request=self.max_runs_per_request,
+                    shrink_on_partial=self.max_runs_per_request is not None,
+                )
+            finally:
+                write_manifest(self.store.evaluations_dir / evaluation_id, repo)
             if report.stop_reason is not StopReason.COMPLETED:
                 reason = (
                     SearchStopReason.BUDGET_EXHAUSTED
@@ -424,12 +488,18 @@ class _SearchRun:
             results = {}
             evaluation_stop_reason = "ENVIRONMENT_MISMATCH"
         requests = [r for r in self.store.requests() if r.round_number == round_number]
+        seed = repo.load_plan().seed
         outcomes: list[RequestOutcome] = []
         closed: list[ClosedRequest] = []
         for request in requests:
             observations = tuple(
                 self._observation(
-                    round_number, evaluation_id, request, index, results[(request.case_id, index)]
+                    round_number,
+                    evaluation_id,
+                    request,
+                    index,
+                    results[(request.case_id, index)],
+                    seed,
                 )
                 for index in request.run_indices
                 if (request.case_id, index) in results
@@ -438,7 +508,7 @@ class _SearchRun:
             incomplete = tuple(i for i in request.run_indices if i not in set(completed))
             state = self.candidates[request.candidate_id]
             state.observations.extend(observations)
-            state.incomplete.extend(incomplete)
+            state.incomplete.setdefault(seed, []).extend(incomplete)
             outcomes.append(
                 RequestOutcome(
                     request_number=request.request_number,
@@ -482,7 +552,7 @@ class _SearchRun:
         self.rounds = self.store.rounds()
 
     def _create_round_evaluation(
-        self, evaluation_id: str, requests: list[NewRequest], remaining: int
+        self, evaluation_id: str, requests: list[NewRequest], remaining: int, seed: str
     ) -> None:
         cases = [
             CaseSpec(
@@ -498,7 +568,7 @@ class _SearchRun:
         plan = create_plan(
             self.problem.format,
             cases,
-            seed=self.problem.execution.battle_seed,
+            seed=seed,
             # 探索全体の残りをこのラウンドの送信予算にする。段階2が再送込みで数えて守るので、
             # ラウンドを順に重ねても探索全体の上限を超えない。
             budget=Budget(maxSubmittedRuns=remaining),
@@ -551,10 +621,10 @@ class _SearchRun:
             state.origins.append(proposal.origin)
         return recorded
 
-    def _assign(self, allocation: Allocation) -> tuple[list[NewRequest], list[str]]:
+    def _assign(self, allocation: Allocation, seed: str) -> tuple[list[NewRequest], list[str]]:
         problems: list[str] = []
         requests: list[NewRequest] = []
-        used = {cid: set(state.requested) for cid, state in self.candidates.items()}
+        used = {cid: set(state.requested.get(seed, ())) for cid, state in self.candidates.items()}
         for number, request in enumerate(allocation.requests, start=1):
             where = f"requests[{number - 1}]"
             cid = request.candidate_id
@@ -605,13 +675,14 @@ class _SearchRun:
 
     def _entry(self, cid: str) -> CandidateEntry:
         state = self.candidates[cid]
+        seed = self.problem.execution.battle_seed
         return CandidateEntry(
             candidate_id=cid,
             candidate=state.candidate,
             origins=tuple(state.origins),
-            requested_run_indices=tuple(sorted(state.requested)),
+            requested_run_indices=tuple(sorted(state.requested.get(seed, ()))),
             observations=tuple(state.observations),
-            incomplete_run_indices=tuple(state.incomplete),
+            incomplete_run_indices=tuple(state.incomplete.get(seed, ())),
             estimate=state.estimate,
         )
 
@@ -623,7 +694,13 @@ class _SearchRun:
             rejections=tuple(self.rejections),
             rounds=tuple(
                 RoundSummary(
-                    r.round_number, r.step, r.evaluation_id, r.status, r.evaluation_stop_reason
+                    r.round_number,
+                    r.step,
+                    r.evaluation_id,
+                    r.status,
+                    r.evaluation_stop_reason,
+                    r.seed or self.problem.execution.battle_seed,
+                    r.submitted_runs,
                 )
                 for r in self.rounds
             ),

@@ -18,6 +18,9 @@ from .adapter import FormatSearchAdapter
 from .candidate import Candidate, effective_gears, materialize
 from .problem import SearchProblem
 
+# R-ENH-04 #6: 段階・等級にかかわらず、同じ能力はユニットごとに最大3個。
+MAX_GEARS_PER_STAT = 3
+
 
 def _key(position: Position) -> tuple[int, str]:
     return (position.column, position.row)
@@ -115,10 +118,18 @@ def _gear_problems(problem: SearchProblem, candidate: Candidate) -> list[str]:
         )
 
     adjustable = None if policy.adjustable_unit_ids is None else set(policy.adjustable_unit_ids)
+    sent = []
     for i, unit in enumerate(candidate.units):
+        where = f"units[{i}]（{unit.unit_definition_id}）"
+        equipped = effective_gears(problem, unit)
+        sent.extend(equipped)
+        problems.extend(
+            f"{where}: 能力 {stat} のギア {count} 個が上限 {MAX_GEARS_PER_STAT} を超える"
+            for stat, count in Counter(gear.stat for gear in equipped).items()
+            if count > MAX_GEARS_PER_STAT
+        )
         if policy.mode == "FIXED" or unit.gears is None:
             continue
-        where = f"units[{i}]（{unit.unit_definition_id}）"
         if adjustable is not None and unit.unit_definition_id not in adjustable:
             problems.append(f"{where}: ギアを調整してよいユニットではない")
         if len(unit.gears) > policy.max_gears_per_unit:
@@ -135,7 +146,6 @@ def _gear_problems(problem: SearchProblem, candidate: Candidate) -> list[str]:
                     problems.append(f"{where}.gears[{j}]: {label} {value} は許可されていない")
 
     # 資源上限はギア固定でも効く。ギアを変えなくても、ユニット選抜で編成全体の使用量は変わる。
-    sent = [gear for unit in candidate.units for gear in effective_gears(problem, unit)]
     for limit in policy.resource_limits:
         used = sum(1 for gear in sent if limit.matches(gear))
         if used > limit.max_count:

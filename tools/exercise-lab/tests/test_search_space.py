@@ -5,6 +5,7 @@ import json
 import pytest
 
 from exercise_lab.inputs.exercise import resolve_exercise_input
+from exercise_lab.search_config import plan_exercise_search
 from exercise_lab.search_space import EXERCISE_SEARCH, exercise_search_problem
 from mlgg_lab_common.experiments.layout import create_search, open_search
 from mlgg_lab_common.inputs.catalog import Catalog
@@ -148,3 +149,58 @@ def test_gear_modes_and_exercise_pools(tmp_path):
     wrong_pool, _ = build(tmp_path, scripted_method([], []), pool=("UNIT_A", "UNIT_B", "UNIT_T"))
     with pytest.raises(SearchProblemError, match="UNIT_T は category=EXERCISE_ENEMY"):
         create_search(tmp_path / "searches", wrong_pool, EXERCISE_SEARCH, catalog=CATALOG)
+
+
+def test_search_config_loads_library_training_and_adjusts_each_units_gear(tmp_path, monkeypatch):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    (inputs / "team.yaml").write_text(
+        """\
+units:
+  - { unitDefinitionId: UNIT_A, position: { column: 0, row: FRONT } }
+  - { unitDefinitionId: UNIT_B, position: { column: 1, row: REAR } }
+memoryDefinitionIds: [MEM_A]
+""",
+        encoding="utf-8",
+    )
+    (inputs / "player-data.json").write_text(json.dumps(PLAYER_DATA), encoding="utf-8")
+    config = tmp_path / "evaluation.yaml"
+    config.write_text(
+        """\
+enemy: { unitDefinitionId: UNIT_T, position: { column: 1, row: REAR } }
+starts: [team]
+inputs: { formationsDir: inputs, playerData: inputs/player-data.json }
+moves: { moveUnits: true, replaceMemories: true }
+space: { memoryPool: [MEM_A, MEM_Z] }
+gear: { mode: ADJUSTABLE }
+objective: { metric: EXPECTED_DAILY_BEST }
+trials: { screeningRuns: 10, finalists: 2, confirmationRuns: 20, confirmationSeed: confirm }
+execution: { candidateSeed: gen, battleSeed: trial, budget: { maxSubmittedRuns: 100 } }
+output: { searchesDir: searches }
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir("/")
+    method = scripted_method([], []).binding()
+    plan = plan_exercise_search(config, method=method, catalog=CATALOG)
+
+    assert plan.searches_dir == tmp_path / "searches"
+    assert plan.problem.space.unit_pool == ["UNIT_A", "UNIT_B"]
+    assert plan.problem.training.units["UNIT_B"].level == 260
+    assert plan.problem.method.settings["trials"]["confirmationSeed"] == "confirm"
+    equipped = Gear.model_validate(GEAR)
+    start = plan.problem.starts[0]
+    three = ops.set_gears(start, 0, [equipped] * 3)
+    four = ops.set_gears(
+        three, 0, [equipped] * 3 + [Gear(stat="CRITICAL_RATE", tier="III", grade="A")]
+    )
+    assert check_candidate(plan.problem, EXERCISE_SEARCH, three) == []
+    assert check_candidate(plan.problem, EXERCISE_SEARCH, four) == [
+        "units[0]（UNIT_A）: 能力 CRITICAL_RATE のギア 4 個が上限 3 を超える"
+    ]
+
+    config.write_text(
+        config.read_text(encoding="utf-8").replace("[MEM_A, MEM_Z]", "[MEM_Z]"), encoding="utf-8"
+    )
+    with pytest.raises(SearchProblemError, match="MEM_A は使用可能プールに無い"):
+        plan_exercise_search(config, method=method, catalog=CATALOG)

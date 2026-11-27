@@ -97,14 +97,26 @@ def run_evaluation(
     sleep: Callable[[float], None] = time.sleep,
     max_requests: int | None = None,
     on_progress: ProgressCallback | None = None,
+    max_runs_per_request: int | None = None,
+    shrink_on_partial: bool = False,
 ) -> RunReport:
     """実行する。同じ評価実行を別の実行が実行中なら `EvaluationBusyError`（何も送らない）。
 
     排他は送信中の要求を放棄扱いにする前に取る。後から来た実行が、動いている実行の
     要求を放棄にして同じ試行を二重に送らないようにするため。
     """
+    if max_runs_per_request is not None and max_runs_per_request < 1:
+        raise ValueError("要求あたりの試行数は1以上")
     with repository.exclusive_run():
-        return _run(repository, transport, sleep, max_requests, on_progress)
+        return _run(
+            repository,
+            transport,
+            sleep,
+            max_requests,
+            on_progress,
+            max_runs_per_request,
+            shrink_on_partial,
+        )
 
 
 def _run(
@@ -113,9 +125,19 @@ def _run(
     sleep: Callable[[float], None],
     max_requests: int | None,
     on_progress: ProgressCallback | None,
+    max_runs_per_request: int | None,
+    shrink_on_partial: bool,
 ) -> RunReport:
     plan = repository.load_plan()
     settings = plan.settings
+    if shrink_on_partial:
+        partial_sizes = (
+            _next_partial_cap(attempt.completed_runs, attempt.run_count)
+            for attempt in repository.attempts()
+            if attempt.completed_runs is not None and attempt.completed_runs < attempt.run_count
+        )
+        initial_cap = max_runs_per_request or plan.contract.default_max_runs_per_request
+        max_runs_per_request = min(initial_cap, min(partial_sizes, default=initial_cap))
     repository.abandon_in_flight()
     session = repository.start_session()
     requests = 0
@@ -143,7 +165,8 @@ def _run(
                 f"送信予算 {plan.budget.max_submitted_runs} 試行を使い切った"
                 f"（未完了 {len(pending)} 試行）",
             )
-        request = _next_request(plan, repository, pending, remaining)
+        cap = remaining if max_runs_per_request is None else min(remaining, max_runs_per_request)
+        request = _next_request(plan, repository, pending, cap)
         try:
             attempt = repository.reserve_attempt(session, request)
         except BudgetExhaustedError as error:  # pragma: no cover - 直前に残りを見ている
@@ -184,6 +207,9 @@ def _run(
             notify(0, f"RESULT_CONFLICT: {error}")
             return stop(StopReason.RESULT_CONFLICT, str(error))
         notify(outcome.new_results)
+        if shrink_on_partial and validated.incomplete:
+            previous = len(validated.completed) + len(validated.incomplete)
+            max_runs_per_request = _next_partial_cap(len(validated.completed), previous)
 
         if outcome.new_results == 0:
             no_progress += 1
@@ -195,6 +221,10 @@ def _run(
                 )
         else:
             no_progress = 0
+
+
+def _next_partial_cap(completed: int, submitted: int) -> int:
+    return max(1, completed or submitted // 2)
 
 
 def _next_request(

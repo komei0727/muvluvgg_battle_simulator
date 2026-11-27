@@ -1,31 +1,60 @@
-# 戦術演習の評価設定サンプル。個人ファイルなしで計画を作れる
-# （`exercise_lab.evaluation.plan_exercise_evaluation`）。
-#
-# パスはこのファイルの位置を基準に解決する（絶対パスも可）。どのディレクトリから
-# 実行しても同じファイルを指す。対戦入力は演習の編成定義YAML（`match:`）か、
-# UIの演習ドラフト `mlgg:last-draft:exercise` を書き出したJSON（`draft:`）。
-format: TACTICAL_EXERCISE
-seed: example-1
-# 再送込みの送信試行数の上限。部分応答で未完了だった試行の再送も数える。
-budget: { maxSubmittedRuns: 400 }
-api:
-  baseUrl: http://localhost:3000
-  # 配備の TACTICAL_EXERCISE_EVALUATION_MAX_CASES / _MAX_TOTAL_RUNS 以下にする。
-  # 省略するとAPIの既定値（32 / 300）を使う。
-  maxCasesPerRequest: 32
-  maxRunsPerRequest: 300
-# 手持ちデータを当てるなら inputs を書く（tools/data/inputs/ が既定の置き場所）。
-# 演習の敵は強化を持たないので、playerDataSides は [ALLY] のまま（既定）。
-#   inputs:
-#     playerData: ../../data/inputs/player-data/player-data.json
-# 評価実行の保存先（<evaluationsDir>/<evaluation-id>/evaluation.sqlite3）。tools/data/ は gitignore 済み。
+# yaml-language-server: $schema=../.schema/evaluation.schema.json
+# 戦術演習の初期設定。evaluation.yaml として使い、starts を自分の編成IDに変える。
+# 編成IDは inputs.formationsDir に置いたYAMLのファイル名から拡張子を除いたもの。
+# パスはこのYAMLの位置を基準に解決する。
+enemy:
+  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
+  position: { column: 1, row: REAR }
+starts:
+  - my-team
+  - my-team-variant
+inputs:
+  formationsDir: ../../data/inputs/formations
+  # playerData: ../../data/inputs/player-data/player-data.json
+
+moves:
+  replaceUnits: true
+  moveUnits: true
+  replaceMemories: true
+  reorderMemories: true
+space:
+  # 自分の編成に合わせ、差し替え候補と全起点ですでに使うIDを含める。
+  unitPool:
+    - UNIT_JUNKA_CHILDHOOD
+    - UNIT_SAYA_BUNNY
+    - UNIT_ELENA_MOODMAKER
+    - UNIT_LAYLA_ENTREPRENEUR
+    - UNIT_SUIRAN_CHAOS
+    - UNIT_YURIA_WILDCARD
+  memoryPool:
+    - MEM_GIDDY_CIRCUMSTANCES
+    - MEM_YOUR_SECRET_I_WANT_TO_KNOW
+    - MEM_EURO_TOWER_DAY
+    - MEM_TIMID_REINDEER_EVE
+    - MEM_HEART_COLOR
+    - MEM_ABSOLUTE_ORDER
+    - MEM_KOI
+  minUnits: 5
+  maxUnits: 5
+  minMemories: 6
+  maxMemories: 6
+
+gear:
+  # ADJUSTABLE のときはユニット単位で付け替える。同じ能力のギアは1人につき最大3個。
+  mode: FIXED
+objective:
+  metric: EXPECTED_DAILY_BEST # 1試行あたりの平均を使う場合は MEAN_SCORE
+  bestOf: 5
+trials:
+  screeningRuns: 32
+  # 追加検証に進める候補数。基準編成はこの数に含めない。
+  finalists: 3
+  confirmationRuns: 96
+  confirmationSeed: example-confirmation-1
+execution:
+  candidateSeed: example-candidates-1
+  battleSeed: example-screening-1
+  budget: { maxSubmittedRuns: 2000 }
+  api: { baseUrl: "http://localhost:3000" }
 output:
-  evaluationsDir: ../../data/evaluations
-cases:
-  - caseId: example
-    match: formation.example.yaml
-    runs: 100
-  - caseId: example-spot-check
-    match: formation.example.yaml
-    # 不連続な試行番号も書ける。同じ対戦条件・seed・番号なら同じ結果になる。
-    runIndices: [0, 1, 42]
+  searchesDir: ../../data/searches

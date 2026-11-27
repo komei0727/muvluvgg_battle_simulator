@@ -68,9 +68,123 @@ Catalog を引くコマンドはローカルの dev サーバー（`apps/api/` �
 | `exercise-lab status`       | 評価実行の進捗・予算・停止理由を表示する              |
 | `exercise-lab summarize`    | 保存結果のスコア等をケース別に要約する                |
 | `exercise-lab export`       | 保存結果を JSONL / CSV / JSON へ書き出す              |
+| `exercise-lab search`       | 対話型探索の作成・候補列挙・実行・再開                |
+| `exercise-lab compare`      | 基準編成と変更候補を対応試行で比較する                |
+| `exercise-lab inspect`      | 保存した試行の詳細ログを再生し、スコア差を調べる      |
 
 評価コマンドのオプション・終了コード・出力形式は [`../README.md`](../README.md)「評価コマンド」にある。
 `summarize` のスコア要約は観測結果の確認用で、日次ベスト等の目的関数（`exercise_lab.statistics`）は使わない。
+
+### 戦術演習の初期設定
+
+人が編集するYAMLは、[`configs/evaluation.example.yaml`](configs/evaluation.example.yaml) を写した
+`configs/evaluation.yaml` と、`tools/data/inputs/formations/` に置く編成ライブラリの2種類。
+`evaluation.yaml` の `enemy` に相手と配置を1回書き、`starts` に初期候補の編成IDを1件以上並べる。
+編成IDはライブラリのファイル名から `.yaml` を除いたもの。相対パスは `evaluation.yaml` を基準に解決する。
+
+`exercise-lab search init` は Catalog と照合した条件・育成データ・初期候補を探索ディレクトリに保存する。
+この保存先を使い、Codex や Claude Code から `search candidates`・`search round`・`compare`・`inspect` を
+呼び出して、次に試す変更を決める。ラウンド指示は JSON ファイルまたは標準入力で渡せる。
+
+- メモリーの差し替えと並べ替えは個別に有効化できる。
+  差し替えるときは、探索設定の `memoryPool` に使用可能な ID を明示する。
+  差し替え候補はこのプールから作る。並べ替えは、候補が持つメモリーの順序だけを変える。
+- ユニットの入れ替えと配置変更は個別に有効化できる。入れ替えを無効にした探索では、
+  各起点のメンバーと人数を固定したまま配置変更やギア調整を試せる。入れ替えを有効にした場合は、
+  `unitPool` に指定した ID から交代要員を選び、そのユニット自身の育成条件を適用する。
+- プールには起点で使う ID も含める。差し替えを有効にした項目にプールの指定がない場合や、
+  指定したプールに起点の ID が含まれない場合は、評価を送る前に入力エラーを返す。
+  差し替えを無効にして対応するプールを省略すると、起点の ID を使う。
+  Catalog を渡すと ID の存在とユニット区分を検証する。固定枠の条件には既存の探索基盤を使う。
+- `gear.mode: ADJUSTABLE` で、ユニットごとにギアを付け替える。1人9枠までで、同じ能力は
+  段階・等級を問わず1人につき最大3個。使用可能な能力・段階・等級は `gear` で絞れる。
+  編成全体の個数制約は、`resourceLimits` を指定した場合に適用する。
+- `objective` に目的指標、`trials` に初回試行数と追加検証の候補数・試行数・seed、
+  `execution` に探索全体の試行予算を指定する。追加検証の seed は初回と分ける。
+- フルート演習の `saya-carry-manners` を起点とする探索では、ユニット5人を固定し、
+  配置変更・指定プール内でのメモリー差し替えと並べ替え・ギア調整を対象にする。
+
+プールと固定枠のモデルは [探索の共通基盤](../README.md#探索の共通基盤固定相手) を再利用する。
+
+### チャットから探索を進める
+
+大量試行と詳細再生を利用できる API で実行する。開発サーバーには `EVALUATION_ENDPOINT_ENABLED=true` を設定する。
+アクセスキーを設定している API では `MLGG_LAB_ACCESS_KEY` を環境変数で渡す。
+
+```bash
+uv run exercise-lab search init configs/evaluation.yaml
+uv run exercise-lab search candidates "$search_dir" --parent "$baseline" --kind memory
+```
+
+`search_dir` と `baseline` は初期化の `searchDir` と `initialCandidates[].candidateId` から取る。
+`--kind` は `memory`、`placement`、`gear`、`unit`。候補一覧の `proposal` をそのままラウンド指示に使える。
+`nextOffset` があれば次の `--offset` に使う。`--parent` と `--kind` を省くと、登録済みの編成と各枠に適用するギアを返す。
+
+```bash
+uv run exercise-lab search round "$search_dir" - <<JSON
+{
+  "id": "memory-01",
+  "phase": "screening",
+  "candidateIds": ["$baseline"],
+  "proposals": [{"parentId": "$baseline", "operations": [
+    {"kind": "replaceMemory", "index": 0, "memoryId": "$memory"}
+  ]}],
+  "runIndices": [0, 1, 2, 3, 4]
+}
+JSON
+```
+
+添字は0始まりで、配置変更後も元のユニット列の順で指定する。ひとつの提案に複数の操作を並べると、
+その順で適用した編成を評価する。手動の指示では以下の操作を使える。
+
+| `kind`          | 操作に必要な項目                                                      |
+| --------------- | --------------------------------------------------------------------- |
+| `replaceMemory` | `index`、`memoryId`                                                   |
+| `swapMemories`  | `first`、`second`                                                     |
+| `moveMemory`    | `index`、`destination`                                                |
+| `replaceUnit`   | `index`、`unitId`                                                     |
+| `moveUnit`      | `index`、`position`                                                   |
+| `swapPositions` | `first`、`second`                                                     |
+| `setPositions`  | `positions`（全ユニット分の配置）                                     |
+| `setGears`      | `index`、`gears`（そのユニットのギア全体）                            |
+| `replaceGear`   | `index`、`gearIndex`、`gear`。末尾の次の枠で追加し、`null` で取り外す |
+
+`runIndices` の代わりに `runs` を渡すと、候補・seed ごとに未要求の番号を小さい順から割り当てる。
+両方を省略すると `trials.screeningRuns` または `trials.confirmationRuns` を使う。比較に必要な番号をそろえるには
+`search status "$search_dir" --trials` で基準の完了番号を確認し、未評価の候補へ同じ `runIndices` を渡す。
+確認試行は `phase: confirmation` を使い、選んだ候補と基準を確認 seed でそろえる。
+
+探索の送信予算には部分応答・再送も含む。一次探索では、確認用に
+`confirmationRuns × (finalists + 初期候補数)` から確認フェーズの送信済み試行を引いた分を予約する。
+同じ `id` と指示の再送は、開いていれば残りを続け、閉じていれば送信済みの状態を返す。
+`search round` / `search resume` の終了コードは成功が `0`、入力・計画時の失敗が `1`、
+評価が未完了で停止した場合が `2`、キーボード中断が `130`。
+`search resume "$search_dir" --max-runs-per-request 20` で送信サイズをさらに絞れる。
+部分応答を受けた後は自動でサイズを絞り、再開時もその上限を引き継ぐ。`--max-requests` はそのコマンド内の送信回数を制限する。
+送信予算切れ等で続けられないときは `search resume --close-partial` で完了分を確定できる。
+そのラウンドが要求済みの番号は引き続き使用済みとして扱う。
+
+### 比較とログの読み方
+
+```bash
+uv run exercise-lab compare "$search_dir" --baseline "$baseline" --phase confirmation --json
+uv run exercise-lab inspect "$search_dir" --phase confirmation --baseline "$baseline" \
+  --candidate "$candidate" --run-index "$run_index" --unit UNIT_SAYA_BUNNY
+```
+
+`compare` は seed と試行番号がそろった完了試行で平均スコア差・期待日次ベスト差を計算する。
+95%区間は同じ番号を両候補から復元抽出する対応ブートストラップ。対応試行が `bestOf` 未満の場合は期待日次ベストが
+`null` になる。ギア案を比較するときは `--candidate` を繰り返して候補を指定すると、目的指標の差が大きい順に並ぶ。
+JSON は編成差分、候補の由来、最大改善・最大悪化・差分の中央値付近・候補スコア上位の代表試行を返す。
+
+`inspect` に代表試行の `runIndex` を渡し、必要に応じて `--evaluation-id` でその参照に絞る。
+`inspect` は保存した編成と乱数・実行環境の識別情報を `POST /api/v1/tactical-exercises` に渡す。
+リクエストの `replay` を使って詳細ログを取得し、保存したスコア・ブレイク回数・終了理由・完了ターンと照合する。
+カタログ・エンジン・乱数導出方式の識別情報が一致する API で再生できる。
+`--baseline` を指定すると同じ乱数条件で基準編成も再生し、ターン別・スキル別の差分を返す。
+`--unit` と `--effect` で対象・効果の抜粋を絞り、行動順、対象選択時点の攻撃力、効果の付与先・消費者を
+ログで照合する。元の詳細イベントと状態差分は `tracePath` の JSON に保存する。
+この根拠を使って次の変更を `search round` で試し、有望な編成を確認 seed で評価する。
 
 ### UIのドラフトを取り込む（`exercise-lab import-draft`）
 
@@ -131,6 +245,7 @@ Catalog から実IDを enum に焼いた JSON Schema を生成する。既定の
 | ------------------------------------ | ------------------------------------------ |
 | `.schema/formation.schema.json`      | 演習の編成定義                             |
 | `.schema/formation-seed.schema.json` | 編成ライブラリ1件（`configs/formations/`） |
+| `.schema/evaluation.schema.json`     | 戦術演習の初期設定（`evaluation.yaml`）    |
 
 対象YAMLの先頭へ対応する1行を置くと、YAML Language Server が ID を補完・検証する。
 
@@ -138,9 +253,11 @@ Catalog から実IDを enum に焼いた JSON Schema を生成する。既定の
 # yaml-language-server: $schema=../.schema/formation.schema.json
 ```
 
+`configs/evaluation.yaml` には `# yaml-language-server: $schema=../.schema/evaluation.schema.json` を使う。
+
 ```yaml
-# configs/formations/<id>.yaml は1つ下の階層なので `../../` になる。
-# yaml-language-server: $schema=../../.schema/formation-seed.schema.json
+# tools/data/inputs/formations/<id>.yaml から参照する場合。
+# yaml-language-server: $schema=../../../exercise-lab/.schema/formation-seed.schema.json
 ```
 
 味方枠と敵枠には別々の enum が入るので、R-TEX-11 #1 はエディタ上で分かる。学園レベルのキー9種と、
@@ -161,9 +278,9 @@ uv run exercise-lab units --grep コトハ --yaml                     # 編成YA
 `--yaml` の `position` は仮置きなので、貼った後に実際の配置へ直す。`--owned` のレベル列は
 レベルリンク解決後の値を出し、リンク由来の値には `*` を付ける（`250*`）。
 
-## 編成定義 YAML（演習）
+## 試行計画の対戦入力 YAML（演習）
 
-`configs/formation.example.yaml` を写して使う（個人ファイルなしで読み込める）。
+試行計画で使う `ally` と `enemy` の書式は [`tests/fixtures/match.yaml`](tests/fixtures/match.yaml) にある。
 
 - ユニットとメモリーは**書いた順のまま**リクエストへ載る。メモリーをID順に並べ替えない。
 - `ally.academyLevels` を書くと強化計算が有効になる。書かない場合、ユニット側の
@@ -190,7 +307,7 @@ from exercise_lab.inputs.exercise import (
 )
 
 resolved = resolve_exercise_input(
-    Path("configs/formation.example.yaml"),
+    Path("tests/fixtures/match.yaml"),
     player_data_path=Path("local_storage/player-data.json"),
 )
 print(resolved.provenance.warnings)  # 手持ちデータに無いユニットなど

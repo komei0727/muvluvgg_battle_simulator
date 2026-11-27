@@ -71,6 +71,8 @@ class Allocation:
     requests: tuple[TrialRequest, ...] = ()
     finish: bool = False
     detail: str | None = None
+    seed: str | None = None
+    reserve_runs: int = 0
 
 
 class MethodComponent(Protocol):

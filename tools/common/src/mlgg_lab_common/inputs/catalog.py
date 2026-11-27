@@ -91,8 +91,12 @@ class CatalogClient:
         base_url: str = DEFAULT_BASE_URL,
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        access_key: str | None = None,
     ) -> None:
-        self._client = httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout_seconds)
+        headers = {"Authorization": f"Bearer {access_key}"} if access_key else None
+        self._client = httpx.Client(
+            base_url=base_url.rstrip("/"), timeout=timeout_seconds, headers=headers
+        )
 
     def __enter__(self) -> Self:
         return self

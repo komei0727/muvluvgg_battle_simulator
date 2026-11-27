@@ -346,12 +346,13 @@ with open_evaluation(directory) as repo, repo.load_plan().settings.http_client()
 
 ### 評価設定
 
-[`exercise-lab/configs/evaluation.example.yaml`](exercise-lab/configs/evaluation.example.yaml)・
+[`exercise-lab/tests/fixtures/batch-evaluation.yaml`](exercise-lab/tests/fixtures/batch-evaluation.yaml)・
 [`battle-lab/configs/evaluation.example.yaml`](battle-lab/configs/evaluation.example.yaml)・
-[`total-war-lab/configs/evaluation.example.yaml`](total-war-lab/configs/evaluation.example.yaml) を写して使う。
-`evaluate` が読む（Pythonからは各ラボの `plan_exercise_evaluation` / `plan_battle_evaluation` /
-`plan_total_war_evaluation`）。キーの一覧は `mlgg_lab_common/evaluation/config.py` の先頭にある。
-サンプルは保存先を `output.evaluationsDir: ../../data/evaluations`（= `tools/data/evaluations/`）にしてある。
+[`total-war-lab/configs/evaluation.example.yaml`](total-war-lab/configs/evaluation.example.yaml) は
+`evaluate` が読む試行設定の例。Pythonからは各ラボの `plan_exercise_evaluation` / `plan_battle_evaluation` /
+`plan_total_war_evaluation` を使う。キーの一覧は `mlgg_lab_common/evaluation/config.py` の先頭にある。
+保存先はいずれも `tools/data/evaluations/`。
+戦術演習のオーケストレーターに渡す初期設定は [戦術演習の初期設定](exercise-lab/README.md#戦術演習の初期設定) を参照する。
 
 - パスは**設定ファイルの位置を基準**に解決する（絶対パスも可）。実行ディレクトリに依らない。
 - ケースは `match:`（対戦入力YAML）か `draft:`（UIドラフト）のどちらか、試行は `runs:`（件数、`runStart` で開始番号）
