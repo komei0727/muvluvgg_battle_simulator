@@ -24,6 +24,7 @@ from mlgg_lab_common.inputs.schema import (
     unit_enum,
 )
 
+from ..search_config import ExerciseSearchConfig
 from .exercise import FormationConfig
 
 
@@ -42,3 +43,35 @@ def build_formation_json_schema(catalog: Catalog) -> dict[str, Any]:
     require_academy_levels_for_unit_enhancement(definitions["FormationSpec"])
 
     return finish_schema(schema, catalog, title="exercise-lab formation")
+
+
+def build_search_json_schema(catalog: Catalog) -> dict[str, Any]:
+    schema = ExerciseSearchConfig.model_json_schema(by_alias=True)
+    definitions = schema["$defs"]
+    units = unit_enum(catalog, PLAYABLE)
+    memories = memory_enum(catalog)
+    space = definitions["ConfiguredSpace"]["properties"]
+    space["unitPool"]["items"] = units
+    space["memoryPool"]["items"] = memories
+    definitions["EnemySpec"]["properties"]["unitDefinitionId"] = unit_enum(catalog, EXERCISE_ENEMY)
+    definitions["FixedUnit"]["properties"]["unitDefinitionId"] = units
+    definitions["FixedMemory"]["properties"]["memoryDefinitionId"] = memories
+    definitions["GearPolicy"]["properties"]["adjustableUnitIds"]["anyOf"][0]["items"] = units
+    schema["allOf"] = [
+        {
+            "if": {
+                "required": ["moves"],
+                "properties": {
+                    "moves": {"required": [move], "properties": {move: {"const": True}}}
+                },
+            },
+            "then": {
+                "required": ["space"],
+                "properties": {
+                    "space": {"required": [pool], "properties": {pool: {"minItems": 1}}}
+                },
+            },
+        }
+        for move, pool in (("replaceUnits", "unitPool"), ("replaceMemories", "memoryPool"))
+    ]
+    return finish_schema(schema, catalog, title="exercise-lab evaluation setup")

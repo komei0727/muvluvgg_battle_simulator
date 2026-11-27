@@ -32,7 +32,7 @@ from ..search.problem import SearchProblem, dump_problem, load_problem
 
 # "MLGS"（MuvLuv GG Search）。評価実行DB（"MLGE"）と取り違えない。
 APPLICATION_ID = 0x4D4C4753
-SEARCH_STORAGE_VERSION = 1
+SEARCH_STORAGE_VERSION = 2
 DB_FILE = "search.sqlite3"
 EVALUATIONS_DIR = "evaluations"
 
@@ -65,8 +65,12 @@ CREATE TABLE rounds (
   status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
   evaluation_stop_reason TEXT,
   submitted_runs INTEGER,
-  closed_at TEXT
+  closed_at TEXT,
+  seed TEXT,
+  submission_id TEXT,
+  submission_digest TEXT
 );
+CREATE UNIQUE INDEX rounds_submission_id ON rounds (submission_id);
 CREATE TABLE round_requests (
   round_number INTEGER NOT NULL REFERENCES rounds(round_number),
   request_number INTEGER NOT NULL,
@@ -149,6 +153,9 @@ class StoredRound:
     status: str
     evaluation_stop_reason: str | None
     submitted_runs: int | None
+    seed: str | None = None
+    submission_id: str | None = None
+    submission_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -205,11 +212,15 @@ class SqliteSearchStore:
         problem: SearchProblem,
         starts: Sequence[tuple[str, Candidate, Origin]],
     ) -> Self:
-        if path.exists():
-            raise FileExistsError(f"{path}: 既にある探索のDBは作り直さない")
         path.parent.mkdir(parents=True, exist_ok=True)
-        store = cls(path, _connect(path))
         try:
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        except FileExistsError as error:
+            raise FileExistsError(f"{path}: 既にある探索のDBは作り直さない") from error
+        os.close(descriptor)
+        store = None
+        try:
+            store = cls(path, _connect(path))
             with store._transaction() as db:
                 _execute_script(db, _SCHEMA)
                 db.execute(f"PRAGMA application_id = {APPLICATION_ID}")
@@ -221,7 +232,8 @@ class SqliteSearchStore:
                 for candidate_id, candidate, origin in starts:
                     store._insert_proposal(db, 0, candidate_id, candidate, origin, ())
         except BaseException:
-            store.close()
+            if store is not None:
+                store.close()
             path.unlink(missing_ok=True)
             raise
         return store
@@ -236,6 +248,18 @@ class SqliteSearchStore:
             version = store._db.execute("PRAGMA user_version").fetchone()[0]
             if application_id != APPLICATION_ID:
                 raise SearchStorageError(f"{path}: 探索のDBではない")
+            if version == 1:
+                with store._transaction() as db:
+                    version = db.execute("PRAGMA user_version").fetchone()[0]
+                    if version == 1:
+                        db.execute("ALTER TABLE rounds ADD COLUMN seed TEXT")
+                        db.execute("ALTER TABLE rounds ADD COLUMN submission_id TEXT")
+                        db.execute("ALTER TABLE rounds ADD COLUMN submission_digest TEXT")
+                        db.execute(
+                            "CREATE UNIQUE INDEX rounds_submission_id ON rounds (submission_id)"
+                        )
+                        db.execute(f"PRAGMA user_version = {SEARCH_STORAGE_VERSION}")
+                        version = SEARCH_STORAGE_VERSION
             if version != SEARCH_STORAGE_VERSION:
                 raise SearchStorageError(
                     f"{path}: 保存形式 {version} はこのツール（{SEARCH_STORAGE_VERSION}）と違う。"
@@ -312,7 +336,8 @@ class SqliteSearchStore:
     def rounds(self) -> list[StoredRound]:
         rows = self._db.execute(
             "SELECT round_number, step, evaluation_id, status, evaluation_stop_reason,"
-            " submitted_runs FROM rounds ORDER BY round_number"
+            " submitted_runs, seed, submission_id, submission_digest"
+            " FROM rounds ORDER BY round_number"
         ).fetchall()
         return [StoredRound(*row) for row in rows]
 
@@ -380,16 +405,19 @@ class SqliteSearchStore:
         round_number: int | None = None,
         evaluation_id: str | None = None,
         requests: Sequence[NewRequest] = (),
+        seed: str | None = None,
+        submission: tuple[str, str] | None = None,
     ) -> None:
         """1ステップの提案・（あれば）新しいラウンドと要求・手法の状態を確定する。"""
         with self._transaction() as db:
             for candidate_id, candidate, origin, problems in proposals:
                 self._insert_proposal(db, step, candidate_id, candidate, origin, problems)
             if round_number is not None:
+                submission_id, digest = submission or (None, None)
                 db.execute(
-                    "INSERT INTO rounds (round_number, step, evaluation_id, status)"
-                    " VALUES (?, ?, ?, 'OPEN')",
-                    (round_number, step, evaluation_id),
+                    "INSERT INTO rounds (round_number, step, evaluation_id, status, seed,"
+                    " submission_id, submission_digest) VALUES (?, ?, ?, 'OPEN', ?, ?, ?)",
+                    (round_number, step, evaluation_id, seed, submission_id, digest),
                 )
                 for request in requests:
                     db.execute(

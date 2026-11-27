@@ -1,0 +1,30 @@
+# `exercise-lab evaluate` の試行計画を検証するためのテストデータ。
+#
+# パスはこのファイルの位置を基準に解決する（絶対パスも可）。どのディレクトリから
+# 実行しても同じファイルを指す。対戦入力は演習の編成定義YAML（`match:`）か、
+# UIの演習ドラフト `mlgg:last-draft:exercise` を書き出したJSON（`draft:`）。
+format: TACTICAL_EXERCISE
+seed: example-1
+# 再送込みの送信試行数の上限。部分応答で未完了だった試行の再送も数える。
+budget: { maxSubmittedRuns: 400 }
+api:
+  baseUrl: http://localhost:3000
+  # 配備の TACTICAL_EXERCISE_EVALUATION_MAX_CASES / _MAX_TOTAL_RUNS 以下にする。
+  # 省略するとAPIの既定値（32 / 300）を使う。
+  maxCasesPerRequest: 32
+  maxRunsPerRequest: 300
+# 手持ちデータを当てるなら inputs を書く（tools/data/inputs/ が既定の置き場所）。
+# 演習の敵は強化を持たないので、playerDataSides は [ALLY] のまま（既定）。
+#   inputs:
+#     playerData: ../../../data/inputs/player-data/player-data.json
+# 評価実行の保存先（<evaluationsDir>/<evaluation-id>/evaluation.sqlite3）。tools/data/ は gitignore 済み。
+output:
+  evaluationsDir: ../../../data/evaluations
+cases:
+  # どちらも同じ seed と試行番号 0～99 を使う。候補を追加するなら cases に追記する。
+  - caseId: baseline
+    match: match.yaml
+    runs: 100
+  - caseId: memory-variant
+    match: match-variant.yaml
+    runs: 100

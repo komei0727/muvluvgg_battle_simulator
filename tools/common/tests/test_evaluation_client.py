@@ -80,6 +80,25 @@ def test_transport_errors_are_returned_as_lost_responses():
             FailureKind.ENVIRONMENT_MISMATCH,
             False,
         ),
+        *(
+            (
+                422,
+                error_body("INVALID_COMMAND", f"/replay/{field}"),
+                FailureKind.ENVIRONMENT_MISMATCH,
+                False,
+            )
+            for field in (
+                "expectedCatalogRevision",
+                "expectedEngineRevision",
+                "expectedSeedDerivationVersion",
+            )
+        ),
+        (
+            422,
+            error_body("INVALID_COMMAND", "/replay/runIndex"),
+            FailureKind.INVALID_INPUT,
+            False,
+        ),
         (401, error_body("UNAUTHORIZED"), FailureKind.UNAUTHORIZED, False),
         (404, error_body("ENDPOINT_DISABLED"), FailureKind.ENDPOINT_UNAVAILABLE, False),
     ],

@@ -2,7 +2,7 @@
 
     uv run exercise-lab import-draft local_storage/draft.json --out configs/formation.yaml
     uv run exercise-lab units --grep 純夏
-    uv run exercise-lab evaluate exercise-lab/configs/evaluation.example.yaml
+    uv run exercise-lab evaluate exercise-lab/tests/fixtures/batch-evaluation.yaml
     uv run exercise-lab summarize data/evaluations/<evaluation-id>
 
 評価コマンド（evaluate / resume / status / summarize / export）の通信・保存・再開・表示は
@@ -52,14 +52,17 @@ from mlgg_lab_common.inputs.schema import build_formation_library_json_schema
 from mlgg_lab_common.models import ConfigError
 
 from .analysis import ANALYZER
+from .analysis_cli import compare, inspect
 from .evaluation import FORMAT, plan_exercise_evaluation
 from .inputs.exercise import dump_formation_config, load_exercise_draft
-from .inputs.schema import build_formation_json_schema
+from .inputs.schema import build_formation_json_schema, build_search_json_schema
+from .search_cli import app as search_app
 
 DEFAULT_SCHEMA_DIR = Path(".schema")
 FORMATION_SCHEMA_JSON = "formation.schema.json"
 # 既存の編成ライブラリのファイルがこの名前を `yaml-language-server` の行で指している。
 FORMATION_LIBRARY_SCHEMA_JSON = "formation-seed.schema.json"
+EVALUATION_SCHEMA_JSON = "evaluation.schema.json"
 
 app = typer.Typer(
     add_completion=False,
@@ -264,9 +267,8 @@ def schema(
 ) -> None:
     """YAML用の JSON Schema を Catalog から生成する（エディタ補完用）。
 
-    演習の編成定義YAMLと編成ライブラリ1件（`configs/formations/<id>.yaml`）で
-    書式が違うため、Schemaも2つ出す。実IDを enum に焼くので、Catalog を更新したら
-    作り直す。
+    演習の編成定義、編成ライブラリ1件、探索設定のSchemaを出す。
+    実IDを enum に焼くので、Catalog を更新したら作り直す。
     """
     catalog = _fetch_catalog(base_url)
     out.mkdir(parents=True, exist_ok=True)
@@ -281,6 +283,7 @@ def schema(
             build_formation_library_json_schema(catalog),
             "編成ライブラリYAML（configs/formations/）",
         ),
+        (out / EVALUATION_SCHEMA_JSON, build_search_json_schema(catalog), "探索の初期設定YAML"),
     ]
     for path, document, _ in written:
         path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -390,6 +393,9 @@ LAB = LabCommands(
     name="exercise-lab", format=FORMAT, planner=plan_exercise_evaluation, analyzer=ANALYZER
 )
 register_evaluation_commands(app, LAB)
+app.add_typer(search_app, name="search")
+app.command()(compare)
+app.command()(inspect)
 
 
 if __name__ == "__main__":

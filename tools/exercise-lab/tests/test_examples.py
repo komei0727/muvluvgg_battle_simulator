@@ -6,10 +6,11 @@ from exercise_lab.inputs.exercise import load_formation_config
 from mlgg_lab_common.models import build_formation_request
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
-def test_the_bundled_formation_example_is_loadable():
-    config = load_formation_config(CONFIGS / "formation.example.yaml")
+def test_the_match_fixture_is_loadable():
+    config = load_formation_config(FIXTURES / "match.yaml")
 
     ally = build_formation_request(config.ally)
     assert len(ally["units"]) == 5
@@ -17,8 +18,5 @@ def test_the_bundled_formation_example_is_loadable():
     assert config.enemy.unit_definition_id.endswith("_TEX")
 
 
-def test_only_the_formation_and_evaluation_examples_are_bundled():
-    assert sorted(path.name for path in CONFIGS.glob("*.example.yaml")) == [
-        "evaluation.example.yaml",
-        "formation.example.yaml",
-    ]
+def test_the_initial_settings_example_is_the_only_config_template():
+    assert [path.name for path in CONFIGS.glob("*.example.yaml")] == ["evaluation.example.yaml"]

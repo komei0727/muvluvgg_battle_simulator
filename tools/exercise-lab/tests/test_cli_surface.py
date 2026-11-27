@@ -9,7 +9,16 @@ from exercise_lab.cli import app
 from mlgg_lab_common.inputs.catalog import CATALOG_PATH, CatalogClient, LabApiError
 
 BASE_URL = "http://localhost:3000"
-INPUT_COMMANDS = ("import-draft", "units", "memories", "formations", "schema")
+INPUT_COMMANDS = (
+    "import-draft",
+    "units",
+    "memories",
+    "formations",
+    "schema",
+    "search",
+    "compare",
+    "inspect",
+)
 
 runner = CliRunner()
 
@@ -22,9 +31,7 @@ def test_help_lists_exactly_the_input_commands():
         assert command in result.output
 
 
-@pytest.mark.parametrize(
-    "command", ["stats", "optimize", "compare", "gear-sensitivity", "gear-plan"]
-)
+@pytest.mark.parametrize("command", ["stats", "optimize", "gear-sensitivity", "gear-plan"])
 def test_the_removed_analysis_commands_are_gone(command):
     result = runner.invoke(app, [command, "--help"])
 

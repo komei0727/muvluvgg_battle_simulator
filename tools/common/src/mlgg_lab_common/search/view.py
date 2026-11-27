@@ -24,6 +24,7 @@ class Observation:
     round_number: int
     evaluation_id: str
     case_id: str
+    seed: str = ""
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,8 @@ class RoundSummary:
     evaluation_id: str
     status: str
     evaluation_stop_reason: str | None
+    seed: str = ""
+    submitted_runs: int | None = None
 
 
 @dataclass(frozen=True)

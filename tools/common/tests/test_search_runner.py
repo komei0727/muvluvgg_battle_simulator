@@ -563,3 +563,23 @@ def test_a_stop_request_is_honoured_before_resuming_an_open_round(tmp_path):
         report = run(reopened, resumed, FakeEvaluationServer())
         assert report.stop_reason is SearchStopReason.METHOD_FINISHED
         assert report.budget.used > budget_before
+
+
+def test_v1_search_with_closed_round_can_be_migrated_and_continued(tmp_path):
+    directory, store, method = make_search(tmp_path)
+    server = FakeEvaluationServer()
+    with store:
+        run(store, method, server, max_steps=1)
+        db_path = store.path
+    with sqlite3.connect(db_path) as db:
+        db.execute("DROP INDEX rounds_submission_id")
+        for column in ("seed", "submission_id", "submission_digest"):
+            db.execute(f"ALTER TABLE rounds DROP COLUMN {column}")
+        db.execute("PRAGMA user_version = 1")
+
+    with open_search(directory) as migrated:
+        assert migrated.rounds()[0].seed is None
+        report = run(migrated, new_method(), server)
+        assert report.stop_reason == SearchStopReason.METHOD_FINISHED
+        assert migrated.rounds()[1].seed == "battle-1"
+        assert migrated.requests()[-1].run_indices == (3, 4)

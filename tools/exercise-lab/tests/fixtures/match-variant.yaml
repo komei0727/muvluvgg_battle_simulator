@@ -1,0 +1,23 @@
+# match.yaml と同じ相手・配置で、メモリー1枚を差し替えた候補。
+ally:
+  units:
+    - unitDefinitionId: UNIT_JUNKA_CHILDHOOD
+      position: { column: 0, row: FRONT }
+    - unitDefinitionId: UNIT_SAYA_BUNNY
+      position: { column: 2, row: FRONT }
+    - unitDefinitionId: UNIT_ELENA_MOODMAKER
+      position: { column: 0, row: REAR }
+    - unitDefinitionId: UNIT_LAYLA_ENTREPRENEUR
+      position: { column: 1, row: REAR }
+    - unitDefinitionId: UNIT_SUIRAN_CHAOS
+      position: { column: 2, row: REAR }
+  memoryDefinitionIds:
+    - MEM_GIDDY_CIRCUMSTANCES
+    - MEM_KOI
+    - MEM_EURO_TOWER_DAY
+    - MEM_TIMID_REINDEER_EVE
+    - MEM_HEART_COLOR
+    - MEM_ABSOLUTE_ORDER
+enemy:
+  unitDefinitionId: UNIT_ANIS_SWEETDEVIL_TEX
+  position: { column: 1, row: REAR }

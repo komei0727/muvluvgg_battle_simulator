@@ -32,11 +32,11 @@ TOOLS = Path(__file__).resolve().parents[1]
 
 
 # 演習の対戦入力は編成定義YAML（味方 + 敵1体）そのもの。
-MATCH_FILES = {"exercise-lab": "formation.example.yaml"}
+MATCH_FILES = {"exercise-lab": "tests/fixtures/match.yaml"}
 
 
 def write_config(directory: Path, fmt: str, lab: str, *, cases: list[str], **api: int) -> Path:
-    match = TOOLS / lab / "configs" / MATCH_FILES.get(lab, "match.example.yaml")
+    match = TOOLS / lab / MATCH_FILES.get(lab, "configs/match.example.yaml")
     api_lines = "".join(f"  {k}: {v}\n" for k, v in api.items())
     path = directory / f"{fmt}-{len(list(directory.iterdir()))}.yaml"
     path.write_text(
