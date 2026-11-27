@@ -135,8 +135,9 @@ uv run total-war-lab schema     # 共通 + 総力戦
 
 `<形式>` は `exercise` / `battle` / `total-war`。
 
-対象YAMLの先頭へ、そのファイルから `tools/.schema/` への相対パスで1行置くと、YAML Language Server が
-ID を補完・検証する。
+このリポジトリでは、YAML ファイルの先頭にあるコメントと空行のブロックに、行頭から
+`# yaml-language-server: $schema=<YAMLからの相対パス>` と書く。相対パスは `tools/.schema/` の生成物を
+指す。YAML Language Server がこの Schema を使って ID を補完・検証する。
 
 ```yaml
 # tools/data/inputs/formations/<id>.yaml
@@ -145,9 +146,14 @@ ID を補完・検証する。
 # yaml-language-server: $schema=../../.schema/battle.match.schema.json
 ```
 
-`exercise-lab import-draft` は、書き出し先から数えたパスでこの行を（`##` で無効にした状態で）付ける。
-リポジトリ内のサンプルの参照先は `tests/test_schema_directives.py` が検査する。Schemaはローダーの受理条件を
-すべては表さない（配置の重複・総力戦の編成内のユニット重複は表せず、読み込み時に落ちる）。**Catalog を更新したら作り直す。**
+`exercise-lab import-draft` は、書き出し先から数えたパスで `## yaml-language-server: $schema=...` を付ける。
+補完を有効にするには `#` を1つ外す。
+
+Schema 参照の保証範囲は、Git で追跡する全 YAML の先頭コメントブロックにある、この2つの書式に限る。
+`tests/test_schema_directives.py` は、参照が YAML ファイルの位置から `tools/.schema/` 配下の生成ファイル名に
+解決されることを検査する。
+
+Schemaはローダーの受理条件をすべては表さない（配置の重複・総力戦の編成内のユニット重複は表せず、読み込み時に落ちる）。**Catalog を更新したら作り直す。**
 
 ### 入力の運用
 
