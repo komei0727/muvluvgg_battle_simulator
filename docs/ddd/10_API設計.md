@@ -176,7 +176,7 @@ POST /api/v1/total-war-simulations
 - 実行前に `catalogRevision`・`engineRevision`・`seedDerivationVersion` を照合し、不一致は該当フィールドのパス（例 `/replay/expectedEngineRevision`）を示す `422 INVALID_COMMAND` で返して戦闘を開始しない。照合と実行はWorkerで行う。戦闘を実行する実装とCatalog自身の値で照合しなければ、保存した試行の再生であることを保証できない。
 - 再生は常に `DETAILED` で実行する。`options.logLevel` は省略か `DETAILED` だけを受理し、`SUMMARY` の明示は `422 INVALID_COMMAND`（パス `/options/logLevel`）で拒否する。黙って詳細ログへ切り替えると、要約を求めたクライアントへ数MBの応答を返すことになるためである。
 - 応答は各単発APIのレスポンス形式のまま返す。再現性の照合対象は戦闘結果と観測内容（通常戦闘は勝敗・終了理由・完了ターン、戦術演習はスコア・ブレイク回数・終了理由・完了ターン、総力戦はこれに加えてステージ・撃破編成数）であり、実行ごとに発行する `battleId` は照合対象に含めない。
-- 提供可否は大量試行APIと同じ `EVALUATION_ENDPOINT_ENABLED` に従う。無効な配備は `replay` 付きのリクエストを `404 ENDPOINT_DISABLED`（パス `/replay`）で拒否し、`replay` を省略した通常の単発リクエストは従来どおり受理する。認証・Worker Pool・実行期限・容量制御は単発APIの実行境界をそのまま使い、期限超過は単発と同じ `504` になる。
+- 提供可否は大量試行APIと同じ `EVALUATION_ENDPOINT_ENABLED` に従う。無効な配備は `replay` 付きのリクエストを `404 ENDPOINT_DISABLED`（パス `/replay`）で拒否し（JSON解析後・本文のschema検証より前に判定するため、`replay` の必須項目の欠落などの形の誤りも `400` ではなく `404` になる）、`replay` を省略した通常の単発リクエストは従来どおり受理する。認証・Worker Pool・実行期限・容量制御は単発APIの実行境界をそのまま使い、期限超過は単発と同じ `504` になる。
 
 ### 編成の開始時ステータスをプレビューする
 
@@ -1696,7 +1696,7 @@ reconstructedFinalState = apply(
 
 `POST /api/v1/formation-stat-previews` は戦闘を実行しないため、この表のうち `400`・`401`・`406`・`413`・`415`・`422`・`500` だけを返す（`401` はアクセスキーを要求する配備のみ）。Worker Poolの容量・実行保護・期限に由来する `429`・`503`・`504` は構造上発生しない。
 
-`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations` と、`replay` を指定した単発の3API（`POST /api/v1/battle-simulations`・`POST /api/v1/tactical-exercises`・`POST /api/v1/total-war-simulations`）だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。これらの操作は期限超過時に `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。大量試行APIの期待revision不一致は `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`／`/expectedEngineRevision`）で、戦闘を1回も開始しない。再生指定の識別情報の不一致も同じく `422`（パス `/replay/...`）で、戦闘を開始しない。
+`404 ENDPOINT_DISABLED` を返し得るのは `POST /api/v1/tactical-exercise-evaluations`・`POST /api/v1/battle-evaluations`・`POST /api/v1/total-war-evaluations` と、`replay` を指定した単発の3API（`POST /api/v1/battle-simulations`・`POST /api/v1/tactical-exercises`・`POST /api/v1/total-war-simulations`）だけである。実装が無いのではなく設定で閉じているだけなので、有効な配備なら同じパスがそのまま動く。期限超過時、大量試行APIは `504` ではなく `200` の部分結果を返す（Q-TEX-18）——完了した試行を捨てないため。単発APIの再生は1試行だけを実行するので部分結果を持たず、通常の単発実行と同じく `504 EXECUTION_TIMEOUT` を返す。大量試行APIの期待revision不一致は `422 INVALID_COMMAND`（パス `/expectedCatalogRevision`／`/expectedEngineRevision`）で、戦闘を1回も開始しない。再生指定の識別情報の不一致も同じく `422`（パス `/replay/...`）で、戦闘を開始しない。
 
 `DOMAIN_RULE_VIOLATION` は原因に応じて変換する。クライアント入力から生じた既知の違反は `422 INVALID_COMMAND`、事前検証後の予期しない不変条件違反は `500 INTERNAL_INVARIANT_VIOLATION` とする。
 

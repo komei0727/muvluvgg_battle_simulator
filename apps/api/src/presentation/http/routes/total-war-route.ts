@@ -44,6 +44,7 @@ export function registerTotalWarRoute(
   app.post(
     TOTAL_WAR_SIMULATIONS_PATH,
     {
+      preValidation: rejectReplayWhenDisabled(replayEnabled),
       schema: {
         body: totalWarRequestSchema,
         response: { 200: totalWarResponseSchema, ...REPLAYABLE_ERROR_RESPONSES },
@@ -55,7 +56,6 @@ export function registerTotalWarRoute(
       if (shutdownGate.isShuttingDown()) {
         throw new SimulationCapacityExceededError();
       }
-      rejectReplayWhenDisabled(request.body, replayEnabled);
 
       // `onRequest`が全リクエストで先に`trackRequestExecution`を登録済みのため、必ず存在する。
       const { requestId, cancellationController } = getRequestExecutionState(request)!;

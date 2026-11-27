@@ -72,16 +72,34 @@ export const REPLAYABLE_ERROR_RESPONSES = { ...ERROR_RESPONSES, 404: errorRespon
 /**
  * 再生を提供しない配備では、再生指定付きのリクエストをWorkerへ送る前に拒否する。
  * 通常の単発リクエストはこの設定に関わらず受け付ける。
+ *
+ * ルートの`preValidation`に置き、JSON解析後・本文のschema検証より前に判定する。
+ * 閉じた配備にとって再生指定は提供しない操作そのものなので、`replay`の形の誤り
+ * （`400`）より先に提供可否（`404`）を答える。
  */
-export function rejectReplayWhenDisabled(
-  body: { readonly replay?: unknown },
-  replayEnabled: boolean,
-): void {
-  if (body.replay !== undefined && !replayEnabled) {
-    throw new ApplicationError("ENDPOINT_DISABLED", [
-      { path: "replay", reason: "replay of a seeded run is not enabled on this server" },
-    ]);
-  }
+export function rejectReplayWhenDisabled(replayEnabled: boolean) {
+  // 引数を本文だけの構造型にし、各ルートの`Body`型推論と衝突させない。
+  return (
+    request: { readonly body: unknown },
+    _reply: unknown,
+    done: (error?: Error) => void,
+  ): void => {
+    const body = request.body;
+    if (
+      !replayEnabled &&
+      typeof body === "object" &&
+      body !== null &&
+      (body as { readonly replay?: unknown }).replay !== undefined
+    ) {
+      done(
+        new ApplicationError("ENDPOINT_DISABLED", [
+          { path: "replay", reason: "replay of a seeded run is not enabled on this server" },
+        ]),
+      );
+      return;
+    }
+    done();
+  };
 }
 
 export interface RegisterSimulationRouteOptions {
@@ -99,6 +117,7 @@ export function registerSimulationRoute(
   app.post(
     BATTLE_SIMULATIONS_PATH,
     {
+      preValidation: rejectReplayWhenDisabled(replayEnabled),
       schema: {
         body: battleSimulationRequestSchema,
         response: { 200: battleSimulationResponseSchema, ...REPLAYABLE_ERROR_RESPONSES },
@@ -112,7 +131,6 @@ export function registerSimulationRoute(
       if (shutdownGate.isShuttingDown()) {
         throw new SimulationCapacityExceededError();
       }
-      rejectReplayWhenDisabled(request.body, replayEnabled);
 
       // `onRequest`が全リクエストで先に実行され`trackRequestExecution`が登録
       // 済みのため、ここでは必ず存在する。

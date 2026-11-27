@@ -52,6 +52,7 @@ export function registerTacticalExerciseRoute(
   app.post(
     TACTICAL_EXERCISES_PATH,
     {
+      preValidation: rejectReplayWhenDisabled(replayEnabled),
       schema: {
         body: tacticalExerciseRequestSchema,
         response: { 200: tacticalExerciseResponseSchema, ...REPLAYABLE_ERROR_RESPONSES },
@@ -63,7 +64,6 @@ export function registerTacticalExerciseRoute(
       if (shutdownGate.isShuttingDown()) {
         throw new SimulationCapacityExceededError();
       }
-      rejectReplayWhenDisabled(request.body, replayEnabled);
 
       // `onRequest`が全リクエストで先に実行され`trackRequestExecution`が登録
       // 済みのため、ここでは必ず存在する。

@@ -103,6 +103,22 @@ describe("single-run replay over HTTP", () => {
       expect(received).toEqual([route.body]);
     });
 
+    it(`API-REPLAY-004 (${route.name}): a server without the evaluation endpoints answers 404 even for a malformed replay, since availability is decided before the replay's structure is validated`, async () => {
+      const server = await start();
+      const { expectedSeedDerivationVersion: _omitted, ...missing } = REPLAY;
+
+      for (const replay of [missing, { ...REPLAY, extra: 1 }, "not-an-object"]) {
+        const response = await server.inject({
+          method: "POST",
+          url: route.path,
+          payload: { ...route.body, replay },
+        });
+        expect(response.statusCode).toBe(404);
+        expect(response.json<ErrorResponseBody>().error.code).toBe("ENDPOINT_DISABLED");
+      }
+      expect(received).toEqual([]);
+    });
+
     it(`API-REPLAY-003 (${route.name}): a replay missing a field, with an undefined property or with a non-integer run number is a malformed request`, async () => {
       const server = await start({ replayEnabled: true });
       const { expectedSeedDerivationVersion: _omitted, ...missing } = REPLAY;
