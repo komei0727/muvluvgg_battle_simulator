@@ -14,8 +14,9 @@
 # IDを手で書き写す必要はない。UIで組んだ編成は `exercise-lab import-draft` で取り込めるし、
 # `exercise-lab units --owned --player-data local_storage/player-data.json` /
 # `exercise-lab memories --grep <語>` で引ける。
-# エディタ補完を効かせるには `exercise-lab schema` を実行し、次の行の先頭の `#` を1つ削る。
-## yaml-language-server: $schema=../../.schema/formation.schema.json
+# エディタ補完を効かせるには `exercise-lab schema` を実行し（tools/.schema/ へ出る）、
+# 次の行の先頭の `#` を1つ削る。
+## yaml-language-server: $schema=../../../.schema/exercise.match.schema.json
 
 ally:
   # 1〜5体。`column` は俯瞰時の絶対左から 0・1・2、`row` は敵へ近い側が FRONT。

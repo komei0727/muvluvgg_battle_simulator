@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../.schema/evaluation.schema.json
+# yaml-language-server: $schema=../../.schema/exercise.search.schema.json
 # 戦術演習の初期設定。evaluation.yaml として使い、starts を自分の編成IDに変える。
 # 編成IDは inputs.formationsDir に置いたYAMLのファイル名から拡張子を除いたもの。
 # パスはこのYAMLの位置を基準に解決する。

@@ -46,9 +46,9 @@ tools/total-war-lab/configs/*.yaml
 # Personal formation library (`exercise-lab formations`). Same reasoning as above;
 # only personal entries live here, so the committed samples must not depend on them.
 tools/exercise-lab/configs/formations/
-# `exercise-lab schema` の生成物と、UIから書き出したドラフト・手持ちデータ。どれも
-# Catalog / 手元の編成に紐づく生成物なので追跡しない。
-tools/exercise-lab/.schema/
+# 各ラボの `schema` コマンドの生成物（tools ルートへ集約）と、UIから書き出したドラフト・
+# 手持ちデータ。どれも Catalog / 手元の編成に紐づく生成物なので追跡しない。
+tools/.schema/
 tools/exercise-lab/local_storage/*
 tools/battle-lab/local_storage/
 tools/total-war-lab/local_storage/

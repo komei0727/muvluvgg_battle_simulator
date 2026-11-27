@@ -1,11 +1,11 @@
-"""編成ライブラリ（`configs/formations/<id>.yaml`）。
+"""編成ライブラリ（`tools/data/inputs/formations/<id>.yaml`）。
 
 1ファイルが対戦相手に依らない編成1件で、ファイル名がそのままIDになる。対戦相手や
 評価の設定は持たない——それらは編成を使う側が別に与える。陣営にも依らないので、
 通常戦闘・総力戦では敵の編成としても参照できる。
 
-既定の置き場所は `tools/exercise-lab/configs/formations/`（既存の個人ファイルの
-場所）で、他のラボはディレクトリを明示して同じ場所を参照する。ツールはこの
+既定の置き場所は tools ルート基準の `data/inputs/formations/`
+（`workspace.default_formations_dir`）で、全ラボが同じ場所を参照する。ツールはこの
 ディレクトリの中身を移動・削除しない。
 """
 
@@ -24,8 +24,6 @@ from ..models.formation import (
     Spec,
 )
 from .yaml_io import dump_yaml, load_yaml_mapping, placement_documents
-
-DEFAULT_FORMATIONS_DIR = Path("configs/formations")
 
 
 class FormationLibraryEntry(Spec):

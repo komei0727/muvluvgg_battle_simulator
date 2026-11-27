@@ -17,6 +17,7 @@ from pydantic import Field
 from .api.client import HttpExchange
 from .api.contracts import ExpectedSlot
 from .evaluation.identity import canonical_json
+from .inputs.catalog import Catalog
 from .models import (
     FormationSpec,
     ParticipantSlot,
@@ -526,3 +527,47 @@ class FakeBattleSearchAdapter:
 
     def catalog_problems(self, problem: SearchProblem, catalog: Any) -> list[str]:
         return []
+
+
+def catalog_of_references(document: Any, *, category: str = "PLAYABLE") -> Catalog:
+    """入力（YAMLを読んだ値）が参照するユニット・メモリーだけを持つCatalog。
+
+    実IDを書いたサンプルを、Catalog を取りに行かずにSchemaへ通すために使う。
+    `unitDefinitionId` はすべて `category` のユニットとして載せる。
+    """
+    units: set[str] = set()
+    memories: set[str] = set()
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key == "unitDefinitionId" and isinstance(item, str):
+                    units.add(item)
+                elif key == "memoryDefinitionIds" and isinstance(item, list):
+                    memories.update(m for m in item if isinstance(m, str))
+                else:
+                    walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(document)
+    return Catalog.model_validate(
+        {
+            "catalogRevision": "test",
+            "units": [
+                {
+                    "unitDefinitionId": unit_id,
+                    "displayName": unit_id,
+                    "category": category,
+                    "role": "PHYSICAL_ATTACKER",
+                    "positionAptitudes": ["FRONT"],
+                }
+                for unit_id in sorted(units)
+            ],
+            "memories": [
+                {"memoryDefinitionId": memory_id, "displayName": memory_id}
+                for memory_id in sorted(memories)
+            ],
+        }
+    )

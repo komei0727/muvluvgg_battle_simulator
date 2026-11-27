@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../.schema/total-war.match.schema.json
 # 総力戦の対戦入力サンプル。個人ファイルなしで読み込める
 # （`total_war_lab.inputs.load_total_war_match_file`）。
 #

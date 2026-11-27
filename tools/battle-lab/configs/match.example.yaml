@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../.schema/battle.match.schema.json
 # 通常戦闘の対戦入力サンプル。個人ファイルなしで読み込める
 # （`battle_lab.inputs.load_battle_match_file`）。
 #
@@ -8,8 +9,7 @@
 #
 # 編成は次のどちらでも書ける。
 #   - インライン（下の allyFormation のように units / memoryDefinitionIds を書く）
-#   - 編成ライブラリの参照: `{ library: <id> }`（`configs/formations/<id>.yaml`。
-#     既存の置き場所は tools/exercise-lab/configs/formations/ で、
+#   - 編成ライブラリの参照: `{ library: <id> }`（`tools/data/inputs/formations/<id>.yaml`。
 #     `load_battle_match_file(path, formations_dir=...)` へそのディレクトリを渡す）
 #
 # 演習と違い、敵は1～5体・メモリー0～6件・同じユニットの複数枠を置ける。編成プールは
