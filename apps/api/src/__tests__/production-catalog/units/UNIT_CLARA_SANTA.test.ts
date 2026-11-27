@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadProductionSnapshot, skillFrom, unitFrom } from "../../../testing/fixtures/index.js";
-import { resolveBindingSelections } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { bindingSelectionsOf } from "../../../domain/battle/resolution/action-skill-use-resolver.js";
+import { resolveSkillOrder } from "../../../domain/battle/skill/skill-resolution-service.js";
 import {
   createRuntimeCounterId,
   createSkillDefinitionId,
@@ -356,13 +357,27 @@ describe("production Catalog UNIT_CLARA_SANTA (【聖夜のサンタシンガー
 
     // 基準敵（`TGT_BASE`）はどのACTION stepの対象でもなく、列（`TGT_COLUMN`）を
     // 導くためだけに解決される。振る舞い表は列全体しか見えないため、基準敵が誰かは
-    // 実 resolver（`resolveSkillUse` と同じ `resolveBindingSelections`）でしか見えない。
+    // 実 resolver（`resolveSkillUse` と同じ `resolveSkillOrder` → `bindingSelectionsOf`）でしか見えない。
+    const selectionsOn = (
+      board: ReturnType<typeof productionBoard>,
+    ): ReturnType<typeof bindingSelectionsOf> =>
+      bindingSelectionsOf(
+        targetBindings,
+        resolveSkillOrder(
+          skill,
+          board.subject,
+          board.units,
+          board.definitions.effectActions,
+          undefined,
+          board.definitions.unitDefinitions,
+        ).resolvedBindings,
+      );
     const tagged = productionBoard(snapshot, UNIT_DEFINITION_ID, {
       enemies: TAG_ON_BACK_OF_LEFT_COLUMN,
     });
-    const taggedSelections = resolveBindingSelections(targetBindings, tagged.subject, tagged.units);
+    const taggedSelections = selectionsOn(tagged);
     const selectionOf = (
-      selections: ReturnType<typeof resolveBindingSelections>,
+      selections: ReturnType<typeof bindingSelectionsOf>,
       targetBindingId: string,
     ): readonly string[] =>
       [
@@ -379,12 +394,7 @@ describe("production Catalog UNIT_CLARA_SANTA (【聖夜のサンタシンガー
 
     // タグを持つ敵が1体も居なければ候補は0件になり、`fallback` の既定順が基準を出す。
     const untagged = productionBoard(snapshot, UNIT_DEFINITION_ID);
-    expect(
-      selectionOf(
-        resolveBindingSelections(targetBindings, untagged.subject, untagged.units),
-        "TGT_BASE",
-      ),
-    ).toEqual(["enemy:front"]);
+    expect(selectionOf(selectionsOn(untagged), "TGT_BASE")).toEqual(["enemy:front"]);
 
     // 端から端まで: 攻撃とデバフは列全体（タグ未所持の前列も含む）へ入り、
     // 既定順なら選ばれていたはずの中央列の敵には何も入らない。

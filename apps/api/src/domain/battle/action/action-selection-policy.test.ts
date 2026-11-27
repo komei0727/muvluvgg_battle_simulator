@@ -145,6 +145,31 @@ describe("selectAsCandidate", () => {
     expect(result).toEqual({ kind: "SKILL", skill: usable });
   });
 
+  it("UT-R-TGT-11-008 [R-TGT-11, R-ACT-02]: judges an AS with a RANDOM binding usable from its candidates alone — action selection has no random source and draws nothing", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
+    const enemy = unit("ENEMY_1", "ENEMY", { column: "LEFT", row: "FRONT" });
+    const randomBinding = {
+      resolution: {
+        kind: "IMMEDIATE" as const,
+        targetBindings: [
+          {
+            targetBindingId: createTargetBindingId("TGT_1"),
+            selector: { ...ENEMY_SELECTOR, order: ["RANDOM" as const] },
+          },
+        ],
+        steps: [],
+      },
+    };
+    const randomAttack = asSkill("SKL_RANDOM", 1, randomBinding);
+
+    expect(selectAsCandidate([randomAttack], actor, [actor, enemy])).toEqual({
+      kind: "SKILL",
+      skill: randomAttack,
+    });
+    // 候補が0体なら、抽選する束縛でも従来どおり発動不能（R-TGT-01 #4）。
+    expect(selectAsCandidate([randomAttack], actor, [actor])).toEqual({ kind: "WAIT" });
+  });
+
   it("UT-R-ACT-02-004: waits when no AS candidate is usable", () => {
     const actor = unit("ACTOR", "ALLY", { column: "LEFT", row: "FRONT" }, { currentAp: 3 });
     const noTarget = asSkill("SKL_NO_TARGET", 1);

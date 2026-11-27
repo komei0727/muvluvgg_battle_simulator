@@ -544,6 +544,7 @@ selector:
 | `LEFT_TO_RIGHT`                   | 絶対左から右                                         |
 | `SELF_LOWEST_PRIORITY`            | 自身を末尾へ回す（hard excludeではなく自身以外優先） |
 | `ADJACENT_DIRECTION`              | 基準対象から上→左→右→下の順（Issue #831、後述）      |
+| `RANDOM`                          | 候補から一様に抽選（`R-TGT-11`、Issue #903、後述）   |
 
 | kind（オブジェクト形式） | 追加フィールド                                           | 意味                                             |
 | ------------------------ | -------------------------------------------------------- | ------------------------------------------------ |
@@ -564,6 +565,14 @@ selector:
   area: { kind: ADJACENT_ORTHOGONAL }
   order: [ADJACENT_DIRECTION]
   count: 2
+```
+
+`RANDOM`（`R-TGT-11`）は「ランダムな敵単体に」のように対象そのものを抽選する原文向けで、戦闘の乱数で候補を一様に並べ替えてから`count`件を選ぶ。`order`の唯一の要素として書き、数値の`count`（`SELECT`、または`count`を持つ`BINDING_DERIVED`）と組み合わせる。他のキーとの併用・`count: ALL`・`count`省略の`BINDING_DERIVED`はCatalogロード時点で拒否する。行動選択と発動判定は抽選しないため、AS/EXの`activationCondition`が抽選する束縛（`fallback`・`BINDING_DERIVED`の基準経由を含む）を参照する定義（`ACTIVATION_CONDITION_RANDOM_BINDING`）と、`SELECTED_TARGET_STATE`のセレクタに`RANDOM`を書く定義も拒否する。「生存している敵が3体未満なら発動しない」のような件数の条件は、抽選しない別の束縛（例: `count: ALL`）を`TARGET_SET_COUNT`で数える。固定の候補（例: 2つのbindingのどちらか）を抽選する原文は、従来どおり`RANDOM_BRANCH`で書く（`Q-CAT-EFF-18`）。
+
+```yaml
+targetBindings:
+  - targetBindingId: TGT_RANDOM
+    selector: { kind: SELECT, side: ENEMY, count: 1, order: [RANDOM] }
 ```
 
 `HIGHEST_CUMULATIVE_DAMAGE_DEALT`は「最も累計ダメージの多い味方」のように、戦闘開始からそのユニットが与えたダメージの累計（`BattleUnit.cumulativeDamageDealt`）が最大の対象を優先する（Issue #700）。累計は`DamageApplied`／`ContinuousDamageApplied`の`hitPointDamage + discardedDamage`を付与者へ加算した値で、シールド・サブユニットに吸収された分を含まずオーバーキル分を含む。戦闘結果の`unitSummaries[].damageDealt`と同じ定義であり、表示上の与ダメージと選ばれる対象が食い違わないよう両者を揃える（`IT-AUDIT-DMGDEALT-001`が全production戦闘で一致を検証する）。Memory由来の継続ダメージ（付与者ユニットを持たない、R-MEM-04）はどのユニットにも計上しない。一度も与ダメージが無いユニットは0として並ぶ。「自身以外を優先」と併用する場合は`["SELF_LOWEST_PRIORITY", "HIGHEST_CUMULATIVE_DAMAGE_DEALT"]`の順に書く。

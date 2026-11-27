@@ -1260,6 +1260,28 @@ describe("createConditionDefinition (TARGET_EFFECT_COUNT)", () => {
     });
   });
 
+  it("UT-CAT-COND-076 [R-TGT-11, R-PS-09]: rejects SELECTED_TARGET_STATE whose selector (or its fallback) draws with RANDOM — the PS activation check resolves without drawing, so it would judge a unit the PS does not hit", () => {
+    const random = { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM"] } as const;
+    for (const selector of [
+      random,
+      {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        filters: [{ kind: "POSITION_ROW", row: "BACK" }],
+        fallback: random,
+      },
+    ]) {
+      expect(() =>
+        createConditionDefinition(
+          { kind: "SELECTED_TARGET_STATE", selector, field: "ATTRIBUTE", op: "EQ", value: "CUTE" },
+          "condition",
+          undefined,
+        ),
+      ).toThrow(/RANDOM/);
+    }
+  });
+
   it("UT-CAT-COND-073 [R-PS-09]: rejects SELECTED_TARGET_STATE whose selector is not SELECT, references a TargetBinding, or whose value type does not match the field", () => {
     const base = {
       kind: "SELECTED_TARGET_STATE",

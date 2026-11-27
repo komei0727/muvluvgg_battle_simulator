@@ -389,6 +389,7 @@ export function* resolveEffectSequencePlan(
         box.units,
         triggerContextOf(context),
         context.definitions.unitDefinitions,
+        context.random,
       );
       if (stealthConsumption !== undefined) {
         lastEventId = yield* expireStealthConsumptions(

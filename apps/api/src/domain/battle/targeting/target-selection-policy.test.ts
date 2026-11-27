@@ -26,6 +26,7 @@ import type { TargetSelectorDefinition } from "../../catalog/definitions/target-
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
+import { SequenceRandomSource } from "../../../testing/random/sequence-random-source.js";
 
 const LIMITS: BattleUnitResourceLimits = { maximumAp: 3, maximumPp: 3, maximumExtraGauge: 100 };
 
@@ -2613,5 +2614,132 @@ describe("R-TWR-03 #8: a defeated unit sharing a square with a deployed unit", (
     );
 
     expect(targets.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ENEMY_F2_FRONT")]);
+  });
+});
+
+describe("R-TGT-11: RANDOM order", () => {
+  // 既定順（R-TGT-02）は NEAR_FRONT → LEFT_BACK → RIGHT_BACK。抽選はこの並びを起点にする。
+  function board(): { actor: BattleUnit; units: BattleUnit[] } {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    return {
+      actor,
+      units: [
+        actor,
+        unit("NEAR_FRONT", "ENEMY", { column: "CENTER", row: "FRONT" }),
+        unit("LEFT_BACK", "ENEMY", { column: "LEFT", row: "BACK" }),
+        unit("RIGHT_BACK", "ENEMY", { column: "RIGHT", row: "BACK" }),
+      ],
+    };
+  }
+  const ids = (units: readonly BattleUnit[]): string[] => units.map((u) => u.battleUnitId);
+
+  it("UT-R-TGT-11-001: shuffles the candidates with the battle random source and takes count from the head", () => {
+    const { actor, units } = board();
+    // 1回目: 0 + floor(0.5 × 3) = 1 → 2番目（LEFT_BACK）を先頭へ。2回目: 1 + floor(0 × 2) = 1 → そのまま。
+    const random = new SequenceRandomSource([0.5, 0]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 1 }),
+      actor,
+      units,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["LEFT_BACK"]);
+    expect(random.consumedValues).toEqual([0.5, 0]);
+  });
+
+  it("UT-R-TGT-11-002: picks a different candidate when the draw differs, and never repeats a unit within count", () => {
+    const { actor, units } = board();
+    // 1回目: floor(0.99 × 3) = 2 → RIGHT_BACK を先頭へ（[RIGHT_BACK, LEFT_BACK, NEAR_FRONT]）。
+    // 2回目: 1 + floor(0.6 × 2) = 2 → NEAR_FRONT を2番目へ。
+    const random = new SequenceRandomSource([0.99, 0.6]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 2 }),
+      actor,
+      units,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["RIGHT_BACK", "NEAR_FRONT"]);
+  });
+
+  it("UT-R-TGT-11-003: draws only among living candidates and consumes no draw for a single candidate", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const alive = unit("ALIVE", "ENEMY", { column: "LEFT", row: "BACK" });
+    const defeated = unit(
+      "DEFEATED",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { currentHp: 0 },
+    );
+    const random = new SequenceRandomSource([]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 1 }),
+      actor,
+      [actor, defeated, alive],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["ALIVE"]);
+    expect(random.consumedValues).toEqual([]);
+  });
+
+  it("UT-R-TGT-11-004: applies Stealth after the shuffle — a drawn Stealth holder moves to the end and is consumed", () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const hidden = unit(
+      "HIDDEN",
+      "ENEMY",
+      { column: "LEFT", row: "BACK" },
+      { appliedEffects: [stealthEffect("HIDDEN")] },
+    );
+    const front = unit("NEAR_FRONT", "ENEMY", { column: "CENTER", row: "FRONT" });
+    const right = unit("RIGHT_BACK", "ENEMY", { column: "RIGHT", row: "BACK" });
+    // 既定順 [NEAR_FRONT, HIDDEN, RIGHT_BACK] → 1回目で HIDDEN が先頭、2回目で RIGHT_BACK が2番目。
+    const random = new SequenceRandomSource([0.5, 0.99]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 1 }),
+      actor,
+      [actor, front, hidden, right],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["RIGHT_BACK"]);
+    expect(result.stealthConsumption?.battleUnitId).toBe(createBattleUnitId("HIDDEN"));
+  });
+
+  it("UT-R-TGT-11-005: a probe resolution (resolveTargets) consumes no draw and keeps the candidate set and count", () => {
+    const { actor, units } = board();
+
+    const targets = resolveTargets(selector({ order: ["RANDOM"], count: 2 }), actor, units);
+
+    expect(ids(targets)).toEqual(["NEAR_FRONT", "LEFT_BACK"]);
+  });
+
+  it("UT-R-TGT-11-006: the committing resolution rejects a RANDOM selector without a random source", () => {
+    const { actor, units } = board();
+
+    expect(() =>
+      resolveTargetsWithStealthConsumption(selector({ order: ["RANDOM"], count: 1 }), actor, units),
+    ).toThrow(DomainValidationError);
   });
 });

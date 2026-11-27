@@ -20,11 +20,11 @@ import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
 import type { BattleDefinitions } from "../model/battle-definitions.js";
 import type { ExerciseRuntime } from "../model/exercise-runtime.js";
-import { resolveTargets } from "../targeting/target-selection-policy.js";
 import {
   collectPreAttackObservations,
   containsAttack,
   resolveSkillOrder,
+  type EffectSequencePlan,
 } from "../skill/skill-resolution-service.js";
 import { emitPreAttackObservations } from "./pre-attack-observation-service.js";
 import {
@@ -46,9 +46,7 @@ import type {
 } from "../../shared/event-ids.js";
 import type { EventRecorder } from "../events/event-recorder.js";
 import type { TargetBindingDefinition } from "../../catalog/definitions/effect-sequence.js";
-import type { TargetBindingId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { SkillDefinition } from "../../catalog/definitions/skill-definition.js";
-import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import type { RandomSource } from "../../ports/random-source.js";
 import type { BattleUnit } from "../model/battle-unit.js";
 import type { BattleDomainEvent } from "../events/domain-event.js";
@@ -57,34 +55,23 @@ import type { DepletedAbsorberReason } from "../combat/damage-application-servic
 
 /**
  * `08_ドメインイベント.md`「TargetsSelected」payload: targetBindingごとの解決対象。
- * R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
- * ここまでに解決済みのbindingを`resolveTargets`へ渡しながら定義順に確定する。
+ * 実際に効果を解決する`plan`の束縛をそのまま写す — 対象を計算し直すと、抽選
+ * （R-TGT-11）・混乱の陣営反転（R-CFS-01）・ステルス消費（R-TGT-08）の結果が
+ * 実際の対象と食い違いうる。
  */
-export function resolveBindingSelections(
+export function bindingSelectionsOf(
   targetBindings: readonly TargetBindingDefinition[],
-  actor: BattleUnit,
-  allUnits: readonly BattleUnit[],
-  unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  resolvedBindings: EffectSequencePlan["resolvedBindings"],
 ): readonly { targetBindingId: string; selectedTargetUnitIds: readonly BattleUnitId[] }[] {
-  const resolvedBindingUnits = new Map<TargetBindingId, readonly BattleUnit[]>();
   // R-SKL-01: 遅れて評価するbindingは開始時点では選択が確定していないため載せない。
   return targetBindings
     .filter((binding) => binding.evaluation !== "ON_FIRST_REFERENCE")
-    .map((binding) => {
-      const units = resolveTargets(
-        binding.selector,
-        actor,
-        allUnits,
-        resolvedBindingUnits,
-        undefined,
-        unitDefinitions,
-      );
-      resolvedBindingUnits.set(binding.targetBindingId, units);
-      return {
-        targetBindingId: binding.targetBindingId,
-        selectedTargetUnitIds: units.map((unit) => unit.battleUnitId),
-      };
-    });
+    .map((binding) => ({
+      targetBindingId: binding.targetBindingId,
+      selectedTargetUnitIds: (resolvedBindings.get(binding.targetBindingId)?.units ?? []).map(
+        (unit) => unit.battleUnitId,
+      ),
+    }));
 }
 
 /**
@@ -315,6 +302,7 @@ export function resolveSkillUse(
     definitions.effectActions,
     undefined,
     definitions.unitDefinitions,
+    random,
   );
   const targetUnitIds = plan.targetUnitIds;
 
@@ -346,12 +334,7 @@ export function resolveSkillUse(
       // `plan`(直前の`resolveSkillOrder`呼び出し)が既にkind==="IMMEDIATE"を検証済み。
       bindings:
         skill.resolution.kind === "IMMEDIATE"
-          ? resolveBindingSelections(
-              skill.resolution.targetBindings,
-              actorBeforeTargeting,
-              working,
-              definitions.unitDefinitions,
-            )
+          ? bindingSelectionsOf(skill.resolution.targetBindings, plan.resolvedBindings)
           : [],
     },
   });

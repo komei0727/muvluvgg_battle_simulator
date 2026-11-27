@@ -11,7 +11,7 @@ import {
   completeActionIfActorDefeatedAtStart,
   fireContinuousHealsOnActionStart,
 } from "./continuous-heal-service.js";
-import { resolveBindingSelections } from "./action-skill-use-resolver.js";
+import { bindingSelectionsOf } from "./action-skill-use-resolver.js";
 import { applyEffectActionGroups } from "./effect-action-group-resolver.js";
 import { PassiveActivationRuntime } from "./passive-activation-service.js";
 import type { ReservedActionKind } from "../action/action-queue.js";
@@ -433,6 +433,7 @@ export function resolveChargeRelease(
     working,
     definitions.effectActions,
     definitions.unitDefinitions,
+    random,
   );
   const targetUnitIds = plan.targetUnitIds;
 
@@ -464,11 +465,9 @@ export function resolveChargeRelease(
       // `plan`(直前の`resolveChargeReleaseOrder`呼び出し)が既にkind==="CHARGE"を検証済み。
       bindings:
         skill.resolution.kind === "CHARGE"
-          ? resolveBindingSelections(
+          ? bindingSelectionsOf(
               skill.resolution.chargeRelease.targetBindings,
-              actor,
-              working,
-              definitions.unitDefinitions,
+              plan.resolvedBindings,
             )
           : [],
     },

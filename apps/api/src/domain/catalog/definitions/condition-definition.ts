@@ -875,6 +875,20 @@ export function createConditionDefinition(
           `must be "SELECT" (a "${selector.kind}" selector needs resolved TargetBindings, which a PS activation check does not have)`,
         );
       }
+      // R-TGT-11: 発動判定は抽選しない（乱数を消費しない）ため、抽選する
+      // セレクタでは判定した対象と実際の対象が食い違う。
+      for (
+        let current: TargetSelectorDefinition | undefined = selector;
+        current !== undefined;
+        current = current.fallback
+      ) {
+        if (current.order.includes("RANDOM")) {
+          throw new DomainValidationError(
+            `${path}.selector.order`,
+            'order key "RANDOM" cannot be used by SELECTED_TARGET_STATE — the PS activation check resolves without drawing (R-TGT-11)',
+          );
+        }
+      }
       const { field, value } = createTargetStateComparison(input, path);
       return {
         kind: "SELECTED_TARGET_STATE",

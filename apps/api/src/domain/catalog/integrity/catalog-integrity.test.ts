@@ -3547,6 +3547,61 @@ describe("buildCatalogIndex", () => {
       ).not.toThrow();
     });
 
+    it("UT-CAT-IDX-144 [R-TGT-11, R-ACT-02]: rejects an activationCondition that references a RANDOM binding — action selection resolves it without drawing, so the condition would judge different units than the skill hits", () => {
+      const defs = baseDefinitions();
+      const randomEnemy: TargetSelectorDefinitionInput = {
+        kind: "SELECT",
+        side: "ENEMY",
+        count: 1,
+        order: ["RANDOM"],
+      };
+      const countOfRandom: ConditionDefinitionInput = {
+        kind: "TARGET_SET_COUNT",
+        target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
+        op: "GTE",
+        value: 1,
+      };
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [activationConditionSkill(countOfRandom, randomEnemy), exSkill("SKL_EX1", 7)],
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_RANDOM_BINDING/);
+      // fallback側の抽選も同じ束縛の結果になる。
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(countOfRandom, {
+              kind: "SELECT",
+              side: "ENEMY",
+              count: 1,
+              order: ["DEFAULT"],
+              filters: [{ kind: "POSITION_ROW", row: "BACK" }],
+              fallback: randomEnemy,
+            }),
+            exSkill("SKL_EX1", 7),
+          ],
+        }),
+      ).toThrowError(/ACTIVATION_CONDITION_RANDOM_BINDING/);
+      // 抽選しない束縛への参照と、抽選する束縛を参照しない条件は従来どおり受け付ける。
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [
+            activationConditionSkill(countOfRandom, singleEnemySelector),
+            exSkill("SKL_EX1", 7),
+          ],
+        }),
+      ).not.toThrow();
+      expect(() =>
+        buildCatalogIndex({
+          ...defs,
+          skills: [activationConditionSkill({ kind: "TRUE" }, randomEnemy), exSkill("SKL_EX1", 7)],
+        }),
+      ).not.toThrow();
+    });
+
     it("UT-CAT-IDX-097 [R-EFF-02] (Issue #248): scopes a CHARGE skill's activationCondition validation to the charge-start targetBindings only — the release-side bindings are not resolved at action-selection time", () => {
       const defs = baseDefinitions();
       const chargeSkill = (

@@ -62,6 +62,7 @@ const TARGET_ORDER_KEYS = [
   "LEFT_TO_RIGHT",
   "SELF_LOWEST_PRIORITY",
   "ADJACENT_DIRECTION",
+  "RANDOM",
 ] as const;
 export type TargetOrderKey = (typeof TARGET_ORDER_KEYS)[number];
 
@@ -621,6 +622,24 @@ export function createTargetSelectorDefinition(
       `${path}.order`,
       'order key "ADJACENT_DIRECTION" requires area "ADJACENT_ORTHOGONAL" (R-TGT-04)',
     );
+  }
+
+  // R-TGT-11: 抽選は候補順そのものを決めるため、他の比較キーと併用すると
+  // どちらが順位を決めるかが定まらない。また選ぶ数が無いと抽選する意味がない
+  // （全件選ぶなら順番は効果に影響しない）。
+  if (order.includes("RANDOM")) {
+    if (order.length !== 1) {
+      throw new DomainValidationError(
+        `${path}.order`,
+        'order key "RANDOM" must be the only order key (R-TGT-11)',
+      );
+    }
+    if (typeof result.count !== "number") {
+      throw new DomainValidationError(
+        `${path}.count`,
+        'order key "RANDOM" requires a numeric count (R-TGT-11)',
+      );
+    }
   }
 
   if (input.fallback !== undefined) {

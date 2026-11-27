@@ -112,6 +112,22 @@ function validateActivationConditionReferences(
   if (scope === "PASSIVE") {
     return;
   }
+  for (const { reference, path } of collectConditionTargetReferencePaths(
+    activationCondition,
+    "activationCondition",
+  )) {
+    if (
+      reference.kind === "BINDING" &&
+      reference.targetBindingId !== undefined &&
+      bindingDraws(reference.targetBindingId, bindingSelectors)
+    ) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "ACTIVATION_CONDITION_RANDOM_BINDING",
+        message: `${path}: an AS/EX activationCondition references BINDING "${reference.targetBindingId}", which draws its units with order RANDOM — action selection resolves it without drawing (R-TGT-11), so the condition would judge different units than the skill actually targets. Gate on a separate binding that does not draw`,
+      });
+    }
+  }
   for (const { reference, path } of collectTargetStateOrMarkerReferences(
     activationCondition,
     "activationCondition",
@@ -124,6 +140,32 @@ function validateActivationConditionReferences(
       });
     }
   }
+}
+
+/**
+ * R-TGT-11: その束縛の結果が抽選に左右されるか。自身（fallback含む）が`RANDOM`を
+ * 持つか、`BINDING_DERIVED`の基準が抽選する束縛である場合に真。
+ */
+function bindingDraws(
+  targetBindingId: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+  visited: ReadonlySet<string> = new Set(),
+): boolean {
+  if (visited.has(targetBindingId)) {
+    return false;
+  }
+  const selector = bindingSelectors.get(targetBindingId);
+  if (selector === undefined) {
+    return false;
+  }
+  const nextVisited = new Set([...visited, targetBindingId]);
+  const selectorDraws = (candidate: TargetSelectorDefinition): boolean =>
+    candidate.order.includes("RANDOM") ||
+    (candidate.base?.kind === "BINDING" &&
+      candidate.base.targetBindingId !== undefined &&
+      bindingDraws(candidate.base.targetBindingId, bindingSelectors, nextVisited)) ||
+    (candidate.fallback !== undefined && selectorDraws(candidate.fallback));
+  return selectorDraws(selector);
 }
 
 export function validateSkill(

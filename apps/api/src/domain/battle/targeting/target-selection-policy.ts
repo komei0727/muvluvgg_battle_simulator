@@ -23,6 +23,7 @@ import type { TargetReference } from "../../catalog/definitions/references.js";
 import type { TargetBindingId, UnitDefinitionId } from "../../catalog/definitions/catalog-ids.js";
 import type { UnitDefinition } from "../../catalog/definitions/unit-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
+import type { RandomSource } from "../../ports/random-source.js";
 
 const ROW_ORDER: Record<BattleUnit["position"]["row"], number> = { FRONT: 0, BACK: 1 };
 
@@ -483,6 +484,9 @@ const SINGLE_KEY_ORDER_COMPARATORS: Record<
   SLOWEST: () => compareSlowest,
   SELF_LOWEST_PRIORITY: compareSelfLowestPriority,
   ADJACENT_DIRECTION: (_source, base) => compareAdjacentDirection(base),
+  // R-TGT-11: 抽選は比較では表せないため、ここでは既定順（fallback）へ委ね、
+  // 並べ替えた後の候補を`drawRandomOrder`が並べ直す。
+  RANDOM: () => () => 0,
 };
 
 /** TARGET_ORDER_MARKER_COUNTテーマ: Marker所持数（`markerIds`指定時は合計）を比較キーにする。 */
@@ -725,6 +729,41 @@ export interface StealthConsumption {
   readonly effectInstanceId: EffectInstanceId;
 }
 
+/**
+ * R-TGT-11: `RANDOM`をどう扱うか。`PROBE`は選択を確定させない判定（行動選択の
+ * 実行可否・`activationCondition`・PS発動条件）で、乱数を消費せず既定順のまま返す
+ * — 判定のたびに乱数を引くと、同じseedでも判定の回数で以後の乱数列がずれる。
+ * `COMMIT`は実際の解決で、`random`が無ければ抽選できないため拒否する。
+ */
+type TargetDraw =
+  | { readonly mode: "PROBE" }
+  | { readonly mode: "COMMIT"; readonly random: RandomSource | undefined };
+
+const PROBE_DRAW: TargetDraw = { mode: "PROBE" };
+
+/**
+ * R-TGT-11: 既定順に並べた候補をFisher–Yatesで一様に並べ替える。先頭から順に
+ * 「残りの候補からどれを置くか」を1回ずつ引くので、消費する乱数は候補数−1回
+ * （候補が1体以下なら引かない）。
+ */
+function drawRandomOrder(ordered: readonly BattleUnit[], draw: TargetDraw): readonly BattleUnit[] {
+  if (draw.mode === "PROBE") {
+    return ordered;
+  }
+  if (draw.random === undefined) {
+    throw new DomainValidationError(
+      "selector.order",
+      'order key "RANDOM" requires a random source when the selection is committed (R-TGT-11)',
+    );
+  }
+  const shuffled = [...ordered];
+  for (let i = 0; i < shuffled.length - 1; i += 1) {
+    const j = i + Math.floor(draw.random.next() * (shuffled.length - i));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled;
+}
+
 interface ResolveTargetsCoreResult {
   readonly selected: readonly BattleUnit[];
   readonly stealthConsumption?: StealthConsumption;
@@ -867,6 +906,7 @@ function resolveTargetsCore(
   triggerContext: TriggerContext | undefined,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId>,
+  draw: TargetDraw,
 ): ResolveTargetsCoreResult {
   if (
     selector.order.includes("ADJACENT_DIRECTION") &&
@@ -932,7 +972,9 @@ function resolveTargetsCore(
   }
 
   // R-TGT-09 #5: orderを比較キーとして適用し、候補順を一意にする。
-  const ordered = [...pool].sort(compare);
+  const sorted = [...pool].sort(compare);
+  // R-TGT-11: 抽選は既定順を起点にし、ステルス（R-TGT-08）より前に行う。
+  const ordered = selector.order.includes("RANDOM") ? drawRandomOrder(sorted, draw) : sorted;
 
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
@@ -966,6 +1008,7 @@ function resolveTargetsCore(
       triggerContext,
       unitDefinitions,
       alreadyConsumedStealthEffectInstanceIds,
+      draw,
     );
   }
   return {
@@ -992,6 +1035,7 @@ export function resolveTargets(
     triggerContext,
     unitDefinitions,
     EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS,
+    PROBE_DRAW,
   ).selected;
 }
 
@@ -1000,9 +1044,10 @@ export function resolveTargets(
  * （あれば）も返す。実際の失効・`EffectExpired`（reason:"CONSUMPTION"）発行は
  * 呼び出し側（`resolveEffectSequence`が集約し、`resolveEffectSequencePlan`が
  * `expireEffects`で適用する）の責務であり、この関数自身は`appliedEffects`を
- * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）や
- * `TargetsSelected`イベントpayload用の監査再解決（`resolveBindingSelections`）は
+ * 変更しない。AS選択時のフィージビリティ判定（`hasResolvableTargets`）は
  * 消費を確定させてはならないため、引き続き`resolveTargets`を使う。
+ * `random`はR-TGT-11の抽選に使う。`RANDOM`を含むセレクタで省略すると拒否する
+ * （選択を確定させる解決で抽選を黙って既定順へ落とさないため）。
  * `alreadyConsumedStealthEffectInstanceIds`（フェーズ2で
  * `EffectInstanceId`ベースへ移行）: 呼び出し元（`resolveEffectSequence`）が
  * 同じ`EffectSequence`内で先行する`targetBindings`から検出済みの消費を渡す
@@ -1017,6 +1062,7 @@ export function resolveTargetsWithStealthConsumption(
   triggerContext?: TriggerContext,
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
   alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId> = EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS,
+  random?: RandomSource,
 ): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
   const result = resolveTargetsCore(
     selector,
@@ -1026,6 +1072,7 @@ export function resolveTargetsWithStealthConsumption(
     triggerContext,
     unitDefinitions,
     alreadyConsumedStealthEffectInstanceIds,
+    { mode: "COMMIT", random },
   );
   return {
     units: result.selected,
