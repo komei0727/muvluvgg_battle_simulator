@@ -5,7 +5,7 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
 
 /**
  * `catalog-src/` の変換済み件数の正本。ここで固定する期待件数（変換済み Unit 87 /
- * Memory 48 / EXERCISE_ENEMY 13）が唯一の台帳であり、Unit・Memory を追加・削除する
+ * Memory 48 / EXERCISE_ENEMY 14）が唯一の台帳であり、Unit・Memory を追加・削除する
  * PR は同じ PR でこの期待値を更新する。黙った増減（変換したのに数え漏れる、
  * 消したのに気づかれない）をここで検出する。
  *
@@ -56,6 +56,7 @@ describe("catalog-src/ inventory", () => {
       "UNIT_LAYLA_NURSE_TEX",
       "UNIT_LYDIA_SUMMER_TEX",
       "UNIT_MAO_SUMMER_TEX",
+      "UNIT_MERU_BESIDE_TEX",
       "UNIT_NANAE_SOVEREIGN_TEX",
       "UNIT_NINA_ZINA_FRONTRUNNER_TEX",
       "UNIT_OLGA_NADYA_BOND_TEX",

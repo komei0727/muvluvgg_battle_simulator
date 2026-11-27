@@ -1569,6 +1569,35 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_MERU_BESIDE_TEX",
+    "category": "EXERCISE_ENEMY",
+    "exerciseActive": true,
+    "attribute": "SHY",
+    "unitType": "ENERGY",
+    "role": "SUPPORT",
+    "positionAptitudes": ["FRONT"],
+    "baseStats": {
+      "maximumHp": 468000,
+      "attack": 14214,
+      "defense": 7632,
+      "criticalRate": 0.18,
+      "actionSpeed": 525,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_MERU_BESIDE_TEX_AS1", "SKL_MERU_BESIDE_TEX_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_MERU_BESIDE_TEX_PS1", "SKL_MERU_BESIDE_TEX_PS2"],
+    "extraSkillDefinitionId": "SKL_MERU_BESIDE_TEX_EX",
+    "metadata": {
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
+      "tags": [],
+      "displayName": "【隣歩む想い】桃園める",
+      "characterName": "桃園める",
+      "characterId": "CHAR_MERU_MOMOZONO"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_MERU_FLATSPIN",
     "attribute": "COMICAL",
     "unitType": "AGILE",
