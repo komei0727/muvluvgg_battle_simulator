@@ -54,6 +54,15 @@ def test_the_turn_limit_cannot_be_written():
     assert not VALIDATOR.is_valid(match(turnLimit=15))
 
 
+def test_a_memory_repeated_within_a_formation_is_rejected():
+    memories = INLINE["memoryDefinitionIds"]
+    repeated = INLINE | {"memoryDefinitionIds": [memories[0], memories[0]]}
+
+    assert not VALIDATOR.is_valid(match(allyFormations=[repeated]))
+    # 別の編成への再登場は可（R-TWR-01 #4）。
+    assert VALIDATOR.is_valid(match(allyFormations=[INLINE, INLINE]))
+
+
 def test_an_unknown_memory_is_rejected():
     formation = INLINE | {"memoryDefinitionIds": ["MEM_NOPE"]}
 

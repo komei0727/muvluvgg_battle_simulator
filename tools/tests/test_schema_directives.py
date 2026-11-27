@@ -3,7 +3,7 @@
 
 Schemaのファイル名や置き場所を変えると、YAML側の参照は黙って壊れる（エディタの
 補完が効かなくなるだけで、どの検査も落ちない）。ここで参照先を実際に解決して突き合わせる。
-対象は git が追跡しているYAMLだけ——個人の入力（`tools/data/`）は追跡しない。
+対象はリポジトリ全体で git が追跡しているYAMLだけ——個人の入力（`tools/data/`）は追跡しない。
 """
 
 import re
@@ -28,15 +28,26 @@ LABS = (EXERCISE_LAB, BATTLE_LAB, TOTAL_WAR_LAB)
 GENERATED = {file.name for lab in LABS for file in (*common_schema_files(lab.format), *lab.schemas)}
 
 
-def tracked_yaml() -> list[Path]:
+def _git(*args: str) -> str:
     assert TOOLS is not None
+    return subprocess.run(
+        ["git", *args], cwd=TOOLS, capture_output=True, check=True, text=True
+    ).stdout
+
+
+# tools/ の中から `git ls-files` すると tools/ 配下しか列挙しないので、
+# リポジトリのルートから数える。
+REPOSITORY = Path(_git("rev-parse", "--show-toplevel").strip())
+
+
+def tracked_yaml() -> list[Path]:
     listed = subprocess.run(
         ["git", "ls-files", "-z", "--", "*.yaml", "*.yml"],
-        cwd=TOOLS,
+        cwd=REPOSITORY,
         capture_output=True,
         check=True,
     ).stdout
-    return [TOOLS / name for name in listed.decode().split("\0") if name]
+    return [REPOSITORY / name for name in listed.decode().split("\0") if name]
 
 
 def directives() -> list[tuple[Path, str]]:
@@ -56,22 +67,29 @@ def test_the_generated_names_do_not_collide_between_labs():
     assert not set(names) & {file.name for file in common_schema_files("BATTLE")}
 
 
+def test_the_whole_repository_is_searched():
+    # tools/ の外に置いたYAMLの参照も検査の対象にする。
+    assert any(TOOLS not in path.parents for path in tracked_yaml())
+
+
 def test_every_lab_sample_points_at_a_schema():
-    pointed = {path.relative_to(TOOLS).as_posix() for path, _ in directives()}
+    pointed = {path.relative_to(REPOSITORY).as_posix() for path, _ in directives()}
 
     assert {
-        "exercise-lab/configs/evaluation.example.yaml",
-        "battle-lab/configs/match.example.yaml",
-        "battle-lab/configs/evaluation.example.yaml",
-        "total-war-lab/configs/match.example.yaml",
-        "total-war-lab/configs/evaluation.example.yaml",
+        "tools/exercise-lab/configs/evaluation.example.yaml",
+        "tools/battle-lab/configs/match.example.yaml",
+        "tools/battle-lab/configs/evaluation.example.yaml",
+        "tools/total-war-lab/configs/match.example.yaml",
+        "tools/total-war-lab/configs/evaluation.example.yaml",
     } <= pointed
 
 
 @pytest.mark.parametrize(
     ("path", "target"),
     directives(),
-    ids=lambda value: value.relative_to(TOOLS).as_posix() if isinstance(value, Path) else value,
+    ids=lambda value: (
+        value.relative_to(REPOSITORY).as_posix() if isinstance(value, Path) else value
+    ),
 )
 def test_the_directive_resolves_to_a_generated_schema(path, target):
     resolved = (path.parent / target).resolve()

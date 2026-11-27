@@ -191,14 +191,16 @@ _IMPORTED_LIBRARY_HEADER = """\
 def _schema_path(out: Path | None, name: str, *, recommended_depth: int) -> str:
     """書き出すファイルから `tools/.schema/<name>` への相対パス。
 
-    出力先が分からない（標準出力）か workspace の外なら、推奨の置き場所から数えた
-    深さ（編成ライブラリは `data/inputs/formations/` で3、編成定義は `<lab>/configs/` で2）
-    を前提にする。
+    workspace は出力先から上へ探し、見つからなければ（workspace の外へ書き出すとき）
+    実行ディレクトリから探す。出力先が分からない（標準出力）か、どちらからも
+    見つからなければ、推奨の置き場所から数えた深さ（編成ライブラリは
+    `data/inputs/formations/` で3、編成定義は `<lab>/configs/` で2）を前提にする。
     """
     if out is not None:
-        schema_dir = default_schema_dir(out.resolve().parent)
+        directory = out.resolve().parent
+        schema_dir = default_schema_dir(directory) or default_schema_dir()
         if schema_dir is not None:
-            return Path(os.path.relpath(schema_dir / name, out.resolve().parent)).as_posix()
+            return Path(os.path.relpath(schema_dir / name, directory)).as_posix()
     return "/".join([".."] * recommended_depth + [SCHEMA_DIR.as_posix(), name])
 
 

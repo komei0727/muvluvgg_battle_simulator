@@ -64,6 +64,12 @@ def build_formation_library_json_schema(catalog: Catalog) -> dict[str, Any]:
         catalog, PLAYABLE
     )
     schema["properties"]["memoryDefinitionIds"]["items"] = memory_enum(catalog)
+    # 編成ライブラリは学園レベルを持てないので、ユニットの強化指定は参照した時点で
+    # `validate_formation` が必ず拒否する。書いた時点で分かるようにする。
+    schema["properties"]["units"]["items"] = {
+        **schema["properties"]["units"]["items"],
+        **_no_unit_enhancement(),
+    }
 
     return finish_schema(schema, catalog, title="formation library entry")
 
@@ -170,20 +176,19 @@ def require_academy_levels_for_unit_enhancement(formation: dict[str, Any]) -> No
     `level: null` 単体（Schemaは拒否するがローダーは通す）で判定が逆転する。
     """
     formation["if"] = {"not": _present("academyLevels")}
-    formation["then"] = {
-        "properties": {
-            "units": {
-                "items": {
-                    "not": {
-                        "anyOf": [
-                            _present("level"),
-                            _present("rank"),
-                            _present("gears"),
-                            _present("module"),
-                        ]
-                    }
-                },
-            }
+    formation["then"] = {"properties": {"units": {"items": _no_unit_enhancement()}}}
+
+
+def _no_unit_enhancement() -> dict[str, Any]:
+    """ユニットに `level` / `rank` / `gears` / `module` の非nullの値が無い、という条件。"""
+    return {
+        "not": {
+            "anyOf": [
+                _present("level"),
+                _present("rank"),
+                _present("gears"),
+                _present("module"),
+            ]
         }
     }
 

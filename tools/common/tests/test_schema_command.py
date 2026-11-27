@@ -10,10 +10,11 @@ from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
 from mlgg_lab_common.cli import LabCommands, build_lab_app
-from mlgg_lab_common.inputs.catalog import CATALOG_PATH, DEFAULT_BASE_URL
+from mlgg_lab_common.inputs.catalog import CATALOG_PATH, DEFAULT_BASE_URL, Catalog
 from mlgg_lab_common.inputs.schema import (
     FORMATION_LIBRARY_SCHEMA,
     SchemaFile,
+    build_formation_library_json_schema,
     finish_schema,
     schema_name,
 )
@@ -215,3 +216,16 @@ def test_labs_sharing_the_output_keep_their_own_evaluation_schemas(tmp_path):
     total_war = read(tmp_path / "total-war.evaluation.schema.json")
     assert battle["properties"]["format"]["const"] == "BATTLE"
     assert total_war["properties"]["format"]["const"] == "TOTAL_WAR"
+
+
+def test_the_library_schema_rejects_unit_enhancement():
+    # 編成ライブラリは学園レベルを持てないので、参照した時点でローダーが拒否する強化指定は
+    # 書いた時点で弾く。
+    catalog = Catalog.model_validate(CATALOG_BODY)
+    validator = Draft202012Validator(build_formation_library_json_schema(catalog))
+    unit = {"unitDefinitionId": "UNIT_A", "position": {"column": 0, "row": "FRONT"}}
+
+    assert validator.is_valid({"units": [unit]})
+    for field, value in (("level", 240), ("rank", 5), ("gears", []), ("module", {})):
+        assert not validator.is_valid({"units": [unit | {field: value}]}), field
+    assert validator.is_valid({"units": [unit | {"level": None}]})

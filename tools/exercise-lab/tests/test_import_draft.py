@@ -156,9 +156,26 @@ def test_match_directive_follows_where_the_file_is_written(tmp_path):
     ]
 
 
-def test_without_a_known_destination_the_directive_assumes_the_recommended_place(tmp_path):
-    # 標準出力やworkspaceの外では置き場所が分からないので、推奨の置き場所
-    # （編成ライブラリは data/inputs/formations/、編成定義は <lab>/configs/）を前提にする。
+def test_outside_the_workspace_the_directive_follows_the_working_directory(tmp_path, monkeypatch):
+    root = make_workspace(tmp_path)
+    monkeypatch.chdir(root)
+    source = write_draft(tmp_path)
+    out = tmp_path / "elsewhere" / "formation.yaml"
+
+    runner.invoke(app, ["import-draft", str(source), "-o", str(out)])
+
+    assert directive_lines(out.read_text(encoding="utf-8")) == [
+        "## yaml-language-server: $schema=../tools/.schema/exercise.match.schema.json"
+    ]
+
+
+def test_without_a_known_destination_the_directive_assumes_the_recommended_place(
+    tmp_path, monkeypatch
+):
+    # 標準出力や、出力先・実行ディレクトリのどちらからも workspace が見つからないときは
+    # 置き場所が分からないので、推奨の置き場所（編成ライブラリは data/inputs/formations/、
+    # 編成定義は <lab>/configs/）を前提にする。
+    monkeypatch.chdir(tmp_path)
     source = write_draft(tmp_path)
 
     library = runner.invoke(app, ["import-draft", str(source), "--library"])

@@ -5,8 +5,8 @@
 （`{ library: <id> }`）で、両陣営とも `PLAYABLE`（R-TWR-01 #6）。規定ターン数は
 15で固定なので項目を持たない（R-TWR-01 #5）。
 
-編成内のユニット・メモリーの重複（R-TWR-01 #3／#4）と配置重複は、要素の一部に
-ついての一意性でJSON Schemaでは表せないため、ローダーだけが落とす。
+編成内のメモリーの重複（R-TWR-01 #4）は `uniqueItems` で表す。ユニットの重複（#3）と
+配置重複は、要素の一部についての一意性でJSON Schemaでは表せないため、ローダーだけが落とす。
 """
 
 from __future__ import annotations
@@ -30,6 +30,9 @@ MATCH_SCHEMA = schema_name(FORMAT, "match")
 def build_total_war_match_json_schema(catalog: Catalog) -> dict[str, Any]:
     schema: dict[str, Any] = TotalWarMatch.model_json_schema(by_alias=True)
     apply_formation_catalog(schema["$defs"], catalog, PLAYABLE)
+    # 1編成内のメモリー重複（R-TWR-01 #4）。文字列の配列なので `uniqueItems` で表せる。
+    # `FormationSpec` の定義は各編成の要素なので、別の編成への再登場は妨げない。
+    schema["$defs"]["FormationSpec"]["properties"]["memoryDefinitionIds"]["uniqueItems"] = True
     properties = schema["properties"]
     for field in ("allyFormations", "enemyFormations"):
         properties[field]["items"] = formation_entry(properties[field]["items"])
