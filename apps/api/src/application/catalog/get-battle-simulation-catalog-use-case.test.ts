@@ -516,6 +516,36 @@ describe("GetBattleSimulationCatalogUseCase", () => {
     });
   });
 
+  it("UT-CATALOG-LABEL-012 [R-DMG-08]: publishes a CONSTANT skill power bonus powerDelta as constantMagnitude", () => {
+    const effects = [
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+          kind: "APPLY_SKILL_POWER_BONUS",
+          payload: {
+            powerDelta: { kind: "CONSTANT", value: 0.075 },
+            stacking: { mode: "STACKABLE" },
+            duration: BUFF_DURATION,
+          },
+        },
+        "effectAction",
+      ),
+    ];
+    const useCase = new GetBattleSimulationCatalogUseCase({
+      battleCatalogDirectory: new FakeBattleCatalogDirectory(
+        snapshotOf({ effectActions: toMap(effects, (e) => e.effectActionDefinitionId) }),
+      ),
+    });
+
+    const [summary] = useCase.execute().effects;
+
+    expect(summary).toEqual({
+      effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+      kind: "APPLY_SKILL_POWER_BONUS",
+      constantMagnitude: 0.075,
+    });
+  });
+
   it("UT-CATALOG-LABEL-005: does not expose Skill or EffectAction resolution shapes (cost, steps, formula, duration) in the summaries", () => {
     const unit = unitDefinition("UNIT_A", { activeSkillDefinitionIds: ["SKL_A"] });
     const snapshot = snapshotOf({

@@ -38,6 +38,11 @@ export interface DamageCalculationInput {
    * `skillPowerFormula`が`SKILL_POWER`の場合だけスキル威力へ掛かる。未指定は1倍。
    */
   readonly skillPowerMultiplier?: number;
+  /**
+   * R-DMG-08: 攻撃側の`APPLY_SKILL_POWER_BONUS`の加算値の合計（Catalogの`power`と同じ尺度）。
+   * `skillPowerFormula`が`SKILL_POWER`の場合だけ、倍率より先に威力へ足す。未指定は0。
+   */
+  readonly skillPowerBonus?: number;
   /** R-NUM-04: `skillPowerFormula`/`damageModifiers`を評価するための実行時文脈。 */
   readonly formulaContext: FormulaEvaluationContext;
   /**
@@ -81,6 +86,11 @@ export interface DamageCalculationResult {
    * `SKILL_POWER`以外のFormulaでは常に1。
    */
   readonly skillPowerMultiplier: number;
+  /**
+   * R-DMG-08: スキル威力へ実際に足した加算値の合計。補正後の威力は
+   * `max(0, skillPower + skillPowerBonus) × skillPowerMultiplier`。`SKILL_POWER`以外のFormulaでは常に0。
+   */
+  readonly skillPowerBonus: number;
   readonly attributeMultiplier: number;
   /**
    * R-ATR-01の有利属性判定（DMG-012）。`attributeMultiplier === 1`は「有利でない」と
@@ -212,9 +222,13 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   // Formula（評価結果そのものが基礎ダメージ、R-DMG-01）には掛けない。
   const skillPowerMultiplier =
     input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerMultiplier ?? 1) : 1;
+  const skillPowerBonus =
+    input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerBonus ?? 0) : 0;
+  // 加算値は威力の数値へ足すため、倍率より先に適用する。負の加算で威力が負にならないよう0で止める。
+  const bonusedSkillPower = Math.max(0, skillPower + skillPowerBonus);
   const preTruncationDamage =
     baseDamage *
-    skillPower *
+    bonusedSkillPower *
     skillPowerMultiplier *
     attributeMultiplier *
     input.criticalMultiplier *
@@ -229,6 +243,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     skillPower,
     skillPowerFormulaKind: input.skillPowerFormula.kind,
     skillPowerMultiplier,
+    skillPowerBonus,
     attributeMultiplier,
     isFavorableAttribute: favorable,
     isSubAttributeFavorable: subFavorable,

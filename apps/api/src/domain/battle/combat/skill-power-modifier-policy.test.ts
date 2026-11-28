@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { composeSkillPowerMultiplier } from "./skill-power-modifier-policy.js";
+import {
+  composeSkillPowerBonus,
+  composeSkillPowerMultiplier,
+} from "./skill-power-modifier-policy.js";
 import {
   attackDamageBonusEffect,
+  skillPowerBonusEffect,
   skillPowerModifierEffect,
 } from "../../../testing/fixtures/damage-application.js";
 import { testBattleUnit } from "../../../testing/fixtures/battle-actors.js";
@@ -39,5 +43,37 @@ describe("composeSkillPowerMultiplier (R-DMG-08)", () => {
       ],
     };
     expect(composeSkillPowerMultiplier(attacker)).toBe(0);
+  });
+});
+
+describe("composeSkillPowerBonus (R-DMG-08)", () => {
+  it("UT-R-DMG-08-018: sums every held skill power bonus", () => {
+    const attacker = {
+      ...enemyActor("E1"),
+      appliedEffects: [
+        skillPowerBonusEffect("EF_1", "E1", 0.075),
+        skillPowerBonusEffect("EF_2", "E1", 0.075),
+        skillPowerBonusEffect("EF_3", "E1", -0.05),
+      ],
+    };
+    expect(composeSkillPowerBonus(attacker)).toBeCloseTo(0.1, 12);
+  });
+
+  it("UT-R-DMG-08-019 (negative): ignores multiplicative skill power modifiers and other effects", () => {
+    const attacker = {
+      ...enemyActor("E1"),
+      appliedEffects: [
+        skillPowerModifierEffect("EF_1", "E1", -0.75),
+        attackDamageBonusEffect("EF_2", "E1", 0.5),
+      ],
+    };
+    expect(composeSkillPowerBonus(attacker)).toBe(0);
+    // 加算値は乗算の倍率にも混ざらない。
+    expect(
+      composeSkillPowerMultiplier({
+        ...enemyActor("E1"),
+        appliedEffects: [skillPowerBonusEffect("EF_3", "E1", 0.075)],
+      }),
+    ).toBe(1);
   });
 });

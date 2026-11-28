@@ -391,10 +391,10 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         totalHits++;
 
         // R-SUB-02の追加ヒットは基礎ダメージの項を持たない（`skillPower`がFormula
-        // 評価結果そのもの）。省略は乗算の中立値1として読む。
+        // 評価結果そのもの）。省略は乗算の中立値1、威力の加算値（R-DMG-08）は0として読む。
         const rawExpected =
           num("baseDamage", 1) *
-          num("skillPower", 1) *
+          Math.max(0, num("skillPower", 1) + num("skillPowerBonus", 0)) *
           num("skillPowerMultiplier", 1) *
           num("attributeMultiplier", 1) *
           num("criticalMultiplier", 1) *

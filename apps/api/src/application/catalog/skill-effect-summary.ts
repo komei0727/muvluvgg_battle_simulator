@@ -32,9 +32,9 @@ export interface BattleSimulationSkillSummary {
  * `effectActionDefinitionId`を「何をどれだけ変える効果か」へ読み替えるための
  * 表示用要約。分類項目はそのkindが宣言するものだけを持つ。
  *
- * `constantMagnitude`は`formula`（`APPLY_SKILL_POWER_MOD`は`rateDelta`）が`CONSTANT`のときの
- * 値で、付与時に評価される
- * `EffectApplied.magnitude`と同じ尺度である。それ以外のFormulaは付与ごとに
+ * `constantMagnitude`は`formula`（`APPLY_SKILL_POWER_MOD`は`rateDelta`、`APPLY_SKILL_POWER_BONUS`は
+ * `powerDelta`）が`CONSTANT`のときの値で、付与時に評価される`EffectApplied.magnitude`と
+ * 同じ尺度である。それ以外のFormulaは付与ごとに
  * 値が変わるため公開しない（量は戦闘ログ側の`magnitude`が持つ）。
  */
 export interface BattleSimulationEffectSummary {
@@ -130,6 +130,8 @@ function classificationOf(
       return { status: effect.payload.status };
     case "APPLY_SKILL_POWER_MOD":
       return constantMagnitudeOf(effect.payload.rateDelta);
+    case "APPLY_SKILL_POWER_BONUS":
+      return constantMagnitudeOf(effect.payload.powerDelta);
     default:
       return {};
   }

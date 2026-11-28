@@ -375,4 +375,20 @@ export const EFFECT_KIND_COVERAGE: Readonly<Record<EffectActionKind, EffectKindC
       "SCN-BTL-040",
     ],
   },
+  // 付与時magnitude（威力と同じ尺度の加算値）・合計・倍率より先の加算・0下限・SKILL_POWER限定・
+  // 多段攻撃と追撃への適用をskill-power-modifier-policy／damage-calculator／
+  // damage-application-service.skill-power、付与から多段攻撃・ターン終了での失効までをSCN-BTL-041が検証する。
+  APPLY_SKILL_POWER_BONUS: {
+    ruleIds: ["R-DMG-08"],
+    testCaseIds: [
+      "UT-R-DMG-08-013",
+      "UT-R-DMG-08-014",
+      "UT-R-DMG-08-016",
+      "UT-R-DMG-08-018",
+      "UT-R-DMG-08-020",
+      "UT-R-DMG-08-021",
+      "UT-R-DMG-08-022",
+      "SCN-BTL-041",
+    ],
+  },
 };

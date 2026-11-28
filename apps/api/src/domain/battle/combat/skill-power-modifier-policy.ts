@@ -14,3 +14,16 @@ export function composeSkillPowerMultiplier(attacker: BattleUnit): number {
     1,
   );
 }
+
+/**
+ * R-DMG-08: 攻撃側が保持する`APPLY_SKILL_POWER_BONUS`（`isSkillPowerBonus`）の加算値を合計する。
+ * 値はCatalogの`power`と同じ尺度で、威力の数値へ足す（威力84.8へ+7.5なら92.3）。
+ * 威力ごとに割合が変わるため、乗算の倍率（`composeSkillPowerMultiplier`）とは合成しない。
+ * stackingは`STACKABLE`のみなので、保持している全インスタンスが常に有効。
+ */
+export function composeSkillPowerBonus(attacker: BattleUnit): number {
+  return attacker.appliedEffects.reduce(
+    (sum, effect) => (effect.isSkillPowerBonus === true ? sum + effect.magnitude : sum),
+    0,
+  );
+}

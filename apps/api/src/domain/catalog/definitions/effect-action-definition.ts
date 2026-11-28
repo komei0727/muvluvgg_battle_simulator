@@ -14,6 +14,7 @@ import type {
   ApplyMarkerPayload,
   ApplyReflectPayload,
   ApplyResourceGainModPayload,
+  ApplySkillPowerBonusPayload,
   ApplySkillPowerModPayload,
   ApplyShieldPayload,
   ApplyStatModPayload,
@@ -68,6 +69,7 @@ export const EFFECT_ACTION_KINDS = [
   "APPLY_FOLLOW_UP_ATTACK",
   "APPLY_RESOURCE_GAIN_MOD",
   "APPLY_SKILL_POWER_MOD",
+  "APPLY_SKILL_POWER_BONUS",
 ] as const;
 export type EffectActionKind = (typeof EFFECT_ACTION_KINDS)[number];
 
@@ -102,7 +104,8 @@ export type EffectActionPayload =
     }
   | { readonly kind: "APPLY_FOLLOW_UP_ATTACK"; readonly payload: ApplyFollowUpAttackPayload }
   | { readonly kind: "APPLY_RESOURCE_GAIN_MOD"; readonly payload: ApplyResourceGainModPayload }
-  | { readonly kind: "APPLY_SKILL_POWER_MOD"; readonly payload: ApplySkillPowerModPayload };
+  | { readonly kind: "APPLY_SKILL_POWER_MOD"; readonly payload: ApplySkillPowerModPayload }
+  | { readonly kind: "APPLY_SKILL_POWER_BONUS"; readonly payload: ApplySkillPowerBonusPayload };
 
 export type EffectActionDefinition = EffectActionPayload & {
   readonly effectActionDefinitionId: EffectActionDefinitionId;

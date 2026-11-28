@@ -878,6 +878,7 @@ metadata:
 | `APPLY_ATTACK_DAMAGE_BONUS` | 攻撃のあとに発生する追加攻撃バフ         |
 | `APPLY_FOLLOW_UP_ATTACK`    | 攻撃に相乗りする追撃バフ                 |
 | `APPLY_SKILL_POWER_MOD`     | スキル威力の増減（乗算で合成）           |
+| `APPLY_SKILL_POWER_BONUS`   | スキル威力の数値への加算                 |
 | `COOLDOWN_MANIPULATION`     | 他スキルのクールタイム短縮・リセット     |
 
 ---
@@ -1053,7 +1054,7 @@ payload:
 
 - `STACKABLE`（重複あり）は保持している全インスタンスを合成する。
 - `NON_STACKABLE`（重複なし）は同じ `EffectKindKey` のグループ内で最も強い1件だけを合成する。グループの単位は下記の `kindKey` が決める。
-- `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`・`APPLY_SKILL_POWER_MOD`）は合成経路が全インスタンスの合算（`APPLY_SKILL_POWER_MOD`は乗算）だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
+- `NON_STACKABLE` は `APPLY_STAT_MOD` だけが宣言できる。他の `stacking` 保持kind（`APPLY_DAMAGE_MOD`・`APPLY_HEALING_MOD`・`APPLY_RESOURCE_GAIN_MOD`・`APPLY_SKILL_POWER_MOD`・`APPLY_SKILL_POWER_BONUS`）は合成経路が全インスタンスの合算（`APPLY_SKILL_POWER_MOD`は乗算）だけを実装しており、受理しても何も変わらない「受理されるが効かない定義」になるため、Mapperは引き続き `STACKABLE` のみを許可する。
 
 `stacking.max`（重複上限、`APPLY_MARKER` の `stack.max` に対応、`APPLY_STAT_MOD` 専用）:
 
@@ -1366,6 +1367,33 @@ payload:
 | `duration`  | DurationDefinition | 「この行動内」は`timeLimit { unit: ACTION, count: 1, owner: BATTLE, countGrantAction: true }`で表す（付与した行動の完了で失効する） |
 
 適用は`formula.kind: SKILL_POWER`のダメージ（追撃を含む）に限り、HP割合などそれ以外のFormula・サブユニット追加ダメージ・反射・継続ダメージ・回復には掛からない。効果分類は`rateDelta`の符号で決まり（負ならデバフ）、`DAMAGE_MOD`には含まれない。
+
+### APPLY_SKILL_POWER_BONUS
+
+`07_戦闘ルール詳細.md` R-DMG-08 #9〜#11。保持者が攻撃側になる`SKILL_POWER`ダメージのスキル威力の**数値**へ加算する継続効果。`powerDelta`を付与時点に一度だけ評価し、結果を`AppliedEffect.magnitude`へ保持する。スキルごとに威力が違うため、割合の`APPLY_SKILL_POWER_MOD`では同じ効果を表せない。
+
+```yaml
+kind: APPLY_SKILL_POWER_BONUS
+payload:
+  powerDelta:
+    kind: CONSTANT
+    value: 0.075
+  stacking:
+    mode: STACKABLE
+  duration:
+    dispellable: true
+    timeLimit:
+      unit: TURN
+      count: 1
+```
+
+| フィールド   | 型                 | 制約                                                                                                     |
+| ------------ | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `powerDelta` | FormulaDefinition  | Catalogの`power`と同じ尺度の加算値（wikiの「スキル威力を7.5上昇」は`0.075`）。付与時点で一度だけ評価する |
+| `stacking`   | object             | `STACKABLE`のみ許可。保持している全インスタンスを合計する                                                |
+| `duration`   | DurationDefinition | 通常の期間定義                                                                                           |
+
+補正後のスキル威力は`max(0, power + Σ powerDelta) × Π max(0, 1 + rateDelta)`（加算を先、`APPLY_SKILL_POWER_MOD`の乗算を後）。適用範囲・効果分類は`APPLY_SKILL_POWER_MOD`と同じで、多段攻撃の各ヒット・追撃・PSの反撃にも乗る。
 
 ### APPLY_STATUS
 

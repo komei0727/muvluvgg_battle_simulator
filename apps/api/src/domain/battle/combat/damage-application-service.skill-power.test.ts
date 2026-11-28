@@ -10,6 +10,7 @@ import {
   damageAction,
   hit,
   damageEventContext,
+  skillPowerBonusEffect,
   skillPowerModifierEffect,
 } from "../../../testing/fixtures/damage-application.js";
 
@@ -91,6 +92,87 @@ describe("skill power modifier on damage application (R-DMG-08)", () => {
     expect(damageCalculatedPayloads(context)[0]).toMatchObject({
       skillPowerMultiplier: 0.25,
       finalDamage: 12,
+    });
+  });
+});
+
+/** R-DMG-08: 攻撃側のスキル威力の加算値が、多段攻撃の各ヒットと追撃に乗ること。 */
+describe("skill power bonus on damage application (R-DMG-08)", () => {
+  it("UT-R-DMG-08-020: adds the bonus to every hit of a multi-hit DAMAGE and records it", () => {
+    const context = damageEventContext();
+    const attacker: BattleUnit = {
+      ...unit("ATTACKER", "ALLY", { attack: 110 }),
+      appliedEffects: [
+        skillPowerBonusEffect("EF_SPB", "ATTACKER", 0.5),
+        skillPowerModifierEffect("EF_SP", "ATTACKER", -0.5),
+      ],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 5000 });
+
+    const result = applyDamageAction(
+      attacker,
+      [0, 1, 2, 3, 4].map((index) => hit("TARGET", index)),
+      damageAction(),
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // (110 - 10) × (威力1 + 0.5) × 0.5 = 75 を5ヒット。
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)?.currentHp).toBe(
+      5000 - 75 * 5,
+    );
+    const payloads = damageCalculatedPayloads(context);
+    expect(payloads).toHaveLength(5);
+    for (const payload of payloads) {
+      expect(payload).toMatchObject({
+        skillPower: 1,
+        skillPowerBonus: 0.5,
+        skillPowerMultiplier: 0.5,
+        finalDamage: 75,
+      });
+    }
+  });
+
+  it("UT-R-DMG-08-021: also adds the bonus to the holder's follow-up attack", () => {
+    const context = damageEventContext();
+    const attacker: BattleUnit = {
+      ...unit("ATTACKER", "ALLY", { attack: 60 }),
+      appliedEffects: [skillPowerBonusEffect("EF_SPB", "ATTACKER", 0.5)],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 500 });
+    const working = new Map<BattleUnitId, BattleUnit>([
+      [attacker.battleUnitId, attacker],
+      [target.battleUnitId, target],
+    ]);
+
+    const gen = applyFollowUpAttacksSteps(
+      context,
+      working,
+      new SequenceRandomSource([]),
+      attacker.battleUnitId,
+      [
+        {
+          effectActionDefinitionId: createEffectActionDefinitionId("ACT_FOLLOW_UP_RIDER"),
+          sourceUnitId: createBattleUnitId("GRANTOR"),
+          damageType: "EN",
+          formula: { kind: "SKILL_POWER", power: 1 },
+        },
+      ],
+      [target.battleUnitId],
+      false,
+      context.parentEventId,
+    );
+    let step = gen.next();
+    while (!step.done) {
+      step = gen.next(step.value.units);
+    }
+
+    // (60 - 10) × (1 + 0.5) = 75。
+    expect(working.get(target.battleUnitId)?.currentHp).toBe(500 - 75);
+    expect(damageCalculatedPayloads(context)[0]).toMatchObject({
+      skillPowerBonus: 0.5,
+      finalDamage: 75,
     });
   });
 });

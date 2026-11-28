@@ -398,6 +398,12 @@ export interface BattleDomainEventPayloadMap {
      * Formula・サブユニット追加ヒットでは常に1。
      */
     readonly skillPowerMultiplier: number;
+    /**
+     * R-DMG-08: スキル威力へ足した攻撃側の`APPLY_SKILL_POWER_BONUS`の合計。補正後の威力は
+     * `max(0, skillPower + skillPowerBonus) × skillPowerMultiplier`。`SKILL_POWER`以外の
+     * Formula・サブユニット追加ヒットでは常に0。
+     */
+    readonly skillPowerBonus: number;
     readonly attributeMultiplier: number;
     /**
      * R-ATR-01／R-ATR-02の内訳（DMG-012）。`attributeMultiplier === 1`は「有利でない」と

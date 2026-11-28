@@ -501,4 +501,54 @@ describe("applyEffectActionGroups", () => {
       );
     });
   });
+
+  describe("APPLY_SKILL_POWER_BONUS (R-DMG-08)", () => {
+    const skillPowerBonus: EffectActionDefinition = {
+      kind: "APPLY_SKILL_POWER_BONUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_BONUS"),
+      metadata: { tags: [] },
+      payload: {
+        powerDelta: { kind: "CONSTANT", value: 0.075 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "TURN", count: 1, owner: "BATTLE" },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+
+    it("UT-R-DMG-08-022: grants the bonus as a stackable skill power bonus holding the evaluated value", () => {
+      const actor = unit("ACTOR", "ALLY");
+      const { recorder, rootEventId } = seedRecorder();
+      const context = contextFor(
+        actor,
+        new Map([[skillPowerBonus.effectActionDefinitionId, skillPowerBonus]]),
+        recorder,
+        rootEventId,
+      );
+      const plan: EffectSequencePlan = {
+        stealthConsumptions: [],
+        steps: [
+          singleActionStep(0, true, actor.battleUnitId, skillPowerBonus.effectActionDefinitionId),
+        ],
+        targetUnitIds: [actor.battleUnitId],
+        resolvedBindings: new Map(),
+      };
+
+      const once = applyEffectActionGroups(plan, [actor], context);
+      const twice = applyEffectActionGroups(plan, once.units, context);
+
+      const updatedActor = twice.units.find((u) => u.battleUnitId === actor.battleUnitId)!;
+      expect(updatedActor.appliedEffects).toHaveLength(2);
+      for (const effect of updatedActor.appliedEffects) {
+        expect(effect).toMatchObject({
+          magnitude: 0.075,
+          isSkillPowerBonus: true,
+          categories: ["BUFF"],
+        });
+        expect(effect.isSkillPowerModifier).toBeUndefined();
+      }
+    });
+  });
 });

@@ -267,6 +267,59 @@ describe("EffectActionDefinition", () => {
     ).toThrow(DomainValidationError);
   });
 
+  it("UT-CAT-ACT-157 [R-DMG-08]: maps APPLY_SKILL_POWER_BONUS with a powerDelta on the Catalog power scale", () => {
+    const result = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+        kind: "APPLY_SKILL_POWER_BONUS",
+        payload: {
+          powerDelta: { kind: "CONSTANT", value: 0.075 },
+          stacking: { mode: "STACKABLE" },
+          duration: { dispellable: true, timeLimit: { unit: "TURN", count: 1 } },
+        },
+      },
+      "effectAction",
+    );
+    expect(result).toMatchObject({
+      kind: "APPLY_SKILL_POWER_BONUS",
+      payload: {
+        powerDelta: { kind: "CONSTANT", value: 0.075 },
+        stacking: { mode: "STACKABLE" },
+        duration: { timeLimit: { unit: "TURN", count: 1 } },
+      },
+    });
+  });
+
+  it("UT-CAT-ACT-158 [R-DMG-08]: rejects APPLY_SKILL_POWER_BONUS without powerDelta, with rateDelta, or with NON_STACKABLE", () => {
+    const duration = { timeLimit: { unit: "TURN", count: 1 } };
+    const create = (payload: Record<string, unknown>) => () =>
+      createEffectActionDefinition(
+        {
+          effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+          kind: "APPLY_SKILL_POWER_BONUS",
+          payload,
+        },
+        "effectAction",
+      );
+    expect(create({ stacking: { mode: "STACKABLE" }, duration })).toThrow(DomainValidationError);
+    // 乗算の`APPLY_SKILL_POWER_MOD`の欄を取り違えた定義は受理しない。
+    expect(
+      create({
+        powerDelta: { kind: "CONSTANT", value: 0.075 },
+        rateDelta: { kind: "CONSTANT", value: 0.075 },
+        stacking: { mode: "STACKABLE" },
+        duration,
+      }),
+    ).toThrow(DomainValidationError);
+    expect(
+      create({
+        powerDelta: { kind: "CONSTANT", value: 0.075 },
+        stacking: { mode: "NON_STACKABLE" },
+        duration,
+      }),
+    ).toThrow(DomainValidationError);
+  });
+
   it("UT-CAT-ACT-007: maps APPLY_TARGET_REDIRECT with a SELF redirect", () => {
     const result = createEffectActionDefinition(
       {

@@ -506,6 +506,70 @@ describe("calculateDamage skill power modifier (R-DMG-08)", () => {
   });
 });
 
+describe("calculateDamage skill power bonus (R-DMG-08)", () => {
+  it("UT-R-DMG-08-013: adds the bonus to the skill power value (84.8 + 7.5 = 92.3)", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
+        skillPowerBonus: 0.075,
+      }),
+    );
+    // `skillPower`はCatalogの威力のまま残し、加算値は別欄で公開する。
+    expect(result.skillPower).toBe(0.848);
+    expect(result.skillPowerBonus).toBe(0.075);
+    expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.923, 10);
+  });
+
+  it("UT-R-DMG-08-014: applies the bonus before the multiplicative skill power modifier", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 },
+        skillPowerBonus: 0.5,
+        skillPowerMultiplier: 0.25,
+      }),
+    );
+    // (1.5 + 0.5) × 0.25 = 0.5。乗算を先に掛ける 1.5 × 0.25 + 0.5 = 0.875 ではない。
+    expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.5, 10);
+    expect(result.finalDamage).toBe(500);
+  });
+
+  it("UT-R-DMG-08-015: clamps the bonused skill power at 0, still yielding the minimum 1 damage", () => {
+    const result = calculateDamage(
+      input({ skillPowerFormula: { kind: "SKILL_POWER", power: 1 }, skillPowerBonus: -1.5 }),
+    );
+    expect(result.preTruncationDamage).toBe(0);
+    expect(result.finalDamage).toBe(1);
+  });
+
+  it("UT-R-DMG-08-016 (negative): does not add the bonus to damage whose formula is not SKILL_POWER", () => {
+    const skillSource = unitAt("U_ATTACKER", "ALLY");
+    const target = unitAt("U_TARGET", "ENEMY", { currentHp: 80 });
+    const result = calculateDamage(
+      input({
+        skillPowerFormula: {
+          kind: "CURRENT_HP_RATIO",
+          source: { kind: "TARGET" },
+          ratio: 0.5,
+        },
+        formulaContext: { skillSource, target, allUnits: [skillSource, target] },
+        skillPowerBonus: 0.075,
+      }),
+    );
+    expect(result.skillPowerBonus).toBe(0);
+    expect(result.finalDamage).toBe(40);
+  });
+
+  it("UT-R-DMG-08-017: defaults the skill power bonus to 0 when omitted", () => {
+    const result = calculateDamage(input());
+    expect(result.skillPowerBonus).toBe(0);
+    expect(result.finalDamage).toBe(30);
+  });
+});
+
 describe("calculateDamage properties (R-DMG-01)", () => {
   it("PROP-DMG-01-001 [R-DMG-01]: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
     fc.assert(

@@ -102,6 +102,39 @@ export const resolveApplySkillPowerMod: EffectActionHandler<"APPLY_SKILL_POWER_M
 };
 
 /**
+ * R-DMG-08: `powerDelta`を付与時点に一度だけ評価し、Catalogの`power`と同じ尺度の加算値として
+ * `magnitude`へ保持する。適用はダメージ計算時に`combat/skill-power-modifier-policy.ts`が
+ * 保持者の`isSkillPowerBonus`効果を合計して行う。
+ */
+export const resolveApplySkillPowerBonus: EffectActionHandler<"APPLY_SKILL_POWER_BONUS"> = (
+  input,
+): EffectActionOutcome => {
+  const { context, box, application, effectAction, startingEventId } = input;
+  const magnitude = evaluateGrantMagnitude(input, effectAction.payload.powerDelta);
+  const rejected = rejectIfImmune(input, magnitude);
+  if (rejected !== undefined) {
+    return rejected;
+  }
+  return completeGrant(
+    input,
+    grantEffect(
+      eventContextOf(context),
+      box.units,
+      {
+        definition: effectAction,
+        ...grantSourceOf(context),
+        targetUnitId: application.targetUnitId,
+        duplicate: true,
+        magnitude,
+        isSkillPowerBonus: true,
+        durationDefinition: effectAction.payload.duration,
+      },
+      startingEventId,
+    ),
+  );
+};
+
+/**
  * ON_ATTACK_BONUS_DAMAGE_BUFF（M7-004、production例:
  * SKL_ELENA_MOODMAKER_EXの「攻撃時に攻撃力×15%のダメージを追加するバフ」）:
  * `APPLY_STAT_MOD`と同じ評価規約で`formula`を付与時点に一度だけ評価し、結果を

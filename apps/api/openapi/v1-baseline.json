@@ -4088,6 +4088,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -4219,6 +4220,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -5119,6 +5121,9 @@
                                     "type": "string"
                                   },
                                   "skillPowerMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "skillPowerBonus": {
                                     "type": "number"
                                   },
                                   "attributeMultiplier": {
@@ -9768,6 +9773,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -17246,6 +17252,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -17377,6 +17384,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -18277,6 +18285,9 @@
                                     "type": "string"
                                   },
                                   "skillPowerMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "skillPowerBonus": {
                                     "type": "number"
                                   },
                                   "attributeMultiplier": {
@@ -22930,6 +22941,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -31268,6 +31280,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -31399,6 +31412,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },
@@ -32299,6 +32313,9 @@
                                     "type": "string"
                                   },
                                   "skillPowerMultiplier": {
+                                    "type": "number"
+                                  },
+                                  "skillPowerBonus": {
                                     "type": "number"
                                   },
                                   "attributeMultiplier": {
@@ -37020,6 +37037,7 @@
                                       "APPLY_HEALING_LINK",
                                       "APPLY_RESOURCE_GAIN_MOD",
                                       "APPLY_SKILL_POWER_MOD",
+                                      "APPLY_SKILL_POWER_BONUS",
                                       "APPLY_DAMAGE_LINK"
                                     ]
                                   },

@@ -67,6 +67,16 @@ const CATALOG: EffectLabelCatalog = {
       kind: "APPLY_SKILL_POWER_MOD",
       constantMagnitude: -0.75,
     },
+    {
+      effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+      kind: "APPLY_SKILL_POWER_BONUS",
+      constantMagnitude: 0.075,
+    },
+    {
+      effectActionDefinitionId: "ACT_SKILL_POWER_PENALTY",
+      kind: "APPLY_SKILL_POWER_BONUS",
+      constantMagnitude: -0.1,
+    },
   ],
   memories: [{ memoryDefinitionId: "MEM_SCHOOL", displayName: "取り戻した学園生活" }],
 };
@@ -315,6 +325,12 @@ describe("createEffectLabeler.definitionLabel", () => {
     expect(
       createEffectLabeler(CATALOG, UNITS, []).definitionLabel("ACT_SKILL_POWER_DOWN", []),
     ).toBe("スキル威力-75%");
+  });
+
+  it("UI-UT-LBL-049: スキル威力の加算は威力の数値（Catalog値×100）で%を付けずに表す", () => {
+    const labeler = createEffectLabeler(CATALOG, UNITS, []);
+    expect(labeler.definitionLabel("ACT_SKILL_POWER_BONUS", [])).toBe("スキル威力+7.5");
+    expect(labeler.definitionLabel("ACT_SKILL_POWER_PENALTY", [])).toBe("スキル威力-10");
   });
 
   it("UI-UT-LBL-015: Catalog要約が無ければ論理名で表す", () => {
