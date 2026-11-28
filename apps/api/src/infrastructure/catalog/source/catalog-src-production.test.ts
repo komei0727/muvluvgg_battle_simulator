@@ -79,6 +79,7 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_SUIRAN_CASINO",
         "UNIT_DOROTHEA_PIONEER",
         "UNIT_CHIYURU_NEWYEAR",
+        "UNIT_CHIYURU_SKYWING",
         "UNIT_FEE_BATH",
         "UNIT_MAIA_SALON",
         "UNIT_MAIA_LAZY",

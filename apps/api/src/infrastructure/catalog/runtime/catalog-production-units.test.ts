@@ -701,7 +701,9 @@ describe("Catalog v2 production candidate: 10-unit promotion (Issue #46)", () =>
     // それまで開催中だった4件を false へ戻した。
     // `2026-11-28.1` は新しい戦術演習敵 `UNIT_MERU_BESIDE_TEX`（【隣歩む想い】桃園める）の
     // 新規投入。開催中として追加し、`UNIT_FLUTE_VAMPIRE_TEX` も開催中のまま残した。
-    expect(catalog.catalogRevision).toBe("2026-11-28.1");
+    // `2026-11-28.2` は新しいUnit `UNIT_CHIYURU_SKYWING`（【穹に閃く探求の学識】月ヶ瀬ちゆる）の
+    // 新規投入（Issue #905）。既存の定義は変更していない。
+    expect(catalog.catalogRevision).toBe("2026-11-28.2");
   });
 
   it("IT-CAT-PROD-002: Evie's デコイプロトコル (PS1) triggers on another ally being attacked by an enemy, not on self being attacked", () => {

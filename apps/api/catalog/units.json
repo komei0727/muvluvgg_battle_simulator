@@ -236,6 +236,34 @@
     }
   },
   {
+    "unitDefinitionId": "UNIT_CHIYURU_SKYWING",
+    "attribute": "CUTE",
+    "unitType": "ENERGY",
+    "role": "CONTROL",
+    "positionAptitudes": ["FRONT", "BACK"],
+    "baseStats": {
+      "maximumHp": 22357,
+      "attack": 18114,
+      "defense": 8983,
+      "criticalRate": 0.2,
+      "actionSpeed": 754,
+      "maximumAp": 4,
+      "maximumPp": 4
+    },
+    "levelGrowth": { "hp": 200, "attack": 112, "defense": 76, "actionSpeed": 2 },
+    "extraGaugeMaximum": 8,
+    "activeSkillDefinitionIds": ["SKL_CHIYURU_SKYWING_AS1", "SKL_CHIYURU_SKYWING_AS2"],
+    "passiveSkillDefinitionIds": ["SKL_CHIYURU_SKYWING_PS1", "SKL_CHIYURU_SKYWING_PS2"],
+    "extraSkillDefinitionId": "SKL_CHIYURU_SKYWING_EX",
+    "metadata": {
+      "affiliations": ["AFF_SIRIUS_SUGAR"],
+      "tags": [],
+      "displayName": "【穹に閃く探求の学識】月ヶ瀬ちゆる",
+      "characterName": "月ヶ瀬ちゆる",
+      "characterId": "CHAR_CHIYURU_TSUKIGASE"
+    }
+  },
+  {
     "unitDefinitionId": "UNIT_CHIZURU_DOMESTIC",
     "attribute": "CUTE",
     "unitType": "PHYSICAL",
