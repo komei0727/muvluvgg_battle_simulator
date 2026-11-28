@@ -33,6 +33,7 @@ import type {
   SkillResolutionDefinition,
 } from "../../catalog/definitions/skill-definition.js";
 import type { TargetSelectorDefinition } from "../../catalog/definitions/target-selector-definition.js";
+import type { ConditionDefinition } from "../../catalog/definitions/condition-definition.js";
 import type { EffectActionDefinition } from "../../catalog/definitions/effect-action-definition.js";
 import { DomainValidationError } from "../../shared/errors.js";
 import { UNUSED_ENHANCED_BASE_STATS } from "../../../testing/fixtures/battle-actors.js";
@@ -1131,6 +1132,105 @@ describe("resolveSkillOrder: R-TGT-08 Stealth consumption plumbing (TGT-004, Iss
     expect(
       plan.resolvedBindings.get(createTargetBindingId("TGT_2"))!.units.map((u) => u.battleUnitId),
     ).toEqual([createBattleUnitId("NEAREST")]);
+  });
+});
+
+describe("resolveSkillOrder: R-TGT-08 条件だけが参照する束縛はステルスを消費しない (Issue #905)", () => {
+  const countingSkill = (
+    overrides: { readonly activationCondition?: ConditionDefinition } = {},
+    steps: SkillResolutionDefinition["steps"] = [],
+  ): SkillDefinition => ({
+    ...skillOf({
+      kind: "IMMEDIATE",
+      targetBindings: [
+        { targetBindingId: createTargetBindingId("TGT_COUNT"), selector: ENEMY_ALL_SELECTOR },
+      ],
+      steps,
+    }),
+    ...overrides,
+  });
+  const countCondition: ConditionDefinition = {
+    kind: "TARGET_SET_COUNT",
+    target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_COUNT") },
+    countOf: "ALIVE",
+    op: "GTE",
+    value: 1,
+  };
+  const board = () => {
+    const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
+    const nearestEnemy = unit(
+      "NEAREST",
+      "ENEMY",
+      { column: "CENTER", row: "FRONT" },
+      { appliedEffects: [stealthEffect("NEAREST")] },
+    );
+    const fartherEnemy = unit("FARTHER", "ENEMY", { column: "LEFT", row: "BACK" });
+    return { actor, units: [actor, nearestEnemy, fartherEnemy] };
+  };
+
+  it("UT-SKILL-RESOLUTION-SERVICE-015 [R-TGT-08]: a binding referenced only by the activationCondition resolves without consuming the first-priority Stealth", () => {
+    const { actor, units } = board();
+    const plan = resolveSkillOrder(
+      countingSkill({ activationCondition: countCondition }),
+      actor,
+      units,
+      new Map(),
+    );
+
+    expect(plan.stealthConsumptions).toEqual([]);
+    expect(
+      plan.resolvedBindings
+        .get(createTargetBindingId("TGT_COUNT"))!
+        .units.map((u) => u.battleUnitId)
+        .sort(),
+    ).toEqual([createBattleUnitId("FARTHER"), createBattleUnitId("NEAREST")]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-016 [R-TGT-08]: a binding referenced only by a step condition resolves without consuming Stealth", () => {
+    const { actor, units } = board();
+    const hit = damageAction("ACT_HIT");
+    const plan = resolveSkillOrder(
+      countingSkill({}, [
+        {
+          kind: "ACTION",
+          stepCondition: countCondition,
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "SELF" },
+          actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+        },
+      ]),
+      actor,
+      units,
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+
+    expect(plan.stealthConsumptions).toEqual([]);
+  });
+
+  it("UT-SKILL-RESOLUTION-SERVICE-017 [R-TGT-08]: a binding that is also a step target still consumes Stealth even when a condition references it", () => {
+    const { actor, units } = board();
+    const hit = damageAction("ACT_HIT");
+    const plan = resolveSkillOrder(
+      countingSkill({ activationCondition: countCondition }, [
+        {
+          kind: "ACTION",
+          stepCondition: { kind: "TRUE" },
+          targetCondition: { kind: "TRUE" },
+          target: { kind: "BINDING", targetBindingId: createTargetBindingId("TGT_COUNT") },
+          actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+        },
+      ]),
+      actor,
+      units,
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+
+    expect(plan.stealthConsumptions).toEqual([
+      {
+        battleUnitId: createBattleUnitId("NEAREST"),
+        effectInstanceId: createEffectInstanceId("ei-stealth-NEAREST"),
+      },
+    ]);
   });
 });
 

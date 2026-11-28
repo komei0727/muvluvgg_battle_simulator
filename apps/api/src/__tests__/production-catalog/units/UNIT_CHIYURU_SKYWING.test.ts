@@ -21,6 +21,13 @@ import {
 import { realDamage, turnStarted } from "../../../testing/production-unit/trigger-events.js";
 import { observeEffectExpiry } from "../../../testing/production-unit/effect-expiry.js";
 import { evasionOf } from "../../../testing/production-unit/evasion.js";
+import {
+  effectKindKeyFromDefinitionId,
+  type AppliedEffect,
+} from "../../../domain/battle/model/applied-effect.js";
+import { createEffectActionDefinitionId } from "../../../domain/catalog/definitions/catalog-ids.js";
+import { createEffectInstanceId } from "../../../domain/shared/event-ids.js";
+import { createBattleUnitId } from "../../../domain/shared/ids.js";
 
 /**
  * `UNIT_CHIYURU_SKYWING`（【穹に閃く探求の学識】月ヶ瀬ちゆる）のユニット単位production
@@ -48,6 +55,44 @@ const drawsStartingWith =
 const SKILL_POWER_UP_PRECEDING: readonly PrecedingAction[] = [
   { effectActionDefinitionId: SKILL_POWER_UP, target: "SELF" },
 ];
+
+/**
+ * 消費されるまで続くステルス（R-TGT-08）。付与そのものは検証対象ではないため手組みする。
+ * 消費は`EffectExpired`（reason: CONSUMPTION）として観測の`effectsRemoved`へ現れる。
+ */
+function stealthOf(holderId: string): AppliedEffect {
+  const definitionId = createEffectActionDefinitionId("ACT_TEST_STEALTH");
+  return {
+    effectInstanceId: createEffectInstanceId(`TEST_STEALTH_${holderId}`),
+    effectActionDefinitionId: definitionId,
+    kindKey: effectKindKeyFromDefinitionId(definitionId),
+    duplicate: true,
+    targetUnitId: createBattleUnitId(holderId),
+    magnitude: 0,
+    categories: ["BUFF"],
+    statusKind: "STEALTH",
+    duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+    appliedTurnNumber: 1,
+  };
+}
+
+/** 前列中央だけがステルスを持つ敵3体。 */
+const FRONT_STEALTH_ENEMIES: readonly BoardUnitSpec[] = [
+  {
+    id: "enemy:front",
+    position: { column: "CENTER", row: "FRONT" },
+    state: { appliedEffects: [stealthOf("enemy:front")] },
+  },
+  { id: "enemy:left", position: { column: "LEFT", row: "FRONT" } },
+  { id: "enemy:back", position: { column: "CENTER", row: "BACK" } },
+];
+
+const STEALTH_CONSUMED = {
+  unitId: "enemy:front",
+  effectActionDefinitionId: "ACT_TEST_STEALTH",
+  magnitude: 0,
+  statusKind: "STEALTH",
+} as const;
 
 const TWO_ENEMIES: readonly BoardUnitSpec[] = [
   { id: "enemy:front", position: { column: "CENTER", row: "FRONT" } },
@@ -194,6 +239,42 @@ const BEHAVIOURS: readonly SkillBehaviourCase[] = [
         ...AS1_SELF_RESOURCES,
         { unitId: "enemy:front", resource: "AP", delta: -2 },
         { unitId: "enemy:front", resource: "PP", delta: -2 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_CHIYURU_SKYWING_AS1",
+    intent:
+      "(ステルス: 抽選の先頭): 抽選で先頭に来たステルス所持者はステルスを消費して次の候補へ譲る",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_CHIYURU_SKYWING_AS1" },
+    board: { enemies: FRONT_STEALTH_ENEMIES },
+    // 先頭2回が0なら並べ替えは既定順のまま（前列中央・前列左・後列中央）。
+    random: drawsStartingWith(0, 0),
+    expected: {
+      actions: AS1_ACTIONS("enemy:left"),
+      hpDeltas: { "enemy:left": -901 },
+      effectsRemoved: [STEALTH_CONSUMED],
+      resources: [
+        ...AS1_SELF_RESOURCES,
+        { unitId: "enemy:left", resource: "AP", delta: -2 },
+        { unitId: "enemy:left", resource: "PP", delta: -2 },
+      ],
+    },
+  },
+  {
+    skillDefinitionId: "SKL_CHIYURU_SKYWING_AS1",
+    intent:
+      "(ステルス: 先頭以外): 抽選で先頭に来なかったステルス所持者のステルスは、発動条件の敵数カウントでも消費されない",
+    use: { kind: "ACTIVE", skillDefinitionId: "SKL_CHIYURU_SKYWING_AS1" },
+    board: { enemies: FRONT_STEALTH_ENEMIES },
+    random: drawsStartingWith(0.99, 0.99),
+    expected: {
+      actions: AS1_ACTIONS("enemy:back"),
+      hpDeltas: { "enemy:back": -901 },
+      resources: [
+        ...AS1_SELF_RESOURCES,
+        { unitId: "enemy:back", resource: "AP", delta: -2 },
+        { unitId: "enemy:back", resource: "PP", delta: -2 },
       ],
     },
   },

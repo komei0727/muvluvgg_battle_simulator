@@ -693,7 +693,13 @@ function resolveEffectSequence(
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   random?: RandomSource,
+  activationCondition?: ConditionDefinition,
 ): EffectSequencePlan {
+  const conditionOnlyBindingIds = collectConditionOnlyBindingIds(
+    sequence,
+    effectActions,
+    activationCondition,
+  );
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
   // ここまでに解決済みのbindingを`resolveTargetsWithStealthConsumption`へ渡しながら1件ずつ確定する。
@@ -721,7 +727,9 @@ function resolveEffectSequence(
       consumedStealthEffectInstanceIds,
       random,
     );
-    if (stealthConsumption !== undefined) {
+    // R-TGT-08: 条件からしか参照されない束縛（敵数カウント等）は効果の対象を決めないため、
+    // 第一優先対象のステルスを消費しない。行動選択の判定（消費しない解決）とも一致する。
+    if (stealthConsumption !== undefined && !conditionOnlyBindingIds.has(binding.targetBindingId)) {
       stealthConsumptions.push(stealthConsumption);
       consumedStealthEffectInstanceIds.add(stealthConsumption.effectInstanceId);
     }
@@ -958,6 +966,98 @@ function resolveObservableTargetUnitIds(
   ).units.map((unit) => unit.battleUnitId);
 }
 
+/** 値の中の`TargetReference.kind: BINDING`を、構造を問わずすべて集める。 */
+function collectBindingReferenceIds(value: unknown, collected: Set<TargetBindingId>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectBindingReferenceIds(item, collected);
+    }
+    return;
+  }
+  if (value === null || typeof value !== "object") {
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  if (record["kind"] === "BINDING" && typeof record["targetBindingId"] === "string") {
+    collected.add(record["targetBindingId"] as TargetBindingId);
+  }
+  for (const child of Object.values(record)) {
+    collectBindingReferenceIds(child, collected);
+  }
+}
+
+/** `ACTION` stepの対象と、そのstepが適用する効果のpayloadが参照する束縛（分岐・反復の内側を含む）。 */
+function collectStepTargetingBindingIds(
+  steps: readonly EffectStepDefinition[],
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  collected: Set<TargetBindingId>,
+): void {
+  for (const step of steps) {
+    switch (step.kind) {
+      case "ACTION":
+        if (step.target.kind === "BINDING") {
+          collected.add(step.target.targetBindingId as TargetBindingId);
+        }
+        for (const action of step.actions) {
+          collectBindingReferenceIds(
+            effectActions.get(action.effectActionDefinitionId)?.payload,
+            collected,
+          );
+        }
+        break;
+      case "BRANCH":
+        collectStepTargetingBindingIds(step.thenSteps, effectActions, collected);
+        collectStepTargetingBindingIds(step.elseSteps, effectActions, collected);
+        break;
+      case "RANDOM_BRANCH":
+        for (const branch of step.branches) {
+          collectStepTargetingBindingIds(branch.steps, effectActions, collected);
+        }
+        break;
+      case "REPEAT":
+        collectStepTargetingBindingIds(step.steps, effectActions, collected);
+        break;
+    }
+  }
+}
+
+/**
+ * R-TGT-08: 条件（`activationCondition`・stepの各条件）からだけ参照され、効果の対象を
+ * 決めない束縛。対象を決める束縛とは、`ACTION` stepの対象・効果payloadの参照先と、
+ * それらのselectorが`base`・`EXCLUDE_RESOLVED_UNIT`・`fallback`で推移的に参照する束縛。
+ * どこからも参照されない束縛は従来どおり扱う（ここには含めない）。
+ */
+function collectConditionOnlyBindingIds(
+  sequence: EffectSequence,
+  effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
+  activationCondition: ConditionDefinition | undefined,
+): ReadonlySet<TargetBindingId> {
+  const targeting = new Set<TargetBindingId>();
+  collectStepTargetingBindingIds(sequence.steps, effectActions, targeting);
+  const selectorById = new Map(
+    sequence.targetBindings.map((binding) => [binding.targetBindingId, binding.selector]),
+  );
+  const pending = [...targeting];
+  while (pending.length > 0) {
+    const selector = selectorById.get(pending.pop()!);
+    if (selector === undefined) {
+      continue;
+    }
+    const referenced = new Set<TargetBindingId>();
+    collectBindingReferenceIds(selector, referenced);
+    for (const id of referenced) {
+      if (!targeting.has(id)) {
+        targeting.add(id);
+        pending.push(id);
+      }
+    }
+  }
+  const referenced = new Set<TargetBindingId>();
+  collectBindingReferenceIds(sequence.steps, referenced);
+  collectBindingReferenceIds(activationCondition, referenced);
+  return new Set([...referenced].filter((id) => !targeting.has(id)));
+}
+
 /**
  * R-CFS-01（DMG-009、Issue #193）: この`EffectSequence`のうち、`DAMAGE`
  * EffectActionを適用する`ACTION` stepが対象に指定するTargetBindingのidを、
@@ -1146,6 +1246,7 @@ export function resolveSkillOrder(
     triggerContext,
     unitDefinitions,
     random,
+    skill.activationCondition,
   );
 }
 
