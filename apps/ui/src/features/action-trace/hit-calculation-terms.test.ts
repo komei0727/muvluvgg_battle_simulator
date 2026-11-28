@@ -94,6 +94,27 @@ describe("hitCalculationTerms", () => {
     ]);
   });
 
+  it("UI-UT-ATR-043: スキル威力・加算値・適用威力は計算に使った値を丸めずに出す（R-DMG-08）", () => {
+    // 4桁へ丸めた0.7953では、基礎ダメージ1500から記録値1193を再現できない（1192になる）。
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 1500,
+          skillPower: 0.312,
+          skillPowerBonus: 0.4833333333333333,
+          skillPowerAfterBonus: 0.7953333333333333,
+          finalDamage: 1193,
+        }),
+      ),
+    ).toEqual([
+      "基礎ダメージ1,500",
+      "スキル威力0.312",
+      "スキル威力加算0.4833333333333333",
+      "適用威力0.7953333333333333",
+      "計算ダメージ1,193",
+    ]);
+  });
+
   it("omits only the terms the payload does not carry, and words an unfavorable matchup and a nullified hit", () => {
     expect(
       texts(

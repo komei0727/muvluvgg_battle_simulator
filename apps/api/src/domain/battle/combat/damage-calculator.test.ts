@@ -632,6 +632,30 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
     expect(result.finalDamage).toBe(40);
   });
 
+  it("UT-R-DMG-08-028 (boundary): clamps a negative skill power at 0 even without any bonus", () => {
+    const withoutBonus = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: -0.25 },
+      }),
+    );
+    const withZeroBonus = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: -0.25 },
+        skillPowerBonuses: [0],
+      }),
+    );
+    // 加算効果0件の空の合計にも、R-DMG-01の max(0, 威力 + 加算値の合計) を適用する。
+    for (const result of [withoutBonus, withZeroBonus]) {
+      expect(result.skillPowerAfterBonus).toBe(0);
+      expect(result.preTruncationDamage).toBe(0);
+      expect(result.finalDamage).toBe(1);
+    }
+  });
+
   it("UT-R-DMG-08-017: defaults the skill power bonus to 0 when omitted", () => {
     const result = calculateDamage(input());
     expect(result.skillPowerBonus).toBe(0);

@@ -95,7 +95,7 @@ export interface DamageCalculationResult {
   readonly skillPowerBonus: number;
   /**
    * R-DMG-08 #10: 加算と0下限を適用した直後、`skillPowerMultiplier`を掛ける前の威力。
-   * 計算に使うのはこの値で、`skillPower`・`skillPowerBonus`は内訳である。加算が無ければ`skillPower`。
+   * 計算に使うのはこの値で、`skillPower`・`skillPowerBonus`は内訳である。加算が無ければ`max(0, skillPower)`。
    */
   readonly skillPowerAfterBonus: number;
   readonly attributeMultiplier: number;
@@ -232,10 +232,10 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   const skillPowerBonuses =
     input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerBonuses ?? []) : [];
   // R-DMG-08 #10・R-NUM-02: 威力と全加算値を10進で合計し、0以上に制限してから一度だけ変換する。
-  // 加算は倍率より先に適用する。加算が無ければ威力をそのまま使う。
+  // 加算は倍率より先に適用する。加算が無い（空の合計）ときも0下限は適用し、威力の変換は行わない。
   const skillPowerAfterBonus =
     skillPowerBonuses.length === 0
-      ? skillPower
+      ? Math.max(0, skillPower)
       : sumDecimalValuesAtLeastZero([skillPower, ...skillPowerBonuses]);
   const skillPowerBonus = skillPowerBonuses.length === 0 ? 0 : sumDecimalValues(skillPowerBonuses);
   const preTruncationDamage =

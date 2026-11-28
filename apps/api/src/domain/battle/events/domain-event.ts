@@ -405,7 +405,7 @@ export interface BattleDomainEventPayloadMap {
     readonly skillPowerBonus: number;
     /**
      * R-DMG-08 #10: 威力と全加算値を10進で合計し0下限を適用した直後、`skillPowerMultiplier`を
-     * 掛ける前の威力。恒等式はこの値を使う。加算が無ければ`skillPower`と同じ。
+     * 掛ける前の威力。恒等式はこの値を使う。加算が無ければ`max(0, skillPower)`。
      */
     readonly skillPowerAfterBonus: number;
     readonly attributeMultiplier: number;

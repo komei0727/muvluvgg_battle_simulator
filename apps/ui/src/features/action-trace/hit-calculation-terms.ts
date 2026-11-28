@@ -34,6 +34,19 @@ function amount(
   return value !== undefined ? { label, value: numberText(value) } : undefined;
 }
 
+/**
+ * R-DMG-08: 威力の項は計算に使った値を丸めずに出す。4桁へ丸めると適用威力
+ * `0.7953333333333333`が`0.7953`になり、表示値から記録されたダメージを再現できない。
+ */
+function exactAmount(
+  calculation: HitCalculation,
+  key: NumericKey,
+  label: string,
+): HitCalculationTerm | undefined {
+  const value = calculation[key];
+  return value !== undefined ? { label, value: String(value) } : undefined;
+}
+
 function rate(
   calculation: HitCalculation,
   key: NumericKey,
@@ -82,9 +95,9 @@ export function hitCalculationTerms(calculation: HitCalculation): readonly HitCa
     rate(calculation, "shieldIgnoreRate", "シールド貫通"),
     rate(calculation, "damageReductionIgnoreRate", "軽減貫通"),
     amount(calculation, "baseDamage", "基礎ダメージ"),
-    amount(calculation, "skillPower", "スキル威力"),
-    amount(calculation, "skillPowerBonus", "スキル威力加算"),
-    amount(calculation, "skillPowerAfterBonus", "適用威力"),
+    exactAmount(calculation, "skillPower", "スキル威力"),
+    exactAmount(calculation, "skillPowerBonus", "スキル威力加算"),
+    exactAmount(calculation, "skillPowerAfterBonus", "適用威力"),
     amount(calculation, "skillPowerMultiplier", "スキル威力倍率"),
     text("Formula", calculation.skillPowerFormulaKind),
     amount(calculation, "attributeMultiplier", "属性倍率"),
