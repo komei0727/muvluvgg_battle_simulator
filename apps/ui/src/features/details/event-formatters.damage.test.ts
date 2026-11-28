@@ -322,6 +322,43 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     expect(presentation.summary).toContain("計算ダメージ450");
   });
 
+  // UI-UT-DMG-030 (R-DMG-08): スキル威力の加算値・倍率を威力の隣に出す。無いと「威力1」と
+  // 「倍率適用後150」が並び、基礎ダメージ100からの計算を追えない。
+  it("shows the skill power bonus and multiplier right after the skill power", () => {
+    const presentation = formatEvent(
+      event({
+        type: "DAMAGE_CALCULATED",
+        sourceUnitId: "ally:1",
+        targetUnitIds: ["enemy:1"],
+        details: {
+          skillDefinitionId: "SKL_A",
+          effectActionDefinitionId: "ACT_ATTACK",
+          hitIndex: 0,
+          targetUnitId: "enemy:1",
+          attackerAttack: 110,
+          defenderDefense: 10,
+          effectiveDefense: 10,
+          baseDamage: 100,
+          skillPower: 1,
+          skillPowerBonus: 0.5,
+          skillPowerAfterBonus: 1.5,
+          skillPowerMultiplier: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          attributeMultiplier: 1,
+          rawPreTruncationDamage: 150,
+          preTruncationDamage: 150,
+          finalDamage: 150,
+          damageType: "PHYSICAL",
+        },
+      }),
+      rosterIndex,
+    );
+
+    expect(presentation.summary).toContain(
+      "スキル威力1、スキル威力加算0.5、適用威力1.5、スキル威力倍率1、Formula SKILL_POWER",
+    );
+  });
+
   // UI-UT-DMG-029 (R-DMG-06, Issue #560): 加算モデルの`attackDamageBonus`は廃止された。
   // 廃止前に録取したログはこの項目を持ち続けるが、監査行はもう項目として出さない
   // （R-DMG-06の追加攻撃は独立したヒットとして自分の`DAMAGE_CALCULATED`を持つため、

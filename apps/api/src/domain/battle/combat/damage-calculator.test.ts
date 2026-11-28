@@ -506,6 +506,164 @@ describe("calculateDamage skill power modifier (R-DMG-08)", () => {
   });
 });
 
+describe("calculateDamage skill power bonus (R-DMG-08)", () => {
+  it("UT-R-DMG-08-013: adds the bonus to the skill power value (84.8 + 7.5 = 92.3)", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
+        skillPowerBonuses: [0.075],
+      }),
+    );
+    // `skillPower`はCatalogの威力のまま残し、加算値は別欄で公開する。
+    expect(result.skillPower).toBe(0.848);
+    expect(result.skillPowerBonus).toBe(0.075);
+    // 加算と0下限を適用した直後、倍率を掛ける前の威力。
+    expect(result.skillPowerAfterBonus).toBe(0.923);
+    expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.923, 10);
+    expect(result.finalDamage).toBe(923);
+  });
+
+  it("UT-R-DMG-08-024 [R-NUM-02]: a bonused skill power yields the same final damage as declaring the summed power directly", () => {
+    const bonused = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
+        skillPowerBonuses: [0.075],
+      }),
+    );
+    const direct = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.923 },
+      }),
+    );
+    // 0.848 + 0.075 は binary64 で 0.92299…となり、そのまま掛けると 922 へ切り捨てられる。
+    expect(direct.finalDamage).toBe(923);
+    expect(bonused.finalDamage).toBe(923);
+    expect(bonused.preTruncationDamage).toBe(direct.preTruncationDamage);
+  });
+
+  it("UT-R-DMG-08-025 [R-NUM-02] (boundary): keeps every significant digit of a dynamically evaluated bonus", () => {
+    // 生存割合1/3のような評価値は最短表記 0.3333333333333333 として足す。固定桁で丸めると1099へ下がる。
+    const bonused = calculateDamage(
+      input({
+        attackerAttack: 1520,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.4 },
+        skillPowerBonuses: [1 / 3],
+      }),
+    );
+    const direct = calculateDamage(
+      input({
+        attackerAttack: 1520,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.4 + 1 / 3 },
+      }),
+    );
+    expect(direct.finalDamage).toBe(1100);
+    expect(bonused.finalDamage).toBe(1100);
+  });
+
+  it("UT-R-DMG-08-026 [R-NUM-02]: sums the power and every bonus in decimal, regardless of the grant order", () => {
+    const orders = [
+      [0.075, 0.075, 1 / 3],
+      [1 / 3, 0.075, 0.075],
+      [0.075, 1 / 3, 0.075],
+    ];
+    for (const skillPowerBonuses of orders) {
+      const result = calculateDamage(
+        input({
+          attackerAttack: 1520,
+          defenderDefense: 20,
+          skillPowerFormula: { kind: "SKILL_POWER", power: 0.312 },
+          skillPowerBonuses,
+        }),
+      );
+      // 0.312 + 0.075 + 0.075 + 0.3333333333333333 を10進で合計してから一度だけ変換する。
+      expect(result.skillPowerAfterBonus).toBe(0.7953333333333333);
+      expect(result.skillPowerBonus).toBe(0.4833333333333333);
+      expect(result.finalDamage).toBe(1193);
+    }
+  });
+
+  it("UT-R-DMG-08-014: applies the bonus before the multiplicative skill power modifier", () => {
+    const result = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 },
+        skillPowerBonuses: [0.5],
+        skillPowerMultiplier: 0.25,
+      }),
+    );
+    // (1.5 + 0.5) × 0.25 = 0.5。乗算を先に掛ける 1.5 × 0.25 + 0.5 = 0.875 ではない。
+    expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.5, 10);
+    expect(result.finalDamage).toBe(500);
+  });
+
+  it("UT-R-DMG-08-015: clamps the bonused skill power at 0, still yielding the minimum 1 damage", () => {
+    const result = calculateDamage(
+      input({ skillPowerFormula: { kind: "SKILL_POWER", power: 1 }, skillPowerBonuses: [-1.5] }),
+    );
+    expect(result.preTruncationDamage).toBe(0);
+    expect(result.finalDamage).toBe(1);
+  });
+
+  it("UT-R-DMG-08-016 (negative): does not add the bonus to damage whose formula is not SKILL_POWER", () => {
+    const skillSource = unitAt("U_ATTACKER", "ALLY");
+    const target = unitAt("U_TARGET", "ENEMY", { currentHp: 80 });
+    const result = calculateDamage(
+      input({
+        skillPowerFormula: {
+          kind: "CURRENT_HP_RATIO",
+          source: { kind: "TARGET" },
+          ratio: 0.5,
+        },
+        formulaContext: { skillSource, target, allUnits: [skillSource, target] },
+        skillPowerBonuses: [0.075],
+      }),
+    );
+    expect(result.skillPowerBonus).toBe(0);
+    expect(result.skillPowerAfterBonus).toBe(1);
+    expect(result.finalDamage).toBe(40);
+  });
+
+  it("UT-R-DMG-08-028 (boundary): clamps a negative skill power at 0 even without any bonus", () => {
+    const withoutBonus = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: -0.25 },
+      }),
+    );
+    const withZeroBonus = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: -0.25 },
+        skillPowerBonuses: [0],
+      }),
+    );
+    // 加算効果0件の空の合計にも、R-DMG-01の max(0, 威力 + 加算値の合計) を適用する。
+    for (const result of [withoutBonus, withZeroBonus]) {
+      expect(result.skillPowerAfterBonus).toBe(0);
+      expect(result.preTruncationDamage).toBe(0);
+      expect(result.finalDamage).toBe(1);
+    }
+  });
+
+  it("UT-R-DMG-08-017: defaults the skill power bonus to 0 when omitted", () => {
+    const result = calculateDamage(input());
+    expect(result.skillPowerBonus).toBe(0);
+    expect(result.skillPowerAfterBonus).toBe(1);
+    expect(result.finalDamage).toBe(30);
+  });
+});
+
 describe("calculateDamage properties (R-DMG-01)", () => {
   it("PROP-DMG-01-001 [R-DMG-01]: finalDamage is always an integer of at least 1 (min-1 + final truncation)", () => {
     fc.assert(

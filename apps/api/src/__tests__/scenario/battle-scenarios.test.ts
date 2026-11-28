@@ -2162,3 +2162,98 @@ describe("skill power modifier (R-DMG-08)", () => {
     expect(restored).toEqual(result.finalState);
   });
 });
+
+describe("skill power bonus (R-DMG-08)", () => {
+  it("SCN-BTL-041 [R-DMG-08, R-EFF-04]: a self skill power bonus is added to every hit of the same skill's multi-hit attack, and expires with the turn instead of stacking", () => {
+    const skillPowerBonus: EffectActionDefinition = {
+      kind: "APPLY_SKILL_POWER_BONUS",
+      effectActionDefinitionId: createEffectActionDefinitionId("ACT_SKILL_POWER_BONUS"),
+      metadata: { tags: [] },
+      payload: {
+        powerDelta: { kind: "CONSTANT", value: 0.5 },
+        stacking: { mode: "STACKABLE" },
+        duration: {
+          timeLimit: { unit: "TURN", count: 1, owner: "BATTLE", countGrantTurn: true },
+          dispellable: true,
+          linkedEffectGroupId: null,
+        },
+      },
+    };
+    const multiHit = damageEffectAction("ACT_MULTI_HIT", 1, "PREVENTED");
+    const fiveHits: EffectActionDefinition =
+      multiHit.kind === "DAMAGE"
+        ? { ...multiHit, payload: { ...multiHit.payload, hitCount: 5 } }
+        : multiHit;
+    const strike = attackSkill("SKL_BONUS_STRIKE", "ACT_MULTI_HIT", { guaranteedHit: true });
+    const bonusThenStrike: SkillDefinition =
+      strike.resolution.kind === "IMMEDIATE"
+        ? {
+            ...strike,
+            resolution: {
+              ...strike.resolution,
+              steps: [
+                {
+                  kind: "ACTION",
+                  stepCondition: { kind: "TRUE" },
+                  targetCondition: { kind: "TRUE" },
+                  target: { kind: "SELF" },
+                  actions: [
+                    {
+                      effectActionDefinitionId:
+                        createEffectActionDefinitionId("ACT_SKILL_POWER_BONUS"),
+                    },
+                  ],
+                },
+                ...strike.resolution.steps,
+              ],
+            },
+          }
+        : strike;
+
+    const catalog = new CatalogBuilder()
+      .withUnit(
+        unitDefinition("UNIT_STRIKER", {
+          baseStats: { maximumAp: 1, attack: 110, actionSpeed: 50 },
+          activeSkillDefinitionIds: [createSkillDefinitionId("SKL_BONUS_STRIKE")],
+        }),
+        unitDefinition("UNIT_DUMMY", { baseStats: { maximumHp: 100000, defense: 10 } }),
+      )
+      .withSkill(bonusThenStrike)
+      .withEffectAction(skillPowerBonus, fiveHits)
+      .build();
+
+    const result = runScenario({
+      catalog,
+      command: battleCommand({
+        allyFormation: { slots: [formationSlot("UNIT_STRIKER", 0)], memoryDefinitionIds: [] },
+        enemyFormation: { slots: [formationSlot("UNIT_DUMMY", 0)], memoryDefinitionIds: [] },
+        turnLimit: 2,
+      }),
+    });
+
+    const strikes = result.events
+      .filter((event) => event.type === "DAMAGE_CALCULATED")
+      .map((event) => event.details as Record<string, unknown>)
+      .filter((details) => details["effectActionDefinitionId"] === "ACT_MULTI_HIT");
+    // 2ターン×5ヒット。各ヒットは (110 - 10) × (1 + 0.5) = 150。
+    // 1ターン目の付与はそのターンの終わりで失効するため、2ターン目も +0.5 のまま（+1.0へ重ならない）。
+    expect(strikes).toHaveLength(10);
+    for (const details of strikes) {
+      expect(details).toMatchObject({ skillPower: 1, skillPowerBonus: 0.5, finalDamage: 150 });
+    }
+    const expired = result.events.filter(
+      (event) =>
+        event.type === "EFFECT_EXPIRED" &&
+        (event.details as Record<string, unknown>)["effectActionDefinitionId"] ===
+          "ACT_SKILL_POWER_BONUS",
+    );
+    expect(expired).toHaveLength(2);
+    expect(result.finalState.units[createBattleUnitId("ally:1")]?.effects ?? []).toHaveLength(0);
+
+    const restored = reduceStateDeltas(
+      result.initialState,
+      result.stateTransitions.map((transition) => transition.stateDelta),
+    );
+    expect(restored).toEqual(result.finalState);
+  });
+});

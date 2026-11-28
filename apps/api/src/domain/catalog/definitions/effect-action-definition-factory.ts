@@ -186,6 +186,7 @@ const PAYLOAD_ALLOWED_KEYS: Record<EffectActionKind, readonly string[]> = {
   APPLY_FOLLOW_UP_ATTACK: ["damage", "onHitEffect", "onHitEffects", "duration"],
   APPLY_RESOURCE_GAIN_MOD: ["resource", "rateDelta", "stacking", "duration"],
   APPLY_SKILL_POWER_MOD: ["rateDelta", "stacking", "duration"],
+  APPLY_SKILL_POWER_BONUS: ["powerDelta", "stacking", "duration"],
 };
 
 const DAMAGE_CRITICAL_ALLOWED_KEYS = ["mode"] as const;
@@ -1677,6 +1678,17 @@ function createPayload(
         kind: "APPLY_SKILL_POWER_MOD",
         payload: {
           rateDelta: createFormulaField(payload, "rateDelta", path),
+          stacking: { mode: stackingMode },
+          duration: createDurationField(payload, path),
+        },
+      };
+    }
+    case "APPLY_SKILL_POWER_BONUS": {
+      const stackingMode = requireStackingMode(payload, path);
+      return {
+        kind: "APPLY_SKILL_POWER_BONUS",
+        payload: {
+          powerDelta: createFormulaField(payload, "powerDelta", path),
           stacking: { mode: stackingMode },
           duration: createDurationField(payload, path),
         },

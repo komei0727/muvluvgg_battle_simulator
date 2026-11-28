@@ -372,4 +372,21 @@ describe("effectCategoriesOf", () => {
     expect([...effectCategoriesOf(effect({ magnitude: -0.75 }), definition)]).toEqual(["DEBUFF"]);
     expect([...effectCategoriesOf(effect({ magnitude: 0.5 }), definition)]).toEqual(["BUFF"]);
   });
+
+  it("UT-R-DMG-08-023: classifies a skill power bonus as BUFF and a negative one as DEBUFF, without DAMAGE_MOD", () => {
+    const definition = createEffectActionDefinition(
+      {
+        effectActionDefinitionId: "ACT_SKILL_POWER_BONUS",
+        kind: "APPLY_SKILL_POWER_BONUS",
+        payload: {
+          powerDelta: { kind: "CONSTANT", value: 0.075 },
+          stacking: { mode: "STACKABLE" },
+          duration: { timeLimit: { unit: "TURN", count: 1 } },
+        },
+      },
+      "effectAction",
+    );
+    expect([...effectCategoriesOf(effect({ magnitude: 0.075 }), definition)]).toEqual(["BUFF"]);
+    expect([...effectCategoriesOf(effect({ magnitude: -0.075 }), definition)]).toEqual(["DEBUFF"]);
+  });
 });

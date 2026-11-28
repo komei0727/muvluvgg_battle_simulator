@@ -491,6 +491,18 @@ export interface ApplySkillPowerModPayload {
 }
 
 /**
+ * R-DMG-08: 保持者が攻撃側になる`DAMAGE`のスキル威力（`formula.kind: SKILL_POWER`の
+ * `power`）へ`powerDelta`を足す。`powerDelta`はCatalogの`power`と同じ尺度（wikiの「7.5」は
+ * `0.075`）。スキルごとに威力が違うため割合の`APPLY_SKILL_POWER_MOD`では表せない。
+ * 付与時に一度だけ評価し、保持している全インスタンスを合計して倍率より先に足す。
+ */
+export interface ApplySkillPowerBonusPayload {
+  readonly powerDelta: FormulaDefinition;
+  readonly stacking: { readonly mode: "STACKABLE" };
+  readonly duration: DurationDefinition;
+}
+
+/**
  * G-06 (Issue #44): gates `DAMAGE_IMMUNITY` by the size of the incoming hit.
  * The immunity applies only when the incoming raw damage compares true
  * against `formula` via `op` (e.g. `op: GT` with a `CURRENT_HP_RATIO` formula

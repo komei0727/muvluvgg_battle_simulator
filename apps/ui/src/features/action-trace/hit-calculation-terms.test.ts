@@ -70,6 +70,65 @@ describe("hitCalculationTerms", () => {
     ]);
   });
 
+  it("UI-UT-ATR-042: スキル威力の加算値・倍率を威力の隣に出す（R-DMG-08）", () => {
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 100,
+          skillPower: 1,
+          skillPowerBonus: 0.5,
+          skillPowerAfterBonus: 1.5,
+          skillPowerMultiplier: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          rawPreTruncationDamage: 150,
+        }),
+      ),
+    ).toEqual([
+      "基礎ダメージ100",
+      "スキル威力1",
+      "スキル威力加算0.5",
+      "適用威力1.5",
+      "スキル威力倍率1",
+      "FormulaSKILL_POWER",
+      "倍率適用後150",
+    ]);
+  });
+
+  it("UI-UT-ATR-043: スキル威力・加算値・適用威力は計算に使った値を丸めずに出す（R-DMG-08）", () => {
+    // 4桁へ丸めた0.7953では、基礎ダメージ1500から記録値1193を再現できない（1192になる）。
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 1500,
+          skillPower: 0.312,
+          skillPowerBonus: 0.4833333333333333,
+          skillPowerAfterBonus: 0.7953333333333333,
+          finalDamage: 1193,
+        }),
+      ),
+    ).toEqual([
+      "基礎ダメージ1,500",
+      "スキル威力0.312",
+      "スキル威力加算0.4833333333333333",
+      "適用威力0.7953333333333333",
+      "計算ダメージ1,193",
+    ]);
+  });
+
+  it("UI-UT-ATR-044: スキル威力倍率も記録値の桁のまま出す（R-DMG-08）", () => {
+    // 4桁へ丸めると0.99996が1になり、表示値では923、記録された最終ダメージは922になる。
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 1000,
+          skillPowerAfterBonus: 0.923,
+          skillPowerMultiplier: 0.99996,
+          finalDamage: 922,
+        }),
+      ),
+    ).toEqual(["基礎ダメージ1,000", "適用威力0.923", "スキル威力倍率0.99996", "計算ダメージ922"]);
+  });
+
   it("omits only the terms the payload does not carry, and words an unfavorable matchup and a nullified hit", () => {
     expect(
       texts(

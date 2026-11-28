@@ -418,6 +418,9 @@ function* applyOneSubUnitAdditionalDamageSteps(
       skillPowerFormulaKind: source.additionalDamage.formula.kind,
       // R-DMG-08: サブユニット追加ダメージはスキル威力の項を持たないため常に1。
       skillPowerMultiplier: 1,
+      skillPowerBonus: 0,
+      // 加算の無い威力の項はFormula評価結果そのもの。
+      skillPowerAfterBonus: formulaResult,
       attributeMultiplier,
       attackerAttribute: owner.attribute,
       defenderAttribute: target.attribute,
