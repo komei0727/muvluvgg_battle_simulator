@@ -38,6 +38,8 @@ export interface HitCalculation {
   readonly damageReductionIgnoreRate?: number;
   readonly baseDamage?: number;
   readonly skillPower?: number;
+  readonly skillPowerBonus?: number;
+  readonly skillPowerMultiplier?: number;
   readonly skillPowerFormulaKind?: string;
   readonly attributeMultiplier?: number;
   readonly attackerAttribute?: string;
@@ -192,6 +194,8 @@ const CALCULATION_NUMBER_KEYS = [
   "damageReductionIgnoreRate",
   "baseDamage",
   "skillPower",
+  "skillPowerBonus",
+  "skillPowerMultiplier",
   "attributeMultiplier",
   "attackerAffinityBonus",
   "criticalMultiplier",

@@ -896,7 +896,8 @@ formatter本体はイベントカテゴリ別のファイルが持ち、それ�
 {攻撃者} → {対象} ヒットN: 計算ダメージ{finalDamage}
   （{damageType}、攻撃力{attackerAttack}、実効防御{effectiveDefense}、
     防御貫通{defenseIgnoreRate}、シールド貫通{shieldIgnoreRate}、軽減貫通{damageReductionIgnoreRate}、
-    基礎ダメージ{baseDamage}、スキル威力{skillPower}、Formula {skillPowerFormulaKind}、
+    基礎ダメージ{baseDamage}、スキル威力{skillPower}、スキル威力加算{skillPowerBonus}、
+    スキル威力倍率{skillPowerMultiplier}、Formula {skillPowerFormulaKind}、
     属性倍率{attributeMultiplier}、有利属性ダメージ{attackerAffinityBonus} {攻撃側}→{防御側}、
     会心倍率、与/被ダメージ倍率、Action内追加倍率、混乱倍率、
     倍率適用後{rawPreTruncationDamage}、凍結増幅、肩代わり軽減、

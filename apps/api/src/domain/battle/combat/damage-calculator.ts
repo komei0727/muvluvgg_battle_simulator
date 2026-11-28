@@ -156,6 +156,25 @@ function resolveBaseDamageAndSkillPower(
   };
 }
 
+/** R-NUM-02: 威力と加算値の和を丸める小数桁数。 */
+const SKILL_POWER_SUM_DECIMALS = 1e9;
+
+/**
+ * R-DMG-08 #10 / R-NUM-02: 威力へ加算値を足した結果を、和そのものを威力として宣言した場合と
+ * 一致させる。両者は10進で書かれたCatalog値で、binary64の和は10進の和からずれる
+ * （`0.848 + 0.075`は`0.92299…`になり、威力`0.923`なら923の攻撃が922へ切り捨てられる）。
+ * Catalogの威力が持つ桁より十分細かい小数第9位で丸め、加算由来の誤差だけを取り除く。
+ * 加算値が0のときは丸めず、既存の威力をそのまま使う。
+ */
+function addSkillPowerBonus(skillPower: number, skillPowerBonus: number): number {
+  if (skillPowerBonus === 0) {
+    return skillPower;
+  }
+  return (
+    Math.round((skillPower + skillPowerBonus) * SKILL_POWER_SUM_DECIMALS) / SKILL_POWER_SUM_DECIMALS
+  );
+}
+
 /**
  * R-DMG-01のAction内追加ダメージ倍率。R-DMG-04の与/被ダメージ倍率と同じ合成
  * パターン（符号付き割合の合計、倍率は`1 + 合計補正`、0未満は0とする）を適用する。
@@ -225,7 +244,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   const skillPowerBonus =
     input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerBonus ?? 0) : 0;
   // 加算値は威力の数値へ足すため、倍率より先に適用する。負の加算で威力が負にならないよう0で止める。
-  const bonusedSkillPower = Math.max(0, skillPower + skillPowerBonus);
+  const bonusedSkillPower = Math.max(0, addSkillPowerBonus(skillPower, skillPowerBonus));
   const preTruncationDamage =
     baseDamage *
     bonusedSkillPower *

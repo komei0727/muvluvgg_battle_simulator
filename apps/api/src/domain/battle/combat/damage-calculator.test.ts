@@ -520,6 +520,29 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
     expect(result.skillPower).toBe(0.848);
     expect(result.skillPowerBonus).toBe(0.075);
     expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.923, 10);
+    expect(result.finalDamage).toBe(923);
+  });
+
+  it("UT-R-DMG-08-024 [R-NUM-02]: a bonused skill power yields the same final damage as declaring the summed power directly", () => {
+    const bonused = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
+        skillPowerBonus: 0.075,
+      }),
+    );
+    const direct = calculateDamage(
+      input({
+        attackerAttack: 1020,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.923 },
+      }),
+    );
+    // 0.848 + 0.075 は binary64 で 0.92299…となり、そのまま掛けると 922 へ切り捨てられる。
+    expect(direct.finalDamage).toBe(923);
+    expect(bonused.finalDamage).toBe(923);
+    expect(bonused.preTruncationDamage).toBe(direct.preTruncationDamage);
   });
 
   it("UT-R-DMG-08-014: applies the bonus before the multiplicative skill power modifier", () => {

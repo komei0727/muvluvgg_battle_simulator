@@ -83,6 +83,8 @@ export function hitCalculationTerms(calculation: HitCalculation): readonly HitCa
     rate(calculation, "damageReductionIgnoreRate", "軽減貫通"),
     amount(calculation, "baseDamage", "基礎ダメージ"),
     amount(calculation, "skillPower", "スキル威力"),
+    amount(calculation, "skillPowerBonus", "スキル威力加算"),
+    amount(calculation, "skillPowerMultiplier", "スキル威力倍率"),
     text("Formula", calculation.skillPowerFormulaKind),
     amount(calculation, "attributeMultiplier", "属性倍率"),
     matchupTerm(calculation),

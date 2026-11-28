@@ -70,6 +70,28 @@ describe("hitCalculationTerms", () => {
     ]);
   });
 
+  it("UI-UT-ATR-042: スキル威力の加算値・倍率を威力の隣に出す（R-DMG-08）", () => {
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 100,
+          skillPower: 1,
+          skillPowerBonus: 0.5,
+          skillPowerMultiplier: 1,
+          skillPowerFormulaKind: "SKILL_POWER",
+          rawPreTruncationDamage: 150,
+        }),
+      ),
+    ).toEqual([
+      "基礎ダメージ100",
+      "スキル威力1",
+      "スキル威力加算0.5",
+      "スキル威力倍率1",
+      "FormulaSKILL_POWER",
+      "倍率適用後150",
+    ]);
+  });
+
   it("omits only the terms the payload does not carry, and words an unfavorable matchup and a nullified hit", () => {
     expect(
       texts(

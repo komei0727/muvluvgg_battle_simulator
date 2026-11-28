@@ -483,6 +483,8 @@ describe("projectTraceSteps reads hit breakdowns and heal amounts (UI-UT-ATR-013
       damageReductionIgnoreRate: calculatedDetails["damageReductionIgnoreRate"],
       baseDamage: calculatedDetails["baseDamage"],
       skillPower: calculatedDetails["skillPower"],
+      skillPowerBonus: calculatedDetails["skillPowerBonus"],
+      skillPowerMultiplier: calculatedDetails["skillPowerMultiplier"],
       skillPowerFormulaKind: calculatedDetails["skillPowerFormulaKind"],
       attributeMultiplier: calculatedDetails["attributeMultiplier"],
       attackerAttribute: calculatedDetails["attackerAttribute"],
