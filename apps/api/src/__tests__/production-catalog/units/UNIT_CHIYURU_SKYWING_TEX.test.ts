@@ -612,4 +612,39 @@ describe("production Catalog UNIT_CHIYURU_SKYWING_TEX (【穹に閃く探求の�
     expect(dispellableOf(SKILL_POWER_UP)).toBe(false);
     expect(dispellableOf("ACT_CHIYURU_SKYWING_TEX_PS1_DMG_DOWN")).toBe(true);
   });
+  it("IT-UNIT-CHIYURU-SKYWING-TEX-009 [R-SKL-06, R-INT-02]: AS1+の攻撃を後列が肩代わりすると、AP・PPは元の対象ではなく肩代わりした後列から削られる", () => {
+    const coverId = createEffectActionDefinitionId("ACT_TEST_COVER");
+    const cover: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TEST_COVER"),
+      effectActionDefinitionId: coverId,
+      kindKey: effectKindKeyFromDefinitionId(coverId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("enemy:back"),
+      targetUnitId: createBattleUnitId("ally:subject"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      cover: {
+        covererUnitId: createBattleUnitId("enemy:back"),
+        damageShareRate: 1,
+        guardRate: 0,
+        actionKinds: ["DAMAGE"],
+      },
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+    };
+    const observation = observeSkillUse({
+      snapshot,
+      unitDefinitionId: UNIT_DEFINITION_ID,
+      use: { kind: "ACTIVE", skillDefinitionId: "SKL_CHIYURU_SKYWING_TEX_AS1" },
+      board: { subject: { state: { appliedEffects: [cover] } } },
+      // 抽選は前列中央を選ぶ。
+      random: drawsStartingWith(0, 0)(),
+    });
+    expect(observation.hpDeltas).toEqual({ "enemy:back": -901 });
+    expect(observation.resources).toEqual([
+      ...AS1_SELF_RESOURCES,
+      { unitId: "enemy:back", resource: "AP", delta: -2 },
+      { unitId: "enemy:back", resource: "PP", delta: -2 },
+    ]);
+  });
 });

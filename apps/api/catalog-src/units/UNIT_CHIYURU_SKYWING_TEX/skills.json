@@ -56,18 +56,8 @@
           "target": { "kind": "BINDING", "targetBindingId": "TGT_RANDOM" },
           "actions": [
             { "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE" },
-            {
-              "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_AP_DOWN",
-              "hitCondition": {
-                "effectActionDefinitionIds": ["ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE"]
-              }
-            },
-            {
-              "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_PP_DOWN",
-              "hitCondition": {
-                "effectActionDefinitionIds": ["ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE"]
-              }
-            }
+            { "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_AP_DOWN" },
+            { "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_PP_DOWN" }
           ]
         }
       ]

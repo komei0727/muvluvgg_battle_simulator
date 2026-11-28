@@ -3,7 +3,7 @@
   "catalogRevision": "2026-11-28.3",
   "files": {
     "units.json": "sha256:c69d90583312b3bd76f2ab9bc9e03525cb45c6377cbb460467506b55e6f41a87",
-    "skills.json": "sha256:df4e9cb88e57294c8257a4f3d5e2553d6853b91b9ef76b290f27cf4eb564dd98",
+    "skills.json": "sha256:7bc79ae1c5f44ccfa6822f5d287deb584766e307122348939ad84dcb70fc0dab",
     "effects.json": "sha256:bc707b0435843b6d5f4a9468d111826e03d3acba63fbaa24cdabf0389bd3930b",
     "memories.json": "sha256:0140b47e86ca5eff865bb859a9b3e62e1c04b7009eb8a7de15540a9f5e86ce68"
   }
