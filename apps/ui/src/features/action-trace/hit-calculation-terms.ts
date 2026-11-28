@@ -35,7 +35,8 @@ function amount(
 }
 
 /**
- * R-DMG-08: 威力の項は計算に使った値を丸めずに出す。4桁へ丸めると適用威力
+ * R-DMG-08: 威力の項（スキル威力・加算値・適用威力・スキル威力倍率）は計算に使った値を
+ * 丸めずに出す。4桁へ丸めると適用威力
  * `0.7953333333333333`が`0.7953`になり、表示値から記録されたダメージを再現できない。
  */
 function exactAmount(
@@ -98,7 +99,7 @@ export function hitCalculationTerms(calculation: HitCalculation): readonly HitCa
     exactAmount(calculation, "skillPower", "スキル威力"),
     exactAmount(calculation, "skillPowerBonus", "スキル威力加算"),
     exactAmount(calculation, "skillPowerAfterBonus", "適用威力"),
-    amount(calculation, "skillPowerMultiplier", "スキル威力倍率"),
+    exactAmount(calculation, "skillPowerMultiplier", "スキル威力倍率"),
     text("Formula", calculation.skillPowerFormulaKind),
     amount(calculation, "attributeMultiplier", "属性倍率"),
     matchupTerm(calculation),

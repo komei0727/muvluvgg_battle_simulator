@@ -406,6 +406,7 @@ export interface BattleDomainEventPayloadMap {
     /**
      * R-DMG-08 #10: 威力と全加算値を10進で合計し0下限を適用した直後、`skillPowerMultiplier`を
      * 掛ける前の威力。恒等式はこの値を使う。加算が無ければ`max(0, skillPower)`。
+     * サブユニット追加ヒットではFormula評価結果をそのまま記録し、0下限を適用しない（負になり得る）。
      */
     readonly skillPowerAfterBonus: number;
     readonly attributeMultiplier: number;

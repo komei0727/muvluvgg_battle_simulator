@@ -348,6 +348,10 @@ describe("applyDamageAction sub-units (R-SUB-01/R-SUB-02)", () => {
       defenseIgnoreRate: 0,
       attributeMultiplier: 1,
       criticalMultiplier: 1,
+      // R-DMG-08: 追加ヒットの威力の項はFormula評価結果そのもので、0下限を適用しない。
+      skillPower: -990,
+      skillPowerBonus: 0,
+      skillPowerAfterBonus: -990,
       finalDamage: 1,
     });
   });

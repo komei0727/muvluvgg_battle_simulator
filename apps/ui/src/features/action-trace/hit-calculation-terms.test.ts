@@ -115,6 +115,20 @@ describe("hitCalculationTerms", () => {
     ]);
   });
 
+  it("UI-UT-ATR-044: スキル威力倍率も記録値の桁のまま出す（R-DMG-08）", () => {
+    // 4桁へ丸めると0.99996が1になり、表示値では923、記録された最終ダメージは922になる。
+    expect(
+      texts(
+        hitCalculationTerms({
+          baseDamage: 1000,
+          skillPowerAfterBonus: 0.923,
+          skillPowerMultiplier: 0.99996,
+          finalDamage: 922,
+        }),
+      ),
+    ).toEqual(["基礎ダメージ1,000", "適用威力0.923", "スキル威力倍率0.99996", "計算ダメージ922"]);
+  });
+
   it("omits only the terms the payload does not carry, and words an unfavorable matchup and a nullified hit", () => {
     expect(
       texts(
