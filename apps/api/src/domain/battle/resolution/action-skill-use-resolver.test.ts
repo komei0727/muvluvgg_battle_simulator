@@ -293,6 +293,135 @@ function definitionsOf(
 }
 
 describe("resolveSkillUse", () => {
+  /**
+   * R-TGT-11: 敵3体（既定順 NEAR_FRONT → LEFT_BACK → RIGHT_BACK）から抽選で1体を攻撃するAS。
+   * 乱数の先頭2回が抽選で、1回目 floor(0.5 × 3) = 1 により LEFT_BACK が選ばれる。
+   */
+  function resolveRandomAttack(actorEffects: readonly AppliedEffect[] = []): {
+    readonly events: ReturnType<EventRecorder["getEvents"]>;
+    readonly random: SequenceRandomSource;
+    readonly randomBindingId: ReturnType<typeof createTargetBindingId>;
+  } {
+    const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
+    const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");
+    const base = damageEffectAction("ACT_RANDOM_HIT");
+    const hit: EffectActionDefinition =
+      base.kind === "DAMAGE"
+        ? { ...base, payload: { ...base.payload, accuracy: { mode: "GUARANTEED" } } }
+        : base;
+    const randomBindingId = createTargetBindingId("TGT_RANDOM");
+    const skill: SkillDefinition = {
+      ...trivialAttackSkill("SKL_RANDOM", "ACT_RANDOM_HIT"),
+      resolution: {
+        kind: "IMMEDIATE",
+        targetBindings: [
+          {
+            targetBindingId: randomBindingId,
+            selector: { ...ENEMY_ALL, count: 1, order: ["RANDOM"] },
+          },
+        ],
+        steps: [
+          {
+            kind: "ACTION",
+            stepCondition: { kind: "TRUE" },
+            targetCondition: { kind: "TRUE" },
+            target: { kind: "BINDING", targetBindingId: randomBindingId },
+            actions: [{ effectActionDefinitionId: hit.effectActionDefinitionId }],
+          },
+        ],
+      },
+    };
+    const actor: BattleUnit = {
+      ...unit("ACTOR", "ALLY", {
+        unitDefinitionId: actorUnitDefinitionId,
+        currentAp: 3,
+        position: { column: "CENTER", row: "FRONT" },
+      }),
+      appliedEffects: [...actorEffects],
+    };
+    const enemies = (
+      [
+        ["NEAR_FRONT", { column: "CENTER", row: "FRONT" }],
+        ["LEFT_BACK", { column: "LEFT", row: "BACK" }],
+        ["RIGHT_BACK", { column: "RIGHT", row: "BACK" }],
+      ] as const
+    ).map(([id, position]) =>
+      unit(id, "ENEMY", { unitDefinitionId: enemyUnitDefinitionId, position }),
+    );
+    const definitions = definitionsOf(
+      new Map([
+        [actorUnitDefinitionId, unitDefinitionOf(actorUnitDefinitionId)],
+        [enemyUnitDefinitionId, unitDefinitionOf(enemyUnitDefinitionId)],
+      ]),
+      new Map(),
+      new Map([[hit.effectActionDefinitionId, hit]]),
+    );
+    const recorder = new EventRecorder(createBattleId("B_1"));
+    const random = new SequenceRandomSource([0.5, 0, 0.99, 0.99, 0.99, 0.99]);
+
+    resolveSkillUse(
+      actor,
+      skill,
+      "AS",
+      "AS",
+      [actor, ...enemies],
+      definitions,
+      random,
+      recorder,
+      1,
+      0,
+      createActionId("B_1:action:1"),
+      recorder.nextResolutionScopeId(),
+    );
+    return { events: recorder.getEvents(), random, randomBindingId };
+  }
+
+  const damagedUnitIds = (events: ReturnType<EventRecorder["getEvents"]>): readonly string[] =>
+    events.filter((e) => e.eventType === "DamageApplied").flatMap((e) => e.targetUnitIds ?? []);
+
+  it("UT-R-TGT-11-007 [R-TGT-11, R-SKL-01]: a RANDOM binding is drawn once from the battle random source, and TargetsSelected records the drawn unit that the attack actually hits", () => {
+    const { events, random, randomBindingId } = resolveRandomAttack();
+
+    expect(events.find((e) => e.eventType === "TargetsSelected")?.payload).toMatchObject({
+      bindings: [{ targetBindingId: randomBindingId, selectedTargetUnitIds: ["LEFT_BACK"] }],
+    });
+    expect(damagedUnitIds(events)).toEqual(["LEFT_BACK"]);
+    expect(random.consumedValues.slice(0, 2)).toEqual([0.5, 0]);
+  });
+
+  it("UT-R-TGT-11-009 [R-TGT-11, R-INT-01]: a taunt the attacker holds still overrides the drawn target at hit time", () => {
+    const definitionId = createEffectActionDefinitionId("ACT_TAUNT");
+    const taunt: AppliedEffect = {
+      effectInstanceId: createEffectInstanceId("TAUNT"),
+      effectActionDefinitionId: definitionId,
+      kindKey: effectKindKeyFromDefinitionId(definitionId),
+      duplicate: true,
+      sourceUnitId: createBattleUnitId("RIGHT_BACK"),
+      targetUnitId: createBattleUnitId("ACTOR"),
+      magnitude: 0,
+      categories: ["DEBUFF"],
+      duration: { definition: { dispellable: true, linkedEffectGroupId: null } },
+      appliedTurnNumber: 1,
+      targetRedirect: {
+        redirectToUnitId: createBattleUnitId("RIGHT_BACK"),
+        actionKinds: ["DAMAGE"],
+      },
+    };
+
+    const { events } = resolveRandomAttack([taunt]);
+
+    // 抽選の結果（選択）は LEFT_BACK のまま、命中時の引き寄せで RIGHT_BACK が受ける。
+    expect(events.find((e) => e.eventType === "TargetsSelected")?.payload).toMatchObject({
+      bindings: [{ selectedTargetUnitIds: ["LEFT_BACK"] }],
+    });
+    expect(events.find((e) => e.eventType === "DamageRedirected")?.payload).toMatchObject({
+      reason: "TARGET_REDIRECT",
+      originalTargetUnitId: "LEFT_BACK",
+      newTargetUnitId: "RIGHT_BACK",
+    });
+    expect(damagedUnitIds(events)).toEqual(["RIGHT_BACK"]);
+  });
+
   it("UT-R-EFF-11-025 (EFF-006 Issue #212): an AS skill's own EffectSequence counterUpdates increments during resolution and is discarded (RuntimeCounterReset) once resolveSkillUse completes", () => {
     const actorUnitDefinitionId = createUnitDefinitionId("UNIT_ACTOR");
     const enemyUnitDefinitionId = createUnitDefinitionId("UNIT_ENEMY");

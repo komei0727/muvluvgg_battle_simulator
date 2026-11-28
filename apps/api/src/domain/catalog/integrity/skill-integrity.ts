@@ -2,7 +2,10 @@ import type { EffectActionDefinitionId } from "../definitions/catalog-ids.js";
 import type { EffectActionDefinition } from "../definitions/effect-action-definition.js";
 import type { TargetReference } from "../definitions/references.js";
 import type { SkillDefinition } from "../definitions/skill-definition.js";
-import type { TargetSelectorDefinition } from "../definitions/target-selector-definition.js";
+import type {
+  TargetFilterDefinition,
+  TargetSelectorDefinition,
+} from "../definitions/target-selector-definition.js";
 import type { EffectStepDefinition } from "../definitions/effect-sequence.js";
 import { collectEffectActionReferences } from "../definitions/effect-step-walk.js";
 import type { CatalogIntegrityViolation } from "./catalog-integrity-violation.js";
@@ -112,6 +115,22 @@ function validateActivationConditionReferences(
   if (scope === "PASSIVE") {
     return;
   }
+  for (const { reference, path } of collectConditionTargetReferencePaths(
+    activationCondition,
+    "activationCondition",
+  )) {
+    if (
+      reference.kind === "BINDING" &&
+      reference.targetBindingId !== undefined &&
+      bindingDraws(reference.targetBindingId, bindingSelectors)
+    ) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "ACTIVATION_CONDITION_RANDOM_BINDING",
+        message: `${path}: an AS/EX activationCondition references BINDING "${reference.targetBindingId}", which draws its units with order RANDOM — action selection resolves it without drawing (R-TGT-11), so the condition would judge different units than the skill actually targets. Gate on a separate binding that does not draw`,
+      });
+    }
+  }
   for (const { reference, path } of collectTargetStateOrMarkerReferences(
     activationCondition,
     "activationCondition",
@@ -121,6 +140,107 @@ function validateActivationConditionReferences(
         targetId: skill.skillDefinitionId,
         rule: "ACTIVATION_CONDITION_UNBOUNDED_REFERENCE",
         message: `${path}: an AS/EX activationCondition evaluates TARGET_STATE/TARGET_HAS_MARKER/TARGET_HAS_EFFECT/TARGET_EFFECT_COUNT against a TargetReference that is not guaranteed to resolve to at most one unit (only SELF, or a charge-start BINDING whose selector has kind SELECT and count 1, are supported — action-selection evaluation has no per-target context to quantify over multiple units, Issue #248, TARGET_EFFECT_COUNT added by Issue #649)`,
+      });
+    }
+  }
+}
+
+/** セレクタが参照する他の束縛（`base`、`EXCLUDE_RESOLVED_UNIT`フィルタ、`fallback`の分も含む）。 */
+function referencedBindingIds(selector: TargetSelectorDefinition): readonly string[] {
+  const fromFilter = (filter: TargetFilterDefinition): readonly string[] => {
+    switch (filter.kind) {
+      case "EXCLUDE_RESOLVED_UNIT":
+        return filter.reference.kind === "BINDING" && filter.reference.targetBindingId !== undefined
+          ? [filter.reference.targetBindingId]
+          : [];
+      case "AND":
+      case "OR":
+        return filter.conditions.flatMap(fromFilter);
+      case "NOT":
+        return fromFilter(filter.condition);
+      default:
+        return [];
+    }
+  };
+  return [
+    ...(selector.base?.kind === "BINDING" && selector.base.targetBindingId !== undefined
+      ? [selector.base.targetBindingId]
+      : []),
+    ...selector.filters.flatMap(fromFilter),
+    ...(selector.fallback === undefined ? [] : referencedBindingIds(selector.fallback)),
+  ];
+}
+
+function selectorOrFallbackDraws(selector: TargetSelectorDefinition): boolean {
+  return (
+    selector.order.includes("RANDOM") ||
+    (selector.fallback !== undefined && selectorOrFallbackDraws(selector.fallback))
+  );
+}
+
+/**
+ * R-TGT-11: その束縛が依存する他の束縛（推移的）のどれかが抽選するか。
+ * 自身の抽選は含めない — 自身の候補集合は抽選に依らないため。
+ */
+function bindingDependsOnDraw(
+  targetBindingId: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+  visited: ReadonlySet<string> = new Set(),
+): boolean {
+  const selector = bindingSelectors.get(targetBindingId);
+  if (selector === undefined || visited.has(targetBindingId)) {
+    return false;
+  }
+  const nextVisited = new Set([...visited, targetBindingId]);
+  return referencedBindingIds(selector).some((referenced) =>
+    bindingDraws(referenced, bindingSelectors, nextVisited),
+  );
+}
+
+/**
+ * R-TGT-11: その束縛の結果が抽選に左右されるか。自身（fallback含む）が`RANDOM`を
+ * 持つか、参照する束縛（`BINDING_DERIVED`の基準・`EXCLUDE_RESOLVED_UNIT`・推移的）が
+ * 抽選する場合に真。
+ */
+function bindingDraws(
+  targetBindingId: string,
+  bindingSelectors: ReadonlyMap<string, TargetSelectorDefinition>,
+  visited: ReadonlySet<string> = new Set(),
+): boolean {
+  const selector = bindingSelectors.get(targetBindingId);
+  if (selector === undefined || visited.has(targetBindingId)) {
+    return false;
+  }
+  return (
+    selectorOrFallbackDraws(selector) ||
+    bindingDependsOnDraw(targetBindingId, bindingSelectors, visited)
+  );
+}
+
+/**
+ * R-TGT-11 / R-TGT-10: AS/EXの必須束縛（`optional`でない）は、行動選択が「候補が
+ * 1体以上いるか」で発動可否を決める（R-TGT-01 #4）。行動選択は抽選しないため、
+ * 抽選する束縛に候補が依存する必須束縛は、判定と実際の解決で候補の有無が食い違い
+ * うる。抽選する束縛自身は候補集合が抽選に依らないため対象外とする。CHARGEは行動選択
+ * が開始側の束縛だけを見るため、解放側は対象外。
+ */
+function validateRandomDependentRequiredBindings(
+  skill: SkillDefinition,
+  violations: CatalogIntegrityViolation[],
+): void {
+  if (skill.skillType !== "AS" && skill.skillType !== "EX") {
+    return;
+  }
+  const bindingSelectors = buildBindingSelectors(skill.resolution.targetBindings);
+  for (const binding of skill.resolution.targetBindings) {
+    if (binding.optional === true) {
+      continue;
+    }
+    if (bindingDependsOnDraw(binding.targetBindingId, bindingSelectors)) {
+      violations.push({
+        targetId: skill.skillDefinitionId,
+        rule: "RANDOM_DEPENDENT_REQUIRED_BINDING",
+        message: `targetBindings "${binding.targetBindingId}": a required ${skill.skillType} binding depends on a binding that draws with order RANDOM — action selection resolves without drawing (R-TGT-11), so whether it has candidates can differ from the real resolution. Declare it optional: true`,
       });
     }
   }
@@ -190,6 +310,7 @@ export function validateSkill(
     );
   }
   validateActivationConditionReferences(skill, violations);
+  validateRandomDependentRequiredBindings(skill, violations);
   const runtimeTriggers = [
     ...skill.triggers,
     ...skill.counterUpdates.map((counterUpdate) => counterUpdate.trigger),

@@ -1372,6 +1372,7 @@ export class PassiveActivationRuntime {
       this.context.definitions.effectActions,
       triggerContext,
       this.context.definitions.unitDefinitions,
+      this.context.random,
     );
     if (plan.targetUnitIds.length === 0) {
       return { interrupted: false };
@@ -1703,6 +1704,7 @@ export class PassiveActivationRuntime {
       this.context.definitions.effectActions,
       triggerContext,
       this.context.definitions.unitDefinitions,
+      this.context.random,
     );
     // ターン開始・終了など行動外の
     // トップレベルイベントから発動したPS（`actionId`を持たない）も実効果を

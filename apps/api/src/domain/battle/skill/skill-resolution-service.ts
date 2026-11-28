@@ -1,3 +1,4 @@
+import type { RandomSource } from "../../ports/random-source.js";
 import { triggerPrimaryTargetId } from "../targeting/trigger-primary-target.js";
 import { heldMarkerStackTotal } from "../model/marker-state.js";
 import type { BattleUnit } from "../model/battle-unit.js";
@@ -174,6 +175,7 @@ export function resolveDeferredBinding(
   allUnits: readonly BattleUnit[],
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  random?: RandomSource,
 ): StealthConsumption | undefined {
   const binding = plan.deferredBindings?.get(targetBindingId);
   if (binding === undefined) {
@@ -193,6 +195,8 @@ export function resolveDeferredBinding(
     new Map(Array.from(resolvedBindings.entries()).map(([id, resolved]) => [id, resolved.units])),
     triggerContext,
     unitDefinitions,
+    undefined,
+    random,
   );
   resolvedBindings.set(targetBindingId, {
     units,
@@ -688,6 +692,7 @@ function resolveEffectSequence(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  random?: RandomSource,
 ): EffectSequencePlan {
   // R-SKL-01 #1: targetBindingsを定義順に一度だけ評価する。
   // R-TGT-09/10: `base: BINDING`が同じsequence内の先行bindingを参照できるよう、
@@ -714,6 +719,7 @@ function resolveEffectSequence(
       triggerContext,
       unitDefinitions,
       consumedStealthEffectInstanceIds,
+      random,
     );
     if (stealthConsumption !== undefined) {
       stealthConsumptions.push(stealthConsumption);
@@ -1124,6 +1130,7 @@ export function resolveSkillOrder(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  random?: RandomSource,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "IMMEDIATE") {
     throw new DomainValidationError(
@@ -1138,6 +1145,7 @@ export function resolveSkillOrder(
     effectActions,
     triggerContext,
     unitDefinitions,
+    random,
   );
 }
 
@@ -1156,6 +1164,7 @@ export function resolveMemoryEffectSequenceOrder(
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  random?: RandomSource,
 ): EffectSequencePlan {
   return resolveEffectSequence(
     sequence,
@@ -1164,6 +1173,7 @@ export function resolveMemoryEffectSequenceOrder(
     effectActions,
     triggerContext,
     unitDefinitions,
+    random,
   );
 }
 
@@ -1179,6 +1189,7 @@ export function resolveChargeReleaseOrder(
   allUnits: readonly BattleUnit[],
   effectActions: ReadonlyMap<EffectActionDefinitionId, EffectActionDefinition>,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
+  random?: RandomSource,
 ): EffectSequencePlan {
   if (skill.resolution.kind !== "CHARGE") {
     throw new DomainValidationError(
@@ -1194,5 +1205,6 @@ export function resolveChargeReleaseOrder(
     effectActions,
     undefined,
     unitDefinitions,
+    random,
   );
 }

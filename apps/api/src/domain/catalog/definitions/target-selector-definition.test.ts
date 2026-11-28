@@ -661,4 +661,67 @@ describe("TargetSelectorDefinition", () => {
       ),
     ).toThrow(DomainValidationError);
   });
+
+  it("UT-CAT-TSEL-047: accepts RANDOM as the sole order key of a selector with a numeric count", () => {
+    const random = createTargetSelectorDefinition(
+      { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM"] },
+      "selector",
+      undefined,
+    );
+    expect(random.order).toEqual(["RANDOM"]);
+
+    const derived = createTargetSelectorDefinition(
+      {
+        kind: "BINDING_DERIVED",
+        side: "ENEMY",
+        base: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+        area: { kind: "ADJACENT_ORTHOGONAL" },
+        order: ["RANDOM"],
+        count: 1,
+      },
+      "selector",
+      undefined,
+    );
+    expect(derived.order).toEqual(["RANDOM"]);
+  });
+
+  it("UT-CAT-TSEL-048: rejects RANDOM combined with another order key", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM", "DEFAULT"] },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(/RANDOM/);
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELECT", side: "ENEMY", count: 1, order: ["FRONT_ROW", "RANDOM"] },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(/RANDOM/);
+  });
+
+  it("UT-CAT-TSEL-049: rejects RANDOM without a numeric count (ALL, or BINDING_DERIVED with count omitted)", () => {
+    expect(() =>
+      createTargetSelectorDefinition(
+        { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["RANDOM"] },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(/RANDOM/);
+    expect(() =>
+      createTargetSelectorDefinition(
+        {
+          kind: "BINDING_DERIVED",
+          side: "ENEMY",
+          base: { kind: "BINDING", targetBindingId: "TGT_BASE" },
+          area: { kind: "SAME_ROW_AS_BASE" },
+          order: ["RANDOM"],
+        },
+        "selector",
+        undefined,
+      ),
+    ).toThrow(/RANDOM/);
+  });
 });

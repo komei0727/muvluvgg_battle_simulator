@@ -35,7 +35,7 @@ const NON_NUMERIC_TERMINAL_TEST_CASE_IDS: ReadonlySet<string> = new Set([
 ]);
 
 describe("Rule coverage ledger", () => {
-  it("UT-TRACEABILITY-001: ledger contains exactly 156 rule IDs", () => {
+  it("UT-TRACEABILITY-001: ledger contains exactly 157 rule IDs", () => {
     // M7-005-HEAL-LINK（Issue #229）でR-HEAL-04（回復リンク）を追加し109→110。
     // M7-018（Issue #272）でR-HIT-04（Nヒット回避）・R-HIT-05（必中付与）を
     // 追加し110→112 — どちらも`07_戦闘ルール詳細.md`にRule定義自体が無いまま
@@ -106,8 +106,10 @@ describe("Rule coverage ledger", () => {
     // スキル威力の独立した乗算項を表せない。
     // Memory由来効果の解除不可（R-MEM-05）を新設し155→156 — 既存の免除はブレイク復活時
     // （R-TEX-05 #2）だけで、`REMOVE_EFFECTS`に対する規定が無かった。
+    // ランダム選択（R-TGT-11）を新設し156→157 — 既存の`order`は決定的な比較キーだけで、
+    // 生存数が変わる候補から対象そのものを抽選できなかった。
     // 新しいRuleを設計・発見した場合は本カウントを同じPRで更新する。
-    expect(RULE_COVERAGE).toHaveLength(156);
+    expect(RULE_COVERAGE).toHaveLength(157);
   });
 
   it("UT-TRACEABILITY-002: ledger rule IDs match spec exactly", () => {
