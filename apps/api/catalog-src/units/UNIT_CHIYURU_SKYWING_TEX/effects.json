@@ -1,0 +1,87 @@
+[
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_EX_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 0.312 },
+      "hitCount": 5
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_EX_DAMAGE_EXTRA",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.39 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": {
+      "damageType": "EN",
+      "formula": { "kind": "SKILL_POWER", "power": 1.802 },
+      "accuracy": { "mode": "GUARANTEED" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_AP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "AP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -2 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_PP_DOWN",
+    "kind": "MODIFY_RESOURCE",
+    "payload": {
+      "resource": "PP",
+      "operation": "ADD",
+      "formula": { "kind": "CONSTANT", "value": -2 },
+      "bounds": { "min": 0, "max": "CURRENT_MAX" }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS2_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 0.848 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS1_DAMAGE",
+    "kind": "DAMAGE",
+    "payload": { "damageType": "EN", "formula": { "kind": "SKILL_POWER", "power": 1.092 } },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS1_DMG_DOWN",
+    "kind": "APPLY_DAMAGE_MOD",
+    "payload": {
+      "direction": "OUTGOING",
+      "damageType": null,
+      "formula": { "kind": "CONSTANT", "value": -0.2 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": { "dispellable": true, "timeLimit": { "unit": "ACTION", "count": 1 } }
+    },
+    "metadata": { "tags": [] }
+  },
+  {
+    "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS2_SKILL_POWER_UP",
+    "kind": "APPLY_SKILL_POWER_BONUS",
+    "payload": {
+      "powerDelta": { "kind": "CONSTANT", "value": 0.075 },
+      "stacking": { "mode": "STACKABLE" },
+      "duration": {
+        "dispellable": false,
+        "timeLimit": { "unit": "TURN", "count": 1, "countGrantTurn": true }
+      }
+    },
+    "metadata": { "tags": [] }
+  }
+]
