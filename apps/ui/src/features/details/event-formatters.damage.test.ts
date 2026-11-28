@@ -341,6 +341,7 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
           baseDamage: 100,
           skillPower: 1,
           skillPowerBonus: 0.5,
+          skillPowerAfterBonus: 1.5,
           skillPowerMultiplier: 1,
           skillPowerFormulaKind: "SKILL_POWER",
           attributeMultiplier: 1,
@@ -354,7 +355,7 @@ describe("damage pipeline events (R-DMG-01〜05, DMG-001〜003)", () => {
     );
 
     expect(presentation.summary).toContain(
-      "スキル威力1、スキル威力加算0.5、スキル威力倍率1、Formula SKILL_POWER",
+      "スキル威力1、スキル威力加算0.5、適用威力1.5、スキル威力倍率1、Formula SKILL_POWER",
     );
   });
 

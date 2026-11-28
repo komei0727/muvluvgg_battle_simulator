@@ -1,5 +1,3 @@
-import { addDecimalValues } from "../../domain/shared/decimal-sum.js";
-
 /**
  * `08_ドメインイベント.md`「payload単体での再現可能性」の恒等式を、`DAMAGE_CALCULATED`
  * （`DamageCalculated`）の計算項目だけから評価する。記録済みの中間値を使わず、
@@ -21,8 +19,9 @@ export function reproduceDamageCalculated(
     const value = details[key];
     return typeof value === "number" ? value : fallback;
   };
-  // R-DMG-08 #10・R-NUM-02: 威力と加算値の和は10進の値どうしの和として求める。
-  const skillPower = Math.max(0, addDecimalValues(num("skillPower", 1), num("skillPowerBonus", 0)));
+  // R-DMG-08 #10: 計算に使う威力は、加算と0下限を適用した直後の記録値。
+  // `skillPowerAfterBonus`を持たないログ（加算の導入前）は`skillPower`そのものを使う。
+  const skillPower = num("skillPowerAfterBonus", num("skillPower", 1));
   const rawPreTruncationDamage =
     num("baseDamage", 1) *
     skillPower *

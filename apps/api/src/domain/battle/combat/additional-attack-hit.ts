@@ -2,10 +2,7 @@ import { calculateDamage } from "./damage-calculator.js";
 import { guardedDamage } from "./defensive-intervention-policy.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
-import {
-  composeSkillPowerBonus,
-  composeSkillPowerMultiplier,
-} from "./skill-power-modifier-policy.js";
+import { composeSkillPowerMultiplier, skillPowerBonusesOf } from "./skill-power-modifier-policy.js";
 import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
 import { damageResultsFor } from "../skill/formula-evaluator.js";
 import type { DamageEventContext, DamageStep } from "./damage-event-context.js";
@@ -177,7 +174,7 @@ export function* applyOneAdditionalAttackHitSteps(
     // R-DMG-08: 追撃は保持者の`SKILL_POWER`式で計算するため、保持者のスキル威力補正（倍率・加算値）が掛かる。
     // 攻撃時追加攻撃（R-DMG-06）の式は`SKILL_POWER`ではないので、計算側で中立値になる。
     skillPowerMultiplier: composeSkillPowerMultiplier(attacker),
-    skillPowerBonus: composeSkillPowerBonus(attacker),
+    skillPowerBonuses: skillPowerBonusesOf(attacker),
     formulaContext,
     // R-CFS-02（DMG-009）: 混乱は「ASのDAMAGE EffectAction」だけに働くため適用しない。
   });
@@ -234,6 +231,7 @@ export function* applyOneAdditionalAttackHitSteps(
       skillPowerFormulaKind: rawDamageResult.skillPowerFormulaKind,
       skillPowerMultiplier: rawDamageResult.skillPowerMultiplier,
       skillPowerBonus: rawDamageResult.skillPowerBonus,
+      skillPowerAfterBonus: rawDamageResult.skillPowerAfterBonus,
       attributeMultiplier: rawDamageResult.attributeMultiplier,
       attackerAttribute: attacker.attribute,
       defenderAttribute: target.attribute,

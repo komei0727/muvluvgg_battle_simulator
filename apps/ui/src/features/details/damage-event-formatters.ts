@@ -226,8 +226,9 @@ function formatDamageCalculated(
     auditRateTerm("軽減貫通", details["damageReductionIgnoreRate"]),
     auditTerm("基礎ダメージ", details["baseDamage"]),
     auditTerm("スキル威力", details["skillPower"]),
-    // R-DMG-08: 補正後の威力は max(0, 威力 + 加算) × 倍率。威力の項として並べる。
+    // R-DMG-08: 威力・加算値は内訳、適用威力（加算と0下限の直後）に倍率を掛ける。
     auditTerm("スキル威力加算", details["skillPowerBonus"]),
+    auditTerm("適用威力", details["skillPowerAfterBonus"]),
     auditTerm("スキル威力倍率", details["skillPowerMultiplier"]),
     formulaKindTerm(details),
     auditTerm("属性倍率", details["attributeMultiplier"]),

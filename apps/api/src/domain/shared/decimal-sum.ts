@@ -1,36 +1,57 @@
 /**
- * R-NUM-02: 10進で宣言した値どうしの和を、10進の厳密な和に最も近いbinary64へそろえる。
- * binary64の和は10進の和からずれる（`0.848 + 0.075`は`0.92299…`）ため、和を直接宣言した
- * 値と比べると、切り捨ての境界で結果が1つ下がる。
+ * R-NUM-02 / R-DMG-08 #10: スキル威力の加算項を10進で合計する。
  *
- * 補正するのは、両方の値の最短往復表現が小数第`MAX_DECIMAL_DIGITS`位までに収まるときだけ。
- * その場合、元の値はその桁の10進の有限小数そのもので、和もその桁で表せる。それ以外
- * （生存割合1/3のような評価値・指数表記になる微小値）は10進の有限小数ではないため、
- * 丸めると有効桁を落とす。binary64の和をそのまま返す。
+ * 各値は`String(value)`の最短往復10進表記（指数表記を含む）を入力とし、桁をそろえた
+ * 整数（`BigInt`）として全件を合計する。合計は0以上に制限してから一度だけ`number`へ変換する。
+ * binary64で逐次加算すると、和が10進の和からずれ（`0.848 + 0.075`は`0.92299…`）、
+ * 加算の順序でも結果が変わるためである。
  */
-const MAX_DECIMAL_DIGITS = 10;
-
-function fractionDigits(value: number): number | undefined {
-  const text = String(value);
-  if (text.includes("e")) {
-    return undefined;
-  }
-  const point = text.indexOf(".");
-  const digits = point < 0 ? 0 : text.length - point - 1;
-  return digits <= MAX_DECIMAL_DIGITS ? digits : undefined;
+interface ExactDecimal {
+  /** 値は`coefficient / 10^scale`。 */
+  readonly coefficient: bigint;
+  readonly scale: number;
 }
 
-export function addDecimalValues(left: number, right: number): number {
-  if (left === 0) {
-    return right;
+const DECIMAL_PATTERN = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/;
+
+function parseShortestDecimal(value: number): ExactDecimal {
+  const match = DECIMAL_PATTERN.exec(String(value));
+  if (match === null) {
+    throw new RangeError(`not a finite number: ${String(value)}`);
   }
-  if (right === 0) {
-    return left;
-  }
-  const leftDigits = fractionDigits(left);
-  const rightDigits = fractionDigits(right);
-  if (leftDigits === undefined || rightDigits === undefined) {
-    return left + right;
-  }
-  return Number((left + right).toFixed(Math.max(leftDigits, rightDigits)));
+  const [, sign = "", integerPart = "0", fractionPart = "", exponentPart = "0"] = match;
+  const digits = BigInt(`${sign}${integerPart}${fractionPart}`);
+  const scale = fractionPart.length - Number(exponentPart);
+  return scale >= 0
+    ? { coefficient: digits, scale }
+    : { coefficient: digits * 10n ** BigInt(-scale), scale: 0 };
+}
+
+function decimalText({ coefficient, scale }: ExactDecimal): string {
+  const negative = coefficient < 0n;
+  const digits = (negative ? -coefficient : coefficient).toString().padStart(scale + 1, "0");
+  const integerPart = digits.slice(0, digits.length - scale);
+  const fractionPart = digits.slice(digits.length - scale);
+  return `${negative ? "-" : ""}${integerPart}${fractionPart.length > 0 ? `.${fractionPart}` : ""}`;
+}
+
+function exactSum(values: readonly number[]): ExactDecimal {
+  const decimals = values.map(parseShortestDecimal);
+  const scale = Math.max(0, ...decimals.map((decimal) => decimal.scale));
+  const coefficient = decimals.reduce(
+    (sum, decimal) => sum + decimal.coefficient * 10n ** BigInt(scale - decimal.scale),
+    0n,
+  );
+  return { coefficient, scale };
+}
+
+/** 全件を10進で合計し、一度だけ`number`へ変換する（内訳表示用の加算値の合計に使う）。 */
+export function sumDecimalValues(values: readonly number[]): number {
+  return Number(decimalText(exactSum(values)));
+}
+
+/** 全件を10進で合計し、0以上に制限してから一度だけ`number`へ変換する。 */
+export function sumDecimalValuesAtLeastZero(values: readonly number[]): number {
+  const sum = exactSum(values);
+  return sum.coefficient <= 0n ? 0 : Number(decimalText(sum));
 }

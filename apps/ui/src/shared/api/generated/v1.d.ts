@@ -1383,6 +1383,7 @@ export interface paths {
                       skillPowerFormulaKind?: string;
                       skillPowerMultiplier?: number;
                       skillPowerBonus?: number;
+                      skillPowerAfterBonus?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:
@@ -5314,6 +5315,7 @@ export interface paths {
                       skillPowerFormulaKind?: string;
                       skillPowerMultiplier?: number;
                       skillPowerBonus?: number;
+                      skillPowerAfterBonus?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:
@@ -9463,6 +9465,7 @@ export interface paths {
                       skillPowerFormulaKind?: string;
                       skillPowerMultiplier?: number;
                       skillPowerBonus?: number;
+                      skillPowerAfterBonus?: number;
                       attributeMultiplier: number;
                       /** @enum {string} */
                       attackerAttribute?:

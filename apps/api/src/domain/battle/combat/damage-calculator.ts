@@ -1,4 +1,4 @@
-import { addDecimalValues } from "../../shared/decimal-sum.js";
+import { sumDecimalValues, sumDecimalValuesAtLeastZero } from "../../shared/decimal-sum.js";
 import { isFavorableAttribute, resolveAttributeMultiplier } from "./attribute-affinity-policy.js";
 import { createPercentage } from "../../shared/percentage.js";
 import type { Attribute } from "../../catalog/definitions/catalog-enums.js";
@@ -40,10 +40,11 @@ export interface DamageCalculationInput {
    */
   readonly skillPowerMultiplier?: number;
   /**
-   * R-DMG-08: 攻撃側の`APPLY_SKILL_POWER_BONUS`の加算値の合計（Catalogの`power`と同じ尺度）。
-   * `skillPowerFormula`が`SKILL_POWER`の場合だけ、倍率より先に威力へ足す。未指定は0。
+   * R-DMG-08: 攻撃側が保持する`APPLY_SKILL_POWER_BONUS`の加算値（Catalogの`power`と同じ尺度）。
+   * `skillPowerFormula`が`SKILL_POWER`の場合だけ、倍率より先に威力へ足す。未指定は加算なし。
+   * 合計はここで威力と併せて10進で行う（R-NUM-02）ため、合計前の値を全件渡す。
    */
-  readonly skillPowerBonus?: number;
+  readonly skillPowerBonuses?: readonly number[];
   /** R-NUM-04: `skillPowerFormula`/`damageModifiers`を評価するための実行時文脈。 */
   readonly formulaContext: FormulaEvaluationContext;
   /**
@@ -88,10 +89,15 @@ export interface DamageCalculationResult {
    */
   readonly skillPowerMultiplier: number;
   /**
-   * R-DMG-08: スキル威力へ実際に足した加算値の合計。補正後の威力は
-   * `max(0, skillPower + skillPowerBonus) × skillPowerMultiplier`。`SKILL_POWER`以外のFormulaでは常に0。
+   * R-DMG-08: スキル威力へ足した加算値の合計（内訳表示用。10進で合計して一度だけ変換した値）。
+   * `SKILL_POWER`以外のFormulaでは常に0。
    */
   readonly skillPowerBonus: number;
+  /**
+   * R-DMG-08 #10: 加算と0下限を適用した直後、`skillPowerMultiplier`を掛ける前の威力。
+   * 計算に使うのはこの値で、`skillPower`・`skillPowerBonus`は内訳である。加算が無ければ`skillPower`。
+   */
+  readonly skillPowerAfterBonus: number;
   readonly attributeMultiplier: number;
   /**
    * R-ATR-01の有利属性判定（DMG-012）。`attributeMultiplier === 1`は「有利でない」と
@@ -223,14 +229,18 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   // Formula（評価結果そのものが基礎ダメージ、R-DMG-01）には掛けない。
   const skillPowerMultiplier =
     input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerMultiplier ?? 1) : 1;
-  const skillPowerBonus =
-    input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerBonus ?? 0) : 0;
-  // 加算値は威力の数値へ足すため、倍率より先に適用する。負の加算で威力が負にならないよう0で止める。
-  // 和は10進の値どうしの和として求め、和を威力として直接宣言した場合と一致させる（R-NUM-02）。
-  const bonusedSkillPower = Math.max(0, addDecimalValues(skillPower, skillPowerBonus));
+  const skillPowerBonuses =
+    input.skillPowerFormula.kind === "SKILL_POWER" ? (input.skillPowerBonuses ?? []) : [];
+  // R-DMG-08 #10・R-NUM-02: 威力と全加算値を10進で合計し、0以上に制限してから一度だけ変換する。
+  // 加算は倍率より先に適用する。加算が無ければ威力をそのまま使う。
+  const skillPowerAfterBonus =
+    skillPowerBonuses.length === 0
+      ? skillPower
+      : sumDecimalValuesAtLeastZero([skillPower, ...skillPowerBonuses]);
+  const skillPowerBonus = skillPowerBonuses.length === 0 ? 0 : sumDecimalValues(skillPowerBonuses);
   const preTruncationDamage =
     baseDamage *
-    bonusedSkillPower *
+    skillPowerAfterBonus *
     skillPowerMultiplier *
     attributeMultiplier *
     input.criticalMultiplier *
@@ -246,6 +256,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     skillPowerFormulaKind: input.skillPowerFormula.kind,
     skillPowerMultiplier,
     skillPowerBonus,
+    skillPowerAfterBonus,
     attributeMultiplier,
     isFavorableAttribute: favorable,
     isSubAttributeFavorable: subFavorable,

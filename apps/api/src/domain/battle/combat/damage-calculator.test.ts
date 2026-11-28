@@ -513,12 +513,14 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
         attackerAttack: 1020,
         defenderDefense: 20,
         skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
-        skillPowerBonus: 0.075,
+        skillPowerBonuses: [0.075],
       }),
     );
     // `skillPower`はCatalogの威力のまま残し、加算値は別欄で公開する。
     expect(result.skillPower).toBe(0.848);
     expect(result.skillPowerBonus).toBe(0.075);
+    // 加算と0下限を適用した直後、倍率を掛ける前の威力。
+    expect(result.skillPowerAfterBonus).toBe(0.923);
     expect(result.preTruncationDamage).toBeCloseTo(1000 * 0.923, 10);
     expect(result.finalDamage).toBe(923);
   });
@@ -529,7 +531,7 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
         attackerAttack: 1020,
         defenderDefense: 20,
         skillPowerFormula: { kind: "SKILL_POWER", power: 0.848 },
-        skillPowerBonus: 0.075,
+        skillPowerBonuses: [0.075],
       }),
     );
     const direct = calculateDamage(
@@ -546,13 +548,13 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
   });
 
   it("UT-R-DMG-08-025 [R-NUM-02] (boundary): keeps every significant digit of a dynamically evaluated bonus", () => {
-    // 生存割合1/3のような評価値は10進の有限小数ではない。固定桁で丸めると1099へ下がる。
+    // 生存割合1/3のような評価値は最短表記 0.3333333333333333 として足す。固定桁で丸めると1099へ下がる。
     const bonused = calculateDamage(
       input({
         attackerAttack: 1520,
         defenderDefense: 20,
         skillPowerFormula: { kind: "SKILL_POWER", power: 0.4 },
-        skillPowerBonus: 1 / 3,
+        skillPowerBonuses: [1 / 3],
       }),
     );
     const direct = calculateDamage(
@@ -566,13 +568,35 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
     expect(bonused.finalDamage).toBe(1100);
   });
 
+  it("UT-R-DMG-08-026 [R-NUM-02]: sums the power and every bonus in decimal, regardless of the grant order", () => {
+    const orders = [
+      [0.075, 0.075, 1 / 3],
+      [1 / 3, 0.075, 0.075],
+      [0.075, 1 / 3, 0.075],
+    ];
+    for (const skillPowerBonuses of orders) {
+      const result = calculateDamage(
+        input({
+          attackerAttack: 1520,
+          defenderDefense: 20,
+          skillPowerFormula: { kind: "SKILL_POWER", power: 0.312 },
+          skillPowerBonuses,
+        }),
+      );
+      // 0.312 + 0.075 + 0.075 + 0.3333333333333333 を10進で合計してから一度だけ変換する。
+      expect(result.skillPowerAfterBonus).toBe(0.7953333333333333);
+      expect(result.skillPowerBonus).toBe(0.4833333333333333);
+      expect(result.finalDamage).toBe(1193);
+    }
+  });
+
   it("UT-R-DMG-08-014: applies the bonus before the multiplicative skill power modifier", () => {
     const result = calculateDamage(
       input({
         attackerAttack: 1020,
         defenderDefense: 20,
         skillPowerFormula: { kind: "SKILL_POWER", power: 1.5 },
-        skillPowerBonus: 0.5,
+        skillPowerBonuses: [0.5],
         skillPowerMultiplier: 0.25,
       }),
     );
@@ -583,7 +607,7 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
 
   it("UT-R-DMG-08-015: clamps the bonused skill power at 0, still yielding the minimum 1 damage", () => {
     const result = calculateDamage(
-      input({ skillPowerFormula: { kind: "SKILL_POWER", power: 1 }, skillPowerBonus: -1.5 }),
+      input({ skillPowerFormula: { kind: "SKILL_POWER", power: 1 }, skillPowerBonuses: [-1.5] }),
     );
     expect(result.preTruncationDamage).toBe(0);
     expect(result.finalDamage).toBe(1);
@@ -600,16 +624,18 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
           ratio: 0.5,
         },
         formulaContext: { skillSource, target, allUnits: [skillSource, target] },
-        skillPowerBonus: 0.075,
+        skillPowerBonuses: [0.075],
       }),
     );
     expect(result.skillPowerBonus).toBe(0);
+    expect(result.skillPowerAfterBonus).toBe(1);
     expect(result.finalDamage).toBe(40);
   });
 
   it("UT-R-DMG-08-017: defaults the skill power bonus to 0 when omitted", () => {
     const result = calculateDamage(input());
     expect(result.skillPowerBonus).toBe(0);
+    expect(result.skillPowerAfterBonus).toBe(1);
     expect(result.finalDamage).toBe(30);
   });
 });

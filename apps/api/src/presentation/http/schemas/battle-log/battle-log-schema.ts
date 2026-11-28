@@ -604,6 +604,11 @@ const damageCalculatedDetailsSchema = {
      * `skillPowerMultiplier`と同じく後方互換のため任意項目とする（Response Mapperは常に値を設定する）。
      */
     skillPowerBonus: { type: "number" },
+    /**
+     * R-DMG-08 #10: 加算と0下限を適用した直後、`skillPowerMultiplier`を掛ける前の威力。
+     * 監査の恒等式はこの値を使う。後方互換のため任意項目とする（Response Mapperは常に値を設定する）。
+     */
+    skillPowerAfterBonus: { type: "number" },
     attributeMultiplier: { type: "number" },
     attackerAttribute: { type: "string", enum: ATTRIBUTE_ENUM },
     defenderAttribute: { type: "string", enum: ATTRIBUTE_ENUM },

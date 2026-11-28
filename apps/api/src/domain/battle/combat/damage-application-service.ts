@@ -5,10 +5,7 @@ import { damageResultsFor, recordDamageResult } from "../skill/formula-evaluator
 import type { BattleDomainEvent } from "../events/domain-event.js";
 import { resolveDamageImmunity } from "./damage-immunity-policy.js";
 import { composeDamageModifiers } from "./damage-modifier-policy.js";
-import {
-  composeSkillPowerBonus,
-  composeSkillPowerMultiplier,
-} from "./skill-power-modifier-policy.js";
+import { composeSkillPowerMultiplier, skillPowerBonusesOf } from "./skill-power-modifier-policy.js";
 import { resolveThresholdDamageReduction } from "./threshold-damage-reduction-policy.js";
 import { guardedDamage } from "./defensive-intervention-policy.js";
 import type {
@@ -421,7 +418,7 @@ export function* applyDamageActionSteps(
       // R-DMG-08: スキル威力補正も与/被ダメージ倍率と同じく連鎖解決後の最新の攻撃側から取る
       // （`UnitBeingAttacked`起点のPSが攻撃者へ付与した低下を、その攻撃に効かせるため）。
       skillPowerMultiplier: composeSkillPowerMultiplier(attackerBeforeDamage),
-      skillPowerBonus: composeSkillPowerBonus(attackerBeforeDamage),
+      skillPowerBonuses: skillPowerBonusesOf(attackerBeforeDamage),
       formulaContext,
       // R-CFS-02（DMG-009）: 混乱の有無も`composeDamageModifiers`と同じくヒットごとに、
       // 連鎖解決後の最新の攻撃側から取り直す（`DamageWillBeApplied`起点のPS連鎖が混乱を
@@ -520,6 +517,7 @@ export function* applyDamageActionSteps(
         skillPowerFormulaKind: damageResult.skillPowerFormulaKind,
         skillPowerMultiplier: damageResult.skillPowerMultiplier,
         skillPowerBonus: damageResult.skillPowerBonus,
+        skillPowerAfterBonus: damageResult.skillPowerAfterBonus,
         attributeMultiplier: damageResult.attributeMultiplier,
         attackerAttribute: attackerBeforeDamage.attribute,
         defenderAttribute: targetBeforeDamage.attribute,

@@ -5126,6 +5126,9 @@
                                   "skillPowerBonus": {
                                     "type": "number"
                                   },
+                                  "skillPowerAfterBonus": {
+                                    "type": "number"
+                                  },
                                   "attributeMultiplier": {
                                     "type": "number"
                                   },
@@ -18288,6 +18291,9 @@
                                     "type": "number"
                                   },
                                   "skillPowerBonus": {
+                                    "type": "number"
+                                  },
+                                  "skillPowerAfterBonus": {
                                     "type": "number"
                                   },
                                   "attributeMultiplier": {
@@ -32316,6 +32322,9 @@
                                     "type": "number"
                                   },
                                   "skillPowerBonus": {
+                                    "type": "number"
+                                  },
+                                  "skillPowerAfterBonus": {
                                     "type": "number"
                                   },
                                   "attributeMultiplier": {

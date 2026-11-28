@@ -418,6 +418,14 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
             `${battle.unitDefinitionId} seq=${event.sequence} preTruncationDamage ${preTruncation} != ${preTruncationExpected}`,
           );
         }
+        // 計算項目（適用威力・基礎ダメージ・各倍率）だけから最終ダメージまで導き、
+        // 記録された最終値と整数で一致すること。
+        const reproducedFinal = reproduceDamageCalculated(d).finalDamage;
+        if (num("finalDamage", NaN) !== reproducedFinal) {
+          violations.push(
+            `${battle.unitDefinitionId} seq=${event.sequence} finalDamage ${d["finalDamage"]} != reproduced ${reproducedFinal}`,
+          );
+        }
         if (num("finalDamage", NaN) !== finalExpected) {
           violations.push(
             `${battle.unitDefinitionId} seq=${event.sequence} finalDamage ${d["finalDamage"]} != ${finalExpected}`,

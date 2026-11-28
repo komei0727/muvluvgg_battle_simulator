@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  composeSkillPowerBonus,
-  composeSkillPowerMultiplier,
-} from "./skill-power-modifier-policy.js";
+import { composeSkillPowerMultiplier, skillPowerBonusesOf } from "./skill-power-modifier-policy.js";
 import {
   attackDamageBonusEffect,
   skillPowerBonusEffect,
@@ -46,8 +43,8 @@ describe("composeSkillPowerMultiplier (R-DMG-08)", () => {
   });
 });
 
-describe("composeSkillPowerBonus (R-DMG-08)", () => {
-  it("UT-R-DMG-08-018: sums every held skill power bonus", () => {
+describe("skillPowerBonusesOf (R-DMG-08)", () => {
+  it("UT-R-DMG-08-018: lists every held skill power bonus in the order they were granted", () => {
     const attacker = {
       ...enemyActor("E1"),
       appliedEffects: [
@@ -56,20 +53,8 @@ describe("composeSkillPowerBonus (R-DMG-08)", () => {
         skillPowerBonusEffect("EF_3", "E1", -0.05),
       ],
     };
-    expect(composeSkillPowerBonus(attacker)).toBeCloseTo(0.1, 12);
-  });
-
-  it("UT-R-DMG-08-026 [R-NUM-02]: sums decimal bonuses to their exact decimal total", () => {
-    const attacker = {
-      ...enemyActor("E1"),
-      appliedEffects: [
-        skillPowerBonusEffect("EF_1", "E1", 0.075),
-        skillPowerBonusEffect("EF_2", "E1", 0.075),
-        skillPowerBonusEffect("EF_3", "E1", 0.075),
-      ],
-    };
-    // binary64 の逐次和は 0.22499999999999998。
-    expect(composeSkillPowerBonus(attacker)).toBe(0.225);
+    // 合計はダメージ計算が威力と併せて10進で行う（R-NUM-02）ため、ここでは足さない。
+    expect(skillPowerBonusesOf(attacker)).toEqual([0.075, 0.075, -0.05]);
   });
 
   it("UT-R-DMG-08-019 (negative): ignores multiplicative skill power modifiers and other effects", () => {
@@ -80,7 +65,7 @@ describe("composeSkillPowerBonus (R-DMG-08)", () => {
         attackDamageBonusEffect("EF_2", "E1", 0.5),
       ],
     };
-    expect(composeSkillPowerBonus(attacker)).toBe(0);
+    expect(skillPowerBonusesOf(attacker)).toEqual([]);
     // 加算値は乗算の倍率にも混ざらない。
     expect(
       composeSkillPowerMultiplier({

@@ -157,7 +157,12 @@ describe("skill power bonus on damage application (R-DMG-08)", () => {
       5000 - 923,
     );
     const [payload] = damageCalculatedPayloads(context);
-    expect(payload).toMatchObject({ skillPower: 0.848, skillPowerBonus: 0.075, finalDamage: 923 });
+    expect(payload).toMatchObject({
+      skillPower: 0.848,
+      skillPowerBonus: 0.075,
+      skillPowerAfterBonus: 0.923,
+      finalDamage: 923,
+    });
     expect(reproduceDamageCalculated(payload!).finalDamage).toBe(923);
   });
 
