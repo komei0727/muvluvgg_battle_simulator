@@ -2297,10 +2297,12 @@ describe("resolveTargets", () => {
       );
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("FARTHER")]);
-      expect(result.stealthConsumption).toEqual({
-        battleUnitId: createBattleUnitId("NEAREST"),
-        effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
-      });
+      expect(result.stealthConsumptions).toEqual([
+        {
+          battleUnitId: createBattleUnitId("NEAREST"),
+          effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
+        },
+      ]);
 
       // `resolveTargets` (used by callers that don't need the consumption signal) reflects
       // the same redirected order.
@@ -2332,7 +2334,7 @@ describe("resolveTargets", () => {
         createBattleUnitId("NEAREST"),
         createBattleUnitId("FARTHER"),
       ]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
 
     it("UT-R-TGT-08-003 (Q-TGT-05): when no alternative remains after the move (count requires the whole pool), Stealth is still consumed and the original target is still hit", () => {
@@ -2354,10 +2356,12 @@ describe("resolveTargets", () => {
       expect(result.units.map((t) => t.battleUnitId).sort()).toEqual(
         [createBattleUnitId("NEAREST"), createBattleUnitId("FARTHER")].sort(),
       );
-      expect(result.stealthConsumption).toEqual({
-        battleUnitId: createBattleUnitId("NEAREST"),
-        effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
-      });
+      expect(result.stealthConsumptions).toEqual([
+        {
+          battleUnitId: createBattleUnitId("NEAREST"),
+          effectInstanceId: nearest.appliedEffects[0]!.effectInstanceId,
+        },
+      ]);
     });
 
     it("UT-R-TGT-08-004 (R-TGT-08 #6): a SELF selector never redirects, even when the actor holds Stealth (self-cast self-target skill)", () => {
@@ -2376,7 +2380,7 @@ describe("resolveTargets", () => {
       );
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ACTOR")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
 
     it("UT-R-TGT-08-005 (R-TGT-08 #7): a TRIGGER_TARGET selector whose event-provided candidate set is structurally limited to a single unit never redirects (『攻撃を受けた味方単体』例)", () => {
@@ -2404,7 +2408,7 @@ describe("resolveTargets", () => {
       );
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("ONLY")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
 
     it("UT-R-TGT-08-008 (Q-TGT-05): a normal SELECT selector whose only surviving candidate holds Stealth still consumes it and hits them (battlefield happenstance, not a structural limitation)", () => {
@@ -2425,10 +2429,12 @@ describe("resolveTargets", () => {
       expect(result.units.map((t) => t.battleUnitId)).toEqual([
         createBattleUnitId("ONLY_SURVIVOR"),
       ]);
-      expect(result.stealthConsumption).toEqual({
-        battleUnitId: createBattleUnitId("ONLY_SURVIVOR"),
-        effectInstanceId: onlySurvivor.appliedEffects[0]!.effectInstanceId,
-      });
+      expect(result.stealthConsumptions).toEqual([
+        {
+          battleUnitId: createBattleUnitId("ONLY_SURVIVOR"),
+          effectInstanceId: onlySurvivor.appliedEffects[0]!.effectInstanceId,
+        },
+      ]);
     });
 
     it("UT-R-TGT-08-010 (R-TGT-08 #7): a SELECT selector narrowed by a POSITION_SLOT filter to a single definitionally-unique slot never redirects, even though kind is SELECT (not just a survivor happenstance)", () => {
@@ -2456,7 +2462,7 @@ describe("resolveTargets", () => {
       ]);
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("SLOT_HOLDER")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
 
     it("UT-R-TGT-08-011 (R-TGT-08 #7): a BINDING_DERIVED selector with a DIRECTLY_AHEAD_OF_BASE area (a single unique coordinate) never redirects", () => {
@@ -2484,7 +2490,7 @@ describe("resolveTargets", () => {
       ]);
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("AHEAD")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
 
     it("UT-R-TGT-08-006: Stealth redirect also applies inside a fallback selector's own evaluation", () => {
@@ -2513,10 +2519,12 @@ describe("resolveTargets", () => {
       expect(result.units.map((t) => t.battleUnitId)).toEqual([
         createBattleUnitId("FARTHER_ENEMY"),
       ]);
-      expect(result.stealthConsumption).toEqual({
-        battleUnitId: createBattleUnitId("NEAREST_ENEMY"),
-        effectInstanceId: nearestEnemy.appliedEffects[0]!.effectInstanceId,
-      });
+      expect(result.stealthConsumptions).toEqual([
+        {
+          battleUnitId: createBattleUnitId("NEAREST_ENEMY"),
+          effectInstanceId: nearestEnemy.appliedEffects[0]!.effectInstanceId,
+        },
+      ]);
     });
 
     it("UT-R-TGT-08-007 (TGT-004フェーズ2): a non-STEALTH statusKind AppliedEffect is not treated as Stealth", () => {
@@ -2538,7 +2546,7 @@ describe("resolveTargets", () => {
       );
 
       expect(result.units.map((t) => t.battleUnitId)).toEqual([createBattleUnitId("NEAREST")]);
-      expect(result.stealthConsumption).toBeUndefined();
+      expect(result.stealthConsumptions).toEqual([]);
     });
   });
 });
@@ -2699,23 +2707,41 @@ describe("R-TGT-11: RANDOM order", () => {
     expect(random.consumedValues).toEqual([]);
   });
 
-  it("UT-R-TGT-11-004: applies Stealth after the shuffle — a drawn Stealth holder moves to the end and is consumed", () => {
+  /** ステルス持ち HIDDEN_A（前列中央）・HIDDEN_B（後列左）と、通常の敵 PLAIN（後列右）。 */
+  function stealthBoard(): { actor: BattleUnit; units: BattleUnit[] } {
     const actor = unit("ACTOR", "ALLY", { column: "CENTER", row: "FRONT" });
-    const hidden = unit(
-      "HIDDEN",
-      "ENEMY",
-      { column: "LEFT", row: "BACK" },
-      { appliedEffects: [stealthEffect("HIDDEN")] },
-    );
-    const front = unit("NEAR_FRONT", "ENEMY", { column: "CENTER", row: "FRONT" });
-    const right = unit("RIGHT_BACK", "ENEMY", { column: "RIGHT", row: "BACK" });
-    // 既定順 [NEAR_FRONT, HIDDEN, RIGHT_BACK] → 1回目で HIDDEN が先頭、2回目で RIGHT_BACK が2番目。
-    const random = new SequenceRandomSource([0.5, 0.99]);
+    return {
+      actor,
+      units: [
+        actor,
+        unit(
+          "HIDDEN_A",
+          "ENEMY",
+          { column: "CENTER", row: "FRONT" },
+          { appliedEffects: [stealthEffect("HIDDEN_A")] },
+        ),
+        unit(
+          "HIDDEN_B",
+          "ENEMY",
+          { column: "LEFT", row: "BACK" },
+          { appliedEffects: [stealthEffect("HIDDEN_B")] },
+        ),
+        unit("PLAIN", "ENEMY", { column: "RIGHT", row: "BACK" }),
+      ],
+    };
+  }
+  const consumedUnitIds = (result: {
+    readonly stealthConsumptions: readonly { readonly battleUnitId: string }[];
+  }): string[] => result.stealthConsumptions.map((consumption) => consumption.battleUnitId);
+
+  it("UT-R-TGT-11-004 [R-TGT-11, R-TGT-08]: excludes every Stealth holder before the draw and consumes each excluded Stealth once — with one plain candidate left, no draw is made", () => {
+    const { actor, units } = stealthBoard();
+    const random = new SequenceRandomSource([]);
 
     const result = resolveTargetsWithStealthConsumption(
       selector({ order: ["RANDOM"], count: 1 }),
       actor,
-      [actor, front, hidden, right],
+      units,
       undefined,
       undefined,
       undefined,
@@ -2723,16 +2749,64 @@ describe("R-TGT-11: RANDOM order", () => {
       random,
     );
 
-    expect(ids(result.units)).toEqual(["RIGHT_BACK"]);
-    expect(result.stealthConsumption?.battleUnitId).toBe(createBattleUnitId("HIDDEN"));
+    expect(ids(result.units)).toEqual(["PLAIN"]);
+    expect(consumedUnitIds(result)).toEqual(["HIDDEN_A", "HIDDEN_B"]);
+    expect(random.consumedValues).toEqual([]);
   });
 
-  it("UT-R-TGT-11-005: a probe resolution (resolveTargets) consumes no draw and keeps the candidate set and count", () => {
+  it("UT-R-TGT-11-015 [R-TGT-11, R-TGT-08]: when the plain candidates fall short of count, the rest is drawn from the excluded Stealth holders", () => {
+    const { actor, units } = stealthBoard();
+    // 通常の敵は1体なので引かない。ステルス持ち2体の並べ替えで1回: 0 + floor(0.99 × 2) = 1 → HIDDEN_B が先頭。
+    const random = new SequenceRandomSource([0.99]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 2 }),
+      actor,
+      units,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["PLAIN", "HIDDEN_B"]);
+    expect(consumedUnitIds(result)).toEqual(["HIDDEN_A", "HIDDEN_B"]);
+    expect(random.consumedValues).toEqual([0.99]);
+  });
+
+  it("UT-R-TGT-11-016 [R-TGT-11, R-TGT-08]: when every candidate holds Stealth, the draw is made among all of them and only the drawn unit's Stealth is consumed", () => {
+    const { actor, units } = stealthBoard();
+    const onlyHidden = units.filter((u) => u.battleUnitId !== createBattleUnitId("PLAIN"));
+    // 既定順 [HIDDEN_A, HIDDEN_B]、0 + floor(0.5 × 2) = 1 → HIDDEN_B。
+    const random = new SequenceRandomSource([0.5]);
+
+    const result = resolveTargetsWithStealthConsumption(
+      selector({ order: ["RANDOM"], count: 1 }),
+      actor,
+      onlyHidden,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      random,
+    );
+
+    expect(ids(result.units)).toEqual(["HIDDEN_B"]);
+    expect(consumedUnitIds(result)).toEqual(["HIDDEN_B"]);
+  });
+
+  it("UT-R-TGT-11-005: a probe resolution (resolveTargets) consumes no draw and keeps the candidate set and count, excluding Stealth holders the same way", () => {
     const { actor, units } = board();
 
     const targets = resolveTargets(selector({ order: ["RANDOM"], count: 2 }), actor, units);
 
     expect(ids(targets)).toEqual(["NEAR_FRONT", "LEFT_BACK"]);
+
+    const hidden = stealthBoard();
+    expect(
+      ids(resolveTargets(selector({ order: ["RANDOM"], count: 1 }), hidden.actor, hidden.units)),
+    ).toEqual(["PLAIN"]);
   });
 
   it("UT-R-TGT-11-006: the committing resolution rejects a RANDOM selector without a random source", () => {

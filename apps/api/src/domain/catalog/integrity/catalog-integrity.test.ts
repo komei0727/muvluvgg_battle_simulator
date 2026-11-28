@@ -3609,20 +3609,9 @@ describe("buildCatalogIndex", () => {
         readonly optional?: boolean;
         readonly activationCondition?: ConditionDefinitionInput;
         readonly skillType?: "AS" | "PS";
-        /** `TGT_OTHER`を`TGT_RANDOM`より先に定義する。 */
-        readonly otherFirst?: boolean;
       } = {},
     ): SkillDefinition {
       const skillType = options.skillType ?? "AS";
-      const randomBinding = {
-        targetBindingId: "TGT_RANDOM",
-        selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM"] },
-      } as const;
-      const otherBinding = {
-        targetBindingId: "TGT_OTHER",
-        selector: other,
-        ...(options.optional === true ? { optional: true } : {}),
-      };
       return createSkillDefinition({
         skillDefinitionId: skillType === "PS" ? "SKL_PS1" : "SKL_AS1",
         skillType,
@@ -3644,10 +3633,17 @@ describe("buildCatalogIndex", () => {
           : {}),
         resolution: {
           kind: "IMMEDIATE",
-          targetBindings:
-            options.otherFirst === true
-              ? [otherBinding, randomBinding]
-              : [randomBinding, otherBinding],
+          targetBindings: [
+            {
+              targetBindingId: "TGT_RANDOM",
+              selector: { kind: "SELECT", side: "ENEMY", count: 1, order: ["RANDOM"] },
+            },
+            {
+              targetBindingId: "TGT_OTHER",
+              selector: other,
+              ...(options.optional === true ? { optional: true } : {}),
+            },
+          ],
           steps: [
             {
               kind: "ACTION",
@@ -3720,60 +3716,6 @@ describe("buildCatalogIndex", () => {
           }),
         ).not.toThrow();
       }
-    });
-
-    it("UT-CAT-IDX-147 [R-TGT-11, R-TGT-08, R-ACT-02]: rejects an activationCondition on a later binding whose target can shift with the Stealth an earlier RANDOM binding consumes", () => {
-      const defs = baseDefinitions();
-      const highHpOther: ConditionDefinitionInput = {
-        kind: "TARGET_STATE",
-        target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
-        field: "HP_RATIO",
-        op: "GTE",
-        value: 0.5,
-      };
-      const singleEnemy: TargetSelectorDefinitionInput = {
-        kind: "SELECT",
-        side: "ENEMY",
-        count: 1,
-        order: ["DEFAULT"],
-      };
-      const build = (
-        other: TargetSelectorDefinitionInput,
-        options: {
-          readonly otherFirst?: boolean;
-          readonly condition?: ConditionDefinitionInput;
-        } = {},
-      ) =>
-        buildCatalogIndex({
-          ...defs,
-          skills: [
-            randomDependentSkill(other, {
-              activationCondition: options.condition ?? highHpOther,
-              ...(options.otherFirst === true ? { otherFirst: true } : {}),
-            }),
-            exSkill("SKL_EX1", 7),
-          ],
-        });
-      // 先行の抽選がステルス持ちを先頭に引くと、そのステルスが消費され、後続の既定順が選ぶ敵が変わる。
-      expect(() => build(singleEnemy)).toThrowError(/ACTIVATION_CONDITION_RANDOM_BINDING/);
-      // 先に評価される束縛は抽選の影響を受けない。
-      expect(() => build(singleEnemy, { otherFirst: true })).not.toThrow();
-      // 抽選する束縛と陣営が重ならない束縛は、同じユニットを選ばない。
-      expect(() => build({ ...singleEnemy, side: "ALLY" })).not.toThrow();
-      // 全員を選ぶ束縛はステルスで候補集合が変わらない（件数を数えるだけなら一致する）。
-      expect(() =>
-        build(
-          { kind: "SELECT", side: "ENEMY", count: "ALL", order: ["DEFAULT"] },
-          {
-            condition: {
-              kind: "TARGET_SET_COUNT",
-              target: { kind: "BINDING", targetBindingId: "TGT_OTHER" },
-              op: "GTE",
-              value: 3,
-            },
-          },
-        ),
-      ).not.toThrow();
     });
 
     it("UT-CAT-IDX-146 [R-TGT-11, R-ACT-02]: rejects an activationCondition on a binding that depends on a RANDOM binding through an EXCLUDE_RESOLVED_UNIT filter nested in AND/NOT", () => {

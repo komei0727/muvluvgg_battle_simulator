@@ -176,10 +176,10 @@ export function resolveDeferredBinding(
   triggerContext?: TriggerContext,
   unitDefinitions?: ReadonlyMap<UnitDefinitionId, UnitDefinition>,
   random?: RandomSource,
-): StealthConsumption | undefined {
+): readonly StealthConsumption[] {
   const binding = plan.deferredBindings?.get(targetBindingId);
   if (binding === undefined) {
-    return undefined;
+    return [];
   }
   if (!(plan.resolvedBindings instanceof Map)) {
     throw new DomainValidationError(
@@ -188,7 +188,7 @@ export function resolveDeferredBinding(
     );
   }
   const resolvedBindings = plan.resolvedBindings as Map<TargetBindingId, ResolvedBinding>;
-  const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
+  const { units, stealthConsumptions } = resolveTargetsWithStealthConsumption(
     binding.selector,
     source,
     allUnits,
@@ -203,7 +203,7 @@ export function resolveDeferredBinding(
     includeDefeated: binding.selector.includeDefeated,
   });
   plan.deferredBindings?.delete(targetBindingId);
-  return stealthConsumption;
+  return stealthConsumptions;
 }
 
 /**
@@ -711,7 +711,7 @@ function resolveEffectSequence(
       deferredBindings.set(binding.targetBindingId, binding);
       continue;
     }
-    const { units, stealthConsumption } = resolveTargetsWithStealthConsumption(
+    const resolved = resolveTargetsWithStealthConsumption(
       binding.selector,
       source,
       allUnits,
@@ -721,9 +721,10 @@ function resolveEffectSequence(
       consumedStealthEffectInstanceIds,
       random,
     );
-    if (stealthConsumption !== undefined) {
-      stealthConsumptions.push(stealthConsumption);
-      consumedStealthEffectInstanceIds.add(stealthConsumption.effectInstanceId);
+    const units = resolved.units;
+    for (const consumption of resolved.stealthConsumptions) {
+      stealthConsumptions.push(consumption);
+      consumedStealthEffectInstanceIds.add(consumption.effectInstanceId);
     }
     resolvedBindingUnits.set(binding.targetBindingId, units);
     resolvedBindings.set(binding.targetBindingId, {

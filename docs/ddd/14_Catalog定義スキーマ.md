@@ -567,7 +567,7 @@ selector:
   count: 2
 ```
 
-`RANDOM`（`R-TGT-11`）は「ランダムな敵単体に」のように対象そのものを抽選する原文向けで、戦闘の乱数で候補を一様に並べ替えてから`count`件を選ぶ。`order`の唯一の要素として書き、数値の`count`（`SELECT`、または`count`を持つ`BINDING_DERIVED`）と組み合わせる。他のキーとの併用・`count: ALL`・`count`省略の`BINDING_DERIVED`はCatalogロード時点で拒否する。行動選択と発動判定は抽選しないため、AS/EXの`activationCondition`が抽選に依存する束縛（自身・`fallback`の抽選に加え、`BINDING_DERIVED`の`base`・`EXCLUDE_RESOLVED_UNIT`フィルタを通じた推移的な依存、先行の抽選する束縛が消費扱いにしたステルスを引き継ぐ、陣営が重なり選ぶ数が限られた後続束縛を含む）を参照する定義（`ACTIVATION_CONDITION_RANDOM_BINDING`）、AS/EXの必須束縛（`optional`でない）のうち候補が他の抽選する束縛に依存するもの（`RANDOM_DEPENDENT_REQUIRED_BINDING`。`optional: true`にすれば受け付ける）、`SELECTED_TARGET_STATE`のセレクタに`RANDOM`を書く定義も拒否する。「生存している敵が3体未満なら発動しない」のような件数の条件は、抽選しない別の束縛（例: `count: ALL`）を`TARGET_SET_COUNT`で数える。固定の候補（例: 2つのbindingのどちらか）を抽選する原文は、従来どおり`RANDOM_BRANCH`で書く（`Q-CAT-EFF-18`）。
+`RANDOM`（`R-TGT-11`）は「ランダムな敵単体に」のように対象そのものを抽選する原文向けで、戦闘の乱数で候補を一様に並べ替えてから`count`件を選ぶ。`order`の唯一の要素として書き、数値の`count`（`SELECT`、または`count`を持つ`BINDING_DERIVED`）と組み合わせる。他のキーとの併用・`count: ALL`・`count`省略の`BINDING_DERIVED`はCatalogロード時点で拒否する。行動選択と発動判定は抽選しないため、AS/EXの`activationCondition`が抽選に依存する束縛（自身・`fallback`の抽選に加え、`BINDING_DERIVED`の`base`・`EXCLUDE_RESOLVED_UNIT`フィルタを通じた推移的な依存を含む）を参照する定義（`ACTIVATION_CONDITION_RANDOM_BINDING`）、AS/EXの必須束縛（`optional`でない）のうち候補が他の抽選する束縛に依存するもの（`RANDOM_DEPENDENT_REQUIRED_BINDING`。`optional: true`にすれば受け付ける）、`SELECTED_TARGET_STATE`のセレクタに`RANDOM`を書く定義も拒否する。「生存している敵が3体未満なら発動しない」のような件数の条件は、抽選しない別の束縛（例: `count: ALL`）を`TARGET_SET_COUNT`で数える。固定の候補（例: 2つのbindingのどちらか）を抽選する原文は、従来どおり`RANDOM_BRANCH`で書く（`Q-CAT-EFF-18`）。
 
 ```yaml
 targetBindings:
