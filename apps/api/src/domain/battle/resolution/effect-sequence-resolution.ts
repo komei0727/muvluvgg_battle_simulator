@@ -382,7 +382,7 @@ export function* resolveEffectSequencePlan(
       step.definition.kind === "ACTION" &&
       step.definition.target.kind === "BINDING"
     ) {
-      const stealthConsumptions = resolveDeferredBinding(
+      const stealthConsumption = resolveDeferredBinding(
         plan,
         step.definition.target.targetBindingId as TargetBindingId,
         resolutionSourceOf(context, box),
@@ -391,12 +391,14 @@ export function* resolveEffectSequencePlan(
         context.definitions.unitDefinitions,
         context.random,
       );
-      lastEventId = yield* expireStealthConsumptions(
-        stealthConsumptions,
-        box,
-        context,
-        lastEventId,
-      );
+      if (stealthConsumption !== undefined) {
+        lastEventId = yield* expireStealthConsumptions(
+          [stealthConsumption],
+          box,
+          context,
+          lastEventId,
+        );
+      }
     }
 
     const result: { readonly lastEventId: DomainEventId; readonly walkResult: StepWalkResult } =

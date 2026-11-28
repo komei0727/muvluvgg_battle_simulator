@@ -766,7 +766,7 @@ function drawRandomOrder(ordered: readonly BattleUnit[], draw: TargetDraw): read
 
 interface ResolveTargetsCoreResult {
   readonly selected: readonly BattleUnit[];
-  readonly stealthConsumptions: readonly StealthConsumption[];
+  readonly stealthConsumption?: StealthConsumption;
 }
 
 const EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS: ReadonlySet<EffectInstanceId> = new Set();
@@ -898,56 +898,6 @@ function applyStealthRedirect(
   };
 }
 
-/**
- * R-TGT-11 #3: `RANDOM`ではStealth（R-TGT-08）を抽選の前に扱う。未消費のStealthを
- * 持つ候補を抽選の候補から外し、残りの候補だけを並べ替える。外したユニットは選ぶ数
- * （`count`）に足りない分だけ、外したユニットどうしの抽選で末尾から補う。外した
- * ユニットのStealthはすべて1回ずつ消費する。全員がStealthを持つ場合は外さずに全員から
- * 抽選し、選ばれたユニットのStealthだけを消費する（R-TGT-08 #4「代替対象がいなければ
- * 消費したうえで元の対象へ」と同じ考え方）。構造的に1体へ限定された候補（R-TGT-08 #6/#7）
- * には適用しない。
- */
-function drawRandomExcludingStealth(
-  sorted: readonly BattleUnit[],
-  selector: TargetSelectorDefinition,
-  count: number,
-  alreadyConsumedEffectInstanceIds: ReadonlySet<EffectInstanceId>,
-  draw: TargetDraw,
-): {
-  readonly ordered: readonly BattleUnit[];
-  readonly consumptions: readonly StealthConsumption[];
-} {
-  if (sorted.length === 1 && isStructurallySingleCandidateSelector(selector)) {
-    return { ordered: sorted, consumptions: [] };
-  }
-  const stealthOf = (unit: BattleUnit): StealthConsumption | undefined => {
-    const effect = unit.appliedEffects.find(
-      (candidate) =>
-        candidate.statusKind === "STEALTH" &&
-        !alreadyConsumedEffectInstanceIds.has(candidate.effectInstanceId),
-    );
-    return effect === undefined
-      ? undefined
-      : { battleUnitId: unit.battleUnitId, effectInstanceId: effect.effectInstanceId };
-  };
-  const plain = sorted.filter((unit) => stealthOf(unit) === undefined);
-  const hidden = sorted.filter((unit) => stealthOf(unit) !== undefined);
-  if (plain.length === 0) {
-    const ordered = drawRandomOrder(hidden, draw);
-    return {
-      ordered,
-      consumptions: ordered.slice(0, count).map((unit) => stealthOf(unit)!),
-    };
-  }
-  const orderedPlain = drawRandomOrder(plain, draw);
-  // 補う必要が無ければ、外したユニットの並びは選択に影響しないため抽選しない。
-  const orderedHidden = plain.length < count ? drawRandomOrder(hidden, draw) : hidden;
-  return {
-    ordered: [...orderedPlain, ...orderedHidden],
-    consumptions: hidden.map((unit) => stealthOf(unit)!),
-  };
-}
-
 function resolveTargetsCore(
   selector: TargetSelectorDefinition,
   source: ResolutionSource,
@@ -1023,34 +973,19 @@ function resolveTargetsCore(
 
   // R-TGT-09 #5: orderを比較キーとして適用し、候補順を一意にする。
   const sorted = [...pool].sort(compare);
+  // R-TGT-11: 抽選は既定順を起点にし、ステルス（R-TGT-08）より前に行う。
+  const ordered = selector.order.includes("RANDOM") ? drawRandomOrder(sorted, draw) : sorted;
 
+  // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
+  // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
+  // 候補数を変えないため、fallback判定（#7）は0/1件の場合と同じ結果になるここで行う。
   // R-TGT-08: Stealth所持者が第一優先対象の場合、候補順の末尾へ移動する。
-  // R-TGT-11 #3: `RANDOM`は抽選の前にStealth所持者を候補から外す（`count`は数値であることを
-  // Catalogが保証する）。どちらも候補の集合・件数は変えないため、直後のcount適用・
-  // fallback判定（#6/#7）には影響しない。
-  const stealthResult: {
-    readonly ordered: readonly BattleUnit[];
-    readonly consumptions: readonly StealthConsumption[];
-  } =
-    selector.order.includes("RANDOM") && typeof selector.count === "number"
-      ? drawRandomExcludingStealth(
-          sorted,
-          selector,
-          selector.count,
-          alreadyConsumedStealthEffectInstanceIds,
-          draw,
-        )
-      : (() => {
-          const redirect = applyStealthRedirect(
-            sorted,
-            selector,
-            alreadyConsumedStealthEffectInstanceIds,
-          );
-          return {
-            ordered: redirect.ordered,
-            consumptions: redirect.consumption === undefined ? [] : [redirect.consumption],
-          };
-        })();
+  // 候補の集合・件数は変えないため、直後のcount適用・fallback判定（#6/#7）には影響しない。
+  const stealthResult = applyStealthRedirect(
+    ordered,
+    selector,
+    alreadyConsumedStealthEffectInstanceIds,
+  );
 
   // R-TGT-01 #4 / R-TGT-07 / R-TGT-09 #6: countが未指定またはALLなら全件、そうでなければ
   // 先頭からcount件（不足時はそのまま存在する候補だけになる）。orderはcount適用前後で
@@ -1076,7 +1011,12 @@ function resolveTargetsCore(
       draw,
     );
   }
-  return { selected, stealthConsumptions: stealthResult.consumptions };
+  return {
+    selected,
+    ...(stealthResult.consumption !== undefined
+      ? { stealthConsumption: stealthResult.consumption }
+      : {}),
+  };
 }
 
 export function resolveTargets(
@@ -1123,10 +1063,7 @@ export function resolveTargetsWithStealthConsumption(
   unitDefinitions: ReadonlyMap<UnitDefinitionId, UnitDefinition> = EMPTY_UNIT_DEFINITIONS,
   alreadyConsumedStealthEffectInstanceIds: ReadonlySet<EffectInstanceId> = EMPTY_CONSUMED_STEALTH_EFFECT_INSTANCE_IDS,
   random?: RandomSource,
-): {
-  readonly units: readonly BattleUnit[];
-  readonly stealthConsumptions: readonly StealthConsumption[];
-} {
+): { readonly units: readonly BattleUnit[]; readonly stealthConsumption?: StealthConsumption } {
   const result = resolveTargetsCore(
     selector,
     source,
@@ -1137,5 +1074,10 @@ export function resolveTargetsWithStealthConsumption(
     alreadyConsumedStealthEffectInstanceIds,
     { mode: "COMMIT", random },
   );
-  return { units: result.selected, stealthConsumptions: result.stealthConsumptions };
+  return {
+    units: result.selected,
+    ...(result.stealthConsumption !== undefined
+      ? { stealthConsumption: result.stealthConsumption }
+      : {}),
+  };
 }
