@@ -13,6 +13,7 @@ import {
   skillPowerBonusEffect,
   skillPowerModifierEffect,
 } from "../../../testing/fixtures/damage-application.js";
+import { reproduceDamageCalculated } from "../../../testing/audit/damage-calculated-identity.js";
 
 function damageCalculatedPayloads(context: DamageEventContext): readonly Record<string, unknown>[] {
   return context.recorder
@@ -132,6 +133,32 @@ describe("skill power bonus on damage application (R-DMG-08)", () => {
         finalDamage: 75,
       });
     }
+  });
+
+  it("UT-R-DMG-08-027 [R-NUM-02]: the recorded calculation terms reproduce the final damage at the truncation boundary", () => {
+    const context = damageEventContext();
+    const attacker: BattleUnit = {
+      ...unit("ATTACKER", "ALLY", { attack: 1010 }),
+      appliedEffects: [skillPowerBonusEffect("EF_SPB", "ATTACKER", 0.075)],
+    };
+    const target = unit("TARGET", "ENEMY", { defense: 10, maximumHp: 5000 });
+    const action = damageAction();
+    const result = applyDamageAction(
+      attacker,
+      [hit("TARGET", 0)],
+      { ...action, payload: { ...action.payload, formula: { kind: "SKILL_POWER", power: 0.848 } } },
+      [attacker, target],
+      new SequenceRandomSource([]),
+      context,
+    );
+
+    // 基礎ダメージ1000 × (84.8 + 7.5) = 923。binary64の和のままでは922になる境界。
+    expect(result.units.find((u) => u.battleUnitId === target.battleUnitId)?.currentHp).toBe(
+      5000 - 923,
+    );
+    const [payload] = damageCalculatedPayloads(context);
+    expect(payload).toMatchObject({ skillPower: 0.848, skillPowerBonus: 0.075, finalDamage: 923 });
+    expect(reproduceDamageCalculated(payload!).finalDamage).toBe(923);
   });
 
   it("UT-R-DMG-08-021: also adds the bonus to the holder's follow-up attack", () => {

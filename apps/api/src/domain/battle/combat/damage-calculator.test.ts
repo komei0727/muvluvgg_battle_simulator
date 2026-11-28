@@ -545,6 +545,27 @@ describe("calculateDamage skill power bonus (R-DMG-08)", () => {
     expect(bonused.preTruncationDamage).toBe(direct.preTruncationDamage);
   });
 
+  it("UT-R-DMG-08-025 [R-NUM-02] (boundary): keeps every significant digit of a dynamically evaluated bonus", () => {
+    // 生存割合1/3のような評価値は10進の有限小数ではない。固定桁で丸めると1099へ下がる。
+    const bonused = calculateDamage(
+      input({
+        attackerAttack: 1520,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.4 },
+        skillPowerBonus: 1 / 3,
+      }),
+    );
+    const direct = calculateDamage(
+      input({
+        attackerAttack: 1520,
+        defenderDefense: 20,
+        skillPowerFormula: { kind: "SKILL_POWER", power: 0.4 + 1 / 3 },
+      }),
+    );
+    expect(direct.finalDamage).toBe(1100);
+    expect(bonused.finalDamage).toBe(1100);
+  });
+
   it("UT-R-DMG-08-014: applies the bonus before the multiplicative skill power modifier", () => {
     const result = calculateDamage(
       input({

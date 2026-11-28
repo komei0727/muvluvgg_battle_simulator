@@ -59,6 +59,19 @@ describe("composeSkillPowerBonus (R-DMG-08)", () => {
     expect(composeSkillPowerBonus(attacker)).toBeCloseTo(0.1, 12);
   });
 
+  it("UT-R-DMG-08-026 [R-NUM-02]: sums decimal bonuses to their exact decimal total", () => {
+    const attacker = {
+      ...enemyActor("E1"),
+      appliedEffects: [
+        skillPowerBonusEffect("EF_1", "E1", 0.075),
+        skillPowerBonusEffect("EF_2", "E1", 0.075),
+        skillPowerBonusEffect("EF_3", "E1", 0.075),
+      ],
+    };
+    // binary64 の逐次和は 0.22499999999999998。
+    expect(composeSkillPowerBonus(attacker)).toBe(0.225);
+  });
+
   it("UT-R-DMG-08-019 (negative): ignores multiplicative skill power modifiers and other effects", () => {
     const attacker = {
       ...enemyActor("E1"),

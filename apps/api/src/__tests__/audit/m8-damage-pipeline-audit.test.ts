@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { reproduceDamageCalculated } from "../../testing/audit/damage-calculated-identity.js";
 import { describe, expect, it } from "vitest";
 import type { BattleLogEvent } from "../../application/observation/battle-log-event.js";
 import {
@@ -390,18 +391,8 @@ describe("M8 damage pipeline audit (DMG-011)", () => {
         };
         totalHits++;
 
-        // R-SUB-02の追加ヒットは基礎ダメージの項を持たない（`skillPower`がFormula
-        // 評価結果そのもの）。省略は乗算の中立値1、威力の加算値（R-DMG-08）は0として読む。
-        const rawExpected =
-          num("baseDamage", 1) *
-          Math.max(0, num("skillPower", 1) + num("skillPowerBonus", 0)) *
-          num("skillPowerMultiplier", 1) *
-          num("attributeMultiplier", 1) *
-          num("criticalMultiplier", 1) *
-          num("outgoingDamageMultiplier", 1) *
-          num("incomingDamageMultiplier", 1) *
-          num("actionDamageMultiplier", 1) *
-          num("confusionDamageMultiplier", 1);
+        // 恒等式の倍率群（R-DMG-08の威力の加算を含む）は計算項目だけから評価する。
+        const rawExpected = reproduceDamageCalculated(d).rawPreTruncationDamage;
         const freezeMultiplier = num("freezeMultiplier", 1);
         const guardRate = num("guardRate", 0);
         const thresholdMultiplier = num("thresholdReductionMultiplier", 1);

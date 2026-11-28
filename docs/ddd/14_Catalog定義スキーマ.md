@@ -1394,7 +1394,7 @@ payload:
 | `stacking`   | object             | `STACKABLE`のみ許可。保持している全インスタンスを合計する                                                           |
 | `duration`   | DurationDefinition | 「1ターンの間」は`timeLimit { unit: TURN, count: 1, countGrantTurn: true }`で表す（付与したターンの終了で失効する） |
 
-補正後のスキル威力は`max(0, power + Σ powerDelta) × Π max(0, 1 + rateDelta)`（加算を先、`APPLY_SKILL_POWER_MOD`の乗算を後）。`power + Σ powerDelta`は小数第9位で丸め、和を`power`として直接宣言した場合と同じ結果にする（R-NUM-02）。適用範囲・効果分類は`APPLY_SKILL_POWER_MOD`と同じで、多段攻撃の各ヒット・追撃・PSの反撃にも乗る。
+補正後のスキル威力は`max(0, power + Σ powerDelta) × Π max(0, 1 + rateDelta)`（加算を先、`APPLY_SKILL_POWER_MOD`の乗算を後）。`power + Σ powerDelta`は10進の和として求め、和を`power`として直接宣言した場合と同じ結果にする（R-NUM-02）。適用範囲・効果分類は`APPLY_SKILL_POWER_MOD`と同じで、多段攻撃の各ヒット・追撃・PSの反撃にも乗る。
 
 ### APPLY_STATUS
 
