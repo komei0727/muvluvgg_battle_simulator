@@ -5,7 +5,7 @@ import { readCatalogSource } from "./catalog-src-aggregator.js";
 
 /**
  * `catalog-src/` の変換済み件数の正本。ここで固定する期待件数（変換済み Unit 88 /
- * Memory 48 / EXERCISE_ENEMY 14）が唯一の台帳であり、Unit・Memory を追加・削除する
+ * Memory 48 / EXERCISE_ENEMY 15）が唯一の台帳であり、Unit・Memory を追加・削除する
  * PR は同じ PR でこの期待値を更新する。黙った増減（変換したのに数え漏れる、
  * 消したのに気づかれない）をここで検出する。
  *
@@ -51,6 +51,7 @@ describe("catalog-src/ inventory", () => {
     expect(exerciseEnemies).toEqual([
       "UNIT_ANIS_SWEETDEVIL_TEX",
       "UNIT_AOI_GUARDIAN_TEX",
+      "UNIT_CHIYURU_SKYWING_TEX",
       "UNIT_FLUTE_VAMPIRE_TEX",
       "UNIT_HIIRO_FREEWOLF_TEX",
       "UNIT_LAYLA_NURSE_TEX",

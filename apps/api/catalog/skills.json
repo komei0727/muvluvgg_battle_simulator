@@ -2292,6 +2292,171 @@
     ]
   },
   {
+    "skillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_EX",
+    "skillType": "EX",
+    "cost": { "resource": "EX_GAUGE", "amount": 8 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_RANDOM",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["RANDOM"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_RANDOM" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_EX_DAMAGE" }]
+        },
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_RANDOM" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_EX_DAMAGE_EXTRA" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "推測通り……だね♪", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_AS1",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 2 },
+    "activationCondition": {
+      "kind": "TARGET_SET_COUNT",
+      "target": { "kind": "BINDING", "targetBindingId": "TGT_ALL_ENEMIES" },
+      "op": "GTE",
+      "value": 3
+    },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_ALL_ENEMIES",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": "ALL" }
+        },
+        {
+          "targetBindingId": "TGT_RANDOM",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["RANDOM"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_RANDOM" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE" },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_AP_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE"]
+              }
+            },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS1_PP_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_CHIYURU_SKYWING_TEX_AS1_DAMAGE"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 2 },
+    "traits": {},
+    "metadata": { "displayName": "コンクルージョン・ブラスト+", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_AS2",
+    "skillType": "AS",
+    "cost": { "resource": "AP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [
+        {
+          "targetBindingId": "TGT_PRIMARY",
+          "selector": { "kind": "SELECT", "side": "ENEMY", "count": 1, "order": ["DEFAULT"] }
+        }
+      ],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "BINDING", "targetBindingId": "TGT_PRIMARY" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_AS2_DAMAGE" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "プレゼンスリザルト", "tags": [] }
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_PS1",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "TRIGGER_SOURCE" },
+          "actions": [
+            { "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS1_DAMAGE" },
+            {
+              "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS1_DMG_DOWN",
+              "hitCondition": {
+                "effectActionDefinitionIds": ["ACT_CHIYURU_SKYWING_TEX_PS1_DAMAGE"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 1 },
+    "traits": {},
+    "metadata": { "displayName": "アナライズチェイス+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "DamageApplied",
+        "category": "FACT",
+        "sourceSelector": "ENEMY",
+        "targetSelector": "SELF",
+        "condition": { "kind": "EVENT_PAYLOAD", "field": "skillType", "op": "EQ", "value": "AS" }
+      }
+    ]
+  },
+  {
+    "skillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_PS2",
+    "skillType": "PS",
+    "cost": { "resource": "PP", "amount": 1 },
+    "resolution": {
+      "kind": "IMMEDIATE",
+      "targetBindings": [],
+      "steps": [
+        {
+          "kind": "ACTION",
+          "target": { "kind": "SELF" },
+          "actions": [{ "effectActionDefinitionId": "ACT_CHIYURU_SKYWING_TEX_PS2_SKILL_POWER_UP" }]
+        }
+      ]
+    },
+    "cooldown": { "unit": "ACTION", "count": 0 },
+    "traits": {},
+    "metadata": { "displayName": "イントロダクションライド+", "tags": [] },
+    "triggers": [
+      {
+        "eventType": "TurnStarted",
+        "category": "FACT",
+        "sourceSelector": "SELF",
+        "targetSelector": "SELF",
+        "condition": { "kind": "TURN_NUMBER", "op": "GT", "value": 1 }
+      }
+    ]
+  },
+  {
     "skillDefinitionId": "SKL_CHIZURU_DOMESTIC_EX",
     "skillType": "EX",
     "cost": { "resource": "EX_GAUGE", "amount": 7 },

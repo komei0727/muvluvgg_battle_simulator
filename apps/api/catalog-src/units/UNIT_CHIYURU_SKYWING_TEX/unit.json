@@ -1,0 +1,29 @@
+{
+  "unitDefinitionId": "UNIT_CHIYURU_SKYWING_TEX",
+  "category": "EXERCISE_ENEMY",
+  "exerciseActive": true,
+  "attribute": "CUTE",
+  "unitType": "ENERGY",
+  "role": "CONTROL",
+  "positionAptitudes": ["FRONT", "BACK"],
+  "baseStats": {
+    "maximumHp": 421613,
+    "attack": 14235,
+    "defense": 6957,
+    "criticalRate": 0.18,
+    "actionSpeed": 611,
+    "maximumAp": 4,
+    "maximumPp": 4
+  },
+  "extraGaugeMaximum": 8,
+  "activeSkillDefinitionIds": ["SKL_CHIYURU_SKYWING_TEX_AS1", "SKL_CHIYURU_SKYWING_TEX_AS2"],
+  "passiveSkillDefinitionIds": ["SKL_CHIYURU_SKYWING_TEX_PS1", "SKL_CHIYURU_SKYWING_TEX_PS2"],
+  "extraSkillDefinitionId": "SKL_CHIYURU_SKYWING_TEX_EX",
+  "metadata": {
+    "affiliations": ["AFF_SIRIUS_SUGAR"],
+    "tags": [],
+    "displayName": "【穹に閃く探求の学識】月ヶ瀬ちゆる",
+    "characterName": "月ヶ瀬ちゆる",
+    "characterId": "CHAR_CHIYURU_TSUKIGASE"
+  }
+}

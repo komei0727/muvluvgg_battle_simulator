@@ -183,6 +183,8 @@ describe("catalog-src/ -> catalog/ (Issue #50 production migration)", () => {
         "UNIT_FLUTE_VAMPIRE_TEX",
         // 戦術演習敵ユニット追加: 【隣歩む想い】桃園める
         "UNIT_MERU_BESIDE_TEX",
+        // 戦術演習敵ユニット追加: 【穹に閃く探求の学識】月ヶ瀬ちゆる
+        "UNIT_CHIYURU_SKYWING_TEX",
       ].sort(),
     );
   });
